@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ogclews-link"
+version = "0.0.1"
+description = "Orchestration layer coupling OG-Core (OLG macro) and CLEWS/OSeMOSYS (energy-land-water LP)"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "openpyxl",   # read the CLEWS cost-of-electricity workbooks
+]
+
+# ogcore (and a country calibration such as ogphl) are needed only to drive a solve,
+# not to import the wedge/contract logic. Install them in the same env to run experiments.
+[project.optional-dependencies]
+run = ["ogcore"]
+
+[tool.setuptools]
+packages = ["ogclews_link"]
