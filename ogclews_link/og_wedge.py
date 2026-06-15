@@ -131,22 +131,36 @@ def energy_demand_response(base_C_i, reform_C_i, i_energy: int):
     """
     b = np.asarray(base_C_i, dtype=float)[:, i_energy]
     r = np.asarray(reform_C_i, dtype=float)[:, i_energy]
+    b = np.where(b == 0, np.nan, b)  # guard divide-by-zero (nan, not inf, so np.nanmean tolerates it)
     return 100.0 * (r - b) / b
 
 
-def energy_budget_share_by_group(c_i_path, p_i_path, p_path, i_energy: int, t: int = 0):
-    """Energy's share of consumption spending by lifetime-income group j, at period ``t``.
+def energy_demand_response_by_group(c_i_base, c_i_reform, i_energy: int, n_periods: int = 10):
+    """% change in energy-good consumption by lifetime-income group J.
 
-    The incidence read-out that only OG-Core can give. ``c_i_path`` is the
-    disaggregated consumption array (T, S, J, I); ``p_i_path`` is (T, I) good prices;
-    ``p_path`` is (T,) composite price. Returns a length-J array of energy spending
-    shares (averaged over ages S). Confirm the exact TPI key for disaggregated
-    consumption (``c_i`` vs similar) in OG-Core ``variables.md`` before wiring.
+    ogcore TPI ``c_i`` is (T, I, S, J). Averages over the first ``n_periods`` periods
+    and over ages S, returning a length-J array. This is the incidence read-out only
+    OG-Core can give -- even with homothetic preferences it varies across J through the
+    general-equilibrium and fiscal channels.
     """
-    c = np.asarray(c_i_path, dtype=float)[t]      # (S, J, I)
-    p_i = np.asarray(p_i_path, dtype=float)[t]    # (I,)
-    spend = c * p_i[None, None, :]                # (S, J, I)
-    energy_spend = spend[:, :, i_energy]          # (S, J)
-    total_spend = spend.sum(axis=2)               # (S, J)
-    share = energy_spend / total_spend            # (S, J)
-    return share.mean(axis=0)                     # (J,)
+    b = np.asarray(c_i_base, dtype=float)[:n_periods, i_energy]    # (n, S, J)
+    r = np.asarray(c_i_reform, dtype=float)[:n_periods, i_energy]
+    bm, rm = b.mean(axis=(0, 1)), r.mean(axis=(0, 1))             # (J,)
+    return 100.0 * (rm - bm) / bm
+
+
+def energy_budget_share_by_group(c_i_base, p_i_base, tau_c, i_energy: int, t: int = 0):
+    """Energy's share of consumption expenditure by income group J at period ``t``.
+
+    ``c_i_base`` is (T, I, S, J); ``p_i_base`` is (T, I) good prices; ``tau_c`` is
+    (T, I) consumption-tax rates. Returns a length-J array (averaged over ages S).
+    Under Cobb-Douglas (c_min=0) this is ~uniform == alpha_energy; a nonzero energy
+    c_min makes it fall with income, which is the differential-exposure incidence
+    channel (energy as a necessity).
+    """
+    ci = np.asarray(c_i_base, dtype=float)[t]                      # (I, S, J)
+    pi = np.asarray(p_i_base, dtype=float)[t]                      # (I,)
+    tc = np.asarray(tau_c, dtype=float)[t]                         # (I,)
+    spend = (1.0 + tc)[:, None, None] * pi[:, None, None] * ci     # (I, S, J)
+    share = spend[i_energy] / spend.sum(axis=0)                    # (S, J)
+    return share.mean(axis=0)                                      # (J,)

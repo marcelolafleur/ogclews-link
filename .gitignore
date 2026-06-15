@@ -1,4 +1,5 @@
 exp01_out/
+ogclews_runs/
 __pycache__/
 *.pyc
 *.pkl

@@ -1,52 +1,90 @@
 # ogclews-link
 
-A standalone orchestration layer coupling **OG-Core** (an OLG general-equilibrium macro
-model) and **CLEWS / OSeMOSYS** (a least-cost energy–land–water LP).
+A modular framework for the OG-Core ⇄ CLEWS/OSeMOSYS integration: each economic linkage is
+a small, guard-railed **channel**; experiments are **configuration**; a **CLI** runs them;
+the transforms are **unit-tested without solving**. This is the answer to "how do we manage
+this as it gets complex" — a channel library + config-driven experiments, not a growing pile
+of one-off scripts.
 
-It is the code home for the de novo integration analysis in
-`ogclews-schema/correspondence/og-clews-denovo-analysis.md`. The design principle is the
-one the macro-energy linkage literature settled on: **keep both models independently
-runnable**; the coupling is a separate layer that exchanges **quantities forward**
-(activity/income → energy demand) and **prices/duals back** (energy price, carbon price,
-investment → macro), iterated to the fixed point where the demand OG chooses at the
-returned price equals the demand CLEWS met.
-
-## Why standalone (not in the schema repo, not in MUIOGO yet)
-
-- `ogclews-schema` is a spec/reference repo (and not a git repo); it holds the analysis
-  and the interface contract, not runnable coupling code.
-- `MUIOGO` is the eventual orchestrator, but it is a Flask app currently wired to
-  OSeMOSYS only. Bolting research coupling code into it now entangles the experiment with
-  the app and its release cycle. This package is what MUIOGO will later **import** as its
-  OG-side engine.
-
-## Layout
+## Architecture
 
 ```
 ogclews_link/
-  contract.py       interface contract: ScenarioPair, Concordance, UnitMap (+ PHL defaults)
-  clews_signal.py   energy-price signal from CLEWS (cost-index proxy now; LP dual = rigor)
-  og_wedge.py       inject the energy price into OG-Core; read back demand + incidence
-  iterate.py        the soft-link fixed-point driver (OG pass real; CLEWS re-run = MUIOGO seam)
-experiments/
-  exp01_demand_response.py   first test: does OG energy demand fall when CLEWS says costlier?
+  framework.py   Channel ABC + registry + ExperimentContext + Runner (orchestration)
+  channels.py    the 6 channels (each: verified transform + guardrails + provenance)
+  signals.py     extract signals from CLEWS outputs + OG results (+ the dual stub)
+  country.py     CountryConfig (PHL): paths, indices, concordance, GDP, public-tech tags
+  contract.py    ScenarioPair / Concordance / UnitMap
+  recycle/...    (in channels.py) revenue recycling via alpha_T
+  report.py      macro / demand / incidence read-outs (import-light, tested)
+  clews_io.py    serialize OG->CLEWS artifacts (demand, EmissionsPenalty, DiscountRate)
+  runtime.py     the ONLY ogcore-touching layer: build baseline, solve, apply mortality
+  progress.py    live convergence bar
+  experiments.py named, reproducible experiments
+  cli.py         python -m ogclews_link {list|channels|run <name>}
+tests/test_channels.py   transform-level tests (no ogcore, no solve)
 ```
 
-## The first test
+The split matters: `framework`, `channels`, `signals`, `report` import only numpy/pandas, so
+the economics is unit-testable without ogcore. `runtime` is the only module that imports
+ogcore/ogphl, and the Runner is handed its methods — so the heavy solve is injected, not
+hard-wired.
 
-`exp01` operationalizes the load-bearing feasibility finding: OG households already respond
-to the effective energy price `(1 + tau_c_i) p_i` (EqHH_ciDem2), so the demand-response
-channel is testable on the shipped model with no core change. It derives an energy-price
-ratio from the CLEWS PEP-vs-Base cost export, applies it as a `tau_c` wedge on the energy
-consumption good, solves baseline and reform, and reads the demand response **and its
-incidence across income groups** — the result only OG-Core can give.
+## The channels
 
-Heavy OG solves are guarded behind `RUN_SIM`; with it off the script just builds and prints
-the signal + wedge so the setup can be inspected without a cluster.
+| id | direction | theory | what it does |
+|---|---|---|---|
+| `energy_price` | clews→og | structural | CLEWS energy price → `tau_c` wedge on the energy good → demand response + incidence (+ optional revenue recycle, energy `c_min`) |
+| `investment` | clews→og | structural | CLEWS power capex increment → OG public investment `alpha_I` → crowding-out, debt |
+| `carbon` | policy | structural | one carbon price → OG consumption tax (`tau_c`, recycled) **and** CLEWS `EmissionsPenalty` |
+| `discount_rate` | og→clews | structural | OG equilibrium `r_p` → CLEWS `DiscountRate` |
+| `health` | clews→og | reduced-form | CLEWS emissions → (illustrative dose-response) → OG mortality / `e` / `chi_n` |
+| `demand` | og→clews | structural | OG activity (`Y_m`/`C_i`) → CLEWS energy-service demand scaling |
 
-## Status
+`clews→og` and `policy` channels mutate the OG **reform** params before the reform solve;
+`og→clews` channels run **after** the solve and emit CLEWS input files (the producer side of
+loop closure). The actual CLEWS re-run + dual extraction is the external seam (MUIOGO / the
+solver) — see `signals.commodity_shadow_price`.
 
-Skeleton. The wedge mechanics (routes A `tau_c` and B `Z`) are implemented and unit-testable
-without ogcore; the OG-PHL baseline builder and the dual-based loop closure are stubs marked
-in-code. Three rigor rungs for the energy price (see `og_wedge`): (A) `tau_c` wedge,
-(B) energy-industry `Z`, (C) energy-as-CES-input — a future OG-Core PR, the rigor endpoint.
+## Run
+
+```bash
+PY=/Users/mlafleur/Projects/OG-PHL/.venv/bin/python
+PP=/Users/mlafleur/Projects/ogclews-link
+
+PYTHONPATH=$PP $PY -m ogclews_link list           # named experiments
+PYTHONPATH=$PP $PY -m ogclews_link channels       # registered channels
+PYTHONPATH=$PP $PY -m ogclews_link run clean_incidence --workers 1   # build, apply, solve, report
+```
+
+`--workers 1` uses the single-process threaded client (stable scatter); raise it for the
+multi-process path. Results + any CLEWS input artifacts land under `./ogclews_runs/<name>/`.
+
+## Test (no solve)
+
+```bash
+PYTHONPATH=$PP $PY tests/test_channels.py
+```
+
+Exercises every channel's transform on array fixtures and the real CLEWS readers against the
+actual `v6-Base`/`v6-PEP` files. 12 tests, ~1 second, no ogcore solve.
+
+## Managing complexity: scripts vs UI
+
+- **Now — a config-driven CLI framework (this).** Channels are the unit of reuse; an
+  experiment is a list of `(channel, options)`; the CLI runs any of them reproducibly and the
+  transforms are tested in isolation. This scales to many channels/experiments without
+  duplicating run scripts. Example-style scripts (e.g. `PEP_simulation.py`,
+  `energy_price_simulation.py`) become thin wrappers or are subsumed by named experiments.
+- **Later — a UI (MUIOGO).** Once the channels stabilize, MUIOGO (the GSoC orchestrator) can
+  import this package as its OG-side engine and expose channel selection + scenario building
+  interactively. Build the UI on top of the stable framework, not instead of it.
+
+## Status / honesty
+
+Transforms implemented and tested; the CLEWS→OG channels are fully runnable now; the OG→CLEWS
+channels emit inputs but the CLEWS re-run is external. The `health` dose-response and the
+`carbon`→OG ad-valorem conversion are illustrative and flagged in-code. The energy `c_min`
+must be calibrated below every income group's baseline energy consumption before use. The
+loop-closure (iterate OG↔CLEWS with the commodity **dual**, not the cost-index proxy) is the
+next architectural piece.
