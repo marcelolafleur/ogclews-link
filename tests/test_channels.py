@@ -20,6 +20,8 @@ TS = T + S
 I_E, M_E = PHL.concordance.energy_good_index, PHL.concordance.energy_industry_index
 HAVE_CLEWS = os.path.isdir(PHL.scenario.base_dir) and os.path.isdir(PHL.scenario.reform_dir)
 _MUIOGO_RUN = "/Users/mlafleur/Projects/MUIOGO/WebAPP/DataStorage/CLEWs Demo/res/REF"
+_GBD_HIV_CSV = ("/Users/mlafleur/Projects/CostOfDisease/source/JDE/hiv-data/"
+                "IHME-GBD_2023_DATA-ddf37f70-1/IHME-GBD_2023_DATA-ddf37f70-1.csv")
 
 
 def _params():
@@ -155,6 +157,22 @@ def test_health_profile_shape():
     h = health_profile.placeholder_profile()
     assert h.shape == (100,) and abs(h.max() - 1.0) < 1e-9        # peak-1 relative shape
     assert h[80] > h[30]                                          # elderly-skewed (pollution mortality)
+
+
+def test_gbd_profile_and_total_from_real_export():
+    # Validate the GBD readers against a REAL IHME export (HIV/South-Africa stands in for the PHL
+    # ambient-PM2.5 pull -- identical format) so the pipeline is proven before the real CSV lands.
+    from ogclews_link import health_profile
+    if not os.path.isfile(_GBD_HIV_CSV):
+        print("  (skip: GBD export absent)"); return
+    h = health_profile.build_profile_from_gbd(
+        _GBD_HIV_CSV, location_name="South Africa", year=2023,
+        key_col="cause_name", key_value="HIV/AIDS")           # PHL PM2.5 -> rei_name/Ambient... instead
+    assert h.shape == (100,) and abs(h.max() - 1.0) < 1e-9       # peak-1 age shape from real GBD rates
+    tot = health_profile.total_deaths_from_gbd(
+        _GBD_HIV_CSV, location_name="South Africa", year=2023,
+        key_col="cause_name", key_value="HIV/AIDS")
+    assert tot > 0                                               # total deaths (excess_deaths target)
 
 
 def test_clews_capex_reader():

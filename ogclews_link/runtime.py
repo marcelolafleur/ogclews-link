@@ -79,15 +79,18 @@ class Runtime:
                       "mort_rates": pop[4], "infmort_rates": pop[5], "imm_rates": pop[6]}
         return p, {"io_df": io_df}
 
-    def solve(self, p):
+    def solve(self, p, time_path=True):
         from ogcore.execute import runner
         from ogcore.utils import safe_read_pickle
 
         label = "baseline" if p.baseline else "reform"
         with make_client(self.num_workers) as client, \
                 solve_progress(getattr(p, "mindist_TPI", 1e-5), label, enabled=self.show_progress):
-            runner(p, time_path=True, client=client)
-        return safe_read_pickle(os.path.join(p.output_base, "TPI", "TPI_vars.pkl"))
+            runner(p, time_path=time_path, client=client)
+        # time_path=False solves the steady state only -- fast, and enough to surface the SS
+        # "aggregate resource constraint not satisfied" failure without the full transition path.
+        sub = ("TPI", "TPI_vars.pkl") if time_path else ("SS", "SS_vars.pkl")
+        return safe_read_pickle(os.path.join(p.output_base, *sub))
 
     def apply_health_shock(self, p, spec):
         """Recompute the population under an AGE-PROFILE mortality shock -- the disease_pop

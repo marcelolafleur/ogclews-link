@@ -1,7 +1,9 @@
 """Disentangle whether the mortality SS failure is SIGN (lives saved vs added) or MAGNITUDE.
 Uses the built-in get_pop_objs + disease_pop's exact additive age-profile shock construction, with
-a directly-controlled shock_scale, reusing the saved baseline. Reports year-5 deaths change +
-convergence for each. (negative shock_scale = mortality DOWN = lives saved = the pollution direction.)
+a directly-controlled shock_scale, reusing the saved baseline. SS-ONLY solve per scale (the failure
+is an SS resource-constraint error, so the transition path is unnecessary -- much faster). A
+SYMMETRIC grid (small/large x down/up) separates sign from magnitude cleanly.
+(negative shock_scale = mortality DOWN = lives saved = the pollution/cleaner-air direction.)
 
     PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
       /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/sweep_mortality.py
@@ -60,14 +62,15 @@ def main():
         pr.__dict__.pop("_e_long_cache", None)
         pr.update_specifications(pd)
         tag = f"shock_scale={scale:+.5f}  (year-5 deaths {d:+,.0f} -> {'lives saved' if d < 0 else 'deaths added'})"
-        print(f"\n=== SOLVING {tag} ===")
+        print(f"\n=== SOLVING (SS-only) {tag} ===")
         try:
-            tpi = rt.solve(pr)
-            print(f"[CONVERGED] {tag}  Y={np.nanmean(report.macro_pct_diff(base_tpi, tpi)['Y']):+.3f}%")
+            rt.solve(pr, time_path=False)   # SS only: surfaces the resource-constraint failure fast
+            print(f"[CONVERGED] {tag}")
         except Exception as e:  # noqa: BLE001
-            print(f"[FAILED]    {tag}  {type(e).__name__}")
+            print(f"[FAILED]    {tag}  {type(e).__name__}: {e}")
 
-    for scale in (-0.0002, -0.002, +0.0002):   # small down, larger down, small up
+    # symmetric grid: large/small x down/up -> isolates SIGN (down fails, up solves) from MAGNITUDE
+    for scale in (-0.002, -0.0002, +0.0002, +0.002):
         run(scale)
 
 

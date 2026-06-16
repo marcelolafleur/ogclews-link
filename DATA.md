@@ -18,29 +18,40 @@ Download it from the IHME GBD Results tool and point the channel at it.
 - Cause: **All causes** (`cause_id 294`)
 - Location: **Philippines** (`location_id 16`)
 - Sex: **Both** (`sex_id 3`)
-- Measure: **Deaths** (`measure_id 1`); Metric: **Rate** (`metric_id 3`, deaths per 100,000)
+- Measure: **Deaths** (`measure_id 1`); Metric: pull **both Rate** (`metric_id 3`, per 100,000 —
+  gives the age shape `h(s)`) **and Number** (`metric_id 1` — gives the total attributable deaths,
+  i.e. the `disease_pop` `excess_deaths` target). One export yields both inputs.
 - Age: the fine bins `<1 year`, `12-23 months`, `2-4 years`, then 5-year groups `5-9`…`90-94`, and `95+ years`
+  (the `Number` total can also come from the `All ages` row)
 - Year: latest available
 
-Save the CSV, then build the 100-age profile (same logic as the HIV builder):
+Save the CSV, then build BOTH the age shape and the total (same logic as the HIV builder):
 
 ```python
 from ogclews_link import health_profile
-h = health_profile.build_profile_from_gbd(
-    "<path>/IHME-GBD_pm25_PHL.csv", location_name="Philippines", year=2023,
-    key_col="rei_name", key_value="Ambient particulate matter pollution")
-# then run the health channel with profile_path=<saved profile>, or pass `h` directly.
+kw = dict(location_name="Philippines", year=2023,
+          key_col="rei_name", key_value="Ambient particulate matter pollution")
+h = health_profile.build_profile_from_gbd("<path>/IHME-GBD_pm25_PHL.csv", **kw)   # age shape h(s), peak 1
+excess = health_profile.total_deaths_from_gbd("<path>/IHME-GBD_pm25_PHL.csv", **kw)  # total deaths = excess_deaths target
+# then run the health channel with this profile + excess_deaths target (both GBD-sourced).
 ```
 
-(A GBD *risk* export keys on `rei_name`, not `cause_name` — `build_profile_from_gbd`
-handles that via `key_col`.)
+(A GBD *risk* export keys on `rei_name`, not `cause_name` — both readers handle that via `key_col`.
+The readers are tested against the real HIV/SA export in `tests/test_channels.py`, so they are proven
+before the PHL CSV arrives.)
 
-## 2. The dose-response and morbidity magnitudes (required, placeholder now)
+## 2. The dose-response and morbidity magnitudes
 
-- `mortality_response` (emissions change → `kappa`): currently a placeholder scalar. The
-  defensible version derives expected change in pollution-attributable deaths from the CLEWS
-  emissions change (ideally PM2.5, not CO2e) × a concentration-response (GBD relative risks /
-  IER), then sets `kappa` (or solves it to a deaths target, as CostOfDisease does with `brentq`).
+- **Mortality total — now GBD-sourceable directly.** The `excess_deaths` target (how many PHL deaths
+  the cleaner CLEWS reform avoids) can be read straight from the GBD `Number` export above via
+  `total_deaths_from_gbd`, then scaled by the *fraction* of ambient-PM2.5 emissions the reform removes
+  (the CLEWS base→reform PM2.5 change). That replaces the old placeholder `kappa`: the magnitude is
+  GBD-anchored, and `disease_pop` solves the per-age `shock_scale` to hit it. (A finer version derives
+  the deaths change from the PM2.5 concentration-response / IER rather than scaling the GBD total
+  linearly — a refinement, not a blocker.)
+- `morbidity_response` (emissions change → effective-labor `e` haircut): placeholder. CostOfDisease
+  builds its labor wedge from absenteeism/impairment studies (ILO, Keogh et al.); the pollution
+  analogue would use working-age morbidity (e.g. low-birthweight, cardiopulmonary work-loss).
 - `morbidity_response` (emissions change → effective-labor `e` haircut): placeholder. CostOfDisease
   builds its labor wedge from absenteeism/impairment studies (ILO, Keogh et al.); the pollution
   analogue would use working-age morbidity (e.g. low-birthweight, cardiopulmonary work-loss).

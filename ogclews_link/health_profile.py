@@ -76,6 +76,39 @@ def build_profile_from_gbd(csv_path: str, location_name: str, year: int,
     return _to_shape(np.maximum(out, 0.0))
 
 
+def total_deaths_from_gbd(csv_path: str, location_name: str, year: int,
+                          key_col: str = "rei_name",
+                          key_value: str = "Ambient particulate matter pollution") -> float:
+    """Total attributable deaths -- the ``excess_deaths`` TARGET for the disease_pop calibration --
+    from the SAME IHME GBD export used for h(s), via its ``Number`` metric (deaths counts, not the
+    per-100k rate). Prefers an 'All ages' row; otherwise sums the fine non-overlapping age bins.
+
+    Pairing this with build_profile_from_gbd makes BOTH the age shape AND the magnitude GBD-sourced
+    (COD-HIV took the shape from GBD but the total from a separate estimate; for pollution GBD gives
+    both). For a *risk* export use key_col='rei_name'; for a *cause* export use key_col='cause_name'.
+    """
+    bin_labels = {g[0] for g in GBD_GROUPS}
+    all_ages, bin_total, seen = None, 0.0, set()
+    with open(csv_path, newline="") as f:
+        for row in csv.DictReader(f):
+            if not (row.get("location_name") == location_name and row.get("sex_name") == "Both"
+                    and int(row["year"]) == year and row.get("measure_name") == "Deaths"
+                    and row.get(key_col) == key_value and row.get("metric_name") == "Number"):
+                continue
+            age = row.get("age_name")
+            if age == "All ages":
+                all_ages = float(row["val"])
+            elif age in bin_labels and age not in seen:
+                seen.add(age)
+                bin_total += float(row["val"])
+    if all_ages is not None:
+        return all_ages
+    if seen:
+        return bin_total
+    raise ValueError(f"GBD CSV has no 'Number' (deaths-count) rows for "
+                     f"{key_value}/{location_name}/{year}")
+
+
 def placeholder_profile(num_ages: int = 100) -> np.ndarray:
     """PLACEHOLDER elderly-skewed age shape (peak 1) -- NOT calibrated. Pollution-attributable
     mortality concentrates at older ages (cardiopulmonary); this is a smooth stand-in until the
