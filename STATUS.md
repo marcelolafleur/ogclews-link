@@ -81,23 +81,28 @@ Decisions (do not relitigate without reason):
   honestly degrades to one pass. This is the one plumbing gap to *run* the full bidirectional loop.
 - **Unit/deflator bridge** (`contract.UnitMap.deflator` is a placeholder) → carbon/investment
   *magnitudes* are illustrative. Needed to *trust* quantitative claims.
-- **Health channel — mortality side FAILS the SS resource constraint; fix identified (ACTIVE 2026-06-16).**
-  Isolation runs (reusing the saved baseline at `ogclews_runs/validate_health/health/baseline` — do
-  NOT re-solve the baseline) show: **morbidity-only (the `e` edit) CONVERGES** (Y +0.012%, sensible);
-  **mortality-only FAILS** ("Steady state aggregate resource constraint not satisfied"). Root cause:
-  `runtime.apply_health_shock` HAND-ROLLS the demographic recompute with a tiny, uncalibrated
-  emissions-derived `kappa` (≈ −0.0005); the **built-in `disease_pop`** (CostOfDisease
-  `code/get_pop_data.py`), which calibrates the shock via `brentq` to a *deaths target* + the age
-  profile h(s), **CONVERGES cleanly for PHL** (tested via `experiments/test_builtin_pop.py`, SS RC
-  ~1e-11). **FIX:** replace the hand-rolled `apply_health_shock` with a call to the built-in
-  `disease_pop` (age profile + `excess_deaths` target). The deaths target = pollution deaths avoided
-  = f(emissions change, concentration-response, total PH PM2.5 deaths) — the PM2.5 research workflow
-  is fetching those. Morbidity (`e`, shape (T,S,J) → j-aware) works as-is. Per the user: *use the
-  built-in functions — they form the matrices correctly* (the demographics aren't broken; the
-  hand-roll is). Diagnostic/test scripts in `experiments/`: `diagnose_health` (no-solve sanity),
-  `solve_health_variants` (mortality vs morbidity isolation), `test_builtin_pop` (built-in disease_pop
-  / health_pop), `validate_health` (full). NOTE: j-distribution of *deaths* by income needs a model
-  extension (mortality `rho` is (T+S,S), no j dimension) — a direction the user is examining.
+- **Health channel — mortality fails ONLY in the lives-saved direction: SIGN, not magnitude;
+  DECISION = make the shock accept negative targets (ACTIVE 2026-06-16).**
+  A symmetric SS-only sweep (`experiments/sweep_mortality.py`, reusing the saved baseline at
+  `ogclews_runs/validate_health/health/baseline` — do NOT re-solve it) is conclusive: at matched
+  magnitudes **deaths-added CONVERGES** (+1,677 and +16,741 deaths/yr both solve) while **lives-saved
+  FAILS** ("Steady state aggregate resource constraint not satisfied"; −1,677 and −16,800 both). So
+  *reducing* mortality (cleaner air → faster population growth) breaks OG-PHL's SS at ANY magnitude —
+  it is NOT the hand-roll or calibration (the hand-roll and `disease_pop` apply identical mechanics).
+  The built-in `disease_pop` "works" only because it just ADDS deaths: its `brentq` brackets `[0, +∞)`
+  (the COD cost-of-disease direction). The natural pollution framing (cleaner reform → fewer deaths →
+  mortality DOWN) is exactly the failing direction. **DECISION (user):** investigate generalizing
+  `disease_pop`/`brentq` to accept a NEGATIVE `excess_deaths` (lives-saved) target rather than a
+  reframe. Suspected cause of the down-failure: OG-Core SS / open-economy closure can't converge to
+  the higher `g_n` from the baseline guesses — confirm WITHOUT touching OG-Core. Morbidity (`e`,
+  (T,S,J)) CONVERGES both directions and is unaffected. **GBD now sources BOTH inputs** (tested vs the
+  real HIV/SA export): `health_profile.build_profile_from_gbd` → age shape h(s); NEW
+  `health_profile.total_deaths_from_gbd` → the deaths-count target (GBD `Number` metric). The PHL
+  ambient-PM2.5 GBD CSV still needs a manual IHME download (DATA.md; pull metric Rate + Number).
+  Scripts in `experiments/`: `sweep_mortality` (symmetric SS-only sweep — the decisive one),
+  `diagnose_health`, `solve_health_variants`, `test_builtin_pop`, `validate_health`. NOTE:
+  j-distribution of *deaths* by income needs a model extension (mortality `rho` is (T+S,S), no j) —
+  a direction the user is examining.
 - **PHL-wiring debts** (portability): `runtime.build_baseline` hardcodes `ogphl` + `p.M,p.I=4,5`
   + PHL guesses AND reaches into `~/Projects/CLEWS-OG/OG_simulations` (a `sys.path` hack) for
   `PROD_DICT`/`get_pop_data`; `country.py` hardcodes absolute CLEWS paths; `cli.py` hardcodes PHL.
@@ -217,3 +222,12 @@ the event loop under numba → serial fallback. Never `--workers 1` for real run
   `CLEWs Demo/res/REF` sample). Added a run manifest (`manifest.py`) + `--clews-run` flag and the
   `ogclews-link` console entry point. 19/19 transform tests pass; adversarially reviewed. All
   independent of the health fix — no health-owned symbol touched.
+- **2026-06-16 (health diagnosis)** — Resolved the mortality solve failure: a symmetric SS-only
+  sweep proves it is **SIGN, not magnitude** — lives-saved (mortality down) fails the SS at any
+  size; deaths-added converges. `disease_pop`/`brentq` only add deaths (`[0, +∞)`). **Decision
+  (user): investigate generalizing the shock to accept negative (lives-saved) targets**, not a
+  reframe. Added `health_profile.total_deaths_from_gbd` (GBD `Number` → deaths target) so GBD now
+  supplies BOTH the age shape and the total; both readers tested vs the real HIV/SA export. 20/20
+  transform tests pass. Added SS-only mode to `runtime.solve(time_path=False)`. The PHL ambient-PM2.5
+  GBD CSV still needs a manual IHME download (DATA.md). Next: try negative-target `brentq` bracketing
+  + confirm whether the down-failure is an OG-Core SS-closure limit (without touching OG-Core).
