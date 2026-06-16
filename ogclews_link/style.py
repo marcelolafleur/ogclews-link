@@ -1,0 +1,159 @@
+"""Editorial house style for the coupled-run figures -- an FT / Economist / OWID-grade
+matplotlib theme plus the layout helpers that separate a publication graphic from script
+output. Grounded in a data-viz research pass (FT o-colors, Economist red, Okabe-Ito
+colorblind-safe categorical, Datawrapper/Roboto, Wilke's "Fundamentals") and an adversarial
+critique of the prior figures.
+
+Use: `from . import style; style.apply()` then the helpers (title_block, clean, zero_line,
+label_ends, save). The theme is idempotent; helpers take a matplotlib fig/ax.
+
+Typography: stack prefers Source Sans 3 (the editorial target) and falls through to Roboto
+(already present on macOS, Datawrapper's own default) -- so figures look right with no install,
+and auto-upgrade if Source Sans 3 / Inter are dropped into ~/Library/Fonts.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib import font_manager as fm
+
+# --- palette: editorial, colorblind-safe -----------------------------------------
+INK, SUB, MUTE, GRID = "#222222", "#555555", "#888888", "#E6E6E6"
+# diverging gains vs losses, centered on a neutral zero (RdBu poles: CB-safe, not traffic-light)
+LOSS, GAIN, NEUTRAL = "#B2182B", "#2166AC", "#F7F7F7"
+TOTAL = "#33302E"
+# categorical: Okabe-Ito-derived + FT oxford / Economist red -- evenly spaced hues, CB-safe
+CATEGORICAL = ["#0F5499", "#E3120B", "#0D7680", "#E69F00", "#7A6FAC", "#7F8C8D"]
+# sequential blue ramp for ordered income groups (poorest -> richest)
+SEQUENTIAL = ["#C6DBEF", "#9ECAE1", "#6BAED6", "#4292C6", "#2171B5", "#08519C", "#08306B"]
+# kicker accent colors
+CLARET, OXFORD, TEAL = "#990F3D", "#0F5499", "#0D7680"
+
+_FONT_STACK = ["Source Sans 3", "Source Sans Pro", "Inter", "Roboto",
+               "Helvetica Neue", "Arial", "DejaVu Sans"]
+
+
+def _register_local_fonts():
+    """Make matplotlib see editorial fonts without rebuilding its global cache: user-installed
+    (~/Library/Fonts) and any bundled with the package (assets/fonts)."""
+    home = Path.home() / "Library" / "Fonts"
+    pats = ("SourceSans3-*.[ot]tf", "SourceSansPro-*.[ot]tf", "Inter-*.[ot]tf",
+            "Inter*.[ot]tf", "IBMPlexSans-*.[ot]tf", "Roboto-*.ttf")
+    paths = []
+    if home.is_dir():
+        for pat in pats:
+            paths += home.glob(pat)
+    bundled = Path(__file__).with_name("assets") / "fonts"
+    if bundled.is_dir():
+        paths += list(bundled.glob("*.ttf")) + list(bundled.glob("*.otf"))
+    for f in paths:
+        try:
+            fm.fontManager.addfont(str(f))
+        except Exception:  # noqa: BLE001 -- a bad font file must not break plotting
+            pass
+
+
+_applied = False
+
+
+def apply():
+    """Install the theme into matplotlib's rcParams (idempotent)."""
+    global _applied
+    if _applied:
+        return
+    _register_local_fonts()
+    mpl.rcParams.update({
+        # typography
+        "font.family": "sans-serif", "font.sans-serif": _FONT_STACK, "font.size": 10.5,
+        "text.color": INK,
+        # titles / labels (we mostly drive titles via title_block; these are panel-label defaults)
+        "axes.titlesize": 11, "axes.titleweight": "regular", "axes.titlecolor": SUB,
+        "axes.titlelocation": "left", "axes.titlepad": 7,
+        "axes.labelsize": 10.5, "axes.labelcolor": SUB,
+        # ticks: no marks, gridlines carry the scale
+        "xtick.labelsize": 9.5, "ytick.labelsize": 9.5,
+        "xtick.color": SUB, "ytick.color": SUB, "xtick.labelcolor": SUB, "ytick.labelcolor": SUB,
+        "xtick.major.size": 0, "ytick.major.size": 0, "xtick.major.pad": 5, "ytick.major.pad": 5,
+        # spines: open frame (top/right off everywhere; left toggled per-chart)
+        "axes.spines.top": False, "axes.spines.right": False,
+        "axes.spines.left": True, "axes.spines.bottom": True,
+        "axes.edgecolor": "#333333", "axes.linewidth": 0.8,
+        # grid: faint, horizontal, behind data
+        "axes.grid": True, "axes.grid.axis": "y", "grid.color": GRID, "grid.linewidth": 0.7,
+        "axes.axisbelow": True,
+        # backgrounds: clean white
+        "figure.facecolor": "white", "axes.facecolor": "white", "savefig.facecolor": "white",
+        # editorial colorblind-safe cycle
+        "axes.prop_cycle": mpl.cycler(color=CATEGORICAL),
+        # lines / markers
+        "lines.linewidth": 2.2, "lines.solid_capstyle": "round", "lines.markersize": 6,
+        # crisp, font-embedded output
+        "figure.dpi": 100, "savefig.dpi": 200, "savefig.bbox": "tight", "savefig.pad_inches": 0.3,
+        "svg.fonttype": "none", "pdf.fonttype": 42, "ps.fonttype": 42,
+        "axes.unicode_minus": False,
+    })
+    _applied = True
+
+
+# --- layout helpers ---------------------------------------------------------------
+
+def title_block(fig, title, subtitle=None, source=None, kicker=None,
+                kicker_color=CLARET, x=0.045, top=0.965):
+    """Left-aligned title block in figure coords (aligns to the figure, not the axes -- the
+    key tell vs suptitle): a colored kicker rule + UPPERCASE category tag, a bold claim
+    headline, a grey dek, and a grey source line bottom-left. Call after laying out axes;
+    reserve room with fig.subplots_adjust(top=~0.78) so it sits in the gap above the plot."""
+    y = top
+    if kicker:
+        fig.add_artist(plt.Line2D([x, x + 0.06], [y, y], color=kicker_color, lw=3,
+                                  solid_capstyle="butt", transform=fig.transFigure))
+        fig.text(x, y - 0.016, kicker.upper(), color=kicker_color, fontsize=9,
+                 fontweight="bold", ha="left", va="top")
+        y -= 0.050
+    fig.text(x, y, title, fontsize=15, fontweight="bold", color=INK, ha="left", va="top")
+    if subtitle:
+        fig.text(x, y - 0.046, subtitle, fontsize=11, color=SUB, ha="left", va="top")
+    if source:
+        fig.text(x, 0.008, source, fontsize=8, color=MUTE, ha="left", va="bottom")
+
+
+def clean(ax, left=False, grid="y"):
+    """Standard chrome removal: drop top/right (and left unless asked), no tick marks, faint
+    single-direction grid behind the data."""
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_visible(left)
+    ax.spines["bottom"].set_color("#333333")
+    ax.tick_params(length=0)
+    ax.set_axisbelow(True)
+    if grid:
+        ax.grid(True, axis=grid, color=GRID, lw=0.7)
+        ax.grid(False, axis=("x" if grid == "y" else "y"))
+    else:
+        ax.grid(False)
+
+
+def zero_line(ax, axis="y", value=0.0):
+    """A considered zero reference for signed data."""
+    (ax.axhline if axis == "y" else ax.axvline)(value, color="#333333", lw=1.0, zorder=1.5)
+
+
+def label_ends(ax, points, dx=6):
+    """Direct end-of-line labels in the series color (kills the legend box). points: iterable
+    of (x, y, text, color). Caller should widen the right margin to fit."""
+    for x, y, text, color in points:
+        ax.annotate(text, (x, y), xytext=(dx, 0), textcoords="offset points",
+                    color=color, fontsize=10, fontweight="medium", va="center", ha="left")
+
+
+def signed(vals, gain=GAIN, loss=LOSS):
+    """Diverging color per value sign (gains vs losses)."""
+    return [loss if v < 0 else gain for v in vals]
+
+
+def save(fig, path):
+    fig.savefig(path)
+    plt.close(fig)
+    return path
