@@ -81,8 +81,23 @@ Decisions (do not relitigate without reason):
   honestly degrades to one pass. This is the one plumbing gap to *run* the full bidirectional loop.
 - **Unit/deflator bridge** (`contract.UnitMap.deflator` is a placeholder) → carbon/investment
   *magnitudes* are illustrative. Needed to *trust* quantitative claims.
-- **Health channel convergence** rebuilt on the disease_pop age-profile method but NOT yet
-  confirmed in a full run (the 4-step batch is pending).
+- **Health channel — mortality side FAILS the SS resource constraint; fix identified (ACTIVE 2026-06-16).**
+  Isolation runs (reusing the saved baseline at `ogclews_runs/validate_health/health/baseline` — do
+  NOT re-solve the baseline) show: **morbidity-only (the `e` edit) CONVERGES** (Y +0.012%, sensible);
+  **mortality-only FAILS** ("Steady state aggregate resource constraint not satisfied"). Root cause:
+  `runtime.apply_health_shock` HAND-ROLLS the demographic recompute with a tiny, uncalibrated
+  emissions-derived `kappa` (≈ −0.0005); the **built-in `disease_pop`** (CostOfDisease
+  `code/get_pop_data.py`), which calibrates the shock via `brentq` to a *deaths target* + the age
+  profile h(s), **CONVERGES cleanly for PHL** (tested via `experiments/test_builtin_pop.py`, SS RC
+  ~1e-11). **FIX:** replace the hand-rolled `apply_health_shock` with a call to the built-in
+  `disease_pop` (age profile + `excess_deaths` target). The deaths target = pollution deaths avoided
+  = f(emissions change, concentration-response, total PH PM2.5 deaths) — the PM2.5 research workflow
+  is fetching those. Morbidity (`e`, shape (T,S,J) → j-aware) works as-is. Per the user: *use the
+  built-in functions — they form the matrices correctly* (the demographics aren't broken; the
+  hand-roll is). Diagnostic/test scripts in `experiments/`: `diagnose_health` (no-solve sanity),
+  `solve_health_variants` (mortality vs morbidity isolation), `test_builtin_pop` (built-in disease_pop
+  / health_pop), `validate_health` (full). NOTE: j-distribution of *deaths* by income needs a model
+  extension (mortality `rho` is (T+S,S), no j dimension) — a direction the user is examining.
 - **PHL-wiring debts** (portability): `runtime.build_baseline` hardcodes `ogphl` + `p.M,p.I=4,5`
   + PHL guesses AND reaches into `~/Projects/CLEWS-OG/OG_simulations` (a `sys.path` hack) for
   `PROD_DICT`/`get_pop_data`; `country.py` hardcodes absolute CLEWS paths; `cli.py` hardcodes PHL.
