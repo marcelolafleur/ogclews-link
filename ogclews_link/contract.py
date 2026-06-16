@@ -2,7 +2,7 @@
 
 Everything that must be agreed for a coupling to be reproducible lives here, as
 explicit, reviewable data -- not buried in a run script. See the de novo analysis
-(ogclews-schema/correspondence/og-clews-denovo-analysis.md), section 5/6.
+(docs/design/og-clews-denovo-analysis.md), section 5/6.
 """
 from __future__ import annotations
 
