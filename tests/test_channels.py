@@ -142,10 +142,18 @@ def test_health_reads_clews():
         print("  (skip: CLEWS dirs absent)"); return
     ctx = _ctx()
     e0 = np.asarray(ctx.og_reform.e).copy()
-    prov = get("health").apply(ctx, affects=("e", "chi_n", "mortality"))
+    prov = get("health").apply(ctx, affects=("mortality", "e"))
     assert "emissions_change" in prov
-    assert ctx.extras.get("mortality_effect") is not None
-    assert not np.allclose(np.asarray(ctx.og_reform.e), e0)        # productivity path moved
+    shock = ctx.extras.get("health_shock")                        # disease_pop spec for the runtime
+    assert shock is not None and "kappa" in shock and len(shock["profile"]) == 100
+    assert not np.allclose(np.asarray(ctx.og_reform.e), e0)       # morbidity productivity path moved
+
+
+def test_health_profile_shape():
+    from ogclews_link import health_profile
+    h = health_profile.placeholder_profile()
+    assert h.shape == (100,) and abs(h.max() - 1.0) < 1e-9        # peak-1 relative shape
+    assert h[80] > h[30]                                          # elderly-skewed (pollution mortality)
 
 
 def test_clews_capex_reader():

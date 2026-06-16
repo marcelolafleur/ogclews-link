@@ -89,27 +89,52 @@ class Runtime:
             runner(p, time_path=True, client=client)
         return safe_read_pickle(os.path.join(p.output_base, "TPI", "TPI_vars.pkl"))
 
-    def apply_mortality(self, p, effect, time_horizon=15):
-        """Recompute the population with an air-quality mortality effect (health channel),
-        the way PEP_simulation.py does it (via get_pop_data.health_pop), then update p."""
-        sys.path.insert(0, CLEWS_OG_SIM)
-        import get_pop_data
+    def apply_health_shock(self, p, spec):
+        """Recompute the population under an AGE-PROFILE mortality shock -- the disease_pop
+        method (DeBacker/Evans/LaFleur, CostOfDisease): alt_mort = clip(mort0 + kappa*g_t*h(s),
+        0, 1), phased in over phase_years, then ogcore.demographics.get_pop_objs rebuilds the
+        whole population path. h(s) is a peak-1 age shape; kappa carries the magnitude/sign
+        (negative kappa = cleaner air -> fewer deaths -> bigger population)."""
+        from ogcore import demographics
 
         aux = getattr(p, "_pop_aux", None)
         if aux is None:
-            print("[runtime] no pop aux on params; skipping mortality effect")
+            print("[runtime] no pop aux; skipping health mortality shock")
             return p
-        p.__dict__.pop("_e_long_cache", None)  # ogcore memoizes e; bust it so reform e edits take effect
+        p.__dict__.pop("_e_long_cache", None)
+        kappa = float(spec["kappa"])
+        h = np.asarray(spec["profile"], dtype=float)
+        ny = int(spec.get("phase_years", 5))
         un = getattr(p, "_un_code", None) or "608"
-        new_pop, _deaths = get_pop_data.health_pop(
-            p, aux["pop_dist"], aux["pre_pop_dist"], aux["fert_rates"], aux["mort_rates"],
-            aux["infmort_rates"], aux["imm_rates"], un,
-            mort_effect=effect, time_horizon=time_horizon)
-        p.update_specifications(new_pop)
+
+        def _ext_age(a):  # extrapolate an (years, ages) path to ny rows (repeat last row)
+            a = np.atleast_2d(np.asarray(a, dtype=float))
+            return a[:ny] if a.shape[0] >= ny else np.vstack([a, np.repeat(a[-1:], ny - a.shape[0], 0)])
+
+        def _ext_yr(a):   # extrapolate a per-year scalar series (infant mortality) to ny
+            a = np.ravel(np.asarray(a, dtype=float))
+            return a[:ny] if a.shape[0] >= ny else np.concatenate([a, np.repeat(a[-1:], ny - a.shape[0])])
+
+        mort = _ext_age(aux["mort_rates"])
+        fert, imm = _ext_age(aux["fert_rates"]), _ext_age(aux["imm_rates"])
+        infmort = _ext_yr(aux["infmort_rates"])
+        nage = mort.shape[1]
+        if len(h) != nage:  # match the profile to the model's age dimension
+            h = np.interp(np.linspace(0, 1, nage), np.linspace(0, 1, len(h)), h)
+        alt_mort = mort.copy()
+        for t in range(ny):
+            alt_mort[t, :] = np.clip(mort[t, :] + kappa * ((t + 1) / ny) * h, 0.0, 1.0)
+
+        pop_dict = demographics.get_pop_objs(
+            p.E, p.S, p.T, 0, 99, fert_rates=fert, mort_rates=alt_mort, infmort_rates=infmort,
+            imm_rates=imm, infer_pop=True, pop_dist=np.asarray(aux["pop_dist"])[:1, :],
+            pre_pop_dist=aux["pre_pop_dist"], country_id=un, initial_data_year=p.start_year,
+            final_data_year=p.start_year + ny - 1, GraphDiag=False)
+        p.update_specifications(pop_dict)
         return p
 
     def runner_for(self, country):
         """A framework.Runner bound to this runtime."""
         from .framework import Runner
         return Runner(build_baseline=self.build_baseline, solve=self.solve,
-                      apply_mortality=self.apply_mortality)
+                      apply_health=self.apply_health_shock)

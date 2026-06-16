@@ -101,7 +101,7 @@ class Runner:
     """
     build_baseline: Callable
     solve: Callable
-    apply_mortality: Callable | None = None
+    apply_health: Callable | None = None   # runtime hook: recompute population under a mortality shock
 
     def run(self, experiment: Experiment, country, out_root: str = "./ogclews_runs",
             max_passes: int = 1, clews_runner=None, tol: float = 1e-2, damp: float = 0.5) -> ExperimentContext:
@@ -187,8 +187,8 @@ class Runner:
             if ch.post_solve:
                 continue
             ctx.log(cid, pass_idx=pass_idx, step=step, **ch.apply(ctx, **opts))
-        if ctx.extras.get("mortality_effect") is not None and self.apply_mortality:
-            ctx.og_reform = self.apply_mortality(ctx.og_reform, ctx.extras["mortality_effect"])
+        if ctx.extras.get("health_shock") is not None and self.apply_health:
+            ctx.og_reform = self.apply_health(ctx.og_reform, ctx.extras["health_shock"])
 
     def _apply_post_solve(self, ctx, channels, pass_idx, step=None):
         for cid, opts in channels:

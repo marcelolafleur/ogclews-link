@@ -21,7 +21,7 @@ import os
 
 import numpy as np
 
-from . import signals
+from . import health_profile, signals
 from .framework import CLEWS_TO_OG, OG_TO_CLEWS, POLICY, Channel, register
 
 
@@ -269,36 +269,41 @@ class HealthChannel(Channel):
     direction = CLEWS_TO_OG
     theory_status = "reduced_form"  # external, illustrative dose-response
 
-    def apply(self, ctx, mort_elasticity=0.05, prod_elasticity=0.02,
-              affects=("e", "mortality"), prod_J=7, phase_years=15):
+    def apply(self, ctx, mortality_response=0.05, morbidity_response=0.01,
+              affects=("mortality", "e"), profile_path=None, phase_years=5, prod_J=7):
         c = ctx.country
         p = ctx.og_reform
         er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c)
         demis = float(np.nanmean(er.values[:10])) - 1.0   # <0 == reform is cleaner
-        mort_effect = mort_elasticity * demis             # cleaner -> fewer deaths (negative)
-        prod_benefit = -prod_elasticity * demis           # cleaner -> higher productivity (positive)
-        ramp = np.linspace(0.0, prod_benefit, phase_years)
-        if "e" in affects:                                # productivity via effective labor units e (T,S,J)
+        prov = {"emissions_change": demis, "affects": list(affects)}
+        if "mortality" in affects:
+            # disease_pop method: stash an age-profile mortality shock for the runtime to apply
+            # (rho += kappa*g_t*h(s) -> recompute population). h(s) from GBD data, else placeholder.
+            profile = (health_profile.load_profile(profile_path) if profile_path
+                       else health_profile.placeholder_profile())
+            kappa = mortality_response * demis            # PLACEHOLDER dose-response; cleaner -> kappa<0 -> fewer deaths
+            ctx.extras["health_shock"] = {"kappa": kappa, "profile": profile, "phase_years": phase_years}
+            prov["mortality_kappa"] = kappa
+            prov["profile_source"] = "GBD data" if profile_path else "PLACEHOLDER (no GBD profile; see DATA.md)"
+        if "e" in affects:                                # morbidity via effective labor e (T,S,J)
+            benefit = -morbidity_response * demis         # PLACEHOLDER; cleaner -> higher productivity
             e = np.array(p.e, dtype=float)
+            ramp = np.linspace(0.0, benefit, phase_years)
             for t, b in enumerate(ramp):
                 e[t, :, :prod_J] *= (1.0 + b)
-            e[phase_years:, :, :prod_J] *= (1.0 + prod_benefit)
+            e[phase_years:, :, :prod_J] *= (1.0 + benefit)
             p.e = e
-        if "chi_n" in affects:                            # OPTIONAL: stacks with e on labor supply
-            chi = np.array(p.chi_n, dtype=float)          # (T+S, S)
-            for t, b in enumerate(ramp):
-                chi[t, :] *= (1.0 - b)
-            chi[phase_years:, :] *= (1.0 - prod_benefit)
-            p.chi_n = chi
-        if "mortality" in affects:
-            ctx.extras["mortality_effect"] = mort_effect  # runtime applies via get_pop_data.health_pop
-        return {"emissions_change": demis, "mortality_effect": mort_effect,
-                "productivity_benefit": prod_benefit, "affects": list(affects)}
+            prov["morbidity_benefit"] = benefit
+        return prov
 
     def validate(self, ctx, active):
-        return ["health uses an EXTERNAL, ILLUSTRATIVE emissions->response (linear elasticities) -- "
-                "replace with a real dose-response (e.g. GBD/IER) before use. Default applies "
-                "productivity via e only; adding chi_n double-counts the labor-supply effect."]
+        return ["health uses the disease_pop AGE-PROFILE mortality method (CostOfDisease): "
+                "rho += kappa*g_t*h(s), phased in, then the population is recomputed via get_pop_objs. "
+                "The age profile h(s) MUST come from GBD ambient-PM2.5 deaths-by-age (DATA.md) -- the "
+                "placeholder is an illustrative elderly-skewed shape only. The dose-response "
+                "(emissions->kappa) and the morbidity productivity response are PLACEHOLDERS pending "
+                "data. Pollution deaths skew elderly, so expect a weaker mortality->GDP channel than "
+                "the working-age HIV case."]
 
 
 # --- #6 OG activity -> CLEWS demand (the forward driver) ------------------------
