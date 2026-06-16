@@ -18,5 +18,8 @@ dependencies = [
 [project.optional-dependencies]
 run = ["ogcore"]
 
+[project.scripts]
+ogclews-link = "ogclews_link.cli:main"
+
 [tool.setuptools]
 packages = ["ogclews_link"]

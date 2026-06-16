@@ -19,6 +19,7 @@ T, S, J, M, I = 20, 8, 7, 4, 5
 TS = T + S
 I_E, M_E = PHL.concordance.energy_good_index, PHL.concordance.energy_industry_index
 HAVE_CLEWS = os.path.isdir(PHL.scenario.base_dir) and os.path.isdir(PHL.scenario.reform_dir)
+_MUIOGO_RUN = "/Users/mlafleur/Projects/MUIOGO/WebAPP/DataStorage/CLEWs Demo/res/REF"
 
 
 def _params():
@@ -196,6 +197,61 @@ def test_commodity_shadow_price_dual():
         assert abs(ratio.loc[2020] - 1.0) < 1e-9                          # self-ratio is 1
     finally:
         os.remove(path)
+
+
+def test_energy_price_dual_source():
+    # price_source="dual" drives the energy wedge from the commodity-balance dual RATIO (not
+    # the controlled shock). Stub the reader so the branch + alignment are exercised with no
+    # CLEWS files and no OG solve.
+    import pandas as pd
+
+    ctx = _ctx()
+    sy = PHL.scenario.og_start_year
+    orig = signals.commodity_shadow_price_ratio
+    signals.commodity_shadow_price_ratio = lambda b, r, **k: pd.Series([1.20, 1.20], index=[sy, sy + 1])
+    try:
+        prov = get("energy_price").apply(ctx, price_source="dual")
+    finally:
+        signals.commodity_shadow_price_ratio = orig
+    assert prov["source"] == "dual_shadow_price"
+    share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])      # electricity's share of the energy good
+    tau = np.asarray(ctx.og_reform.tau_c)[0, I_E]
+    # electricity dual ratio is diluted by `share` into the broader energy good, then folded into (1+tau)
+    assert abs((1 + tau) - (1 + share * 0.20) * 1.12) < 1e-9, (tau, prov)
+
+
+def test_muiogo_run_reader():
+    from ogclews_link import muiogo_run
+
+    if not os.path.isdir(_MUIOGO_RUN):
+        print("  (skip: MUIOGO sample run absent)"); return
+    csv_dir = muiogo_run.find_run_csv_dir(_MUIOGO_RUN)
+    assert os.path.basename(csv_dir) == "csv"
+    fuels = muiogo_run.electricity_fuels(csv_dir)
+    assert fuels and all(f.upper().startswith("ELC") for f in fuels)   # ELC001/ELC002
+    assert muiogo_run.verify_run(csv_dir)[muiogo_run._EBB4] is True
+    s = signals.commodity_shadow_price(csv_dir, fuel=fuels[0])         # reader consumes the run dir
+    assert len(s) > 0 and np.isfinite(s.values).all()
+
+
+def test_run_manifest():
+    import json
+    import tempfile
+
+    from ogclews_link import experiments
+    from ogclews_link.manifest import write_run_manifest
+
+    ctx = _ctx()
+    ctx.log("energy_price", source="controlled_+20%", dtau_mean=0.224)
+    exp = experiments.get("energy_price")
+    with tempfile.TemporaryDirectory() as d:
+        path = write_run_manifest(d, exp, PHL, ctx, clews_run="/some/muiogo/run")
+        m = json.load(open(path))
+    assert m["experiment"]["name"] == "energy_price"
+    assert m["country"] == "Philippines"
+    assert m["scenario"]["name"] == "PEP_vs_Base"
+    assert m["clews_run"] == "/some/muiogo/run"
+    assert m["channels"][0]["id"] == "energy_price" and len(m["provenance"]) == 1
 
 
 def main():

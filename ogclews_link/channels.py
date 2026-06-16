@@ -103,16 +103,34 @@ class EnergyPriceChannel(Channel):
     direction = CLEWS_TO_OG
     theory_status = "structural_core"
 
-    def apply(self, ctx, shock=0.20, use_clews_data=False, energy_cmin=0.0, recycle=False):
+    def apply(self, ctx, shock=0.20, use_clews_data=False, energy_cmin=0.0, recycle=False,
+              price_source="controlled", fuel=None):
         c = ctx.country
         i_e, m_e = c.concordance.energy_good_index, c.concordance.energy_industry_index
         p = ctx.og_reform
-        if use_clews_data:
+        n = np.asarray(p.tau_c).shape[0]
+        # price_source takes priority over the legacy use_clews_data flag.
+        if price_source == "dual":
+            # RIGOROUS source: reform/base ratio of the OSeMOSYS commodity-balance DUAL (the
+            # marginal electricity price), from a MUIOGO CBC export. fuel=None matches ELC* codes.
+            # Point c.scenario at the run dirs holding the EBb4 CSV (see muiogo_run).
+            ratio = signals.commodity_shadow_price_ratio(
+                c.scenario.base_dir, c.scenario.reform_dir, fuel=fuel)
+            if ratio.dropna().empty:
+                raise ValueError(
+                    "energy_price price_source='dual': commodity-balance dual ratio is empty / "
+                    "all-NaN -- no overlapping base/reform years, or a zero baseline shadow price "
+                    "for the matched fuel. Check the EBb4 export, the fuel code, and the run years.")
+            # electricity is only `share` of the OG energy good's value, so dilute the electricity
+            # dual ratio into the energy good exactly as the cost-index branch does (else overstated).
+            share = float(np.asarray(p.io_matrix)[i_e, m_e])
+            good_ratio = _align_to_start(1.0 + share * (ratio - 1.0), c.scenario.og_start_year, n)
+            src = "dual_shadow_price"
+        elif use_clews_data or price_source == "clews_cost_index":
             ratio = signals.cost_of_electricity_ratio(
                 _cost_xlsx(c.scenario.base_dir), _cost_xlsx(c.scenario.reform_dir))
             share = float(np.asarray(p.io_matrix)[i_e, m_e])  # electricity's value-share of the energy good
-            good_ratio = _align_to_start(1.0 + share * (ratio - 1.0), c.scenario.og_start_year,
-                                         np.asarray(p.tau_c).shape[0])
+            good_ratio = _align_to_start(1.0 + share * (ratio - 1.0), c.scenario.og_start_year, n)
             src = "clews_cost_index"
         else:
             good_ratio = 1.0 + shock

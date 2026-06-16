@@ -26,6 +26,9 @@ def main(argv=None):
                          "(needs the CLEWS-runner hook; degrades to one pass without it)")
     rp.add_argument("--out", default="./ogclews_runs")
     rp.add_argument("--no-progress", action="store_true")
+    rp.add_argument("--clews-run", default=None,
+                    help="source CLEWS/MUIOGO run dir to record in the run manifest (provenance; "
+                         "scenario-source override is future work)")
 
     sub.add_parser("list", help="list named experiments")
     sub.add_parser("channels", help="list registered channels")
@@ -42,6 +45,7 @@ def main(argv=None):
         return
     if args.cmd == "run":
         from .country import PHL
+        from .manifest import write_run_manifest
         from .runtime import Runtime
 
         exp = experiments.get(args.experiment)
@@ -53,6 +57,9 @@ def main(argv=None):
         if ctx.clews_inputs:
             written = clews_io.write_all(ctx, f"{args.out}/{exp.name}/clews_inputs")
             print("Wrote CLEWS inputs:", written)
+        manifest = write_run_manifest(f"{args.out}/{exp.name}", exp, PHL, ctx,
+                                      clews_run=args.clews_run)
+        print("Wrote run manifest:", manifest)
         return
 
     ap.print_help()
