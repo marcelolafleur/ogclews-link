@@ -60,7 +60,8 @@ EXPERIMENTS = {
 # (investment scaled, small carbon intensity) pending the currency/deflator bridge -- the point
 # is the composition, not calibrated policy numbers.
 _EP = ("energy_price", {"shock": 0.20})
-_INV = ("investment", {"target": "alpha_I", "public_only": False, "scale": 0.25})
+# finite (transition-only) + smoothed + gentle scale, so the cumulative steps converge
+_INV = ("investment", {"target": "alpha_I", "public_only": False, "scale": 0.3, "smooth_years": 5})
 _CARB = ("carbon", {"carbon_price": 50.0, "carbon_intensity": 0.002, "apply_to_og": True, "recycle": False})
 _HEALTH = ("health", {})
 

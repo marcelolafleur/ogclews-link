@@ -28,6 +28,10 @@ def main():
     ie = PHL.concordance.energy_good_index
     layered = []
     for label, ctx in results:
+        if ctx.reform_tpi is None:  # step did not solve -> record and skip the report math
+            layered.append({"step": label, "error": ctx.extras.get("error", "did not solve")})
+            print(f"\n>>> {label}: DID NOT SOLVE ({ctx.extras.get('error')})")
+            continue
         macro = report.macro_pct_diff(ctx.base_tpi, ctx.reform_tpi)
         inc = report.incidence(ctx.base_tpi, ctx.reform_tpi, ie)
         dC = report.demand_response(ctx.base_tpi, ctx.reform_tpi, ie)

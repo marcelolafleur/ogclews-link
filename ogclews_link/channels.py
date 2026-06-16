@@ -43,12 +43,26 @@ def _fit(value, n: int) -> np.ndarray:
 
 
 def _align_to_start(series, start_year: int, n: int) -> np.ndarray:
-    """pandas Series indexed by year -> length-n array with period 0 == start_year."""
+    """Align a PERMANENT signal (a standing price level): real values during the data
+    horizon, then the last value carried forward (it persists). Period 0 == start_year."""
     hi = int(series.index.max())
     if start_year > hi:               # signal ends before OG starts -> nothing to align
         return np.zeros(n)
     s = series.reindex(range(start_year, hi + 1)).ffill().bfill()
     return _fit(s.values, n)
+
+
+def _align_finite(series, start_year: int, n: int) -> np.ndarray:
+    """Align a FINITE flow (e.g. transition capex): real values during the data horizon,
+    then ZERO -- the flow ends, it is not carried forward. Critical for investment, where
+    forward-filling would turn a temporary build into a permanent shock that breaks TPI."""
+    hi = int(series.index.max())
+    if start_year > hi:
+        return np.zeros(n)
+    vals = series.reindex(range(start_year, hi + 1)).fillna(0.0).values
+    out = np.zeros(n)
+    out[: min(len(vals), n)] = vals[:n]
+    return out
 
 
 def _cost_xlsx(scenario_dir: str) -> str:
@@ -138,30 +152,33 @@ class InvestmentChannel(Channel):
     direction = CLEWS_TO_OG
     theory_status = "structural_core"
 
-    def apply(self, ctx, target="alpha_I", public_only=True, scale=1.0, persist=False):
+    def apply(self, ctx, target="alpha_I", public_only=True, scale=1.0, persist=False, smooth_years=1):
         c = ctx.country
         p = ctx.og_reform
         inc = signals.power_capex_increment(c.scenario.base_dir, c.scenario.reform_dir, c, public_only)
-        # NOTE: CLEWS monetary units are model-MUSD; dividing by real GDP assumes ~parity (no
-        # deflator/factor bridge yet). public_only routes only public-infra (T&D) techs to K_g;
-        # private generation capex is NOT public investment and is intentionally excluded.
+        # CLEWS monetary units are model-MUSD; dividing by real GDP assumes ~parity (no deflator
+        # bridge yet). public_only routes only public-infra (T&D) techs to K_g; private generation
+        # capex is NOT public investment. smooth_years dampens lumpy year-to-year capex spikes.
         pct_gdp = scale * inc / c.gdp_musd
-        path = _align_to_start(pct_gdp, c.scenario.og_start_year, p.T)  # length T (transition window)
-        n = p.T if not persist else None                                # temporary by default -> taper to baseline SS
+        if smooth_years > 1:
+            pct_gdp = pct_gdp.rolling(smooth_years, center=True, min_periods=1).mean()
+        # transition capex is a FINITE flow: real during the CLEWS horizon, zero after (and in SS).
+        path = _align_finite(pct_gdp, c.scenario.og_start_year, p.T)
+        full = np.zeros(np.asarray(p.alpha_I).shape[0])
+        full[:p.T] = path
+        if persist:                       # rare: permanent infrastructure -> carry the last value into SS
+            full = _fit(path, full.shape[0])
+        if np.max(path) > float(np.asarray(p.alpha_I)[0]):
+            print(f"[guardrail] investment: peak alpha_I increment {np.max(path):.3f} > baseline "
+                  f"alpha_I {float(np.asarray(p.alpha_I)[0]):.3f} -- large public-investment shock; "
+                  f"check units, public_only, and smooth_years.")
         if target == "alpha_I":
-            a = np.asarray(p.alpha_I, dtype=float)
-            if np.max(path) > float(a[0]):
-                print(f"[guardrail] investment: peak alpha_I increment {np.max(path):.3f} > baseline "
-                      f"alpha_I {float(a[0]):.3f} -- implausibly large public-investment shock; check "
-                      f"units and public_only (private generation capex should not enter alpha_I).")
-            add = _fit(path, a.shape[0]) if persist else np.concatenate([path, np.zeros(a.shape[0] - p.T)])
-            p.alpha_I = a + add
+            p.alpha_I = np.asarray(p.alpha_I, dtype=float) + full
         else:
-            a = np.asarray(p.alpha_bs_I, dtype=float)
-            mult = _fit(path, a.shape[0]) if persist else np.concatenate([path, np.zeros(a.shape[0] - p.T)])
-            p.alpha_bs_I = a * (1.0 + mult)
+            p.alpha_bs_I = np.asarray(p.alpha_bs_I, dtype=float) * (1.0 + full)
         return {"target": target, "public_only": public_only, "persist": persist,
-                "cumulative_pct_gdp": float(path.sum()), "peak_pct_gdp": float(np.max(path))}
+                "smooth_years": smooth_years, "cumulative_pct_gdp": float(path.sum()),
+                "peak_pct_gdp": float(np.max(path))}
 
     def validate(self, ctx, active):
         w = ["investment->alpha_I treats capex as PUBLIC infrastructure (K_g); verify the "

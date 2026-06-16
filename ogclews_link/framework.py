@@ -159,9 +159,13 @@ class Runner:
         for label, channels_list in steps:
             ctx = ExperimentContext(country=country, base_tpi=base_tpi)
             ctx.og_reform = self._fresh_reform(p, base_dir, os.path.join(out_root, "across_steps", label))
-            self._apply_pre_solve(ctx, channels_list, 0, step=label)
-            ctx.reform_tpi = self.solve(ctx.og_reform)
-            self._apply_post_solve(ctx, channels_list, 0, step=label)
+            try:
+                self._apply_pre_solve(ctx, channels_list, 0, step=label)
+                ctx.reform_tpi = self.solve(ctx.og_reform)
+                self._apply_post_solve(ctx, channels_list, 0, step=label)
+            except Exception as e:  # one non-converging step must not kill the whole batch
+                print(f"[across_steps] step '{label}' did NOT solve: {type(e).__name__}: {e}")
+                ctx.extras["error"] = f"{type(e).__name__}: {e}"
             results.append((label, ctx))
         return results
 
