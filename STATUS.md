@@ -135,17 +135,20 @@ them — optional.) Constraint = `EBb4_EnergyBalanceEachYear4_ICR` in
 Status: `[x]` done · `[>]` next · `[ ]` todo
 
 - `[x]` Dual reader (`signals.commodity_shadow_price` / `_ratio`) — built + verified.
-- `[ ]` **Package:** console entry point (`ogclews-link = ogclews_link.cli:main`), `uv.lock`
-  (make uv-native), `run` extra incl. the country pkg.
-- `[ ]` **Config + manifest:** move country/scenario config out of `country.py` into a TOML
-  registry; add `--clews-run <dir>`; write a run manifest (country, scenario, channels+opts,
-  CLEWS run id, ogcore version, timestamp) next to outputs.
+- `[~]` **Package:** console entry point (`ogclews-link = ogclews_link.cli:main`) **DONE** +
+  `run` extra confirmed; `uv.lock` (make uv-native) still TODO.
+- `[~]` **Config + manifest:** `--clews-run <dir>` flag + run manifest (`manifest.py`: country,
+  scenario, channels+opts, CLEWS run dir, ogcore version, timestamp, provenance) **DONE**;
+  moving country/scenario config out of `country.py` into a TOML registry still TODO.
 - `[ ]` **CountryProvider seam:** factor `runtime.build_baseline` into a per-country provider;
   PHL provider wraps today's logic; **relocate `PROD_DICT` + `get_pop_data`** out of
   `CLEWS-OG/OG_simulations` INTO ogclews-link (kills the `sys.path` hack; keeps OG-PHL untouched).
-- `[ ]` **MUIOGO-run reader:** adapter so the channels can consume a MUIOGO run's CSVs
-  (`res/<caserun>/csv/`, incl. the EBb4 dual) + `genData.json`, not just the CLEWS-OG xlsx layout.
-- `[ ]` **Wire the dual** into the energy_price channel (`price_source="dual"`).
+- `[~]` **MUIOGO-run reader:** `muiogo_run.py` **DONE** (locate a run's `res/<caserun>/csv/`,
+  list `ELC*` fuels, verify the EBb4 dual export is present — verified against the real
+  `CLEWs Demo/res/REF` sample); a full scenario-source adapter (other channels + `genData.json`,
+  vs the CLEWS-OG xlsx layout) still TODO.
+- `[x]` **Wire the dual** into the energy_price channel (`price_source="dual"`) — share-diluted
+  into the OG energy good like the cost-index path, with an empty/all-NaN guardrail.
 - `[ ]` **MUIOGO post-run hook** (in the MUIOGO fork): subprocess the CLI + register output.
 - `[ ]` **Loop closure:** wire `clews_runner` (invoke a MUIOGO CLEWS re-solve) so multi-pass
   iterates to a fixed point with the dual feedback.
@@ -208,3 +211,9 @@ the event loop under numba → serial fallback. Never `--workers 1` for real run
   reader (`signals.commodity_shadow_price` / `_ratio`). Rebuilt figures on an editorial `style.py`
   theme. Wrote this coordination doc. Pending: wire the dual into the channel + a MUIOGO-run
   scenario source; the deployment-framework items in §5; the full 4-step validation run.
+- **2026-06-16 (cont.)** — Wired the dual into the energy_price channel (`price_source="dual"`,
+  share-diluted like the cost-index path, with an empty/all-NaN guard). Added `muiogo_run.py`
+  (locate a run's `csv/`, list `ELC*` fuels, verify exports — tested against the real
+  `CLEWs Demo/res/REF` sample). Added a run manifest (`manifest.py`) + `--clews-run` flag and the
+  `ogclews-link` console entry point. 19/19 transform tests pass; adversarially reviewed. All
+  independent of the health fix — no health-owned symbol touched.
