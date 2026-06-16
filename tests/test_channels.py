@@ -174,6 +174,30 @@ def test_report_transforms():
     assert inc["energy_by_J"].shape == (J,)
 
 
+def test_commodity_shadow_price_dual():
+    # MUIOGO exports the annual energy commodity-balance dual discounted to start-year PV
+    # (raw * (1+DR)^(y-start+0.5)); the reader recovers the raw marginal and forms a ratio.
+    import tempfile
+
+    csv = ("r,f,y,EBb4_EnergyBalanceEachYear4_ICR,DiscountRate\n"
+           "RE1,ELC,2020,1.520032676622447,0.05\n"   # = 1.4833681 * 1.05^0.5
+           "RE1,ELC,2021,2.10,0.05\n"
+           "RE1,GAS,2020,3.0,0.05\n")
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+        f.write(csv); path = f.name
+    try:
+        s = signals.commodity_shadow_price(path, fuel="ELC")              # undiscount by default
+        assert abs(s.loc[2020] - 1.520032676622447 / (1.05 ** 0.5)) < 1e-6
+        raw = signals.commodity_shadow_price(path, fuel="ELC", undiscount=False)
+        assert abs(raw.loc[2020] - 1.520032676622447) < 1e-9
+        default = signals.commodity_shadow_price(path)                    # default = ELC* prefix
+        assert 2020 in default.index and 2021 in default.index
+        ratio = signals.commodity_shadow_price_ratio(path, path, fuel="GAS")
+        assert abs(ratio.loc[2020] - 1.0) < 1e-9                          # self-ratio is 1
+    finally:
+        os.remove(path)
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = failed = 0

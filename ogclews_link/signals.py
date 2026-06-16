@@ -2,9 +2,12 @@
 channels consume. Handles the two CLEWS CSV layouts (the 'Sum of ...' pivot and plain
 long r,t,*,y,value) and the 999999 sentinel.
 
-The PRICE signal here is the cost-index PROXY (cost_of_electricity_ratio). The rigorous
-signal is the dual of the OSeMOSYS commodity-balance constraint (the marginal energy
-price), which is NOT in the curated export -- see commodity_shadow_price().
+Two energy-price signals live here: the cost-index PROXY (cost_of_electricity_ratio) and
+the RIGOROUS one -- the dual of the OSeMOSYS commodity-balance constraint (the marginal
+energy price). MUIOGO's CBC solve (`-printing all`) already exports that dual to
+`res/<run>/csv/EBb4_EnergyBalanceEachYear4_ICR.csv` (columns r,f,y,dual,DiscountRate),
+indexed by (region, fuel, year); read it via commodity_shadow_price() /
+commodity_shadow_price_ratio().
 """
 from __future__ import annotations
 
@@ -20,7 +23,7 @@ SENTINEL = 999999.0
 __all__ = ["cost_of_electricity_ratio", "read_clews_matrix", "read_clews_long",
            "power_capex_increment", "emissions_by_year", "emissions_ratio",
            "og_sector_output", "og_consumption_good", "og_interest_rate",
-           "commodity_shadow_price"]
+           "commodity_shadow_price", "commodity_shadow_price_ratio"]
 
 
 def _find(scenario_dir: str, metric: str, exclude: str = "") -> str:
@@ -137,11 +140,60 @@ def og_interest_rate(tpi: dict, key: str = "r_p") -> np.ndarray:
     return np.asarray(tpi[key])
 
 
-def commodity_shadow_price(*args, **kwargs):  # pragma: no cover
-    """The rigorous energy price: dual of the OSeMOSYS commodity-balance constraint
-    (EBa11/EBb4). Not in the curated export -- re-run CLEWS with the solver emitting
-    marginals (GLPK --wglp / CPLEX .sol duals / pyomo), read the multiplier on the
-    electricity-commodity balance, un-discount, and demand-weight slices to annual."""
-    raise NotImplementedError(
-        "Commodity shadow price needs a CLEWS re-run with solver marginals (the loop-closure "
-        "seam). Use cost_of_electricity_ratio() as the first-pass proxy.")
+_DUAL_CONSTRAINT = "EBb4_EnergyBalanceEachYear4_ICR"  # OSeMOSYS annual commodity balance
+
+
+def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=None,
+                           constraint=_DUAL_CONSTRAINT) -> pd.Series:
+    """The rigorous energy price: the annual dual of the OSeMOSYS commodity-balance
+    constraint, as exported by a MUIOGO CBC solve to
+    `res/<run>/csv/EBb4_EnergyBalanceEachYear4_ICR.csv` (columns r,f,y,<dual>,DiscountRate).
+    Returns a Series indexed by int year for the chosen fuel(s).
+
+    ``source`` is that CSV file, or a run/csv directory containing it. ``fuel`` selects the
+    commodity good households face: a code (e.g. 'ELC001') or list of codes; default matches
+    electricity codes (prefix 'ELC'). MUIOGO writes the dual *discounted* to start-year PV
+    (raw x (1+DR)^(y-start_year+0.5)); ``undiscount=True`` recovers the raw per-year marginal
+    (the genuine shadow price in that year). ``start_year`` defaults to the first year present.
+    """
+    path = source if os.path.isfile(source) else _find(source, constraint.split("_", 1)[0])
+    df = pd.read_csv(path)
+    df.columns = [c.strip() for c in df.columns]
+    low = {c.lower(): c for c in df.columns}
+    rcol, fcol, ycol = low["r"], low["f"], low["y"]
+    dr_col = low.get("discountrate")
+    val_col = next((c for c in df.columns if "energybalance" in c.lower()), None)
+    if val_col is None:  # fall back to the lone remaining numeric column
+        val_col = next(c for c in df.columns if c not in (rcol, fcol, ycol, dr_col))
+    df[ycol] = pd.to_numeric(df[ycol], errors="coerce")
+    df[val_col] = pd.to_numeric(df[val_col], errors="coerce")
+
+    if fuel is None:
+        mask = df[fcol].astype(str).str.upper().str.startswith("ELC")
+    else:
+        codes = [fuel] if isinstance(fuel, str) else list(fuel)
+        mask = df[fcol].astype(str).isin(codes)
+    sub = df[mask].dropna(subset=[ycol, val_col]).copy()
+    if sub.empty:
+        present = sorted(df[fcol].astype(str).unique())
+        raise ValueError(f"commodity_shadow_price: no rows for fuel={fuel!r} in {path}; "
+                         f"fuels present: {present[:15]}{'...' if len(present) > 15 else ''}")
+    if undiscount and dr_col is not None:
+        dr = pd.to_numeric(sub[dr_col], errors="coerce").fillna(0.0)
+        sy = int(start_year) if start_year is not None else int(sub[ycol].min())
+        sub[val_col] = sub[val_col] / (1.0 + dr) ** (sub[ycol].astype(float) - sy + 0.5)
+    s = sub.groupby(ycol)[val_col].mean().sort_index()   # mean across matched fuels (usually one)
+    s.index = s.index.astype(int)
+    return s.rename("shadow_price")
+
+
+def commodity_shadow_price_ratio(base_source, reform_source, *, fuel=None,
+                                 undiscount=True, start_year=None) -> pd.Series:
+    """Reform/baseline annual energy shadow-price ratio -- the rigorous analogue of
+    cost_of_electricity_ratio(), to drive the energy_price channel from the true LP dual
+    instead of the cost-index proxy. Ratio by year (reform shadow price / baseline)."""
+    b = commodity_shadow_price(base_source, fuel=fuel, undiscount=undiscount, start_year=start_year)
+    r = commodity_shadow_price(reform_source, fuel=fuel, undiscount=undiscount, start_year=start_year)
+    years = sorted(set(b.index) & set(r.index))
+    bb = b.loc[years].replace(0.0, np.nan)
+    return (r.loc[years] / bb).sort_index()
