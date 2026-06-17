@@ -30,13 +30,24 @@ Every lever targets an industry **by index**, so it is resource-agnostic:
   `public_investment` (`alpha_I`→K_g), `government_consumption` (`alpha_G`), or `deficit` (no-op → the
   budget closure / debt-ratio rule absorbs it).
 
-**The generality hook — `INDUSTRY_CATALOG`:** maps friendly names (energy, agriculture, water,
-manufacturing, …) to their M=4 index **and a `separable_m4` flag**. Energy is separable today
-(`Electricity`, index 1); **agriculture and water are bundled into "Natural Resources" in M=4**, so they
-are flagged non-separable — `resolve_industry` warns and the UI can grey them out until a purpose-built
-aggregation separates them (the same calibration choice in the energy-as-input spec). So the *code* is
-already generic; the *data/aggregation* is the gate for agriculture/water — adding them is a catalog
-entry + a finer SAM aggregation, not new lever code.
+**The generality hook — a per-model registry, NOT a hardcoded catalog.** OG-Core carries only `p.M`
+(the industry COUNT) — no names, no resource tags. So the industry structure is **derived per onboarded
+model** by `industry_registry(p, names=, resource_index=)`:
+- **count** comes from `p.M`; a **single-industry (M=1)** model reports `single_industry=True` and has no
+  separable sectors — resource targeting is unavailable there, and `resolve_industry("energy", …)` raises
+  with a clear message ("represent it as a consumption good or an economy-wide TFP/tax wedge"). This is
+  the correct degradation for a 1-sector onboarding.
+- **names** come from the country's calibration ordering (`list(PROD_DICT)`); if a model declares none,
+  the registry falls back to `industry_0..M-1` (index-only — the UI must label or the user targets by
+  index).
+- **resource→index tags** are **declared by the country config** (e.g. `concordance.energy_industry_index`),
+  because OG has no resource concept itself. An undeclared resource (e.g. agriculture/water on a model
+  whose aggregation bundles them) raises an actionable "declare it in the country config / pass its
+  index" error. The levers act on a validated integer index, so they're M-, ordering-, and country-
+  agnostic. Onboarding a new model (any M, any country, single- or multi-industry) is: provide its
+  `names` + `resource_index`; no lever code changes. Targeting agriculture/water for PHL still needs a
+  finer aggregation that *creates* those industries (the calibration choice in the energy-as-input spec)
+  — then the country just declares the new index.
 
 ## 2. The choice catalog a UI prompts from
 
@@ -45,7 +56,7 @@ expose each lever as a structured choice with a default and a domain:
 
 | Choice | Domain | Default | Notes |
 |---|---|---|---|
-| target industry | `INDUSTRY_CATALOG` keys (separable ones enabled) | energy | greys out non-separable until calibrated |
+| target industry | `industry_registry(p)` names + declared resources (M=1 → none) | energy (if declared) | derived per onboarded model; greys out undeclared/non-separable |
 | energy carrier | electricity / fuels / energy+water | electricity | drives θ_m & the dual to use (see energy spec) |
 | energy-cost representation | investment-crowding-out / I-O-calibrated-Z / tau_c(recycled) | investment | never stack on the same cost |
 | private-capex incentive | ITC % / accelerated-depreciation / CIT cut | none | `set_investment_incentive` |

@@ -1,115 +1,127 @@
 """Generic, resource/industry-agnostic policy levers for OG-Core scenarios.
 
-Built energy-first but designed to generalize to other CLEWS resources (agriculture, land, water, ...):
-every lever targets an industry by index, so the same primitive serves an energy ITC, an agriculture
-investment subsidy, a water-sector incentive, etc. Two families, both using EXISTING OG-Core params
-(NO model change):
+Built energy-first but designed to generalize to other CLEWS resources (agriculture, land, water, ...)
+AND to any onboarded OG model — single-industry or multi-industry, any count, any ordering, any country.
+Two families, both using EXISTING OG-Core params (NO model change):
 
-  * `set_investment_incentive` — bias PRIVATE capex in an industry by lowering its cost of capital
-    (investment tax credit `inv_tax_credit`, accelerated tax depreciation `delta_tau`, and/or a
-    corporate-tax `tau_b` multiplier). Firm responds via its FOC; OG has no exogenous private-investment
-    quantity, so this is the correct (incentive) channel.
-  * `route_revenue` — direct a revenue stream (as a %-GDP path) to one of: transfers (`alpha_T`),
-    public investment / infrastructure (`alpha_I` -> K_g), government consumption (`alpha_G`), or
-    `deficit` (no-op: the budget closure absorbs it as lower debt / per the debt-ratio rule).
+  * `set_investment_incentive` — bias PRIVATE capex in an industry (by INDEX) by lowering its cost of
+    capital (investment tax credit `inv_tax_credit`, accelerated tax depreciation `delta_tau`, and/or a
+    corporate-tax `tau_b` multiplier).
+  * `route_revenue` — direct a revenue stream (%-GDP path) to transfers / public investment / govt
+    consumption / deficit.
 
-These are the reusable primitives a scenario builder / UI assembles into experiments. Each is a pure
-param mutation on a duck-typed Specifications (numpy attrs), so it is unit-testable without a solve.
+Industry identity is NOT hardcoded. OG-Core carries only `p.M` (the industry COUNT) — no names, no
+resource tags. Names come from the country's calibration (its PROD_DICT ordering); resource->index tags
+are DECLARED by the country config (e.g. `contract.Concordance.energy_industry_index`). So the catalog
+is built per-onboarded-model by `industry_registry(p, names=, resource_index=)`, and the levers act on
+an integer index validated against `p.M`. Single-industry (M=1) models have no separable sectors:
+resource targeting is unavailable there (energy etc. must enter as a consumption good or an economy-wide
+TFP/tax wedge on the one aggregate).
 """
 from __future__ import annotations
 
 import numpy as np
 
-# --- industry catalog: the generality hook --------------------------------------
-# Maps a friendly resource/industry name to its index in the shipped M=4 calibration
-# [Natural Resources, Electricity, Construction/Trade/Services, Manufacturing] and whether it is
-# SEPARABLE there. Agriculture, water, mining are bundled into "Natural Resources" in M=4, so to target
-# them specifically you need a finer/purpose-built aggregation (a calibration choice; see
-# docs/design/energy-as-production-input-spec.md). The catalog makes that explicit so a UI can grey out
-# non-separable targets until the calibration supports them.
-INDUSTRY_CATALOG = {
-    "natural_resources": {"m4_index": 0, "separable_m4": True,
-                          "sam_activities": ["amine", "afore", "afish", "awatr", "amaiz", "arice"]},
-    "energy":            {"m4_index": 1, "separable_m4": True, "sam_activities": ["aelec"]},
-    "construction_trade_services": {"m4_index": 2, "separable_m4": True, "sam_activities": ["acons", "atrad"]},
-    "manufacturing":     {"m4_index": 3, "separable_m4": True, "sam_activities": ["achem", "ametl", "afood"]},
-    # not separable in M=4 (bundled in Natural Resources) -- need a finer aggregation to target:
-    "agriculture": {"m4_index": 0, "separable_m4": False, "sam_activities": ["amaiz", "arice", "avege"],
-                    "note": "bundled in Natural Resources in M=4; needs a purpose-built aggregation"},
-    "water":       {"m4_index": 0, "separable_m4": False, "sam_activities": ["awatr"],
-                    "note": "bundled in Natural Resources in M=4; needs a purpose-built aggregation"},
-}
+
+def _n_industries(p):
+    return int(getattr(p, "M", np.asarray(p.Z).shape[1]))
 
 
-def resolve_industry(industry, p=None):
-    """Resolve a name (from INDUSTRY_CATALOG) or an int index to an industry column index, warning if
-    the target is not separable in the current M aggregation."""
-    if isinstance(industry, str):
-        info = INDUSTRY_CATALOG.get(industry)
-        if info is None:
-            raise ValueError(f"unknown industry '{industry}'; known: {sorted(INDUSTRY_CATALOG)}")
-        if not info.get("separable_m4", True):
-            print(f"[policy_levers] WARNING: '{industry}' is not separable in M=4 "
-                  f"({info.get('note', '')}); targeting its bundle index {info['m4_index']}.")
-        return info["m4_index"]
-    return int(industry)
+def industry_registry(p, *, names=None, resource_index=None):
+    """Build the industry registry from the ONBOARDED model (derived, not hardcoded).
+
+    `names`: ordered industry names of length p.M (e.g. the country's ``list(PROD_DICT)``); defaults to
+    ``industry_0..M-1`` if the model doesn't declare them. `resource_index`: a ``{resource: index}`` map
+    the country DECLARES (e.g. ``{"energy": concordance.energy_industry_index}``) — because OG-Core has
+    no resource concept of its own. Returns a dict describing this model's industry structure; a
+    single-industry model reports ``single_industry=True`` and no targetable resources.
+    """
+    n = _n_industries(p)
+    names = list(names) if names is not None else [f"industry_{i}" for i in range(n)]
+    if len(names) != n:
+        raise ValueError(f"names has length {len(names)} but the model has M={n} industries")
+    resource_index = {k: int(v) for k, v in dict(resource_index or {}).items() if 0 <= int(v) < n}
+    return {
+        "n": n,
+        "single_industry": n == 1,
+        "names": names,
+        "name_to_index": {nm: i for i, nm in enumerate(names)},
+        "resource_index": resource_index,
+        "targetable_resources": ([] if n == 1 else sorted(resource_index)),
+    }
+
+
+def resolve_industry(industry, registry):
+    """Resolve an int index or a name/resource string to a column index, using a model-derived
+    `industry_registry`. Raises with an actionable message for a single-industry model or an
+    undeclared resource."""
+    n = registry["n"]
+    if isinstance(industry, (int, np.integer)):
+        if not 0 <= int(industry) < n:
+            raise ValueError(f"industry index {industry} out of range [0,{n}) for this model")
+        return int(industry)
+    if industry in registry["name_to_index"]:
+        return registry["name_to_index"][industry]
+    if industry in registry["resource_index"]:
+        return registry["resource_index"][industry]
+    if registry["single_industry"]:
+        raise ValueError(
+            f"single-industry (M=1) model has no separate '{industry}' sector to target; represent "
+            "this resource as a consumption good or an economy-wide TFP/tax wedge instead.")
+    raise ValueError(
+        f"'{industry}' is not a known industry/resource for this model. Industries: {registry['names']}; "
+        f"declared resources: {sorted(registry['resource_index'])}. Declare it in the country config "
+        "(e.g. concordance.energy_industry_index) or pass its index.")
 
 
 def _as_TS_M(arr, TpS, M):
     a = np.array(arr, dtype=float)
-    if a.ndim == 1:                      # (M,) or (TpS,) -> tile to (TpS, M)
-        a = np.tile(a.reshape(1, -1) if a.shape[0] == M else a.reshape(-1, 1), (1, M) if a.shape[0] != M else (TpS, 1))
-    if a.shape != (TpS, M):
-        a = np.broadcast_to(a, (TpS, M)).copy()
-    return a
+    if a.shape == (TpS, M):
+        return a
+    return np.broadcast_to(np.atleast_2d(a), (TpS, M)).copy()
 
 
-def set_investment_incentive(p, industry, *, inv_tax_credit=None, delta_tau=None, tau_b_mult=None,
-                             phase_years=None):
-    """Bias PRIVATE capex in `industry` by lowering its cost of capital, over the first `phase_years`
-    periods (or all if None). Sets the existing per-industry (T+S, M) firm-tax params:
-      - inv_tax_credit: investment tax credit (positive = subsidy on capital) for that industry;
-      - delta_tau: tax depreciation rate (raise for accelerated depreciation -> bigger tax shield);
-      - tau_b_mult: multiply that industry's business tax (e.g. 0.5 = halve the CIT).
-    Returns a provenance dict. Pure param mutation (duck-typed p)."""
-    m = resolve_industry(industry, p)
-    TpS = np.asarray(p.Z).shape[0]
-    M = np.asarray(p.Z).shape[1]
+def set_investment_incentive(p, industry_index, *, inv_tax_credit=None, delta_tau=None,
+                             tau_b_mult=None, phase_years=None):
+    """Bias PRIVATE capex in industry ``industry_index`` (an int; resolve names via
+    `resolve_industry`/`industry_registry` first) by lowering its cost of capital, over the first
+    ``phase_years`` periods (or all if None). Sets existing per-industry (T+S, M) firm-tax params:
+    inv_tax_credit (subsidy), delta_tau (accelerated depreciation), tau_b_mult (scale the CIT).
+    Pure param mutation (duck-typed p)."""
+    Z = np.asarray(p.Z)
+    TpS, M = Z.shape[0], Z.shape[1]
+    m = int(industry_index)
+    if not 0 <= m < M:
+        raise ValueError(f"industry_index {m} out of range [0,{M}); resolve a name to an index first")
     end = TpS if phase_years is None else min(int(phase_years), TpS)
-    prov = {"industry": industry, "m": m, "phase_years": end}
+    prov = {"m": m, "phase_years": end}
     if inv_tax_credit is not None:
-        itc = _as_TS_M(p.inv_tax_credit, TpS, M)
-        itc[:end, m] = float(inv_tax_credit)
-        p.inv_tax_credit = itc
-        prov["inv_tax_credit"] = float(inv_tax_credit)
+        itc = _as_TS_M(p.inv_tax_credit, TpS, M); itc[:end, m] = float(inv_tax_credit)
+        p.inv_tax_credit = itc; prov["inv_tax_credit"] = float(inv_tax_credit)
     if delta_tau is not None:
-        dt = _as_TS_M(p.delta_tau, TpS, M)
-        dt[:end, m] = float(delta_tau)
-        p.delta_tau = dt
-        prov["delta_tau"] = float(delta_tau)
+        dt = _as_TS_M(p.delta_tau, TpS, M); dt[:end, m] = float(delta_tau)
+        p.delta_tau = dt; prov["delta_tau"] = float(delta_tau)
     if tau_b_mult is not None:
-        tb = _as_TS_M(p.tau_b, TpS, M)
-        tb[:end, m] = tb[:end, m] * float(tau_b_mult)
-        p.tau_b = tb
-        prov["tau_b_mult"] = float(tau_b_mult)
+        tb = _as_TS_M(p.tau_b, TpS, M); tb[:end, m] = tb[:end, m] * float(tau_b_mult)
+        p.tau_b = tb; prov["tau_b_mult"] = float(tau_b_mult)
     return prov
 
 
 def route_revenue(p, pct_gdp_path, *, to="transfers", fill_ss_tail=True):
-    """Direct a revenue stream (a per-period %-of-GDP path) to a fiscal destination. `to` in
-    {'transfers' (alpha_T), 'public_investment' (alpha_I -> K_g), 'government_consumption' (alpha_G),
-    'deficit' (no-op -> the budget closure / debt rule absorbs it)}. Returns a provenance dict."""
-    valid = {"transfers": "alpha_T", "public_investment": "alpha_I", "government_consumption": "alpha_G",
-             "deficit": None}
+    """Direct a revenue stream (per-period %-of-GDP path) to a fiscal destination: 'transfers'
+    (alpha_T), 'public_investment' (alpha_I -> K_g), 'government_consumption' (alpha_G), or 'deficit'
+    (no-op -> the budget closure / debt-ratio rule absorbs it). Industry-agnostic. Returns provenance."""
+    valid = {"transfers": "alpha_T", "public_investment": "alpha_I",
+             "government_consumption": "alpha_G", "deficit": None}
     if to not in valid:
         raise ValueError(f"unknown revenue destination '{to}'; choose from {sorted(valid)}")
     attr = valid[to]
-    if attr is None:                      # deficit: do nothing; un-recycled revenue lowers debt via closure
+    if attr is None:
         return {"to": to, "param": None, "note": "budget closure absorbs revenue (debt-ratio rule applies)"}
     base = np.array(getattr(p, attr), dtype=float)
     n = base.shape[0]
     bump = np.array(pct_gdp_path, dtype=float)
-    bump = bump[:n] if bump.shape[0] >= n else np.concatenate([bump, np.full(n - bump.shape[0],
-                                                                             bump[-1] if fill_ss_tail else 0.0)])
-    setattr(p, attr, base + bump)         # additive %-GDP share (permanent policy fills the SS tail)
+    if bump.shape[0] < n:
+        bump = np.concatenate([bump, np.full(n - bump.shape[0], bump[-1] if fill_ss_tail else 0.0)])
+    setattr(p, attr, base + bump[:n])
     return {"to": to, "param": attr, "mean_pct_gdp": float(np.mean(bump[:10]))}

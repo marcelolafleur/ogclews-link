@@ -21,7 +21,8 @@ from ogcore.utils import safe_read_pickle
 from ogphl import input_output as io
 
 from ogclews_link.energy_calibration import M4_PROD_DICT
-from ogclews_link.policy_levers import set_investment_incentive
+from ogclews_link.policy_levers import (industry_registry, resolve_industry,
+                                        set_investment_incentive)
 
 sys.path.insert(0, "/Users/mlafleur/Projects/CLEWS-OG/OG_simulations")
 import get_pop_data  # noqa: E402
@@ -64,7 +65,9 @@ def main():
         pr = copy.deepcopy(p); pr.baseline = False
         pr.baseline_dir = os.path.join(OUT, "baseline"); pr.output_base = os.path.join(OUT, "reform")
         os.makedirs(pr.output_base, exist_ok=True)
-        prov = set_investment_incentive(pr, "energy", inv_tax_credit=ITC, phase_years=None)
+        reg = industry_registry(pr, names=list(M4_PROD_DICT), resource_index={"energy": 1})
+        m_energy = resolve_industry("energy", reg)         # name -> index via the model-derived registry
+        prov = set_investment_incentive(pr, m_energy, inv_tax_credit=ITC, phase_years=None)
         print(f"applied: {prov}")
         ref = solve_ss(pr, client)
         Yr, Kr = float(ref["Y"]), float(ref["K"]); Kmr = np.atleast_1d(ref["K_m"]); Dr = float(ref["D"])
