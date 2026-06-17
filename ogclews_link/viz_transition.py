@@ -135,7 +135,7 @@ def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, 
     ax.fill_between(yrs, 0, dev, color=style.CATEGORICAL[2], alpha=0.10, zorder=1)
     ax.set_xlim(yrs[0], yrs[-1])
     ax.set_ylim(0, float(np.nanmax(dev)) * 1.35)  # headroom so the line isn't jammed at the top
-    ax.annotate(f"sustained ≈ {np.nanmean(dev):+.1f}% above baseline", (yrs[len(yrs) // 2], dev[len(dev) // 2]),
+    ax.annotate(f"sustained ~{np.nanmean(dev):+.1f}% above baseline", (yrs[len(yrs) // 2], dev[len(dev) // 2]),
                 xytext=(0, 14), textcoords="offset points", ha="center", fontsize=9,
                 color=style.TEAL, fontweight="medium")
     ax.set_ylabel("revenue change vs baseline (%)")

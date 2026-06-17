@@ -24,7 +24,7 @@ import os
 from ogcore.utils import safe_read_pickle
 
 from ogclews_link import (channels, figures, report_html,  # noqa: F401
-                          viz_distribution, viz_health, viz_transition, viz_welfare)
+                          viz_dashboard, viz_distribution, viz_health, viz_transition, viz_welfare)
 from ogclews_link.country import PHL
 
 # The shared, solved across-steps tree (health lane). Read-only for the viz lane.
@@ -150,6 +150,11 @@ def main(argv=None):
     _try(viz_distribution.energy_demand_by_group, layered, fig_dir, note=NOTE)
     if None not in (base_ss, headline_ss, base_params):
         _try(viz_distribution.consumption_by_age, base_ss, headline_ss, base_params, fig_dir, note=NOTE)
+
+    # --- one-page headline dashboard --------------------------------------------
+    if None not in (base_tpi, headline_tpi, base_ss, headline_ss, base_params, headline_params):
+        _try(viz_dashboard.headline_dashboard, layered, base_tpi, headline_tpi, base_ss, headline_ss,
+             base_params, headline_params, PHL, fig_dir, start_year=start_year, note=NOTE)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []
