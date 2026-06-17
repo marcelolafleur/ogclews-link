@@ -74,7 +74,6 @@ class Runtime:
             print(f"[runtime] WARNING: OG start_year {p.start_year} != scenario og_start_year "
                   f"{country.scenario.og_start_year}; CLEWS year-alignment will be off.")
         p._un_code = country.un_code
-        p.RC_SS = country.rc_ss   # see CountryConfig.rc_ss: 1e-8 is too strict for the demographic-shock solve
         # stash the demographic arrays the health channel's mortality effect needs
         p._pop_aux = {"pop_dist": pop[1], "pre_pop_dist": pop[2], "fert_rates": pop[3],
                       "mort_rates": pop[4], "infmort_rates": pop[5], "imm_rates": pop[6]}
@@ -106,10 +105,17 @@ class Runtime:
             print("[runtime] no pop aux; skipping health mortality shock")
             return p
         p.__dict__.pop("_e_long_cache", None)
+        if "excess_deaths" not in spec:
+            print("[runtime] health_shock spec missing 'excess_deaths'; skipping mortality shock")
+            return p
         target = float(spec["excess_deaths"])
         profile = np.asarray(spec["profile"], dtype=float)
         ny = int(spec.get("phase_years", 5))
         un = getattr(p, "_un_code", None) or "608"
+        # Loosen the SS resource-constraint tolerance for THIS (demographic-shock) reform only --
+        # the lives-saved solve converges to ~5e-7, under 1e-4 but over ogcore's 1e-8 default.
+        # Non-health reforms keep the tight default. See CountryConfig.rc_ss.
+        p.RC_SS = float(spec.get("rc_ss", 1e-4))
         pop_dict, scale = health_pop.disease_pop(p, aux, target, profile, phase_years=ny,
                                                  un_country_code=un)
         print(f"[health] disease_pop: excess_deaths target {target:+,.0f} -> shock_scale {scale:+.5g}")

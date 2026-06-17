@@ -150,6 +150,8 @@ def test_health_reads_clews():
     assert "emissions_change" in prov
     shock = ctx.extras.get("health_shock")                        # disease_pop spec for the runtime
     assert shock is not None and "excess_deaths" in shock and len(shock["profile"]) == 100
+    assert shock["rc_ss"] == PHL.rc_ss                            # scoped SS tolerance routed to the reform
+    assert shock["excess_deaths"] < 0                             # PHL reform is cleaner -> lives saved (negative)
     assert not np.allclose(np.asarray(ctx.og_reform.e), e0)       # morbidity productivity path moved
 
 

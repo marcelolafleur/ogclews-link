@@ -62,13 +62,14 @@ def main():
 
     hp = next((r for r in ctx.provenance if r.get("channel") == "health"), {})
     demis = hp.get("emissions_change")
-    kappa = hp.get("mortality_kappa")
+    excess = hp.get("mortality_excess_deaths")
     benefit = hp.get("morbidity_benefit")
     print(f"\n[inputs] emissions change demis={demis} (reform cleaner if <0)")
-    print(f"         mortality kappa={kappa} | morbidity benefit={benefit} | "
+    print(f"         mortality excess_deaths target={excess} | morbidity benefit={benefit} | "
           f"profile={hp.get('profile_source')}")
     checks.append(("reform is cleaner (demis<0)", demis is not None and demis < 0, f"demis={demis}"))
-    checks.append(("kappa<0 (cleaner -> fewer deaths)", kappa is not None and kappa < 0, f"kappa={kappa}"))
+    checks.append(("excess_deaths<0 (cleaner -> lives saved)", excess is not None and excess < 0,
+                   f"excess_deaths={excess}"))
     checks.append(("morbidity benefit>0 (cleaner -> more productive)",
                    benefit is not None and benefit > 0, f"benefit={benefit}"))
 
@@ -108,7 +109,7 @@ def main():
     inc = report.incidence(ctx.base_tpi, ctx.reform_tpi, ie)
     print(f"[welfare %% by income group] {list(np.round(inc['welfare_by_J'], 3))}")
 
-    _dump(checks, {"demis": demis, "kappa": kappa, "benefit": benefit,
+    _dump(checks, {"demis": demis, "excess_deaths": excess, "benefit": benefit,
                    "rc_error_reform": rc_r, "macro": {k: float(np.nanmean(v)) for k, v in macro.items()},
                    "welfare_by_J": [float(x) for x in inc["welfare_by_J"]]})
 

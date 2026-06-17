@@ -299,6 +299,9 @@ class HealthChannel(Channel):
         p = ctx.og_reform
         er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c)
         demis = float(np.nanmean(er.values[:10])) - 1.0   # <0 == reform is cleaner
+        if not np.isfinite(demis):
+            raise ValueError(f"health: emissions_ratio gave a non-finite change ({demis}); "
+                             "check the CLEWS emissions files.")
         prov = {"emissions_change": demis, "affects": list(affects)}
         if "mortality" in affects:
             # disease_pop method: stash a SIGNED excess-deaths target + age shape; the runtime's
@@ -308,13 +311,17 @@ class HealthChannel(Channel):
                        else health_profile.placeholder_profile())
             if excess_deaths is not None:
                 target_src = "explicit excess_deaths"
+            elif total_pollution_deaths is not None:
+                excess_deaths = float(total_pollution_deaths) * demis    # GBD total x emissions fraction
+                target_src = "GBD total x emissions change"
             else:
-                total = total_pollution_deaths if total_pollution_deaths is not None else _PLACEHOLDER_PM25_DEATHS
-                excess_deaths = float(total) * demis      # demis<0 -> negative target -> lives saved
-                target_src = ("GBD total x emissions change" if total_pollution_deaths is not None
-                              else "PLACEHOLDER total x emissions change (see DATA.md)")
+                excess_deaths = _PLACEHOLDER_PM25_DEATHS * demis         # demis<0 -> lives saved
+                target_src = "PLACEHOLDER total x emissions change (see DATA.md)"
+                print(f"[guardrail] health: using PLACEHOLDER total PM2.5 deaths "
+                      f"({_PLACEHOLDER_PM25_DEATHS:,.0f}); supply total_pollution_deaths from GBD "
+                      f"(health_profile.total_deaths_from_gbd) before reporting calibrated numbers.")
             ctx.extras["health_shock"] = {"excess_deaths": float(excess_deaths), "profile": profile,
-                                          "phase_years": phase_years}
+                                          "phase_years": phase_years, "rc_ss": c.rc_ss}
             prov["mortality_excess_deaths"] = float(excess_deaths)
             prov["target_source"] = target_src
             prov["profile_source"] = "GBD" if profile_path else "PLACEHOLDER (no GBD profile; see DATA.md)"

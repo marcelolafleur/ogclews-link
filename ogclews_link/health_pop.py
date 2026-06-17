@@ -35,6 +35,10 @@ def calibrate_shock_scale(target, pop_dist, fert, mort, infmort, imm, profile, p
     target==0 is a no-op. Returns (shock_scale, shocked_mortality_path). Pure -- no ogcore."""
     from scipy.optimize import brentq
 
+    profile = np.asarray(profile, dtype=float)
+    if profile.ndim != 1 or np.any(profile < 0) or not np.all(np.isfinite(profile)):
+        raise ValueError("disease_pop: profile must be a finite, nonnegative 1-D age shape "
+                         "(the monotonicity that brackets the brentq root assumes h(s) >= 0).")
     ny = phase_years
     base_d = total_deaths_fn(pop_dist, fert, mort, infmort, imm, num_years=ny)[ny - 1].sum()
 
