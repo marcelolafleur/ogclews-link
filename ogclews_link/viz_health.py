@@ -1,13 +1,13 @@
-"""Health-channel visuals -- the newest coupling, worth showcasing. Three figures that tell the
-"why mortality≈0, morbidity carries it" story from the data itself:
+"""Health-channel visuals -- the newest coupling. Three figures that show the channel from the
+data itself:
 
-  1. gbd_age_profiles      -- the GBD age shapes h(s) (pollution DEATHS, elderly-skewed) and g(s)
-                              (pollution DISABILITY/YLDs, already heavy in working ages). These are
-                              the channel's actual inputs; avoided deaths/YLDs share their shape.
-  2. mortality_by_age      -- where the reform's avoided mortality falls (≈all post-retirement),
-                              from the solved baseline-vs-reform survival rates.
-  3. gdp_split             -- the resulting GDP contribution: mortality (lives saved) vs morbidity
-                              (productivity), a clean standalone of the waterfall's health segment.
+  1. gbd_age_profiles      -- the GBD age shapes h(s) (pollution deaths) and g(s) (pollution
+                              disability/YLDs) by age. These are the channel's actual inputs;
+                              avoided deaths/YLDs share their shape.
+  2. mortality_by_age      -- where the reform's avoided mortality falls by age, from the solved
+                              baseline-vs-reform survival rates.
+  3. gdp_split             -- the resulting GDP contribution split into its mortality and morbidity
+                              parts, a standalone of the waterfall's health segment.
 
 Colors match the waterfall legend (mortality=teal, morbidity=orange) so the deck reads as one.
 Builders take already-loaded data (a CSV path / the model_params objects / the layered list), so
@@ -27,8 +27,7 @@ from . import health_profile, style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-_SRC = "Source: OG-PHL (OG-Core) x CLEWS coupled model · author's calculations"
-_GBD_SRC = "Source: IHME GBD 2023, ambient particulate-matter burden, Philippines · author's calculations"
+_SRC = style.SRC
 MORT, MORB = style.CATEGORICAL[2], style.CATEGORICAL[3]  # teal / orange -- match the waterfall
 
 
@@ -37,9 +36,10 @@ MORT, MORB = style.CATEGORICAL[2], style.CATEGORICAL[3]  # teal / orange -- matc
 def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15, work_hi=65,
                      name="health_age_profiles"):
     """Mortality h(s) and morbidity g(s) age profiles from the IHME GBD export (the exact builder
-    calls the channel uses), as peak-1 relative shapes over single ages. Shades the working-age
-    band -- where pollution DEATHS are still near zero but DISABILITY is already substantial, which
-    is the whole reason lives-saved barely lift labor supply while avoided disability does."""
+    the channel uses), as peak-1 relative shapes over single ages. Shades the working-age band so
+    the deaths-vs-disability contrast by age is legible."""
+    gbd_src = (f"Source: IHME GBD {year}, ambient particulate-matter burden, "
+               f"{location} · author's calculations")
     hs = health_profile.build_profile_from_gbd(csv_path, location, year,
                                                key_col="cause_name", key_value="All causes")
     gs = health_profile.build_morbidity_profile_from_gbd(csv_path, location, year)
@@ -56,8 +56,7 @@ def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15
                           (len(gs) - 1, gs[-1], "morbidity g(s)", MORB)], min_gap=0.07)
     # working-age contrast: morbidity vs mortality at the band midpoint
     mid = (work_lo + work_hi) // 2
-    ax.annotate(f"at age {mid}, disability is ~{gs[mid] / max(hs[mid], 1e-9):.0f}× the death risk —\n"
-                f"so avoided DISABILITY hits workers, avoided DEATHS do not",
+    ax.annotate(f"at age {mid}, disability is ~{gs[mid] / max(hs[mid], 1e-9):.0f}× the death risk",
                 xy=(mid, gs[mid]), xytext=(0.04, 0.93), textcoords="axes fraction",
                 fontsize=8.5, color=style.SUB, va="top", ha="left",
                 arrowprops=dict(arrowstyle="->", color="#BBBBBB", lw=0.8))
@@ -68,19 +67,21 @@ def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15
     ax.set_xlabel("age")
     ax.set_ylabel("attributable rate by age (peak = 1)")
     style.title_block(
-        fig, title="Pollution kills the old but disables the working-age",
+        fig, title="Attributable burden by age: deaths vs disability",
         subtitle="Ambient-PM2.5 attributable rate by age, peak-normalized  ·  deaths h(s) vs disability g(s)",
-        source=f"{_GBD_SRC}.  {note}" if note else _GBD_SRC, kicker="health: age profiles", top=0.965)
+        source=f"{gbd_src}.  {note}" if note else gbd_src, kicker="health: age profiles", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
 # --- 2. where the reform's avoided mortality falls -------------------------------
 
-def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_age=65,
+def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_age=None,
                      name="health_mortality_by_age"):
     """Age distribution of the reform's avoided mortality, from the solved SS survival rates:
-    avoided deaths at age a ∝ (rho_base - rho_reform) × population share. Concentrated past
-    retirement, so it adds almost nothing to labor supply -- the figure behind 'mortality≈0 GDP'."""
+    avoided deaths at age a ∝ (rho_base - rho_reform) × population share, with the retirement age
+    marked. retire_age defaults to the model's own retirement age."""
+    if retire_age is None:
+        retire_age = style.retire_age(base_params)
     E, S = int(base_params.E), int(base_params.S)
     rho_b = np.asarray(base_params.rho, float)[-1]
     rho_r = np.asarray(reform_params.rho, float)[-1]
@@ -109,7 +110,7 @@ def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
     ax.set_xlabel("age")
     ax.set_ylabel("share of avoided deaths (%)")
     style.title_block(
-        fig, title=f"Avoided pollution deaths skew old, peaking near {peak_age}",
+        fig, title=f"Avoided mortality by age, peaking near {peak_age}",
         subtitle="Age distribution of the reform's avoided mortality (solved survival rates)",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="health: avoided mortality", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -120,8 +121,7 @@ def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
 def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health", note=None,
               name="health_gdp_split"):
     """Standalone of the waterfall's health segment: the health channel's marginal GDP, split into
-    the mortality (lives-saved) and morbidity (productivity) parts. Mortality ≈ 0 (deaths are
-    post-retirement); morbidity carries the small positive."""
+    its mortality and morbidity parts (a clean standalone of the waterfall's health bar)."""
     by = {r.get("step"): r for r in layered}
     if health_step not in by or prev_step not in by or "health_split" not in by[health_step]:
         return []
@@ -130,7 +130,7 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     mort = split["mortality"] - prevY
     morb = (split["combined"] - prevY) - mort
     vals = [mort, morb]
-    labs = ["mortality\n(lives saved)", "morbidity\n(productivity)"]
+    labs = ["mortality", "morbidity"]
 
     os.makedirs(out_dir, exist_ok=True)
     fig, ax = plt.subplots(figsize=(6.4, 5.0))
@@ -147,7 +147,7 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     ax.margins(y=0.22)
     ax.set_ylabel("marginal contribution to GDP (%)")
     style.title_block(
-        fig, title="Morbidity, not mortality, carries the health channel",
+        fig, title="Health channel: mortality vs morbidity contribution to GDP",
         subtitle=f"GDP contribution of the health channel  ·  net {mort + morb:+.4f}%",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="health: GDP split", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import font_manager as fm
 
 # --- palette: editorial, colorblind-safe -----------------------------------------
@@ -163,6 +164,80 @@ def label_ends(ax, points, dx=6, min_gap=None):
 def signed(vals, gain=GAIN, loss=LOSS):
     """Diverging color per value sign (gains vs losses)."""
     return [loss if v < 0 else gain for v in vals]
+
+
+# --- honest, scenario-portable wording -------------------------------------------
+# A figure must never ASSERT a result that holds only for one run. Numbers may be stamped
+# on a figure (they are computed from the data); DIRECTION and MAGNITUDE words must be
+# DERIVED from those numbers, never hardcoded. These helpers centralize that, so titles can
+# default to neutral descriptions and any derived phrasing is true by construction for any
+# scenario. The country/scenario identity rides in the title and the run directory, so the
+# source credit stays model-generic.
+
+SRC = "Source: OG-Core x CLEWS coupled model · author's calculations"
+
+
+def source_line(note=None):
+    """Grey credit line; appends an optional per-run caveat note."""
+    return f"{SRC}.  {note}" if note else SRC
+
+
+def direction(x, *, eps=0.0, up="rises", down="falls", flat="is little changed"):
+    """Sign-driven verb so a headline can never claim the wrong direction."""
+    return flat if abs(float(x)) <= eps else (up if x > 0 else down)
+
+
+def bucket(x, edges, words):
+    """Map |x| to a word by ascending thresholds; len(words) == len(edges)+1.
+    e.g. bucket(v, [0.5, 2.0], ['small', 'moderate', 'large'])."""
+    ax = abs(float(x))
+    for e, w in zip(edges, words):
+        if ax < e:
+            return w
+    return words[-1]
+
+
+def spread_word(values, *, eps, even="even", uneven="uneven"):
+    """Describe cross-group/-age dispersion from the spread (max-min) of values."""
+    v = np.asarray(values, dtype=float)
+    return even if float(np.nanmax(v) - np.nanmin(v)) <= eps else uneven
+
+
+# OG-Core's default 7-group lifetime-income partition (lambdas [.25,.25,.2,.1,.1,.09,.01]);
+# this is the OG-Core default shared across country models, not a PHL-only choice.
+_DEFAULT_J7 = ["0-25%", "25-50%", "50-70%", "70-80%", "80-90%", "90-99%", "Top 1%"]
+
+
+def income_labels(J, lambdas=None):
+    """Percentile labels for J lifetime-income groups. Derived from `lambdas` (population
+    shares) when given, so they match the run's actual partition; else the OG-Core default-7
+    labels for J==7, else generic 'group N'."""
+    if lambdas is not None and len(lambdas) == J:
+        edges = np.concatenate([[0.0], np.cumsum(np.asarray(lambdas, dtype=float))]) * 100
+        out = []
+        for a, b in zip(edges[:-1], edges[1:]):
+            lo, hi = round(float(a)), round(float(b))
+            out.append(f"Top {100 - lo}%" if (hi >= 99.5 and lo >= 90) else f"{lo}-{hi}%")
+        return out
+    if J == 7:
+        return list(_DEFAULT_J7)
+    return [f"group {i + 1}" for i in range(J)]
+
+
+def retire_age(params, default=65):
+    """OG-Core retirement age from a model_params object, robust to scalar/array/missing."""
+    for attr in ("retire", "retirement_age"):
+        val = getattr(params, attr, None)
+        if val is None:
+            continue
+        try:
+            return int(np.atleast_1d(val).flat[0])
+        except Exception:  # noqa: BLE001
+            try:
+                return int(val)
+            except Exception:  # noqa: BLE001
+                pass
+    return default
 
 
 def save(fig, path):

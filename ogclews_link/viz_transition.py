@@ -1,7 +1,7 @@
 """Transition-path figures -- the TIME SERIES of the reform's deviation across the OG-Core
 transition (in calendar years), not the 10-year-mean snapshot the waterfall/macro_honest use.
-The dynamics are the story: GDP peaks mid-transition as the capital stock builds, then settles
-to its long-run level; consumption dips on impact and partly recovers.
+The dynamics are the story: the full path can differ sharply from its long-run (10-yr-mean)
+level, so these builders show the whole trajectory rather than a single snapshot.
 
 Editorial house theme (see style.py). Import-safe (matplotlib Agg). Builders take the already-
 loaded baseline/reform TPI dicts + the calendar start year, so they run from pickles in seconds.
@@ -20,8 +20,7 @@ from . import style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-_SRC = "Source: OG-PHL (OG-Core) x CLEWS coupled model · author's calculations"
-# % of consumption that energy is -- the reason macro effects stay sub-1%.
+_SRC = style.SRC
 MACRO_VARS = [("Y", "GDP", style.CATEGORICAL[0]), ("C", "consumption", style.CATEGORICAL[1]),
               ("K", "capital", style.CATEGORICAL[2]), ("L", "labor", style.CATEGORICAL[3])]
 
@@ -39,11 +38,11 @@ def _pct_path(base_tpi, reform_tpi, var, n):
 # --- the hero: macro aggregates over the transition ------------------------------
 
 def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
-                     title="GDP climbs through the transition, then settles",
+                     title="Macro aggregates over the transition",
                      name="macro_transition"):
     """Y/C/K/L % deviation from baseline across the transition, calendar-year x-axis, lines
-    direct-labeled at their right ends. The GDP peak is called out -- it is several times the
-    long-run (10-yr-mean) effect the snapshot figures report."""
+    direct-labeled at their right ends. The largest GDP deviation is marked -- the path can be
+    several times the long-run (10-yr-mean) effect the snapshot figures report."""
     os.makedirs(out_dir, exist_ok=True)
     n = min(int(n_years), len(np.asarray(base_tpi["Y"])), len(np.asarray(reform_tpi["Y"])))
     yrs = _years(start_year, n)
@@ -57,12 +56,13 @@ def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
         ax.plot(yrs, paths[v], color=c, lw=2.2, zorder=2)
         ends.append((yrs[-1], paths[v][-1], lab, c))
     style.zero_line(ax)
-    # call out the GDP peak (the dynamic the snapshot hides)
+    # call out the largest GDP deviation (the dynamic the snapshot hides) -- by magnitude, so
+    # the marker is honest whether the path runs above or below baseline
     y = paths["Y"]
-    pk = int(np.nanargmax(y))
+    pk = int(np.nanargmax(np.abs(y)))
     ax.scatter([yrs[pk]], [y[pk]], s=46, color=style.CATEGORICAL[0], zorder=4,
                edgecolor="white", linewidth=1.0)
-    ax.annotate(f"GDP peaks {y[pk]:+.2f}% in {yrs[pk]}", (yrs[pk], y[pk]),
+    ax.annotate(f"largest deviation {y[pk]:+.2f}% in {yrs[pk]}", (yrs[pk], y[pk]),
                 xytext=(8, 12), textcoords="offset points", fontsize=9.5,
                 fontweight="bold", color=style.CATEGORICAL[0])
     rng = float(np.nanmax([np.nanmax(np.abs(p)) for p in paths.values()]))
@@ -111,7 +111,7 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
         ax.set_title(f"{ttl}  ·  {desc}")
         ax.set_ylabel("% of GDP")
     style.title_block(
-        fig, title="The reform's fiscal footprint over the transition",
+        fig, title="Debt and revenue over the transition",
         subtitle="Debt and revenue as a share of GDP, baseline vs reform",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="fiscal paths", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -119,14 +119,14 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
 
 def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
                        name="revenue_transition"):
-    """Consumption/energy-tax revenue % deviation across the transition -- the wedge raises
-    revenue, back-loaded as the carbon cut deepens. NOT recycled in this run (flagged)."""
+    """Consumption/energy-tax revenue % deviation from baseline across the transition."""
     if "cons_tax_revenue" not in base_tpi or "cons_tax_revenue" not in reform_tpi:
         return []
     os.makedirs(out_dir, exist_ok=True)
     n = min(int(n_years), len(np.asarray(base_tpi["Y"])))
     yrs = _years(start_year, n)
     dev = _pct_path(base_tpi, reform_tpi, "cons_tax_revenue", n)
+    meandev = float(np.nanmean(dev))
     fig, ax = plt.subplots(figsize=(8.0, 4.8))
     fig.subplots_adjust(top=0.76, bottom=0.13, left=0.09, right=0.94)
     style.clean(ax)
@@ -135,13 +135,13 @@ def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, 
     ax.fill_between(yrs, 0, dev, color=style.CATEGORICAL[2], alpha=0.10, zorder=1)
     ax.set_xlim(yrs[0], yrs[-1])
     ax.set_ylim(0, float(np.nanmax(dev)) * 1.35)  # headroom so the line isn't jammed at the top
-    ax.annotate(f"sustained ~{np.nanmean(dev):+.1f}% above baseline", (yrs[len(yrs) // 2], dev[len(dev) // 2]),
+    ax.annotate(f"~{meandev:+.1f}% vs baseline, on average", (yrs[len(yrs) // 2], dev[len(dev) // 2]),
                 xytext=(0, 14), textcoords="offset points", ha="center", fontsize=9,
                 color=style.TEAL, fontweight="medium")
     ax.set_ylabel("revenue change vs baseline (%)")
     style.title_block(
-        fig, title="The energy/carbon wedge raises consumption-tax revenue",
-        subtitle="Consumption-tax revenue, % deviation from baseline  ·  not recycled in this run",
+        fig, title=f"Consumption-tax revenue {style.direction(meandev, up='rises', down='falls', flat='~ flat')} vs baseline",
+        subtitle="Consumption-tax revenue, % deviation from baseline",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="carbon revenue", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -149,9 +149,8 @@ def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, 
 def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
                      name="rates_transition"):
     """Interest rate r and wage w as % deviation from baseline across the transition. Both are
-    PRICES (r a rate, w a level), so % deviation is the comparable unit -- and both peak below
-    0.6%, so 'barely move' is the honest read once measured properly (not the ×100-of-a-wage-
-    level artifact)."""
+    PRICES (r a rate, w a level), so % deviation is the comparable unit (not the ×100-of-a-wage-
+    level artifact). The headline word and threshold are derived from the computed max deviation."""
     have = [v for v in ("r", "w") if v in base_tpi and v in reform_tpi]
     if not have:
         return []
@@ -176,8 +175,9 @@ def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     style.label_ends(ax, ends, min_gap=0.10 * rng)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.14)
     ax.set_ylabel("change vs baseline (%)")
+    move_word = style.bucket(rng, [0.6], ["barely move", "move materially"])
     style.title_block(
-        fig, title="Factor prices barely move",
-        subtitle="Interest rate and wage, % deviation from baseline  ·  both peak below 0.6%",
+        fig, title=f"Factor prices {move_word}",
+        subtitle=f"Interest rate and wage, % deviation from baseline  ·  max |deviation| {rng:.2f}%",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="factor prices", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

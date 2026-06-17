@@ -1,10 +1,10 @@
 """One-page headline dashboard -- the coupled run on a single slide. Four compact panels carry the
 whole arc, left to right, top to bottom:
 
-  1. energy system   -- the reform bends the emissions path down (the physical CLEWS signal)
-  2. macro dynamics  -- GDP & consumption deviation over the transition (peaks, then settles)
+  1. energy system   -- baseline vs reform emissions path (the physical CLEWS signal)
+  2. macro dynamics  -- GDP & consumption deviation over the transition
   3. channels        -- what each layered channel adds to GDP (the decomposition)
-  4. welfare         -- steady-state lifetime CEV by income group (small, even cost)
+  4. welfare         -- steady-state lifetime CEV by income group
 
 Reuses the per-figure machinery (viz_welfare._Felicity, viz_transition._pct_path) rather than
 re-deriving it, so the dashboard always matches its standalone figures. Import-safe (Agg).
@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .figures import _labels  # noqa: E402
 
-_SRC = "Source: OG-PHL (OG-Core) x CLEWS coupled model · author's calculations"
+_SRC = style.SRC
 
 
 def _panel_emissions(ax, country):
@@ -40,7 +40,7 @@ def _panel_emissions(ax, country):
                           (er.index[-1], er.values[-1], "reform", style.GAIN)], min_gap=0.0)
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.18)
     ax.set_ylabel(f"emissions ({country.co2_emission})")
-    ax.set_title("1 · The reform bends emissions down")
+    ax.set_title("1 · Emissions: baseline vs reform")
 
 
 def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
@@ -54,7 +54,7 @@ def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
     style.zero_line(ax)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.18)
     ax.set_ylabel("change vs baseline (%)")
-    ax.set_title("2 · GDP climbs then settles; consumption dips")
+    ax.set_title("2 · Macro aggregates over the transition")
 
 
 def _panel_waterfall(ax, layered):
@@ -90,7 +90,7 @@ def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
     ax.set_xticklabels(_labels(J), rotation=30, ha="right", fontsize=8)
     ax.margins(y=0.18)
     ax.set_ylabel("lifetime CEV (%)")
-    ax.set_title("4 · Welfare: a small, even cost (CEV by group)")
+    ax.set_title("4 · Welfare by income group (CEV)")
 
 
 def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_params,
@@ -106,7 +106,7 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
     try:
         _panel_emissions(axes[0, 0], country)
     except Exception as e:  # noqa: BLE001 -- emissions needs the external CLEWS dir; degrade gracefully
-        axes[0, 0].set_title("1 · The reform bends emissions down")
+        axes[0, 0].set_title("1 · Emissions: baseline vs reform")
         axes[0, 0].text(0.5, 0.5, f"(emissions unavailable:\n{type(e).__name__})", ha="center",
                         va="center", transform=axes[0, 0].transAxes, color=style.MUTE, fontsize=9)
     _panel_macro(axes[0, 1], base_tpi, reform_tpi, start_year)
@@ -114,7 +114,7 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
     _panel_cev(axes[1, 1], base_ss, reform_ss, base_params, reform_params)
 
     style.title_block(
-        fig, title=f"{country.name}: a coupled energy-price + carbon reform, end to end",
-        subtitle="Emissions fall · GDP nudged up via investment/carbon/health · a small, even welfare cost",
+        fig, title=f"{country.name}: coupled OG-Core × CLEWS scenario",
+        subtitle="Emissions · macro transition · channel decomposition · welfare (CEV)",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="headline dashboard", top=0.975)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

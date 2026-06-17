@@ -1,9 +1,8 @@
 """Distributional-richness figures -- the incidence beyond the headline averages:
   * energy_demand_by_group -- the energy-demand response by lifetime-income group, one line per
-    channel step (revives the old energy_by_income properly): the cut deepens as carbon is added,
-    and the poorest cut energy use the most.
+    channel step (revives the old energy_by_income properly).
   * consumption_by_age     -- the SS consumption deviation across the lifecycle (λ-weighted, with
-    the income-group range), showing WHEN in life the cost lands (young and old bear a little more).
+    the income-group range), showing WHEN in life the deviation lands.
 
 Editorial house theme; import-safe (Agg). Builders take the already-loaded layered list / SS dicts.
 """
@@ -23,15 +22,14 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .figures import _labels  # noqa: E402
 
-_SRC = "Source: OG-PHL (OG-Core) x CLEWS coupled model · author's calculations"
+_SRC = style.SRC
 STEP_COLORS = style.CATEGORICAL
 
 
 # --- energy-demand response by income group (across steps) -----------------------
 
 def energy_demand_by_group(layered, out_dir, *, note=None, name="energy_by_income"):
-    """Energy-good demand %-change by lifetime-income group, one line per channel step. The cut
-    deepens as the carbon price is layered in; the poorest groups cut energy use the most."""
+    """Energy-good demand %-change by lifetime-income group, one line per channel step."""
     solved = [r for r in layered if "macro" in r and "energy_by_J" in r]
     if not solved:
         return []
@@ -53,9 +51,9 @@ def energy_demand_by_group(layered, out_dir, *, note=None, name="energy_by_incom
     ax.set_xlim(-0.2, J - 1 + 0.5)
     ax.set_ylabel("energy-good demand change (%)")
     style.title_block(
-        fig, title="Carbon pricing deepens the energy-demand cut",
+        fig, title="Energy-demand change by income group, across channel steps",
         subtitle="Energy-good demand change by income group, poorest to richest  ·  one line per channel step",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="distribution: energy demand", top=0.965)
+        source=style.source_line(note), kicker="distribution: energy demand", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -64,7 +62,7 @@ def energy_demand_by_group(layered, out_dir, *, note=None, name="energy_by_incom
 def consumption_by_age(base_ss, reform_ss, base_params, out_dir, *, note=None, max_age=90,
                        name="consumption_by_age"):
     """SS composite-consumption %-change by age: the λ-weighted lifecycle path with the income-
-    group range as a band. Fairly even (~0.3%) through working life, a little deeper for the old.
+    group range as a band, showing when in life the deviation lands.
     Capped at ``max_age`` -- the final model ages are a terminal-period boundary (assets fully
     drawn down), not a lifecycle feature."""
     cb, cr = np.asarray(base_ss["c"], float), np.asarray(reform_ss["c"], float)  # (S, J)
@@ -87,15 +85,17 @@ def consumption_by_age(base_ss, reform_ss, base_params, out_dir, *, note=None, m
     ax.fill_between(ages, lo, hi, color=style.LOSS, alpha=0.10, zorder=1, label="income-group range")
     ax.plot(ages, avg, color=style.LOSS, lw=2.4, zorder=3)
     style.label_ends(ax, [(ages[-1], avg[-1], "population avg", style.LOSS)])
-    ax.axvline(65, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
-    ax.annotate("retirement", (65, ax.get_ylim()[1]), xytext=(5, -4), textcoords="offset points",
+    r_age = style.retire_age(base_params)
+    ax.axvline(r_age, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
+    ax.annotate("retirement", (r_age, ax.get_ylim()[1]), xytext=(5, -4), textcoords="offset points",
                 fontsize=8.5, color=style.SUB, va="top")
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.16)
     ax.set_xlabel("age")
     ax.set_ylabel("consumption change vs baseline (%)")
     ax.legend(loc="lower left", frameon=False, fontsize=8.5)
     style.title_block(
-        fig, title="Consumption falls ~0.3% across the lifecycle, a bit more for the old",
-        subtitle="Steady-state composite-consumption change by age, λ-weighted  ·  band = income-group range",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="distribution: by age", top=0.965)
+        fig, title="Consumption change by age",
+        subtitle=f"Steady-state composite-consumption change by age, λ-weighted (mean {np.nanmean(avg):+.2f}%)"
+                 "  ·  band = income-group range",
+        source=style.source_line(note), kicker="distribution: by age", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

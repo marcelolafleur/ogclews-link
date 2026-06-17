@@ -8,8 +8,8 @@ utilities, not levels):
   * labor        -χ^n_s · b_ellipse · [1 - (1-(n/l̃)^υ)^(1/υ)]  [antiderivative of MDU_n]
   * per-period weight  W_s = (β_j · e^{g_y(1-σ)})^s · Π_{u<s}(1-ρ_u)
     -- the discount/survival/growth structure read straight off the savings Euler.
-The warm-glow bequest term is omitted (it is second-order and the asset path barely moves);
-this is flagged in the captions. CEV is solved by a 1-D root find per group/cohort.
+The warm-glow bequest term is omitted (second-order; flagged in the captions). CEV is solved
+by a 1-D root find per group/cohort.
 
 Two views: cev_by_group (long-run, steady-state, by lifetime-income group) and cev_by_age
 (remaining-lifetime, by age at the reform -- who alive today bears it). Import-safe (Agg).
@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .figures import _labels  # noqa: E402
 
-_SRC = "Source: OG-PHL (OG-Core) x CLEWS coupled model · author's calculations"
+_SRC = style.SRC
 _BEQ_NOTE = "lifetime CEV (consumption + labor felicity; warm-glow bequest omitted, second-order)"
 
 
@@ -83,9 +83,8 @@ class _Felicity:
 def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, note=None,
                  name="welfare_cev_by_group"):
     """Steady-state lifetime CEV by lifetime-income group -- the long-run welfare effect. Read it
-    against the incidence_hero's consumption proxy: the proxy swings widely (near-term, cross-
-    sectional), but proper lifetime welfare is a small, fairly even cost (carbon revenue is not
-    recycled here, so the wedge is a net leak)."""
+    against the incidence_hero's consumption proxy: the proxy is near-term and cross-sectional,
+    while CEV is the proper long-run lifetime-welfare measure."""
     fe = _Felicity(base_params)
     cb, nb = np.asarray(base_ss["c"], float), np.asarray(base_ss["n"], float)      # (S, J)
     cr, nr = np.asarray(reform_ss["c"], float), np.asarray(reform_ss["n"], float)
@@ -95,7 +94,7 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     J = cb.shape[1]
     cev = 100.0 * np.array([fe.cev((cb[:, j], nb[:, j]), (cr[:, j], nr[:, j]),
                                    chi, rho_b, rho_r, j) for j in range(J)])
-    lab = _labels(J)
+    lab = _labels(J, np.asarray(base_params.lambdas, float).ravel())
 
     os.makedirs(out_dir, exist_ok=True)
     fig, ax = plt.subplots(figsize=(7.8, 5.0))
@@ -112,9 +111,12 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.margins(y=0.20)
     ax.set_ylabel("consumption-equivalent variation (%)")
+    eps = 0.05 * (np.nanmax(np.abs(cev)) or 1.0)
+    spread = style.spread_word(cev, eps=eps)
     style.title_block(
-        fig, title="Properly measured, the welfare cost is small and even",
-        subtitle="Steady-state lifetime CEV by income group, poorest to richest  ·  negative = worse off",
+        fig, title="Lifetime welfare effect by income group (CEV)",
+        subtitle=f"Steady-state lifetime CEV by income group, poorest to richest  ·  "
+                 f"mean {np.nanmean(cev):+.2f}%, {spread} across groups  ·  negative = worse off",
         source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
         kicker="welfare: CEV by group", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -166,19 +168,21 @@ def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, not
     fig.subplots_adjust(top=0.76, bottom=0.13, left=0.095, right=0.92)
     style.clean(ax, left=True)
     style.zero_line(ax)
-    ax.fill_between(ages, cev_lo, cev_hi, color=style.LOSS, alpha=0.10, zorder=1,
+    col = style.LOSS if np.nanmean(cev_w) < 0 else style.GAIN  # sign-honest, not assumed-loss
+    ax.fill_between(ages, cev_lo, cev_hi, color=col, alpha=0.10, zorder=1,
                     label="income-group range")
-    ax.plot(ages, cev_w, color=style.LOSS, lw=2.4, zorder=3)
-    style.label_ends(ax, [(ages[-1], cev_w[-1], "population avg", style.LOSS)])
-    ax.axvline(65, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
-    ax.annotate("retirement", (65, ax.get_ylim()[0]), xytext=(5, 6), textcoords="offset points",
+    ax.plot(ages, cev_w, color=col, lw=2.4, zorder=3)
+    style.label_ends(ax, [(ages[-1], cev_w[-1], "population avg", col)])
+    _retire = style.retire_age(base_params)
+    ax.axvline(_retire, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
+    ax.annotate("retirement", (_retire, ax.get_ylim()[0]), xytext=(5, 6), textcoords="offset points",
                 fontsize=8.5, color=style.SUB)
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.16)
     ax.set_xlabel("age at the reform")
     ax.set_ylabel("remaining-lifetime CEV (%)")
     ax.legend(loc="lower right", frameon=False, fontsize=8.5)
     style.title_block(
-        fig, title="Everyone alive bears a similar small loss",
+        fig, title="Remaining-lifetime welfare effect by age (CEV)",
         subtitle=f"Remaining-lifetime CEV by age at the reform, λ-weighted  ·  ages {ages[0]}–{ages[-1]}",
         source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
         kicker="welfare: CEV by age", top=0.965)
