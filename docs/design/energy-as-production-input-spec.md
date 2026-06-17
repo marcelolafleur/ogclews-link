@@ -31,10 +31,17 @@ quantity, and OG↔CLEWS reconcile energy demand vs supply at a fixed point.
 
 OG-Core can't do route C natively, but PHL's calibration already supplies **three of the four pieces**:
 
-1. **An energy industry (the supplier) exists.** Canonical OG-PHL ships **M=7 with "Utilities"**
-   (`aelec`,`awatr`; `ogphl/constants.py` PROD_DICT). The CLEWS coupling uses **M=4 with "Electricity"**
-   (index 1; vendored `_calibration.py` / `contract.py` `energy_industry_index=1`). Either way the
-   energy supplier is a real industry with its own price `p_m[m_e]`, `K`, `L`, `Z`.
+1. **An energy industry (the supplier) exists.** The **target platform is the CLEWS M=4 calibration**
+   — `[NaturalResources, Electricity, ConsTradeServices, Manufacturing]`, with **"Electricity" at
+   index 1** (`_calibration.py` / `contract.py` `energy_industry_index=1`). It is the proven runnable
+   multi-industry baseline (full TPI converges: baseline + the 4-step across-steps reforms) and its
+   energy industry maps `Electricity → ["aelec"]` (electricity *only*), which is the clean match to the
+   per-fuel CLEWS commodity dual. The energy supplier is a real industry with its own price `p_m[m_e]`,
+   `K`, `L`, `Z`. **Not M=7:** canonical OG-PHL also ships an energy industry — `M=7` "Utilities"
+   (`aelec`+`awatr`; `ogphl/constants.py`) — but it is *not* a validated/runnable config (OG-PHL defaults
+   to `M=1`; its only multi-industry example is a toy `M=2`), it bundles water into the energy price, and
+   it would need its **own calibration assessment** (param vectors, SS initial-guess tuning, convergence
+   check) before use. Defer M=7 until that assessment is done; build route C on M=4.
 2. **The energy price object exists:** `p_m[m_e]` (industry-M numeraire price system, SS.py:535,
    TPI.py:797/813), to be anchored to the CLEWS commodity dual (`signals.commodity_shadow_price`).
 3. **The θ_m calibration data already ships.** `ogphl/data/002_IFPRI_SAM_PHL_2018_SAM.csv` contains the
@@ -49,6 +56,14 @@ OG-Core can't do route C natively, but PHL's calibration already supplies **thre
 **The only missing piece is OG-Core production-side machinery (code, not data):** firms don't demand the
 energy industry's output, there's no energy FOC, no inter-industry delivery in the resource constraint,
 and no value-added netting.
+
+**Granularity note (M=4 is enough; escape hatch if not).** M=4 captures the mechanism — a supplier and
+three energy-buying industries — but it (like M=7) bundles the *energy-intensive* sub-sectors (chemicals
+~14.8%, basic metals ~11.4%) into one "Manufacturing" `θ_m`, averaging their high intensity away. M=7
+does **not** fix this (it splits only low-intensity sectors — Mining, Construction, Trade, Services,
+Agriculture). If that heterogeneity becomes central to a result, the right move is a **purpose-built
+aggregation** that breaks energy-intensive manufacturing (`achem`, `ametl`, … are separate SAM
+activities) into its own industry — a deliberate calibration choice, not the canonical M=7.
 
 ## 3. The design (minimal theory-correct version)
 
@@ -104,7 +119,9 @@ everything rigorous depends on; build it first.
   "default", correct sign); use a **recycled** `tau_c` (or a small non-tax consumer-price-wedge param)
   for household energy incidence, driven by the **dual**, not the cost index. Never stack `tau_c` + `Z`.
 - **Phase 1:** dual extraction + `get_energy_use_shares` (θ_m). Data-only; de-risks Phase 2.
-- **Phase 2 (the rigor endpoint):** the §3 energy-as-CES-input PR + the dual-anchored fixed point.
+- **Phase 2 (the rigor endpoint):** the §3 energy-as-CES-input PR + the dual-anchored fixed point, built
+  and validated on the **M=4** platform (the proven-runnable multi-industry baseline). M=7 stays out of
+  scope pending its own calibration assessment (§2.1).
 
 **Cost:** Phase 2 is a genuine OG-Core production-function PR with a joint price/quantity SS+TPI fixed
 point and GDP/tax-accounting changes — non-trivial and needs recalibration of the affected industries.
