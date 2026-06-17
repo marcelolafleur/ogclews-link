@@ -144,8 +144,11 @@ per-industry Z shock**:
    Services 0.42%, Natural Resources 0.21% (Natural Resources is 2.4× direct — most of its energy cost is
    embodied in purchased inputs, which a direct-only shock would miss). Electricity-carrier only:
    ~0.1–1.4%.
-3. `experiments/run_io_calibrated_energy_shock.py` runs OG-PHL M=4 with this per-industry Z haircut and
-   reports the GDP/industry impact.
+3. `experiments/run_io_calibrated_energy_shock.py` runs OG-PHL M=4 with this per-industry Z haircut.
+   **Verified (SS):** a +20% energy+fuels shock → **GDP −1.87%** (industry output −1.6% to −1.8%) — the
+   **correct negative sign**, vs the tau_c route's spurious +GDP. Note the fairly uniform industry fall
+   despite very different per-industry Z haircuts (Electricity −2.5% vs Natural Resources −0.2%): in GE
+   the productivity drag propagates through factor markets (lower r, w → lower K, L) to all sectors.
 
 **Why this is the right bridge:** it is *calibrated* (the Z shock magnitude per industry comes from the
 I-O cost-push, tied to the CLEWS dual via `g`), it *carries inter-industry pass-through* (the ε/e
