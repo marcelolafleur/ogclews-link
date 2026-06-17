@@ -19,8 +19,13 @@ Every lever targets an industry **by index**, so it is resource-agnostic:
 - `set_investment_incentive(p, industry, inv_tax_credit=, delta_tau=, tau_b_mult=, phase_years=)` —
   bias **private** capex in any industry by lowering its cost of capital (existing per-industry `(T+S,M)`
   firm-tax params; OG has no exogenous private-investment quantity, so this is the correct incentive
-  channel). Validated: a 20% energy ITC raises the energy industry's private capital (see
-  `experiments/run_energy_itc.py`).
+  channel). **Validated (SS, `experiments/run_energy_itc.py`):** a 20% energy ITC raises the energy
+  industry's private capital **+5.0%** (targeted — other industries move <0.02%), aggregate K +0.01%,
+  GDP ≈0 (−0.001%). Economic read: the ITC *reallocates* capital into energy as intended, but in OG
+  alone it's a distortion toward a small sector (≈0 aggregate gain) — its payoff lives on the
+  **CLEWS side** (emissions/energy-security) that OG doesn't price, which is precisely what the
+  soft-link is for. A builder should surface that an in-OG capex subsidy looks ~free/slightly-negative
+  on GDP; the benefit is the coupled CLEWS outcome.
 - `route_revenue(p, pct_gdp_path, to=)` — direct a tax's revenue to `transfers` (`alpha_T`),
   `public_investment` (`alpha_I`→K_g), `government_consumption` (`alpha_G`), or `deficit` (no-op → the
   budget closure / debt-ratio rule absorbs it).
