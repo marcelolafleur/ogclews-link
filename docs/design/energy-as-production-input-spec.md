@@ -44,26 +44,40 @@ OG-Core can't do route C natively, but PHL's calibration already supplies **thre
    check) before use. Defer M=7 until that assessment is done; build route C on M=4.
 2. **The energy price object exists:** `p_m[m_e]` (industry-M numeraire price system, SS.py:535,
    TPI.py:797/813), to be anchored to the CLEWS commodity dual (`signals.commodity_shadow_price`).
-3. **The θ_m calibration data already ships.** `ogphl/data/002_IFPRI_SAM_PHL_2018_SAM.csv` contains the
-   full inter-industry intermediate-use block. `get_io_matrix` reads only the household-final-demand
-   slice and **discards** the activities×commodities block. That block gives **energy cost share by
-   destination industry** directly. Verified from the SAM (energy commodities `celec`/`cwatr`/`cmine`,
-   29 activities buy energy; cost shares: chemicals 14.8%, basic metals 11.4%, electricity-gen 11.0%,
-   non-metallic minerals 5.5%, …). A `get_energy_use_shares(prod_dict)` ~10-line sibling of
-   `get_io_matrix` (read `sam[energy_commodity_rows, activity_cols]` / activity gross output, aggregated
-   up to the M industries) yields the per-industry `θ_m` with no new data.
+3. **The θ_m calibration data already ships, and the extractor is BUILT.** `ogphl/data/
+   002_IFPRI_SAM_PHL_2018_SAM.csv` contains the full inter-industry intermediate-use block;
+   `get_io_matrix` reads only the household-final-demand slice and **discards** the
+   activities×commodities block, which gives energy cost share by destination industry directly.
+   `ogclews_link/energy_calibration.py::get_energy_use_shares()` (built, read-only on the SAM) computes
+   it. **Computed M=4 θ_m (this de-risks Phase 2 — real numbers, no new data):**
+
+   | industry | electricity only (`celec`) | + fuels & water (`celec,cmine,cwatr`) |
+   |---|---|---|
+   | Natural Resources | 0.39% | 0.42% |
+   | Electricity (own use) | 6.59% | 10.98% |
+   | Construction/Trade/Services | 0.54% | 0.99% |
+   | Manufacturing | 0.59% | 3.23% |
+
+   **Carrier choice dominates the result, and it's the key economic finding.** *Electricity* is a small
+   input share in PHL (~0.4–0.7% outside the power sector), so an electricity-only route-C channel is
+   structurally correct but quantitatively small. The material energy cost is *fuels* (`cmine` =
+   petroleum/extraction): it lifts Manufacturing's share to 3.23%, and the fine activities show
+   **chemicals 14.8%, basic metals 11.4%, non-metallic minerals 5.5%**. So price the carrier the shock is
+   actually about (fuels for a fuel-price shock; electricity for a power-price shock) against the matching
+   CLEWS commodity dual — don't assume "energy" ≈ electricity.
 
 **The only missing piece is OG-Core production-side machinery (code, not data):** firms don't demand the
 energy industry's output, there's no energy FOC, no inter-industry delivery in the resource constraint,
 and no value-added netting.
 
 **Granularity note (M=4 is enough; escape hatch if not).** M=4 captures the mechanism — a supplier and
-three energy-buying industries — but it (like M=7) bundles the *energy-intensive* sub-sectors (chemicals
-~14.8%, basic metals ~11.4%) into one "Manufacturing" `θ_m`, averaging their high intensity away. M=7
-does **not** fix this (it splits only low-intensity sectors — Mining, Construction, Trade, Services,
-Agriculture). If that heterogeneity becomes central to a result, the right move is a **purpose-built
-aggregation** that breaks energy-intensive manufacturing (`achem`, `ametl`, … are separate SAM
-activities) into its own industry — a deliberate calibration choice, not the canonical M=7.
+three energy-buying industries — but it (like M=7) bundles the *energy-intensive* sub-sectors into one
+"Manufacturing" `θ_m`: the energy+fuels share averages to **3.23%** while the fine activities are
+**chemicals 14.8%, basic metals 11.4%, non-metallic minerals 5.5%** — the heavy-industry intensity is
+averaged away. M=7 does **not** fix this (it splits only low-intensity sectors — Mining, Construction,
+Trade, Services, Agriculture). If that heterogeneity becomes central to a result, the right move is a
+**purpose-built aggregation** that breaks energy-intensive manufacturing (`achem`, `ametl`, … are
+separate SAM activities) into its own industry — a deliberate calibration choice, not the canonical M=7.
 
 ## 3. The design (minimal theory-correct version)
 
@@ -101,7 +115,9 @@ substitution, a real energy market, and a structurally-meaningful dual — while
   (outer nest + energy FOC); `aggregates.py` resource_constraint + GDP as value added; `SS.py`/`TPI.py`
   price fixed point now solves jointly for energy price **and** quantity; `parameters.py` +
   `default_parameters.json` new `theta`/`sigma_E` (T+S, M); `tax.py` value-added base nets the energy bill.
-- **OG-PHL**: `ogphl/input_output.py` add `get_energy_use_shares(prod_dict)` (reuses `read_SAM()`).
+- **OG-PHL**: upstream `get_energy_use_shares(prod_dict)` into `ogphl/input_output.py` (reuses
+  `read_SAM()`). **Prototyped + computed already** in `ogclews_link/energy_calibration.py` (read-only;
+  not yet upstreamed, to avoid touching the shared `ogphl` install while runs are live).
 - **ogclews-link**: a channel that anchors `p_m[m_e]` to `signals.commodity_shadow_price` and drives the
   `Runner` fixed point; deprecate the Z route to a clearly-labeled fallback.
 
@@ -118,7 +134,8 @@ everything rigorous depends on; build it first.
   already has — energy-system investment → `K_g`/`alpha_bs_I` + capital-market crowding-out (the denovo
   "default", correct sign); use a **recycled** `tau_c` (or a small non-tax consumer-price-wedge param)
   for household energy incidence, driven by the **dual**, not the cost index. Never stack `tau_c` + `Z`.
-- **Phase 1:** dual extraction + `get_energy_use_shares` (θ_m). Data-only; de-risks Phase 2.
+- **Phase 1:** θ_m extractor **DONE** (`ogclews_link/energy_calibration.py`; M=4 shares computed for both
+  carriers above). Remaining Phase 1 = **dual extraction** (the binding prerequisite). Data-only.
 - **Phase 2 (the rigor endpoint):** the §3 energy-as-CES-input PR + the dual-anchored fixed point, built
   and validated on the **M=4** platform (the proven-runnable multi-industry baseline). M=7 stays out of
   scope pending its own calibration assessment (§2.1).
