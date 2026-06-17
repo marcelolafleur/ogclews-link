@@ -23,7 +23,7 @@ import os
 
 from ogcore.utils import safe_read_pickle
 
-from ogclews_link import channels, figures, report_html  # noqa: F401 (channels registers)
+from ogclews_link import channels, figures, report_html, viz_transition  # noqa: F401
 from ogclews_link.country import PHL
 
 # The shared, solved across-steps tree (health lane). Read-only for the viz lane.
@@ -52,6 +52,15 @@ def _default_gbd_csv():
 def _tpi(run_dir, label):
     p = os.path.join(run_dir, label, "TPI", "TPI_vars.pkl")
     return safe_read_pickle(p) if os.path.isfile(p) else None
+
+
+def _start_year(base_dir, default=2026):
+    """Calendar start year for the transition x-axis, from the run's model_params."""
+    try:
+        p = safe_read_pickle(os.path.join(base_dir, "model_params.pkl"))
+        return int(getattr(p, "start_year", default))
+    except Exception:  # noqa: BLE001
+        return int(getattr(PHL.scenario, "og_start_year", default) or default)
 
 
 def _try(fn, *a, **k):
@@ -88,11 +97,26 @@ def main(argv=None):
     _try(figures.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
     _try(report_html.write_html_report, layered, os.path.join(fig_dir, "report.html"))
 
+    # --- OG-Core's own canonical suite (free reference set) for the headline reform ----
+    base_dir = os.path.join(run_dir, "baseline")
+    headline_dir = os.path.join(run_dir, HEADLINE_STEP)
+    if os.path.isdir(headline_dir):
+        _try(figures.og_default_outputs, base_dir, headline_dir,
+             os.path.join(fig_dir, "og_suite"), plots=True)
+
     base_tpi = _tpi(run_dir, "baseline")
     try:
         factor = float(safe_read_pickle(os.path.join(run_dir, "baseline", "SS", "SS_vars.pkl"))["factor"])
     except Exception:  # noqa: BLE001
         factor = None
+    start_year = _start_year(base_dir)
+
+    # --- editorial transition-path figures for the headline reform --------------
+    headline_tpi = _tpi(run_dir, HEADLINE_STEP)
+    if base_tpi is not None and headline_tpi is not None:
+        for fn in (viz_transition.macro_transition, viz_transition.fiscal_transition,
+                   viz_transition.revenue_transition, viz_transition.rates_transition):
+            _try(fn, base_tpi, headline_tpi, fig_dir, start_year=start_year, note=NOTE)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []

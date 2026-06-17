@@ -140,10 +140,22 @@ def zero_line(ax, axis="y", value=0.0):
     (ax.axhline if axis == "y" else ax.axvline)(value, color="#333333", lw=1.0, zorder=1.5)
 
 
-def label_ends(ax, points, dx=6):
+def label_ends(ax, points, dx=6, min_gap=None):
     """Direct end-of-line labels in the series color (kills the legend box). points: iterable
-    of (x, y, text, color). Caller should widen the right margin to fit."""
-    for x, y, text, color in points:
+    of (x, y, text, color). Caller should widen the right margin to fit. When ``min_gap`` (in
+    y-data units) is given, labels that would collide are nudged apart vertically (text only --
+    they still read by color), so converging lines stay legible."""
+    pts = list(points)
+    ys = [p[1] for p in pts]
+    if min_gap:
+        order = sorted(range(len(pts)), key=lambda i: pts[i][1])
+        cur = [pts[i][1] for i in order]
+        for k in range(1, len(cur)):
+            if cur[k] - cur[k - 1] < min_gap:
+                cur[k] = cur[k - 1] + min_gap
+        for k, i in enumerate(order):
+            ys[i] = cur[k]
+    for (x, _y, text, color), y in zip(pts, ys):
         ax.annotate(text, (x, y), xytext=(dx, 0), textcoords="offset points",
                     color=color, fontsize=10, fontweight="medium", va="center", ha="left")
 
