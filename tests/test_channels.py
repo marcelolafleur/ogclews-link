@@ -272,6 +272,20 @@ def test_gbd_profile_and_total_from_real_export():
     assert tot > 0                                               # total deaths (excess_deaths target)
 
 
+def test_gbd_morbidity_readers_from_real_export():
+    # Validate the morbidity YLD readers against the real PHL ambient-PM2.5 GBD export (if present).
+    from ogclews_link import health_profile
+    csv = PHL.gbd_burden_csv
+    if not csv or not os.path.isfile(csv):
+        print("  (skip: GBD burden export absent)"); return
+    g = health_profile.build_morbidity_profile_from_gbd(csv, "Philippines", 2023)
+    assert g.shape == (100,) and abs(g.max() - 1.0) < 1e-9       # peak-1 working-age YLD shape
+    assert g[20] < 0.05 and g[25] < g[60] < g[90]               # ~0 young, RISES with age (vs elderly deaths)
+    rate = health_profile.morbidity_yld_rate_from_gbd(csv, "Philippines", 2023)
+    yld = health_profile.total_yld_from_gbd(csv, "Philippines", 2023)
+    assert rate > 0 and yld > 0                                  # magnitude (peak rate) + provenance total
+
+
 def test_clews_capex_reader():
     if not HAVE_CLEWS:
         print("  (skip: CLEWS dirs absent)"); return
