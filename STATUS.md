@@ -74,10 +74,13 @@ Decisions (do not relitigate without reason):
 - Figures rebuilt on an editorial theme (`style.py`): FT/Economist-grade, colorblind-safe
   palettes, kicker+claim titles, direct labels. Regenerate with `experiments/regen_figures.py`.
 - **NEW (2026-06-16): the commodity DUAL is now extractable.** See §4.
-- **NEW (2026-06-17): the health channel SOLVES end-to-end (mortality + morbidity).** The full
-  4-step suite (energy price → +investment → +carbon → +health) now converges on ALL steps; the
-  +health step adds GDP +0.086%→+0.093% (cleaner air → ~658 lives saved), mechanism verified
-  (elderly mortality falls, working-age productivity rises, population holds). See §3.
+- **NEW (2026-06-17): the health channel SOLVES end-to-end (mortality + morbidity), DECOMPOSED.**
+  The full 4-step suite (energy price → +investment → +carbon → +health) converges on ALL steps; the
+  +health step adds GDP +0.086%→+0.093%. Verified split (stacked health bar in `waterfall_gdp.png`):
+  the +0.007pp is essentially ALL **morbidity** (productivity, +0.0075pp) — the **mortality**
+  (lives-saved) contribution is ≈ −0.0005pp, i.e. ~0, because PHL PM2.5 deaths skew elderly (saved
+  lives add retirees, not workers). So do NOT report the GDP gain as a "lives-saved" effect; it is the
+  (placeholder) morbidity multiplier. See §3.
 
 **Stubbed / pending:**
 - **Loop closure** (`framework.Runner` multi-pass): the iteration/damping/convergence logic is
@@ -112,7 +115,8 @@ Decisions (do not relitigate without reason):
     with health = mortality-only (1 extra solve) and the **health bar in `waterfall_gdp.png` is drawn as
     a stacked bar: mortality (lives saved) + morbidity (productivity, the remainder)**. One bar per
     channel; only health carries sub-parts. (The earlier standalone `health_decomposition.py` was folded
-    into this and removed.)
+    into this and removed.) **Verified (full TPI run):** mortality marginal ≈ −0.0005pp (≈0), morbidity
+    +0.0075pp — the GDP gain is the morbidity placeholder, not the lives saved.
   - **Morbidity now takes an AGE distribution too** (mirroring mortality's h(s)): `morbidity_profile`
     on the health channel; default uniform ("all active ages"), or a non-uniform shape via
     `health_profile.working_age_profile` / `morbidity_shape_to_S`. Magnitude carried by
@@ -289,5 +293,6 @@ the event loop under numba → serial fallback. Never `--workers 1` for real run
   `demographic_data/` CSVs) and `PROD_DICT` (`_calibration.py`) — both absolute-path `get_pop_data`
   loads removed. (e) **Bracketing made non-monotone-robust** (outward scan to the first/minimal root;
   true achievable-extremum feasibility message). (f) `welfare_by_J` → `consumption_by_J` (it is
-  composite consumption, not utility). 24/24 transform tests pass; full 4-step suite + decomposition
-  re-run in the OG-PHL venv.
+  composite consumption, not utility). 24/24 transform tests pass; full 4-step suite + the mortality-only
+  decomposition solve re-run in the OG-PHL venv — ALL converge (GDP +0.026→+0.075→+0.086→+0.093%);
+  verified split mortality ≈ −0.0005pp / morbidity +0.0075pp. Committed on branch `health-channel-hardening`.
