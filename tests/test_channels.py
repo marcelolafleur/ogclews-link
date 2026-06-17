@@ -22,6 +22,7 @@ HAVE_CLEWS = os.path.isdir(PHL.scenario.base_dir) and os.path.isdir(PHL.scenario
 _MUIOGO_RUN = "/Users/mlafleur/Projects/MUIOGO/WebAPP/DataStorage/CLEWs Demo/res/REF"
 _GBD_HIV_CSV = ("/Users/mlafleur/Projects/CostOfDisease/source/JDE/hiv-data/"
                 "IHME-GBD_2023_DATA-ddf37f70-1/IHME-GBD_2023_DATA-ddf37f70-1.csv")
+_COD_GET_POP = "/Users/mlafleur/Projects/CostOfDisease/code/get_pop_data.py"
 
 
 def _params():
@@ -148,7 +149,7 @@ def test_health_reads_clews():
     prov = get("health").apply(ctx, affects=("mortality", "e"))
     assert "emissions_change" in prov
     shock = ctx.extras.get("health_shock")                        # disease_pop spec for the runtime
-    assert shock is not None and "kappa" in shock and len(shock["profile"]) == 100
+    assert shock is not None and "excess_deaths" in shock and len(shock["profile"]) == 100
     assert not np.allclose(np.asarray(ctx.og_reform.e), e0)       # morbidity productivity path moved
 
 
@@ -157,6 +158,36 @@ def test_health_profile_shape():
     h = health_profile.placeholder_profile()
     assert h.shape == (100,) and abs(h.max() - 1.0) < 1e-9        # peak-1 relative shape
     assert h[80] > h[30]                                          # elderly-skewed (pollution mortality)
+
+
+def test_disease_pop_bidirectional_calibration():
+    # Bidirectional brentq: a positive target -> positive shock_scale (add deaths); a negative
+    # target -> negative shock_scale (save lives). No OG solve -- pure construction vs the COD math.
+    import importlib.util
+
+    if not os.path.isfile(_COD_GET_POP):
+        print("  (skip: CostOfDisease get_pop_data absent)"); return
+    from ogclews_link import health_pop, health_profile
+    spec = importlib.util.spec_from_file_location("cod_gpd_test", _COD_GET_POP)
+    cod = importlib.util.module_from_spec(spec); spec.loader.exec_module(cod)
+
+    nage, ny = 100, 5
+    s = np.arange(nage)
+    mort = np.tile(0.001 + 0.004 * (s / 99.0) ** 3, (ny, 1))      # rises with age, in (0,1)
+    fert = np.zeros((ny, nage)); fert[:, 15:45] = 0.05
+    imm = np.zeros((ny, nage))
+    infmort = np.full(ny, 0.02)
+    pop = (1e6 * np.exp(-s / 50.0))[None, :]                       # (1, nage)
+    h = health_profile.placeholder_profile(nage)
+    base = cod.total_deaths(pop, fert, mort, infmort, imm, num_years=ny)[ny - 1].sum()
+
+    for target in (+5000.0, -5000.0):
+        scale, path = health_pop.calibrate_shock_scale(
+            target, pop, fert, mort, infmort, imm, h, ny, cod.total_deaths)
+        realized = cod.total_deaths(pop, fert, path, infmort, imm, num_years=ny)[ny - 1].sum() - base
+        assert (scale > 0) == (target > 0), (target, scale)        # scale sign tracks target sign
+        assert abs(realized - target) < 1.0, (target, realized)    # brentq hit the signed target
+        assert path.min() >= 0.0 and path.max() <= 1.0             # clip floor + ceiling respected
 
 
 def test_gbd_profile_and_total_from_real_export():

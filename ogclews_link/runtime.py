@@ -74,6 +74,7 @@ class Runtime:
             print(f"[runtime] WARNING: OG start_year {p.start_year} != scenario og_start_year "
                   f"{country.scenario.og_start_year}; CLEWS year-alignment will be off.")
         p._un_code = country.un_code
+        p.RC_SS = country.rc_ss   # see CountryConfig.rc_ss: 1e-8 is too strict for the demographic-shock solve
         # stash the demographic arrays the health channel's mortality effect needs
         p._pop_aux = {"pop_dist": pop[1], "pre_pop_dist": pop[2], "fert_rates": pop[3],
                       "mort_rates": pop[4], "infmort_rates": pop[5], "imm_rates": pop[6]}
@@ -93,46 +94,25 @@ class Runtime:
         return safe_read_pickle(os.path.join(p.output_base, *sub))
 
     def apply_health_shock(self, p, spec):
-        """Recompute the population under an AGE-PROFILE mortality shock -- the disease_pop
-        method (DeBacker/Evans/LaFleur, CostOfDisease): alt_mort = clip(mort0 + kappa*g_t*h(s),
-        0, 1), phased in over phase_years, then ogcore.demographics.get_pop_objs rebuilds the
-        whole population path. h(s) is a peak-1 age shape; kappa carries the magnitude/sign
-        (negative kappa = cleaner air -> fewer deaths -> bigger population)."""
-        from ogcore import demographics
+        """Recompute the population under an AGE-PROFILE mortality shock -- the disease_pop method
+        (DeBacker/Evans/LaFleur, CostOfDisease), via the in-repo bidirectional `health_pop.disease_pop`
+        so the target may be negative (lives saved -- the cleaner-air direction). `spec` carries a
+        SIGNED `excess_deaths` target, the peak-1 age profile h(s), and phase_years. The built-in
+        ogcore.demographics.get_pop_objs rebuilds the whole population path."""
+        from . import health_pop
 
         aux = getattr(p, "_pop_aux", None)
         if aux is None:
             print("[runtime] no pop aux; skipping health mortality shock")
             return p
         p.__dict__.pop("_e_long_cache", None)
-        kappa = float(spec["kappa"])
-        h = np.asarray(spec["profile"], dtype=float)
+        target = float(spec["excess_deaths"])
+        profile = np.asarray(spec["profile"], dtype=float)
         ny = int(spec.get("phase_years", 5))
         un = getattr(p, "_un_code", None) or "608"
-
-        def _ext_age(a):  # extrapolate an (years, ages) path to ny rows (repeat last row)
-            a = np.atleast_2d(np.asarray(a, dtype=float))
-            return a[:ny] if a.shape[0] >= ny else np.vstack([a, np.repeat(a[-1:], ny - a.shape[0], 0)])
-
-        def _ext_yr(a):   # extrapolate a per-year scalar series (infant mortality) to ny
-            a = np.ravel(np.asarray(a, dtype=float))
-            return a[:ny] if a.shape[0] >= ny else np.concatenate([a, np.repeat(a[-1:], ny - a.shape[0])])
-
-        mort = _ext_age(aux["mort_rates"])
-        fert, imm = _ext_age(aux["fert_rates"]), _ext_age(aux["imm_rates"])
-        infmort = _ext_yr(aux["infmort_rates"])
-        nage = mort.shape[1]
-        if len(h) != nage:  # match the profile to the model's age dimension
-            h = np.interp(np.linspace(0, 1, nage), np.linspace(0, 1, len(h)), h)
-        alt_mort = mort.copy()
-        for t in range(ny):
-            alt_mort[t, :] = np.clip(mort[t, :] + kappa * ((t + 1) / ny) * h, 0.0, 1.0)
-
-        pop_dict = demographics.get_pop_objs(
-            p.E, p.S, p.T, 0, 99, fert_rates=fert, mort_rates=alt_mort, infmort_rates=infmort,
-            imm_rates=imm, infer_pop=True, pop_dist=np.asarray(aux["pop_dist"])[:1, :],
-            pre_pop_dist=aux["pre_pop_dist"], country_id=un, initial_data_year=p.start_year,
-            final_data_year=p.start_year + ny - 1, GraphDiag=False)
+        pop_dict, scale = health_pop.disease_pop(p, aux, target, profile, phase_years=ny,
+                                                 un_country_code=un)
+        print(f"[health] disease_pop: excess_deaths target {target:+,.0f} -> shock_scale {scale:+.5g}")
         p.update_specifications(pop_dict)
         return p
 

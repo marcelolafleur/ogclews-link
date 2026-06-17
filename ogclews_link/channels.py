@@ -281,13 +281,19 @@ class DiscountRateChannel(Channel):
 
 # --- #5 CLEWS emissions -> health -> demographics (external dose-response) -------
 
+# PLACEHOLDER: total annual ambient-PM2.5-attributable deaths for PHL -- the real value comes from
+# GBD (health_profile.total_deaths_from_gbd on the IHME export; see DATA.md). Order-of-magnitude
+# stand-in so the channel runs; do NOT report calibrated numbers off it.
+_PLACEHOLDER_PM25_DEATHS = 64_000.0
+
+
 class HealthChannel(Channel):
     id = "health"
     label = "CLEWS emissions -> health -> mortality/productivity"
     direction = CLEWS_TO_OG
     theory_status = "reduced_form"  # external, illustrative dose-response
 
-    def apply(self, ctx, mortality_response=0.05, morbidity_response=0.01,
+    def apply(self, ctx, excess_deaths=None, total_pollution_deaths=None, morbidity_response=0.01,
               affects=("mortality", "e"), profile_path=None, phase_years=5, prod_J=7):
         c = ctx.country
         p = ctx.og_reform
@@ -295,14 +301,23 @@ class HealthChannel(Channel):
         demis = float(np.nanmean(er.values[:10])) - 1.0   # <0 == reform is cleaner
         prov = {"emissions_change": demis, "affects": list(affects)}
         if "mortality" in affects:
-            # disease_pop method: stash an age-profile mortality shock for the runtime to apply
-            # (rho += kappa*g_t*h(s) -> recompute population). h(s) from GBD data, else placeholder.
+            # disease_pop method: stash a SIGNED excess-deaths target + age shape; the runtime's
+            # health_pop.disease_pop solves rho += shock_scale*g_t*h(s) (clipped) to hit it, then
+            # recomputes the population. Cleaner reform (demis<0) -> deaths AVOIDED -> NEGATIVE target.
             profile = (health_profile.load_profile(profile_path) if profile_path
                        else health_profile.placeholder_profile())
-            kappa = mortality_response * demis            # PLACEHOLDER dose-response; cleaner -> kappa<0 -> fewer deaths
-            ctx.extras["health_shock"] = {"kappa": kappa, "profile": profile, "phase_years": phase_years}
-            prov["mortality_kappa"] = kappa
-            prov["profile_source"] = "GBD data" if profile_path else "PLACEHOLDER (no GBD profile; see DATA.md)"
+            if excess_deaths is not None:
+                target_src = "explicit excess_deaths"
+            else:
+                total = total_pollution_deaths if total_pollution_deaths is not None else _PLACEHOLDER_PM25_DEATHS
+                excess_deaths = float(total) * demis      # demis<0 -> negative target -> lives saved
+                target_src = ("GBD total x emissions change" if total_pollution_deaths is not None
+                              else "PLACEHOLDER total x emissions change (see DATA.md)")
+            ctx.extras["health_shock"] = {"excess_deaths": float(excess_deaths), "profile": profile,
+                                          "phase_years": phase_years}
+            prov["mortality_excess_deaths"] = float(excess_deaths)
+            prov["target_source"] = target_src
+            prov["profile_source"] = "GBD" if profile_path else "PLACEHOLDER (no GBD profile; see DATA.md)"
         if "e" in affects:                                # morbidity via effective labor e (T,S,J)
             benefit = -morbidity_response * demis         # PLACEHOLDER; cleaner -> higher productivity
             e = np.array(p.e, dtype=float)
@@ -316,7 +331,8 @@ class HealthChannel(Channel):
 
     def validate(self, ctx, active):
         return ["health uses the disease_pop AGE-PROFILE mortality method (CostOfDisease): "
-                "rho += kappa*g_t*h(s), phased in, then the population is recomputed via get_pop_objs. "
+                "rho += shock_scale*g_t*h(s) (shock_scale solved to a signed excess-deaths target; "
+                "negative = lives saved), phased in, then the population is recomputed via get_pop_objs. "
                 "The age profile h(s) MUST come from GBD ambient-PM2.5 deaths-by-age (DATA.md) -- the "
                 "placeholder is an illustrative elderly-skewed shape only. The dose-response "
                 "(emissions->kappa) and the morbidity productivity response are PLACEHOLDERS pending "

@@ -21,6 +21,11 @@ class CountryConfig:
     public_power_markers: tuple = ("_TD",)  # techs treated as public infrastructure (T&D)
     co2_emission: str = "CO2e"
     mindist_tpi: float = 1e-5
+    # SS aggregate-resource-constraint tolerance. ogcore's 1e-8 default is stricter than a coupled
+    # demographic-shock reform needs: the lives-saved (cleaner-air) health solve converges to a
+    # ~5e-7 residual (3 of 4 goods at machine precision) and only trips the 1e-8 check. 1e-4 is a
+    # defensible tolerance (COD itself runs RC_TPI=0.0075) and lets the down-direction solve.
+    rc_ss: float = 1e-4
 
     def is_power(self, tech: str) -> bool:
         return tech.startswith(self.power_prefix)
