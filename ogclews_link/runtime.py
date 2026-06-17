@@ -9,15 +9,11 @@ import importlib.resources
 import json
 import multiprocessing
 import os
-import sys
 from dataclasses import dataclass
 
 import numpy as np
 
 from .progress import solve_progress
-
-# calibration_values (M=4 PROD_DICT) and get_pop_data live alongside PEP_simulation.py
-CLEWS_OG_SIM = "/Users/mlafleur/Projects/CLEWS-OG/OG_simulations"
 
 
 @contextlib.contextmanager
@@ -43,9 +39,8 @@ class Runtime:
         from ogcore.parameters import Specifications
         from ogphl import input_output as io
 
-        sys.path.insert(0, CLEWS_OG_SIM)
-        import get_pop_data
-        from calibration_values import PROD_DICT
+        from ._calibration import PROD_DICT
+        from ._demog import baseline_pop
 
         os.makedirs(out_dir, exist_ok=True)
         p = Specifications(baseline=True, num_workers=self.num_workers,
@@ -68,7 +63,7 @@ class Runtime:
             "initial_guess_TR_SS": 0.2,
             "initial_guess_factor_SS": 144617.0,
         })
-        pop = get_pop_data.baseline_pop(p, un_country_code=country.un_code, download=False)
+        pop = baseline_pop(p, un_country_code=country.un_code, download=False)
         p.update_specifications(pop[0])
         if int(getattr(p, "start_year", country.scenario.og_start_year)) != country.scenario.og_start_year:
             print(f"[runtime] WARNING: OG start_year {p.start_year} != scenario og_start_year "
@@ -90,7 +85,20 @@ class Runtime:
         # time_path=False solves the steady state only -- fast, and enough to surface the SS
         # "aggregate resource constraint not satisfied" failure without the full transition path.
         sub = ("TPI", "TPI_vars.pkl") if time_path else ("SS", "SS_vars.pkl")
-        return safe_read_pickle(os.path.join(p.output_base, *sub))
+        out = safe_read_pickle(os.path.join(p.output_base, *sub))
+        # If the SS resource-constraint gate was loosened (the lives-saved health reform), report the
+        # realized SS residual it actually governs (RC_SS gates the SS solve, NOT the TPI path — that's
+        # RC_TPI), so a future profile/target drifting toward the gate is visible, not silently accepted.
+        if float(getattr(p, "RC_SS", 1e-8)) > 1e-8:
+            try:
+                ss = safe_read_pickle(os.path.join(p.output_base, "SS", "SS_vars.pkl"))
+                rc = ss.get("resource_constraint_error") if isinstance(ss, dict) else None
+                if rc is not None:
+                    print(f"[runtime] {label}: RC_SS gate loosened to {float(p.RC_SS):.0e}; "
+                          f"realized SS max|RC|={np.max(np.abs(np.atleast_1d(rc))):.2e}")
+            except Exception:  # noqa: BLE001  (diagnostic logging only)
+                pass
+        return out
 
     def apply_health_shock(self, p, spec):
         """Recompute the population under an AGE-PROFILE mortality shock -- the disease_pop method
@@ -112,10 +120,19 @@ class Runtime:
         profile = np.asarray(spec["profile"], dtype=float)
         ny = int(spec.get("phase_years", 5))
         un = getattr(p, "_un_code", None) or "608"
-        # Loosen the SS resource-constraint tolerance for THIS (demographic-shock) reform only --
-        # the lives-saved solve converges to ~5e-7, under 1e-4 but over ogcore's 1e-8 default.
-        # Non-health reforms keep the tight default. See CountryConfig.rc_ss.
-        p.RC_SS = float(spec.get("rc_ss", 1e-4))
+        # Loosen the SS resource-constraint gate for the LIVES-SAVED (mortality DOWN) reform ONLY.
+        # That solve leaves an intrinsic ~5e-7 Walras residual on the production good: empirically
+        # INVARIANT to a fresh re-solve (reform_use_baseline_solution=False) and to a 100-10000x
+        # tighter fixed-point tolerance (mindist_SS=1e-11..1e-13 all give the same 5.089e-7), so it
+        # is a structural property of the converged demographic equilibrium, NOT solver slop -- the
+        # fixed point (sol.success @ mindist_SS) and household FOCs converge tightly regardless, and
+        # only the post-solve RC_SS *assertion* trips. It is economically negligible (~1e-12 of GDP)
+        # and far inside ogcore's own RC_TPI=1e-4 default and COD's RC_TPI=0.0075. The realistic
+        # cumulative target (~-660) lands at ~1.7e-7, so rc_ss=1e-6 keeps ~6x headroom while staying
+        # ~100x tighter than the prior 1e-4. The deaths-ADDED direction converges at the tight 1e-8
+        # (8e-11 observed), so it is NOT loosened. See CountryConfig.rc_ss.
+        if target < 0:
+            p.RC_SS = float(spec.get("rc_ss", 1e-6))
         pop_dict, scale = health_pop.disease_pop(p, aux, target, profile, phase_years=ny,
                                                  un_country_code=un)
         print(f"[health] disease_pop: excess_deaths target {target:+,.0f} -> shock_scale {scale:+.5g}")

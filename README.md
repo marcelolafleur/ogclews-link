@@ -18,6 +18,10 @@ ogclews_link/
   recycle/...    (in channels.py) revenue recycling via alpha_T
   report.py      macro / demand / incidence read-outs (import-light, tested)
   clews_io.py    serialize OG->CLEWS artifacts (demand, EmissionsPenalty, DiscountRate)
+  health_pop.py  bidirectional disease_pop: signed (lives-saved/excess-deaths) age-profile mortality
+  health_profile.py  GBD pollution mortality age-shape h(s) + morbidity age shapes
+  _demog.py      vendored total_deaths / extrapolate_demographics / baseline_pop (+ demographic_data/)
+  _calibration.py    vendored PHL PROD_DICT (no more sys.path hacks into CLEWS-OG / CostOfDisease)
   runtime.py     the ONLY ogcore-touching layer: build baseline, solve, apply mortality
   progress.py    live convergence bar
   experiments.py named, reproducible experiments

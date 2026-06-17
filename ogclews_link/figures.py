@@ -52,7 +52,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
 
     os.makedirs(out_dir, exist_ok=True)
     inc = report.incidence(base_tpi, reform_tpi, i_energy)
-    w = np.asarray(inc["welfare_by_J"], dtype=float)
+    w = np.asarray(inc["consumption_by_J"], dtype=float)
     J = len(w)
     lab = _labels(J)
 
@@ -73,7 +73,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
     ax.scatter(range(J), w, c=style.signed(w), s=110, zorder=3, edgecolor="white", linewidth=1.0)
     ax.set_xticks(range(J))
     ax.set_xticklabels(lab, rotation=30, ha="right")
-    ax.set_ylabel("welfare change (%)")
+    ax.set_ylabel("consumption change (%)")
     ax.set_title("Who bears it")
     ax.margins(y=0.16)  # headroom so the extreme-value labels clear the axis/tick labels
     jmin, jmax = int(np.argmin(w)), int(np.argmax(w))
@@ -91,7 +91,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
     sp = float(share.mean())
     ax.set_xlim(0, max(2.2, float(share.max()) * 1.5))
     ax.set_xlabel("baseline energy budget share (%)")
-    ax.set_ylabel("welfare change (%)")
+    ax.set_ylabel("consumption change (%)")
     ax.set_title("Why — exposure or general equilibrium?")
     ax.annotate(
         f"every group spends ~the same\nshare on energy (~{sp:.1f}%), yet welfare\noutcomes differ widely — so incidence\nis general-equilibrium / fiscal-driven,\nnot energy-exposure-driven",
@@ -119,7 +119,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
         ax.margins(y=0.16)
 
     style.title_block(fig, title=title,
-                      subtitle="Lifetime welfare change by income group, poorest to richest",
+                      subtitle="Consumption change by income group, poorest to richest",
                       source=f"{_SRC}.  {note}", kicker=kicker, top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -127,17 +127,29 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
 # --- across steps: waterfall of marginal channel contributions -------------------
 
 def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
-               kicker="channel decomposition"):
+               kicker="channel decomposition", segments=None):
     """Bridge chart: each bar is the MARGINAL contribution of adding that channel, stacked on a
-    running cumulative; diverging color by sign. A net marker closes the bridge."""
+    running cumulative; diverging color by sign. A net marker closes the bridge. ``segments`` (optional)
+    maps a bar index -> [(value, color, label), ...] that SUM to that bar's marginal, drawn as a
+    stacked bar with a small legend -- e.g. the health bar split into mortality + morbidity parts."""
+    segments = segments or {}
     marg = np.diff(np.concatenate([[0.0], values]))
     cum = np.concatenate([[0.0], np.cumsum(marg)])
     fig, ax = plt.subplots(figsize=(7.6, 5.0))
     fig.subplots_adjust(top=0.76, bottom=0.17, left=0.11, right=0.95)
     style.clean(ax)
     style.zero_line(ax)
+    seg_handles = {}
     for i, m in enumerate(marg):
-        ax.bar(i, m, bottom=cum[i], color=GAIN if m >= 0 else LOSS, width=0.62, zorder=2)
+        if i in segments:                              # stacked sub-parts that sum to this marginal
+            base = cum[i]
+            for val, color, lab in segments[i]:
+                ax.bar(i, val, bottom=base, color=color, width=0.62, zorder=2,
+                       edgecolor="white", linewidth=0.6)
+                seg_handles.setdefault(lab, color)
+                base += val
+        else:
+            ax.bar(i, m, bottom=cum[i], color=GAIN if m >= 0 else LOSS, width=0.62, zorder=2)
         if i < len(marg) - 1:
             ax.plot([i + 0.31, i + 1 - 0.31], [cum[i + 1], cum[i + 1]], color="0.6",
                     lw=0.8, zorder=1)
@@ -148,6 +160,10 @@ def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
     ax.set_xticklabels(labels, rotation=15, ha="right")
     ax.set_ylabel(ylabel)
     ax.margins(x=0.06, y=0.13)  # footroom so the smallest marginal label clears the axis rule
+    if seg_handles:
+        from matplotlib.patches import Patch
+        ax.legend([Patch(facecolor=c) for c in seg_handles.values()], list(seg_handles),
+                  loc="upper left", frameon=False, fontsize=8.5)
     style.title_block(fig, title=title, subtitle=f"{subtitle}  ·  net {cum[-1]:+.3f}%",
                       source=f"{_SRC}.  {note}" if note else _SRC, kicker=kicker, top=0.965)
     return style.save(fig, out_path)
@@ -158,14 +174,27 @@ def across_steps_waterfall(layered, out_dir, note=None):
     if len(solved) < 2:
         return []
     labels = [r["step"] for r in solved]
-    saved = [_waterfall([r["macro"]["Y"] for r in solved], labels,
+    yvals = [r["macro"]["Y"] for r in solved]
+    # Split the health bar into mortality + morbidity sub-parts, if the run recorded the split.
+    # mortality marginal = mortality-only-cumulative GDP − the previous step's GDP; morbidity is the
+    # remainder of the combined health marginal (a sequential, exact split that sums to the bar).
+    segments = {}
+    for i, r in enumerate(solved):
+        split = r.get("health_split")
+        if split is not None and i > 0:
+            mort_marg = split["mortality"] - yvals[i - 1]
+            morb_marg = (yvals[i] - yvals[i - 1]) - mort_marg
+            segments[i] = [(mort_marg, style.CATEGORICAL[2], "mortality (lives saved)"),
+                           (morb_marg, style.CATEGORICAL[3], "morbidity (productivity)")]
+    saved = [_waterfall(yvals, labels,
                         "What each channel adds to GDP",
                         "Marginal contribution to GDP as channels are layered in",
-                        "GDP change (%)", os.path.join(out_dir, "waterfall_gdp.png"), note)]
-    saved.append(_waterfall([r["welfare_by_J"][0] for r in solved], labels,
+                        "GDP change (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
+                        segments=segments)]
+    saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
                             "What each channel adds for the poorest group",
                             "Marginal welfare contribution for the 0-25% group",
-                            "welfare change (%)",
+                            "consumption change (%)",
                             os.path.join(out_dir, "waterfall_poorest.png"), note))
     return saved
 
@@ -245,15 +274,15 @@ def across_steps_table(layered, path):
     solved = [r for r in layered if "macro" in r]
     if not solved:
         return None
-    J = len(solved[0]["welfare_by_J"])
+    J = len(solved[0]["consumption_by_J"])
     lab = _labels(J)
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["step", "energy_demand_pct", "Y_pct", "C_pct", "K_pct", "L_pct",
-                    "govt_revenue_pct"] + [f"welfare_{x}" for x in lab])
+                    "govt_revenue_pct"] + [f"consumption_{x}" for x in lab])
         for r in solved:
             w.writerow([r["step"], r["energy_demand_pct"]] + [r["macro"].get(v) for v in ("Y", "C", "K", "L")]
-                       + [r["fiscal"]["cons_tax_revenue_pct"]] + r["welfare_by_J"])
+                       + [r["fiscal"]["cons_tax_revenue_pct"]] + r["consumption_by_J"])
     return path
 
 

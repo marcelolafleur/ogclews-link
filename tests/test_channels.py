@@ -22,7 +22,6 @@ HAVE_CLEWS = os.path.isdir(PHL.scenario.base_dir) and os.path.isdir(PHL.scenario
 _MUIOGO_RUN = "/Users/mlafleur/Projects/MUIOGO/WebAPP/DataStorage/CLEWs Demo/res/REF"
 _GBD_HIV_CSV = ("/Users/mlafleur/Projects/CostOfDisease/source/JDE/hiv-data/"
                 "IHME-GBD_2023_DATA-ddf37f70-1/IHME-GBD_2023_DATA-ddf37f70-1.csv")
-_COD_GET_POP = "/Users/mlafleur/Projects/CostOfDisease/code/get_pop_data.py"
 
 
 def _params():
@@ -164,14 +163,10 @@ def test_health_profile_shape():
 
 def test_disease_pop_bidirectional_calibration():
     # Bidirectional brentq: a positive target -> positive shock_scale (add deaths); a negative
-    # target -> negative shock_scale (save lives). No OG solve -- pure construction vs the COD math.
-    import importlib.util
-
-    if not os.path.isfile(_COD_GET_POP):
-        print("  (skip: CostOfDisease get_pop_data absent)"); return
-    from ogclews_link import health_pop, health_profile
-    spec = importlib.util.spec_from_file_location("cod_gpd_test", _COD_GET_POP)
-    cod = importlib.util.module_from_spec(spec); spec.loader.exec_module(cod)
+    # target -> negative shock_scale (save lives). No OG solve -- pure construction vs the vendored
+    # (CostOfDisease) total_deaths. Uses the in-repo _demog, so it actually exercises the dependency
+    # (no external-path skip).
+    from ogclews_link import _demog, health_pop, health_profile
 
     nage, ny = 100, 5
     s = np.arange(nage)
@@ -181,15 +176,84 @@ def test_disease_pop_bidirectional_calibration():
     infmort = np.full(ny, 0.02)
     pop = (1e6 * np.exp(-s / 50.0))[None, :]                       # (1, nage)
     h = health_profile.placeholder_profile(nage)
-    base = cod.total_deaths(pop, fert, mort, infmort, imm, num_years=ny)[ny - 1].sum()
+    base = _demog.total_deaths(pop, fert, mort, infmort, imm, num_years=ny)[ny - 1].sum()
 
     for target in (+5000.0, -5000.0):
         scale, path = health_pop.calibrate_shock_scale(
-            target, pop, fert, mort, infmort, imm, h, ny, cod.total_deaths)
-        realized = cod.total_deaths(pop, fert, path, infmort, imm, num_years=ny)[ny - 1].sum() - base
+            target, pop, fert, mort, infmort, imm, h, ny, _demog.total_deaths)
+        realized = _demog.total_deaths(pop, fert, path, infmort, imm, num_years=ny)[ny - 1].sum() - base
         assert (scale > 0) == (target > 0), (target, scale)        # scale sign tracks target sign
         assert abs(realized - target) < 1.0, (target, realized)    # brentq hit the signed target
         assert path.min() >= 0.0 and path.max() <= 1.0             # clip floor + ceiling respected
+
+
+def test_disease_pop_nonmonotone_bracketing():
+    # REGRESSION: realized year-ny excess deaths are NOT monotone in shock_scale (survivorship
+    # feedback + the 0.0 clip), so the max achievable excess is at a FINITE interior scale. The old
+    # doubling-walk assumed monotonicity and could (a) falsely reject a feasible target whose only
+    # bracket endpoint sits past the turning point, or (b) land on a non-minimal root. The outward
+    # scan must return the SMALLEST-|scale| root and report the true achievable extremum on
+    # infeasibility. Driven by a controlled non-monotone total_deaths so the curve shape is exact.
+    from ogclews_link import health_pop
+
+    nage, ny = 8, 3
+    mort = np.full((ny, nage), 0.10)
+    fert = np.zeros((ny, nage)); imm = np.zeros((ny, nage)); infmort = np.zeros(ny)
+    pop = np.full((1, nage), 1.0)
+    h = np.ones(nage)                                             # so mean(final-row shock) == 0.1 + scale
+
+    def nonmono(pop, fert, m, infmort, imm, num_years):
+        # year-(ny-1) deaths = a parabola in the mean shocked rate x, peaking at x=0.2: excess rises
+        # to an interior max at scale=+0.1 then FALLS -- exactly the shape the doubling-walk mishandles.
+        x = float(m[-1].mean())
+        val = -((x - 0.2) ** 2) * 1e6 + 4e4
+        d = np.zeros((num_years, m.shape[1])); d[-1, 0] = val
+        return d
+
+    base = nonmono(pop, fert, mort, infmort, imm, ny)[ny - 1].sum()  # x=0.1 -> val 3e4
+    # +5000 is reachable on BOTH the rising (scale~0.029) and falling (scale~0.171) branch; the
+    # solver must return the smaller-|scale| (rising) root, and must NOT falsely reject it.
+    scale, path = health_pop.calibrate_shock_scale(5000.0, pop, fert, mort, infmort, imm, h, ny, nonmono)
+    realized = nonmono(pop, fert, path, infmort, imm, ny)[ny - 1].sum() - base
+    assert 0.0 < scale < 0.1 and abs(realized - 5000.0) < 1.0, (scale, realized)
+
+    # a target beyond the interior maximum (~1e4 excess) is infeasible -> raise with the achievable max.
+    try:
+        health_pop.calibrate_shock_scale(5e4, pop, fert, mort, infmort, imm, h, ny, nonmono)
+        raise AssertionError("expected RuntimeError for a target past the interior maximum")
+    except RuntimeError as e:
+        assert "exceeds the achievable" in str(e)
+
+
+def test_morbidity_age_profile():
+    # The morbidity (effective-labor) effect must accept an AGE distribution, mirroring mortality's
+    # h(s): a non-uniform shape concentrates the productivity gain by age; the default is uniform.
+    from ogclews_link import health_profile
+    E, S = 20, 80
+    # default in the channel is uniform (np.ones(S) inline -> "all active ages equal"); a non-uniform
+    # shape concentrates the gain by age:
+    wap = health_profile.working_age_profile(E, S)
+    assert wap.shape == (S,) and abs(wap.max() - 1.0) < 1e-9         # peak-1 shape over active periods
+    assert wap[:5].mean() < wap[20:40].mean()                       # prime-age weighted above the oldest
+    # a full-age-grid (E+S) input maps to the active tail [E:]; arbitrary length interpolates to S
+    full = np.linspace(0.0, 1.0, E + S)
+    assert health_profile.morbidity_shape_to_S(full, S, E).shape == (S,)
+    assert health_profile.morbidity_shape_to_S(np.ones(37), S, E).shape == (S,)
+
+
+def test_vendored_demog_selfcontained():
+    # Portability: the demographic helpers + PHL calibration are vendored in-repo (no absolute-path
+    # loads of CostOfDisease / CLEWS-OG). They import and run on numpy alone.
+    from ogclews_link import _calibration, _demog
+    assert "Electricity" in _calibration.PROD_DICT and _calibration.PROD_DICT["Electricity"] == ["aelec"]
+    ny, nage = 5, 100
+    mort = np.full((ny, nage), 0.01)
+    fert = np.zeros((ny, nage)); fert[:, 20:40] = 0.05
+    imm = np.zeros((ny, nage)); infmort = np.full(ny, 0.02)
+    pop = np.full((1, nage), 1000.0)
+    d = _demog.total_deaths(pop, fert, mort, infmort, imm, num_years=ny)
+    assert d.shape == (ny, nage) and np.all(d >= 0)
+    assert _demog.extrapolate_demographics(mort[:2], ny).shape == (ny, nage)
 
 
 def test_gbd_profile_and_total_from_real_export():

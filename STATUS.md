@@ -6,7 +6,7 @@ only repo access, **read this top-to-bottom first** — it carries the context t
 obvious from the code. Keep it current: update the *Current state*, *Work plan*, and
 *Changelog* as you go.
 
-- **Last updated:** 2026-06-16
+- **Last updated:** 2026-06-17
 - **Code repo (this one):** `~/Projects/ogclews-link` (git). The orchestrator + channels live here.
 - **Docs repo:** `~/Projects/ogclews-schema` (NOT git) — the de novo analysis & correspondence.
 - **Note on the name "ogclews-integration":** there is no such directory locally; the integration
@@ -85,28 +85,56 @@ Decisions (do not relitigate without reason):
   honestly degrades to one pass. This is the one plumbing gap to *run* the full bidirectional loop.
 - **Unit/deflator bridge** (`contract.UnitMap.deflator` is a placeholder) → carbon/investment
   *magnitudes* are illustrative. Needed to *trust* quantitative claims.
-- **Health channel — RESOLVED (2026-06-17): the cleaner-air (lives-saved) solve works.** The
-  earlier "lives-saved fails the SS" was NOT structural — it was a tolerance near-miss: the SS
-  converges with a ~5e-7 aggregate resource-constraint residual (3 of 4 goods at machine precision)
-  that only tripped ogcore's ultra-tight `RC_SS=1e-8` default. The fix is two parts:
-  (1) `health_pop.disease_pop` — a bidirectional `disease_pop` (the COD age-profile + brentq method,
-  reusing COD's exact `total_deaths`/`extrapolate_demographics`) that accepts a SIGNED `excess_deaths`
-  target: negative = lives saved (cleaner-air), the direction the published code's `[0,+∞)` bracketing
-  couldn't reach. (2) `apply_health_shock` sets `p.RC_SS = country.rc_ss` (1e-4) for the HEALTH reform
-  ONLY — non-health solves keep the tight 1e-8 default. Empirically: the symmetric SS sweep showed
-  down FAILED at 1e-8 (residual 5e-7) and CONVERGED at 1e-4; the full 4-step suite's +health step then
-  solved end-to-end (target −658 lives → shock_scale −7.8e-05) with the mechanism correct (elderly
-  mortality falls, working-age `e` rises, `g_n` holds). 21/21 transform tests pass (incl. the
-  bidirectional calibration hitting both signed targets). **GBD sources BOTH inputs** (tested vs the
-  real HIV/SA export): `build_profile_from_gbd` → age shape h(s); `total_deaths_from_gbd` → the
-  deaths-count target (GBD `Number` metric). Remaining: the PHL ambient-PM2.5 GBD CSV is a manual IHME
-  download (DATA.md; metric Rate + Number) — until then a flagged PLACEHOLDER total (64k) stands in;
-  and the j-distribution of *deaths* by income needs a model extension (mortality `rho` is (T+S,S), no
-  j). Scripts: `sweep_mortality` (the decisive SS sweep), `test_health_bidirectional`, `validate_health`,
-  `diagnose_health`, `solve_health_variants`, `test_builtin_pop`.
-- **PHL-wiring debts** (portability): `runtime.build_baseline` hardcodes `ogphl` + `p.M,p.I=4,5`
-  + PHL guesses AND reaches into `~/Projects/CLEWS-OG/OG_simulations` (a `sys.path` hack) for
-  `PROD_DICT`/`get_pop_data`; `country.py` hardcodes absolute CLEWS paths; `cli.py` hardcodes PHL.
+- **Health channel — RESOLVED & HARDENED (2026-06-17): the cleaner-air (lives-saved) solve works,
+  and the earlier narrative is corrected.** The lives-saved SS does NOT fail structurally; it leaves
+  an INTRINSIC ~5e-7 aggregate-resource-constraint (Walras) residual on the production good. Verified
+  to be a property of the converged equilibrium, NOT solver slop: invariant to a fresh re-solve
+  (`reform_use_baseline_solution=False` → same 5.089e-7) AND to a 100–10,000× tighter fixed-point
+  tolerance (`mindist_SS`=1e-11 and 1e-13 both → same 5.089e-7). The SS fixed point (`sol.success` @
+  `mindist_SS`) and household FOCs converge tightly regardless; only the post-solve `RC_SS` *assertion*
+  (ogcore `SS.py:1144`) trips. So loosening that gate IS necessary — but only for the lives-saved
+  direction, and only slightly. The fix:
+  - (1) `health_pop.disease_pop` — a bidirectional, NON-MONOTONE-ROBUST `disease_pop`. Accepts a SIGNED
+    `excess_deaths` target (negative = lives saved, the direction the published `[0,+∞)` bracketing
+    couldn't reach). The realized year-`phase_years` excess-deaths curve is not monotone in the shock
+    (survivorship feedback + the 0.0 clip), so the solver scans outward from 0 to the FIRST sign change
+    (smallest-magnitude root) and reports the true achievable extremum on infeasibility — a plain
+    doubling-walk can falsely reject a feasible target or land on a non-minimal root.
+  - (2) `apply_health_shock` sets `p.RC_SS = country.rc_ss` = **1e-6** (was 1e-4) for the lives-saved
+    reform ONLY (gated on `target < 0`); the deaths-added direction converges at the tight 1e-8 (8e-11
+    observed) and is NOT loosened. 1e-6 keeps ~6× headroom over the realistic cumulative residual
+    (~1.7e-7) and is ~100× tighter than ogcore's own `RC_TPI`=1e-4 (COD runs `RC_TPI`=0.0075). The
+    realized |RC| is logged on every loosened solve so drift toward the gate is visible.
+  - **Two effects, shown SEPARATELY in the GDP waterfall** (not a separate script): the channel applies
+    BOTH a mortality effect (the disease_pop population recompute) AND a morbidity effect (an
+    effective-labor `e` productivity shift). The +health GDP increment is dominated by the (placeholder)
+    morbidity multiplier, not the lives saved — so `run_across_steps` re-solves the cumulative reform
+    with health = mortality-only (1 extra solve) and the **health bar in `waterfall_gdp.png` is drawn as
+    a stacked bar: mortality (lives saved) + morbidity (productivity, the remainder)**. One bar per
+    channel; only health carries sub-parts. (The earlier standalone `health_decomposition.py` was folded
+    into this and removed.)
+  - **Morbidity now takes an AGE distribution too** (mirroring mortality's h(s)): `morbidity_profile`
+    on the health channel; default uniform ("all active ages"), or a non-uniform shape via
+    `health_profile.working_age_profile` / `morbidity_shape_to_S`. Magnitude carried by
+    `morbidity_response` (placeholder, pending data).
+  - **GBD sources BOTH mortality inputs** (tested vs the real HIV/SA export): `build_profile_from_gbd`
+    → age shape h(s); `total_deaths_from_gbd` → the deaths target (`Number` metric). Until the PHL
+    ambient-PM2.5 CSV lands (manual IHME download; DATA.md) a flagged PLACEHOLDER 64k total stands in.
+  - **`welfare_by_J` renamed `consumption_by_J`** (report/figures): it is % change in composite
+    CONSUMPTION, not lifetime utility; the thin top-income group is GE-sensitive, so read it as
+    consumption incidence. **24/24 transform tests pass** (incl. bidirectional + non-monotone bracketing,
+    morbidity age-profile, vendored-demog self-containment).
+  - Remaining: real GBD PHL PM2.5 CSV; a calibrated dose-response / `morbidity_response`; and the
+    j-distribution of *deaths* by income (mortality `rho` is (T+S,S), no j).
+  - Scripts: `sweep_mortality`,
+    `test_health_bidirectional`, `validate_health`, `diagnose_health`, `solve_health_variants`.
+- **PHL-wiring debts** (portability): `runtime.build_baseline` still hardcodes `ogphl` + `p.M,p.I=4,5`
+  + PHL guesses, and `country.py`/`cli.py` hardcode PHL + absolute CLEWS scenario paths. **RESOLVED
+  (2026-06-17): the two absolute-path `get_pop_data` loads are GONE** — `total_deaths` /
+  `extrapolate_demographics` / `baseline_pop` are vendored in `ogclews_link/_demog.py` (reading the
+  vendored `ogclews_link/demographic_data/` CSVs) and `PROD_DICT` in `ogclews_link/_calibration.py`;
+  no more `sys.path` hack into CLEWS-OG, no CostOfDisease-by-path `exec_module`, so the solve path runs
+  on any checkout (the transform suite no longer skips the dependency).
 
 ## 4. The duals (energy shadow price) — found + reader built
 
@@ -245,3 +273,21 @@ the event loop under numba → serial fallback. Never `--workers 1` for real run
   (incl. bidirectional calibration). Adversarially reviewed; review fixes applied (scoped RC_SS, profile
   validation, placeholder guardrail). Remaining: the PHL ambient-PM2.5 GBD CSV (manual IHME) for the real
   magnitude; the j-distribution-of-deaths model extension.
+- **2026-06-17 (health HARDENED — review follow-ups)** — Acted on a deeper adversarial audit + the
+  user's questions. (a) **Is loosening necessary?** Tested rigorously: the ~5e-7 residual is INTRINSIC
+  — invariant to `reform_use_baseline_solution=False` and to `mindist_SS`=1e-11/1e-13 (all 5.089e-7),
+  so the fixed point converges fine and only the post-solve `RC_SS` assertion trips → loosening is
+  needed, but **tightened 1e-4 → 1e-6 and gated to the lives-saved direction only** (deaths-added
+  converges at 1e-8); realized |RC| now logged. (b) **Mortality vs morbidity shown SEPARATELY as a
+  stacked health bar in the GDP waterfall** — `run_across_steps` re-solves the cumulative reform with
+  health = mortality-only (1 extra solve) and stacks mortality (lives saved) + morbidity (the remainder)
+  in `waterfall_gdp.png`; the +health GDP increment is dominated by the placeholder morbidity multiplier,
+  not the lives saved. (No standalone decomposition script — folded into the figure.) (c) **Morbidity now
+  takes an age distribution** (`morbidity_profile`; `working_age_profile`/`morbidity_shape_to_S`),
+  mirroring mortality's h(s). (d) **Portability fixed**:
+  vendored `total_deaths`/`extrapolate_demographics`/`baseline_pop` (`_demog.py`, with the
+  `demographic_data/` CSVs) and `PROD_DICT` (`_calibration.py`) — both absolute-path `get_pop_data`
+  loads removed. (e) **Bracketing made non-monotone-robust** (outward scan to the first/minimal root;
+  true achievable-extremum feasibility message). (f) `welfare_by_J` → `consumption_by_J` (it is
+  composite consumption, not utility). 24/24 transform tests pass; full 4-step suite + decomposition
+  re-run in the OG-PHL venv.

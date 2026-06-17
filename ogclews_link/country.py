@@ -21,12 +21,16 @@ class CountryConfig:
     public_power_markers: tuple = ("_TD",)  # techs treated as public infrastructure (T&D)
     co2_emission: str = "CO2e"
     mindist_tpi: float = 1e-5
-    # SS aggregate-resource-constraint tolerance for the HEALTH (demographic-shock) reform only --
-    # apply_health_shock sets p.RC_SS to this; non-health solves keep ogcore's tight 1e-8 default.
-    # ogcore's 1e-8 is stricter than a coupled demographic-shock reform needs: the lives-saved
-    # (cleaner-air) health solve converges to a ~5e-7 residual (3 of 4 goods at machine precision)
-    # and only trips the 1e-8 check. 1e-4 is defensible (COD itself runs RC_TPI=0.0075).
-    rc_ss: float = 1e-4
+    # SS aggregate-resource-constraint gate for the LIVES-SAVED (mortality-down) health reform only:
+    # apply_health_shock sets p.RC_SS to this when the target is negative; every other solve (baseline,
+    # deaths-added, energy/investment/carbon) keeps ogcore's tight 1e-8 default. The lives-saved solve
+    # leaves an intrinsic ~5e-7 Walras residual on the production good that is INVARIANT to a fresh
+    # re-solve and to a 100-10000x tighter fixed-point tolerance (verified: mindist_SS 1e-11/1e-13 both
+    # give 5.089e-7) -- a structural identity gap of the converged demographic equilibrium, not solver
+    # slop, so only the post-solve RC_SS assertion can clear it. 1e-6 keeps ~6x headroom over the
+    # realistic cumulative residual (~1.7e-7) while staying ~100x tighter than ogcore's RC_TPI=1e-4
+    # default (and COD runs RC_TPI=0.0075). The realized |RC| is logged on each loosened solve.
+    rc_ss: float = 1e-6
 
     def is_power(self, tech: str) -> bool:
         return tech.startswith(self.power_prefix)

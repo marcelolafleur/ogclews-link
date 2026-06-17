@@ -29,11 +29,16 @@ def demand_response(base_tpi, reform_tpi, i_energy):
 
 
 def incidence(base_tpi, reform_tpi, i_energy, n=10):
-    """Energy-consumption and welfare (composite c) % change by lifetime-income group J."""
+    """Energy-consumption and composite-consumption % change by lifetime-income group J.
+
+    NB: ``consumption_by_J`` is the % change in average composite CONSUMPTION (the TPI ``c`` array,
+    averaged over the first ``n`` periods and all ages) -- NOT a lifetime-utility / equivalent-
+    variation welfare measure. The thinnest top-income group is the most GE-sensitive, so read its
+    swings as consumption incidence, not utility."""
     eJ = og_wedge.energy_demand_response_by_group(base_tpi["c_i"], reform_tpi["c_i"], i_energy, n)
     cb, cr = np.asarray(base_tpi["c"]), np.asarray(reform_tpi["c"])  # (T, S, J)
-    wJ = 100.0 * (cr[:n].mean(axis=(0, 1)) - cb[:n].mean(axis=(0, 1))) / cb[:n].mean(axis=(0, 1))
-    return {"energy_by_J": np.round(eJ, 2), "welfare_by_J": np.round(wJ, 2)}
+    cJ = 100.0 * (cr[:n].mean(axis=(0, 1)) - cb[:n].mean(axis=(0, 1))) / cb[:n].mean(axis=(0, 1))
+    return {"energy_by_J": np.round(eJ, 2), "consumption_by_J": np.round(cJ, 2)}
 
 
 def fiscal_check(base_tpi, reform_tpi, n=10):
@@ -68,8 +73,8 @@ def print_report(ctx):
     print(f"\nEnergy-good demand response: {np.nanmean(demand_response(b, r, i_e)[:10]):.2f}%")
     inc = incidence(b, r, i_e)
     print("Incidence by income group J (j0 low .. high):")
-    print("  energy %chg :", inc["energy_by_J"])
-    print("  welfare %chg:", inc["welfare_by_J"])
+    print("  energy %chg     :", inc["energy_by_J"])
+    print("  consumption %chg:", inc["consumption_by_J"])
     fc = fiscal_check(b, r)
     if fc:
         print("\nFiscal/solve checks:", {k: round(v, 4) for k, v in fc.items()})

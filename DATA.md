@@ -49,12 +49,15 @@ before the PHL CSV arrives.)
   GBD-anchored, and `disease_pop` solves the per-age `shock_scale` to hit it. (A finer version derives
   the deaths change from the PM2.5 concentration-response / IER rather than scaling the GBD total
   linearly — a refinement, not a blocker.)
-- `morbidity_response` (emissions change → effective-labor `e` haircut): placeholder. CostOfDisease
-  builds its labor wedge from absenteeism/impairment studies (ILO, Keogh et al.); the pollution
-  analogue would use working-age morbidity (e.g. low-birthweight, cardiopulmonary work-loss).
-- `morbidity_response` (emissions change → effective-labor `e` haircut): placeholder. CostOfDisease
-  builds its labor wedge from absenteeism/impairment studies (ILO, Keogh et al.); the pollution
-  analogue would use working-age morbidity (e.g. low-birthweight, cardiopulmonary work-loss).
+- `morbidity_response` (emissions change → effective-labor `e` productivity shift): placeholder
+  MAGNITUDE. CostOfDisease builds its labor wedge from absenteeism/impairment studies (ILO, Keogh
+  et al.); the pollution analogue would use working-age morbidity (e.g. low-birthweight,
+  cardiopulmonary work-loss).
+- `morbidity_profile` (the AGE DISTRIBUTION of that productivity shift) — the channel now accepts a
+  per-age shape for the morbidity effect, exactly as the mortality effect takes `h(s)`. Default is
+  uniform ("all active ages gain equally"); `health_profile.working_age_profile` gives an illustrative
+  prime-age-concentrated shape. A real shape needs GBD **YLD/DALY-by-age** for the relevant pollution
+  outcomes (a separate pull from the mortality `Deaths` export above), not yet on disk.
 
 ## Caveat carried from the HIV study
 

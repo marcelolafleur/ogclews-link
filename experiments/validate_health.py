@@ -107,11 +107,11 @@ def main():
     print("\n[macro %% vs baseline] " + ", ".join(f"{k}={np.nanmean(v):+.3f}" for k, v in macro.items()))
     ie = PHL.concordance.energy_good_index
     inc = report.incidence(ctx.base_tpi, ctx.reform_tpi, ie)
-    print(f"[welfare %% by income group] {list(np.round(inc['welfare_by_J'], 3))}")
+    print(f"[consumption %% by income group] {list(np.round(inc['consumption_by_J'], 3))}")
 
     _dump(checks, {"demis": demis, "excess_deaths": excess, "benefit": benefit,
                    "rc_error_reform": rc_r, "macro": {k: float(np.nanmean(v)) for k, v in macro.items()},
-                   "welfare_by_J": [float(x) for x in inc["welfare_by_J"]]})
+                   "consumption_by_J": [float(x) for x in inc["consumption_by_J"]]})
 
 
 def _dump(checks, summary):

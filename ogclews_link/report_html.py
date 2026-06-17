@@ -17,14 +17,14 @@ def write_html_report(layered, out_path, title="OG-CLEWS across-steps results"):
     failed = [r["step"] for r in layered if "macro" not in r]
     steps = [r["step"] for r in solved]
     from .figures import INCOME_LABELS
-    J = len(solved[0]["welfare_by_J"]) if solved else 7
+    J = len(solved[0]["consumption_by_J"]) if solved else 7
     jlabels = INCOME_LABELS if J == 7 else [f"group {i + 1}" for i in range(J)]
     payload = {
         "steps": steps,
         "energy_demand": [r["energy_demand_pct"] for r in solved],
         "macro": {v: [r["macro"].get(v) for r in solved] for v in ("Y", "C", "K", "L")},
         "revenue": [r["fiscal"]["cons_tax_revenue_pct"] for r in solved],
-        "welfare": [r["welfare_by_J"] for r in solved],
+        "welfare": [r["consumption_by_J"] for r in solved],
         "energyJ": [r["energy_by_J"] for r in solved],
         "jlabels": jlabels,
         "stepColors": STEP_COLORS[:len(steps)],
@@ -46,7 +46,7 @@ def write_html_report(layered, out_path, title="OG-CLEWS across-steps results"):
  <div class="cell"><h2>energy demand (% vs baseline)</h2><div class="wrap"><canvas id="c_energy" role="img" aria-label="energy demand by step"></canvas></div></div>
  <div class="cell"><h2>government revenue (% change)</h2><div class="wrap"><canvas id="c_rev" role="img" aria-label="government revenue by step"></canvas></div></div>
  <div class="cell full"><h2>macro aggregates (% change)</h2><div class="wrap"><canvas id="c_macro" role="img" aria-label="macro aggregates by step"></canvas></div></div>
- <div class="cell full"><h2>welfare change by income group (one line per step)</h2><div class="wrap" style="height:340px;"><canvas id="c_welfare" role="img" aria-label="welfare by income group across steps"></canvas></div></div>
+ <div class="cell full"><h2>consumption change by income group (one line per step)</h2><div class="wrap" style="height:340px;"><canvas id="c_welfare" role="img" aria-label="consumption change by income group across steps"></canvas></div></div>
  <div class="cell full"><h2>energy-demand change by income group (one line per step)</h2><div class="wrap" style="height:340px;"><canvas id="c_energyJ" role="img" aria-label="energy demand by income group across steps"></canvas></div></div>
 </div>
 <script src="{_CDN}"></script>

@@ -122,3 +122,36 @@ def placeholder_profile(num_ages: int = 100) -> np.ndarray:
 def load_profile(path: str) -> np.ndarray:
     """Load a saved 1-column age profile (the build_*_profile output format), as a peak-1 shape."""
     return _to_shape(np.loadtxt(path, delimiter=","))
+
+
+# --- morbidity (effective-labor) age shapes -------------------------------------
+# The morbidity channel scales effective labor e(T,S,J) by an age shape g(s), exactly as the
+# mortality channel adds an age shape h(s) to rho. g(s) is a peak-1 relative shape over the model's
+# S active periods; the magnitude is carried by the dose-response (morbidity_response). Default is
+# uniform (every active age gains equally); a real non-uniform shape needs GBD YLD/DALY-by-age data.
+
+def morbidity_shape_to_S(profile, S: int, E: int = 0) -> np.ndarray:
+    """Map a morbidity age-shape to the model's S active periods as a peak-1 relative shape.
+    Accepts a length-S array (already in active-period space), a length-(E+S) full age grid (the
+    active tail ``[E:]`` is taken, since e covers the S economically-active periods), or any other
+    length (linearly interpolated to S)."""
+    a = np.asarray(profile, dtype=float)
+    if a.shape[0] == S:
+        shape = a
+    elif a.shape[0] == E + S:
+        shape = a[E:]
+    else:
+        shape = np.interp(np.linspace(0, 1, S), np.linspace(0, 1, a.shape[0]), a)
+    return _to_shape(np.maximum(shape, 0.0))
+
+
+def working_age_profile(E: int, S: int, prime_lo: float = 25.0, prime_hi: float = 54.0,
+                        num_ages: int = 100) -> np.ndarray:
+    """ILLUSTRATIVE morbidity age shape (peak 1) over the S active periods: pollution morbidity
+    (lost work-days, cardiopulmonary/cognitive effects) concentrated on prime working ages, tapering
+    at the young and old. NOT calibrated -- a real shape needs GBD YLD/DALY-by-age (see DATA.md).
+    Returned in e's active-period space via :func:`morbidity_shape_to_S`."""
+    age = np.arange(num_ages, dtype=float)
+    center, half = (prime_lo + prime_hi) / 2.0, max((prime_hi - prime_lo) / 2.0, 1.0)
+    shape = np.exp(-((age - center) ** 2) / (2.0 * half ** 2))
+    return morbidity_shape_to_S(shape, S, E)

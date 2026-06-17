@@ -294,7 +294,8 @@ class HealthChannel(Channel):
     theory_status = "reduced_form"  # external, illustrative dose-response
 
     def apply(self, ctx, excess_deaths=None, total_pollution_deaths=None, morbidity_response=0.01,
-              affects=("mortality", "e"), profile_path=None, phase_years=5, prod_J=7):
+              affects=("mortality", "e"), profile_path=None, morbidity_profile=None,
+              phase_years=5, prod_J=7):
         c = ctx.country
         p = ctx.og_reform
         er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c)
@@ -325,15 +326,26 @@ class HealthChannel(Channel):
             prov["mortality_excess_deaths"] = float(excess_deaths)
             prov["target_source"] = target_src
             prov["profile_source"] = "GBD" if profile_path else "PLACEHOLDER (no GBD profile; see DATA.md)"
-        if "e" in affects:                                # morbidity via effective labor e (T,S,J)
+        if "e" in affects:                                # morbidity via effective labor e (T, S, J)
             benefit = -morbidity_response * demis         # PLACEHOLDER; cleaner -> higher productivity
             e = np.array(p.e, dtype=float)
+            S = e.shape[1]
+            # Age distribution of the morbidity gain, mirroring the mortality channel's h(s): a
+            # peak-1 relative shape over the S active periods. Default = UNIFORM (every active age
+            # gains equally -- "all workers"); pass morbidity_profile for a non-uniform shape (e.g.
+            # prime-age-concentrated via health_profile.working_age_profile), the same way the
+            # mortality effect takes an age profile. The magnitude is carried by `benefit`.
+            g = (health_profile.morbidity_shape_to_S(morbidity_profile, S, p.E)
+                 if morbidity_profile is not None else np.ones(S))
+            gcol = g[:, None]                             # (S, 1): broadcast across the prod_J cols
             ramp = np.linspace(0.0, benefit, phase_years)
             for t, b in enumerate(ramp):
-                e[t, :, :prod_J] *= (1.0 + b)
-            e[phase_years:, :, :prod_J] *= (1.0 + benefit)
+                e[t, :, :prod_J] *= (1.0 + b * gcol)
+            e[phase_years:, :, :prod_J] *= (1.0 + benefit * gcol)
             p.e = e
             prov["morbidity_benefit"] = benefit
+            prov["morbidity_profile_source"] = ("uniform (all active ages)" if morbidity_profile is None
+                                                else "custom age shape")
         return prov
 
     def validate(self, ctx, active):
