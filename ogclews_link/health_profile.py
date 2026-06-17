@@ -109,6 +109,96 @@ def total_deaths_from_gbd(csv_path: str, location_name: str, year: int,
                      f"{key_value}/{location_name}/{year}")
 
 
+# --- morbidity GBD readers (YLDs) -- the morbidity analogue of the deaths readers above ---------
+# A LABOR (productivity) channel wants the WORKING-AGE disability, which loads onto the chronic
+# disability-heavy PM2.5 outcome causes; LRI + neonatal are under-5 and lung cancer is
+# mortality-dominated, so they are excluded. (GBD 2021/2023 cause_name labels.) YLD/DALY measure
+# labels carry parentheticals ("YLDs (Years Lived with Disability)") -> matched by startswith.
+MORBIDITY_CAUSES = ("Diabetes mellitus type 2", "Chronic obstructive pulmonary disease",
+                    "Ischemic heart disease", "Stroke")
+
+
+def _morbidity_anchor(csv_path, location_name, year, key_col, key_value, causes):
+    """{age_label -> summed YLD rate PER PERSON} over ``causes`` from a GBD YLDs export. The young
+    bins (where these chronic causes have no PM-attributable YLD) are simply absent; callers fill
+    them with 0 (GBD omits zero-attribution cells)."""
+    labels = {g[0] for g in GBD_GROUPS}
+    causes = set(causes) if causes else None
+    anchor = {}
+    with open(csv_path, newline="") as f:
+        for row in csv.DictReader(f):
+            if (row.get("location_name") == location_name and row.get("sex_name") == "Both"
+                    and int(row["year"]) == year and str(row.get("measure_name", "")).startswith("YLDs")
+                    and row.get(key_col) == key_value and row.get("metric_name") == "Rate"
+                    and row.get("age_name") in labels
+                    and (causes is None or row.get("cause_name") in causes)):
+                anchor[row["age_name"]] = anchor.get(row["age_name"], 0.0) + float(row["val"]) / 100_000.0
+    return anchor
+
+
+def build_morbidity_profile_from_gbd(csv_path: str, location_name: str, year: int,
+                                     key_col: str = "rei_name",
+                                     key_value: str = "Ambient particulate matter pollution",
+                                     causes=MORBIDITY_CAUSES, num_ages: int = 100) -> np.ndarray:
+    """Morbidity age shape g(s) from a GBD YLDs export (the morbidity analogue of build_profile_from_gbd):
+    sum the YLD 'Rate' over the working-age PM2.5 ``causes`` by fine age bin, PCHIP-interpolate in
+    log-rate space, peak-1. The chronic causes have NO PM-attributable YLD at young ages, so those bins
+    are filled with 0 (not an error) -> the correct near-zero-young, rising-into-older shape."""
+    from scipy.interpolate import PchipInterpolator
+
+    anchor = _morbidity_anchor(csv_path, location_name, year, key_col, key_value, causes)
+    if not any(15 <= g[1] < 65 and g[0] in anchor for g in GBD_GROUPS):
+        raise ValueError(f"GBD YLD CSV has no working-age rows for {key_value}/{location_name}/{year}")
+    ages = np.array([g[1] for g in GBD_GROUPS])
+    rates = np.array([max(anchor.get(g[0], 0.0), 1e-12) for g in GBD_GROUPS])
+    fit = PchipInterpolator(ages, np.log(rates), extrapolate=False)
+    out = np.zeros(num_ages)
+    last = int(ages[-1])
+    out[: last + 1] = np.exp(fit(np.arange(last + 1, dtype=float)))
+    out[last + 1:] = rates[-1]
+    return _to_shape(np.maximum(out, 0.0))
+
+
+def morbidity_yld_rate_from_gbd(csv_path: str, location_name: str, year: int,
+                                key_col: str = "rei_name",
+                                key_value: str = "Ambient particulate matter pollution",
+                                causes=MORBIDITY_CAUSES) -> float:
+    """Peak per-person YLD rate over the age bins -- the morbidity MAGNITUDE base. Paired with the
+    peak-1 shape g(s), it makes the per-age productivity haircut = the GBD YLD-rate fraction by age
+    (the fraction of person-time lost to PM-attributable disability), scaled by the emissions change.
+    The magnitude is carried separately from the shape, mirroring the mortality kappa."""
+    anchor = _morbidity_anchor(csv_path, location_name, year, key_col, key_value, causes)
+    if not anchor:
+        raise ValueError(f"GBD YLD CSV has no rows for {key_value}/{location_name}/{year}")
+    return float(max(anchor.values()))
+
+
+def total_yld_from_gbd(csv_path: str, location_name: str, year: int,
+                       key_col: str = "rei_name",
+                       key_value: str = "Ambient particulate matter pollution",
+                       causes=MORBIDITY_CAUSES, working_age=(15, 65)) -> float:
+    """Total WORKING-AGE YLDs (person-years; provenance/reporting) -- the YLD 'Number' summed over
+    ``causes`` and the working-age fine bins."""
+    lo, hi = working_age
+    wa = {g[0] for g in GBD_GROUPS if lo <= g[1] < hi}
+    causes = set(causes) if causes else None
+    total, seen = 0.0, set()
+    with open(csv_path, newline="") as f:
+        for row in csv.DictReader(f):
+            if not (row.get("location_name") == location_name and row.get("sex_name") == "Both"
+                    and int(row["year"]) == year and str(row.get("measure_name", "")).startswith("YLDs")
+                    and row.get(key_col) == key_value and row.get("metric_name") == "Number"
+                    and row.get("age_name") in wa
+                    and (causes is None or row.get("cause_name") in causes)):
+                continue
+            k = (row.get("age_name"), row.get("cause_name"))
+            if k in seen:
+                continue
+            seen.add(k)
+            total += float(row["val"])
+    return total
+
+
 def placeholder_profile(num_ages: int = 100) -> np.ndarray:
     """PLACEHOLDER elderly-skewed age shape (peak 1) -- NOT calibrated. Pollution-attributable
     mortality concentrates at older ages (cardiopulmonary); this is a smooth stand-in until the

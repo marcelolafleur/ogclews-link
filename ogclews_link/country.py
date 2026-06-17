@@ -3,6 +3,7 @@ channels and framework stay country-agnostic. PHL is the worked instance.
 """
 from __future__ import annotations
 
+import glob
 import os
 from dataclasses import dataclass, field
 
@@ -31,6 +32,10 @@ class CountryConfig:
     # realistic cumulative residual (~1.7e-7) while staying ~100x tighter than ogcore's RC_TPI=1e-4
     # default (and COD runs RC_TPI=0.0075). The realized |RC| is logged on each loosened solve.
     rc_ss: float = 1e-6
+    # GBD ambient-PM2.5 burden export (Deaths + YLDs by age/cause). Feeds the health channel's real
+    # mortality h(s) + excess_deaths and morbidity g(s) + YLD-rate magnitude. None -> placeholders.
+    gbd_burden_csv: str | None = None
+    gbd_year: int = 2023
 
     def is_power(self, tech: str) -> bool:
         return tech.startswith(self.power_prefix)
@@ -40,6 +45,15 @@ class CountryConfig:
 
 
 _CLEWS = "/Users/mlafleur/Projects/CLEWS-OG/CLEWS_simulations"
+
+
+def _resolve_gbd_csv():
+    """The GBD burden CSV under the repo's IHME-GBD_2023_DATA/ (multi-country export), or None."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    hits = [h for h in glob.glob(os.path.join(root, "IHME-GBD_2023_DATA", "*.csv"))
+            if "citation" not in os.path.basename(h).lower()]
+    return sorted(hits)[0] if hits else None
+
 
 PHL = CountryConfig(
     name="Philippines",
@@ -55,4 +69,5 @@ PHL = CountryConfig(
         years=tuple(range(2020, 2054)),
         og_start_year=2026,
     ),
+    gbd_burden_csv=_resolve_gbd_csv(),  # IHME-GBD_2023_DATA/*.csv if present, else None (placeholders)
 )

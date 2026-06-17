@@ -295,7 +295,7 @@ class HealthChannel(Channel):
 
     def apply(self, ctx, excess_deaths=None, total_pollution_deaths=None, morbidity_response=0.01,
               affects=("mortality", "e"), profile_path=None, morbidity_profile=None,
-              phase_years=5, prod_J=7):
+              phase_years=5, prod_J=7, gbd_csv=None, gbd_location=None, gbd_year=None):
         c = ctx.country
         p = ctx.og_reform
         er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c)
@@ -303,39 +303,61 @@ class HealthChannel(Channel):
         if not np.isfinite(demis):
             raise ValueError(f"health: emissions_ratio gave a non-finite change ({demis}); "
                              "check the CLEWS emissions files.")
-        prov = {"emissions_change": demis, "affects": list(affects)}
+        # GBD sourcing: one multi-cause ambient-PM2.5 burden export drives BOTH the mortality h(s) +
+        # total (All-causes Deaths) and the morbidity g(s) + YLD-rate magnitude (working-age chronic
+        # causes). Present -> retires the placeholders; explicit args still override. Multi-cause file
+        # -> key on cause_name="All causes" for the deaths total (else rei-keyed rows double-count).
+        gbd = gbd_csv or getattr(c, "gbd_burden_csv", None)
+        gloc = gbd_location or getattr(c, "name", None)
+        gyr = int(gbd_year or getattr(c, "gbd_year", 2023))
+        prov = {"emissions_change": demis, "affects": list(affects), "gbd_source": bool(gbd)}
         if "mortality" in affects:
             # disease_pop method: stash a SIGNED excess-deaths target + age shape; the runtime's
             # health_pop.disease_pop solves rho += shock_scale*g_t*h(s) (clipped) to hit it, then
             # recomputes the population. Cleaner reform (demis<0) -> deaths AVOIDED -> NEGATIVE target.
-            profile = (health_profile.load_profile(profile_path) if profile_path
-                       else health_profile.placeholder_profile())
+            if gbd and profile_path is None:
+                profile = health_profile.build_profile_from_gbd(
+                    gbd, gloc, gyr, key_col="cause_name", key_value="All causes")
+                if excess_deaths is None and total_pollution_deaths is None:
+                    total_pollution_deaths = health_profile.total_deaths_from_gbd(
+                        gbd, gloc, gyr, key_col="cause_name", key_value="All causes")
+                psrc = "GBD ambient-PM2.5 deaths-by-age"
+            elif profile_path:
+                profile = health_profile.load_profile(profile_path); psrc = "file"
+            else:
+                profile = health_profile.placeholder_profile()
+                psrc = "PLACEHOLDER (no GBD profile; see DATA.md)"
             if excess_deaths is not None:
                 target_src = "explicit excess_deaths"
             elif total_pollution_deaths is not None:
-                excess_deaths = float(total_pollution_deaths) * demis    # GBD total x emissions fraction
-                target_src = "GBD total x emissions change"
+                excess_deaths = float(total_pollution_deaths) * demis    # total x emissions fraction
+                target_src = ("GBD total x emissions change" if gbd else "explicit total x emissions change")
             else:
                 excess_deaths = _PLACEHOLDER_PM25_DEATHS * demis         # demis<0 -> lives saved
                 target_src = "PLACEHOLDER total x emissions change (see DATA.md)"
                 print(f"[guardrail] health: using PLACEHOLDER total PM2.5 deaths "
-                      f"({_PLACEHOLDER_PM25_DEATHS:,.0f}); supply total_pollution_deaths from GBD "
-                      f"(health_profile.total_deaths_from_gbd) before reporting calibrated numbers.")
+                      f"({_PLACEHOLDER_PM25_DEATHS:,.0f}); supply a GBD export before reporting calibrated numbers.")
             ctx.extras["health_shock"] = {"excess_deaths": float(excess_deaths), "profile": profile,
                                           "phase_years": phase_years, "rc_ss": c.rc_ss}
             prov["mortality_excess_deaths"] = float(excess_deaths)
             prov["target_source"] = target_src
-            prov["profile_source"] = "GBD" if profile_path else "PLACEHOLDER (no GBD profile; see DATA.md)"
+            prov["profile_source"] = psrc
         if "e" in affects:                                # morbidity via effective labor e (T, S, J)
-            benefit = -morbidity_response * demis         # PLACEHOLDER; cleaner -> higher productivity
+            if gbd and morbidity_profile is None:
+                # working-age YLD age shape g(s) + peak per-person YLD rate (the magnitude), so the
+                # per-age productivity haircut = the GBD YLD-rate fraction by age x the emissions change.
+                morbidity_profile = health_profile.build_morbidity_profile_from_gbd(gbd, gloc, gyr)
+                morbidity_response = health_profile.morbidity_yld_rate_from_gbd(gbd, gloc, gyr)
+                msrc = "GBD YLD-by-age (working-age causes)"
+            else:
+                msrc = ("custom age shape" if morbidity_profile is not None else "uniform (all active ages)")
+            benefit = -morbidity_response * demis         # cleaner (demis<0) -> higher productivity
             e = np.array(p.e, dtype=float)
             S = e.shape[1]
-            # Age distribution of the morbidity gain, mirroring the mortality channel's h(s): a
-            # peak-1 relative shape over the S active periods. Default = UNIFORM (every active age
-            # gains equally -- "all workers"); pass morbidity_profile for a non-uniform shape (e.g.
-            # prime-age-concentrated via health_profile.working_age_profile), the same way the
-            # mortality effect takes an age profile. The magnitude is carried by `benefit`.
-            g = (health_profile.morbidity_shape_to_S(morbidity_profile, S, p.E)
+            # Age distribution of the morbidity gain, mirroring the mortality channel's h(s): a peak-1
+            # relative shape over the S active periods; the magnitude is carried by `benefit`. Default
+            # (no GBD, no profile) = UNIFORM (every active age gains equally).
+            g = (health_profile.morbidity_shape_to_S(morbidity_profile, S, getattr(p, "E", 0))
                  if morbidity_profile is not None else np.ones(S))
             gcol = g[:, None]                             # (S, 1): broadcast across the prod_J cols
             ramp = np.linspace(0.0, benefit, phase_years)
@@ -344,8 +366,8 @@ class HealthChannel(Channel):
             e[phase_years:, :, :prod_J] *= (1.0 + benefit * gcol)
             p.e = e
             prov["morbidity_benefit"] = benefit
-            prov["morbidity_profile_source"] = ("uniform (all active ages)" if morbidity_profile is None
-                                                else "custom age shape")
+            prov["morbidity_response"] = float(morbidity_response)
+            prov["morbidity_profile_source"] = msrc
         return prov
 
     def validate(self, ctx, active):
