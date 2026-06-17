@@ -72,13 +72,13 @@ def main():
     client = Client(processes=False, dashboard_address=None)
     try:
         base = solve_ss(p, client)
-        Yb = float(base["Yss"]); Ymb = np.atleast_1d(base["Y_vec_ss"])
+        Yb = float(base["Y"]); Ymb = np.atleast_1d(base["Y_m"])
         pr = copy.deepcopy(p); pr.baseline = False
         pr.baseline_dir = os.path.join(OUT, "baseline"); pr.output_base = os.path.join(OUT, "reform")
         os.makedirs(pr.output_base, exist_ok=True)
         pr.Z = np.asarray(p.Z, dtype=float) * haircut[None, :]       # permanent per-industry TFP haircut
         ref = solve_ss(pr, client)
-        Yr = float(ref["Yss"]); Ymr = np.atleast_1d(ref["Y_vec_ss"])
+        Yr = float(ref["Y"]); Ymr = np.atleast_1d(ref["Y_m"])
         print(f"\nGDP (Yss): baseline={Yb:.5f}  reform={Yr:.5f}  change={100*(Yr-Yb)/Yb:+.4f}%")
         print("industry output Y_m change:")
         for i, c in enumerate(cols):
