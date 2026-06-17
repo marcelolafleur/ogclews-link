@@ -23,7 +23,8 @@ import os
 
 from ogcore.utils import safe_read_pickle
 
-from ogclews_link import channels, figures, report_html, viz_health, viz_transition  # noqa: F401
+from ogclews_link import (channels, figures, report_html,  # noqa: F401
+                          viz_health, viz_transition, viz_welfare)
 from ogclews_link.country import PHL
 
 # The shared, solved across-steps tree (health lane). Read-only for the viz lane.
@@ -56,6 +57,11 @@ def _tpi(run_dir, label):
 
 def _params(run_dir, label):
     p = os.path.join(run_dir, label, "model_params.pkl")
+    return safe_read_pickle(p) if os.path.isfile(p) else None
+
+
+def _ss(run_dir, label):
+    p = os.path.join(run_dir, label, "SS", "SS_vars.pkl")
     return safe_read_pickle(p) if os.path.isfile(p) else None
 
 
@@ -130,6 +136,15 @@ def main(argv=None):
     if base_params is not None and headline_params is not None:
         _try(viz_health.mortality_by_age, base_params, headline_params, fig_dir, note=NOTE)
     _try(viz_health.gdp_split, layered, fig_dir, note=NOTE)
+
+    # --- welfare: consumption-equivalent variation (CEV) ------------------------
+    base_ss, headline_ss = _ss(run_dir, "baseline"), _ss(run_dir, HEADLINE_STEP)
+    if None not in (base_ss, headline_ss, base_params, headline_params):
+        _try(viz_welfare.cev_by_group, base_ss, headline_ss, base_params, headline_params,
+             fig_dir, note=NOTE)
+    if base_tpi is not None and headline_tpi is not None and None not in (base_params, headline_params):
+        _try(viz_welfare.cev_by_age, base_tpi, headline_tpi, base_params, headline_params,
+             fig_dir, note=NOTE)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []
