@@ -23,7 +23,7 @@ import os
 
 from ogcore.utils import safe_read_pickle
 
-from ogclews_link import channels, figures, report_html, viz_transition  # noqa: F401
+from ogclews_link import channels, figures, report_html, viz_health, viz_transition  # noqa: F401
 from ogclews_link.country import PHL
 
 # The shared, solved across-steps tree (health lane). Read-only for the viz lane.
@@ -51,6 +51,11 @@ def _default_gbd_csv():
 
 def _tpi(run_dir, label):
     p = os.path.join(run_dir, label, "TPI", "TPI_vars.pkl")
+    return safe_read_pickle(p) if os.path.isfile(p) else None
+
+
+def _params(run_dir, label):
+    p = os.path.join(run_dir, label, "model_params.pkl")
     return safe_read_pickle(p) if os.path.isfile(p) else None
 
 
@@ -117,6 +122,14 @@ def main(argv=None):
         for fn in (viz_transition.macro_transition, viz_transition.fiscal_transition,
                    viz_transition.revenue_transition, viz_transition.rates_transition):
             _try(fn, base_tpi, headline_tpi, fig_dir, start_year=start_year, note=NOTE)
+
+    # --- health-channel visuals -------------------------------------------------
+    if gbd_csv and os.path.isfile(gbd_csv):
+        _try(viz_health.gbd_age_profiles, gbd_csv, PHL.name, int(PHL.gbd_year), fig_dir, note=NOTE)
+    base_params, headline_params = _params(run_dir, "baseline"), _params(run_dir, HEADLINE_STEP)
+    if base_params is not None and headline_params is not None:
+        _try(viz_health.mortality_by_age, base_params, headline_params, fig_dir, note=NOTE)
+    _try(viz_health.gdp_split, layered, fig_dir, note=NOTE)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []
