@@ -128,6 +128,34 @@ the solver must export marginals (`signals.commodity_shadow_price` reads it wher
 the energy price is the average-cost index proxy. Dual extraction + unit/time mapping is the foundation
 everything rigorous depends on; build it first.
 
+## 5b. I-O-calibrated route B — the available bridge (BUILT, works with what we have)
+
+Phase 2 is out of scope for now, but the SAM lets us do far better than a hand-set Z haircut *without*
+touching OG-Core's production function. The inter-industry use table carries the energy-cost
+pass-through offline, via the **Leontief price model**, and we feed the result as a **calibrated
+per-industry Z shock**:
+
+1. `ogclews_link/io_energy_passthrough.py` builds the activity×activity coefficient matrix `A` from the
+   SAM (spectral radius 0.272 — productive, well-conditioned), the direct energy cost coefficient `e`,
+   and the **total embodied energy intensity** `ε = e·(I−A)⁻¹`. For an energy price rise `g`, the
+   per-industry cost-push is `ε_m·g` (total) vs `e_m·g` (direct); `dZ_m/Z_m = −ε_m·g`.
+2. **Computed (+20% shock, M=4):** the *indirect* amplification `ε/e` is real and material —
+   **1.1–2.4×**. Energy+fuels cost-push: Manufacturing 0.91%, Electricity 2.47%, Construction/Trade/
+   Services 0.42%, Natural Resources 0.21% (Natural Resources is 2.4× direct — most of its energy cost is
+   embodied in purchased inputs, which a direct-only shock would miss). Electricity-carrier only:
+   ~0.1–1.4%.
+3. `experiments/run_io_calibrated_energy_shock.py` runs OG-PHL M=4 with this per-industry Z haircut and
+   reports the GDP/industry impact.
+
+**Why this is the right bridge:** it is *calibrated* (the Z shock magnitude per industry comes from the
+I-O cost-push, tied to the CLEWS dual via `g`), it *carries inter-industry pass-through* (the ε/e
+amplification), and it gives the correct sign (a supply-side cost ⇒ lower GDP), unlike the tau_c route.
+**Honest limits vs route C:** it is still a TFP haircut — it conflates "costlier" with "less productive"
+at the industry level, has **no factor substitution** away from energy, and the energy "market" is still
+not modeled (no firm energy *quantity* to reconcile with CLEWS supply). The cost-push *magnitudes* are
+right; the substitution and quantity channels are not. This is the ceiling of what's achievable without
+the Phase-2 production PR.
+
 ## 6. Phasing & honest cost
 
 - **Phase 0 (now, no core change):** route the transition's *capex* through the structural channel OG
