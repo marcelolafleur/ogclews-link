@@ -86,9 +86,10 @@ def consumption_by_age(base_ss, reform_ss, base_params, out_dir, *, note=None, m
     ax.plot(ages, avg, color=style.LOSS, lw=2.4, zorder=3)
     style.label_ends(ax, [(ages[-1], avg[-1], "population avg", style.LOSS)])
     r_age = style.retire_age(base_params)
-    ax.axvline(r_age, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
-    ax.annotate("retirement", (r_age, ax.get_ylim()[1]), xytext=(5, -4), textcoords="offset points",
-                fontsize=8.5, color=style.SUB, va="top")
+    if r_age is not None:
+        ax.axvline(r_age, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
+        ax.annotate("retirement", (r_age, ax.get_ylim()[1]), xytext=(5, -4),
+                    textcoords="offset points", fontsize=8.5, color=style.SUB, va="top")
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.16)
     ax.set_xlabel("age")
     ax.set_ylabel("consumption change vs baseline (%)")

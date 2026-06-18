@@ -264,10 +264,8 @@ def energy_physical(country, out_dir):
         ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission}",
                     (ymid, yv), xytext=(6, 18), textcoords="offset points",
                     fontsize=8.5, color=style.TEAL, fontweight="medium")
-    rel = style.direction(avoided if np.isfinite(avoided) else 0.0,
-                          up="below", down="above", flat="≈")
-    style.title_block(fig, title=f"Reform emissions {rel} baseline",
-                      subtitle="Energy-system emissions, baseline vs reform",
+    style.title_block(fig, title="Emissions: baseline vs reform",
+                      subtitle="Energy-system emissions over the transition, baseline vs reform",
                       source=_SRC, kicker="energy system", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "emissions_path.png"))]
 

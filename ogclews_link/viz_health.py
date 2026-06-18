@@ -92,20 +92,21 @@ def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
     if tot <= 0:
         return []
     dist = 100.0 * avoided / tot                       # % of avoided deaths by age
-    work = ages < retire_age
-    work_share, peak_age = float(dist[work].sum()), int(ages[int(np.argmax(dist))])
+    peak_age = int(ages[int(np.argmax(dist))])
 
     os.makedirs(out_dir, exist_ok=True)
     fig, ax = plt.subplots(figsize=(8.2, 5.0))
     fig.subplots_adjust(top=0.76, bottom=0.13, left=0.085, right=0.95)
     style.clean(ax)
-    ax.axvspan(ages[0], retire_age, color="0.90", zorder=0)
     ax.bar(ages, dist, width=0.92, color=MORT, zorder=2)
-    ax.axvline(retire_age, color=style.INK, lw=1.0, ls=(0, (4, 3)), zorder=3)
-    ax.annotate(f"retirement ({retire_age})", (retire_age, ax.get_ylim()[1] * 0.92),
-                xytext=(6, 0), textcoords="offset points", fontsize=8.5, color=style.SUB, va="top")
-    ax.annotate(f"{work_share:.0f}% working-age · {100 - work_share:.0f}% retired",
-                (ages[0] + 2, max(dist) * 0.82), fontsize=9, color=style.SUB, va="top")
+    if retire_age is not None:                                   # mark retirement + split only if known
+        work_share = float(dist[ages < retire_age].sum())
+        ax.axvspan(ages[0], retire_age, color="0.90", zorder=0)
+        ax.axvline(retire_age, color=style.INK, lw=1.0, ls=(0, (4, 3)), zorder=3)
+        ax.annotate(f"retirement ({retire_age})", (retire_age, ax.get_ylim()[1] * 0.92),
+                    xytext=(6, 0), textcoords="offset points", fontsize=8.5, color=style.SUB, va="top")
+        ax.annotate(f"{work_share:.0f}% working-age · {100 - work_share:.0f}% retired",
+                    (ages[0] + 2, max(dist) * 0.82), fontsize=9, color=style.SUB, va="top")
     ax.set_xlim(ages[0] - 1, ages[-1] + 1)
     ax.set_xlabel("age")
     ax.set_ylabel("share of avoided deaths (%)")

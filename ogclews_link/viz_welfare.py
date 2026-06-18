@@ -111,12 +111,10 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.margins(y=0.20)
     ax.set_ylabel("consumption-equivalent variation (%)")
-    eps = 0.05 * (np.nanmax(np.abs(cev)) or 1.0)
-    spread = style.spread_word(cev, eps=eps)
     style.title_block(
         fig, title="Lifetime welfare effect by income group (CEV)",
         subtitle=f"Steady-state lifetime CEV by income group, poorest to richest  ·  "
-                 f"mean {np.nanmean(cev):+.2f}%, {spread} across groups  ·  negative = worse off",
+                 f"mean {np.nanmean(cev):+.2f}% (range {np.nanmin(cev):+.2f}% to {np.nanmax(cev):+.2f}%)  ·  negative = worse off",
         source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
         kicker="welfare: CEV by group", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -174,9 +172,10 @@ def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, not
     ax.plot(ages, cev_w, color=col, lw=2.4, zorder=3)
     style.label_ends(ax, [(ages[-1], cev_w[-1], "population avg", col)])
     _retire = style.retire_age(base_params)
-    ax.axvline(_retire, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
-    ax.annotate("retirement", (_retire, ax.get_ylim()[0]), xytext=(5, 6), textcoords="offset points",
-                fontsize=8.5, color=style.SUB)
+    if _retire is not None:
+        ax.axvline(_retire, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=2)
+        ax.annotate("retirement", (_retire, ax.get_ylim()[0]), xytext=(5, 6),
+                    textcoords="offset points", fontsize=8.5, color=style.SUB)
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.16)
     ax.set_xlabel("age at the reform")
     ax.set_ylabel("remaining-lifetime CEV (%)")

@@ -182,27 +182,6 @@ def source_line(note=None):
     return f"{SRC}.  {note}" if note else SRC
 
 
-def direction(x, *, eps=0.0, up="rises", down="falls", flat="is little changed"):
-    """Sign-driven verb so a headline can never claim the wrong direction."""
-    return flat if abs(float(x)) <= eps else (up if x > 0 else down)
-
-
-def bucket(x, edges, words):
-    """Map |x| to a word by ascending thresholds; len(words) == len(edges)+1.
-    e.g. bucket(v, [0.5, 2.0], ['small', 'moderate', 'large'])."""
-    ax = abs(float(x))
-    for e, w in zip(edges, words):
-        if ax < e:
-            return w
-    return words[-1]
-
-
-def spread_word(values, *, eps, even="even", uneven="uneven"):
-    """Describe cross-group/-age dispersion from the spread (max-min) of values."""
-    v = np.asarray(values, dtype=float)
-    return even if float(np.nanmax(v) - np.nanmin(v)) <= eps else uneven
-
-
 # OG-Core's default 7-group lifetime-income partition (lambdas [.25,.25,.2,.1,.1,.09,.01]);
 # this is the OG-Core default shared across country models, not a PHL-only choice.
 _DEFAULT_J7 = ["0-25%", "25-50%", "50-70%", "70-80%", "80-90%", "90-99%", "Top 1%"]
@@ -224,19 +203,23 @@ def income_labels(J, lambdas=None):
     return [f"group {i + 1}" for i in range(J)]
 
 
-def retire_age(params, default=65):
-    """OG-Core retirement age from a model_params object, robust to scalar/array/missing."""
-    for attr in ("retire", "retirement_age"):
-        val = getattr(params, attr, None)
-        if val is None:
-            continue
+def retire_age(params, default=None):
+    """OG-Core retirement AGE from a model_params object. Prefers ``retirement_age`` (already an
+    age, e.g. 65); else converts ``retire`` (a lifecycle index counted from the start age E) via
+    E + retire. Returns ``default`` (None) when neither is present -- callers should omit the
+    marker rather than guess a value."""
+    ra = getattr(params, "retirement_age", None)
+    if ra is not None:
         try:
-            return int(np.atleast_1d(val).flat[0])
+            return int(np.atleast_1d(ra).flat[0])
         except Exception:  # noqa: BLE001
-            try:
-                return int(val)
-            except Exception:  # noqa: BLE001
-                pass
+            pass
+    retire, E = getattr(params, "retire", None), getattr(params, "E", None)
+    if retire is not None and E is not None:
+        try:
+            return int(np.atleast_1d(E).flat[0]) + int(np.atleast_1d(retire).flat[0])
+        except Exception:  # noqa: BLE001
+            pass
     return default
 
 

@@ -159,16 +159,18 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     start_year = _start_year(base_dir, country)
 
     # --- editorial transition-path figures for the headline reform --------------
+    base_params = _params(run_dir, "baseline")  # also feeds the closure-rule marker + health figs
     headline_tpi = _tpi(run_dir, headline_step)
     if base_tpi is not None and headline_tpi is not None:
         for fn in (viz_transition.macro_transition, viz_transition.fiscal_transition,
                    viz_transition.revenue_transition, viz_transition.rates_transition):
-            _try(fn, base_tpi, headline_tpi, fig_dir, start_year=start_year, note=note)
+            _try(fn, base_tpi, headline_tpi, fig_dir, start_year=start_year, note=note,
+                 params=base_params)
 
     # --- health-channel visuals -------------------------------------------------
     if gbd_csv and os.path.isfile(gbd_csv):
         _try(viz_health.gbd_age_profiles, gbd_csv, country.name, int(country.gbd_year), fig_dir, note=note)
-    base_params, headline_params = _params(run_dir, "baseline"), _params(run_dir, headline_step)
+    headline_params = _params(run_dir, headline_step)
     if base_params is not None and headline_params is not None:
         _try(viz_health.mortality_by_age, base_params, headline_params, fig_dir, note=note)
     _try(viz_health.gdp_split, layered, fig_dir, note=note)
