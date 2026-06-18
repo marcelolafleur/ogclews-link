@@ -5,3 +5,7 @@ __pycache__/
 *.pyc
 *.pkl
 *.png
+
+# Local-only data export + scratch — never commit
+IHME-GBD_2023_DATA/
+.review_tmp/
