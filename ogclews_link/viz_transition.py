@@ -210,3 +210,56 @@ def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
         subtitle=f"Interest rate and wage, % deviation from baseline  ·  max |deviation| {rng:.2f}%",
         source=f"{_SRC}.  {note}" if note else _SRC, kicker="factor prices", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+
+
+# --- public investment and public capital over the transition --------------------
+
+# I_g/K_g are the public-investment flow and public-capital stock. The figure focuses on its
+# title subject (public investment and public capital), so only these two series are plotted;
+# the broader investment aggregates (I_d / I_total) carry a single-period domestic-investment
+# outlier that would set the y-axis and compress these paths into an unreadable band, and they
+# fall outside the title's scope. Each (var, label, color) -- labels are model-generic.
+_PUBINV_VARS = [("I_g", "public investment", style.CATEGORICAL[0]),
+                ("K_g", "public capital", style.CATEGORICAL[2])]
+
+
+def public_investment(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
+                      params=None, name="public_investment"):
+    """Public investment (I_g) and public capital (K_g) as % deviation from baseline across the
+    transition. Calendar-year x-axis, lines direct-labeled at their right ends, closure-rule
+    marker, capped plot horizon. Scoped to the title subject -- the broader investment aggregates
+    are deliberately omitted (their single-period outlier would compress these paths). Magnitudes
+    are uncalibrated -- keep that caveat in the caption note. Returns [] if I_g/K_g are absent."""
+    if not all(v in base_tpi and v in reform_tpi for v in ("I_g", "K_g")):
+        return []
+    os.makedirs(out_dir, exist_ok=True)
+    closure_year, hz = _closure_window(params, start_year, n_years)
+    lens = [len(np.asarray(base_tpi[v])) for v, _, _ in _PUBINV_VARS if v in base_tpi]
+    lens += [len(np.asarray(reform_tpi[v])) for v, _, _ in _PUBINV_VARS if v in reform_tpi]
+    n = min([int(hz)] + lens)
+    yrs = _years(start_year, n)
+    vars_here = [(v, lab, c) for v, lab, c in _PUBINV_VARS
+                 if v in base_tpi and v in reform_tpi]
+
+    fig, ax = plt.subplots(figsize=(8.2, 5.0))
+    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.10, right=0.84)
+    style.clean(ax, left=True)
+    style.zero_line(ax)
+    ends, allv = [], []
+    for v, lab, c in vars_here:
+        d = _pct_path(base_tpi, reform_tpi, v, n)
+        allv.append(d)
+        ax.plot(yrs, d, color=c, lw=2.2, zorder=2)
+        ends.append((yrs[-1], d[-1], lab, c))
+    rng = float(np.nanmax([np.nanmax(np.abs(d)) for d in allv]))
+    # Two converging end-labels can also land on the zero line; a generous min_gap nudges them
+    # apart vertically and a non-zero floor keeps the gap usable even when both ends sit near 0.
+    style.label_ends(ax, ends, min_gap=max(0.16 * rng, 0.08))
+    ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.14)
+    ax.set_ylabel("change vs baseline (%)")
+    _closure_line(ax, closure_year, yrs)
+    style.title_block(
+        fig, title="Public investment and public capital over the transition",
+        subtitle=f"% deviation from baseline, {yrs[0]}–{yrs[-1]}  ·  max |deviation| {rng:.2f}%",
+        source=f"{_SRC}.  {note}" if note else _SRC, kicker="public capital", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

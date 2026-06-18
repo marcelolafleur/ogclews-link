@@ -120,6 +120,75 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
+# --- CEV channel decomposition: consumption vs labor (steady state, by group) ----
+
+def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *, note=None,
+                      name="welfare_cev_decomposition"):
+    """Steady-state lifetime CEV by income group, split into the channel it travels through.
+    The consumption-only partial CEV holds LABOR n at baseline and lets only c move to reform;
+    the labor-only partial CEV holds c at baseline and lets only n move. Each is a separate
+    nonlinear root-find on the consumption-scaling φ that equates baseline felicity to the
+    channel-shifted felicity, so the two partials do NOT add up to the full CEV -- they read as
+    'how much of the welfare move would this channel deliver on its own'. Grouped bars per group,
+    sign-colored by the computed value."""
+    fe = _Felicity(base_params)
+    cb, nb = np.asarray(base_ss["c"], float), np.asarray(base_ss["n"], float)      # (S, J)
+    cr, nr = np.asarray(reform_ss["c"], float), np.asarray(reform_ss["n"], float)
+    chi = np.asarray(base_params.chi_n, float)[-1]                                  # SS row (S,)
+    rho_b = np.asarray(base_params.rho, float)[-1]
+    rho_r = np.asarray(reform_params.rho, float)[-1]
+    J = cb.shape[1]
+    # Consumption channel: reform c, baseline n.  Labor channel: baseline c, reform n.  Each is
+    # solved by the same root-find as the full CEV, just with the relevant reform component swapped.
+    cev_c = 100.0 * np.array([fe.cev((cb[:, j], nb[:, j]), (cr[:, j], nb[:, j]),
+                                     chi, rho_b, rho_r, j) for j in range(J)])
+    cev_n = 100.0 * np.array([fe.cev((cb[:, j], nb[:, j]), (cb[:, j], nr[:, j]),
+                                     chi, rho_b, rho_r, j) for j in range(J)])
+    lab = _labels(J, np.asarray(base_params.lambdas, float).ravel())
+
+    os.makedirs(out_dir, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(8.2, 5.0))
+    fig.subplots_adjust(top=0.76, bottom=0.16, left=0.10, right=0.95)
+    style.clean(ax)
+    style.zero_line(ax)
+    x = np.arange(J)
+    bw = 0.38
+    for off, vals in ((-bw / 2, cev_c), (bw / 2, cev_n)):
+        ax.bar(x + off, vals, width=bw, color=style.signed(vals), zorder=2,
+               edgecolor="white", linewidth=0.6)
+    # hatch the labor-channel bars so the two channels read apart beyond color (color = sign only)
+    for j in range(J):
+        ax.bar(x[j] + bw / 2, cev_n[j], width=bw, fill=False, hatch="////",
+               edgecolor="white", linewidth=0.0, zorder=3)
+    for off, vals in ((-bw / 2, cev_c), (bw / 2, cev_n)):
+        for j, v in enumerate(vals):
+            if not np.isfinite(v):
+                continue
+            ax.annotate(f"{v:+.2f}", (x[j] + off, v), xytext=(0, -10 if v < 0 else 5),
+                        textcoords="offset points", ha="center", va="top" if v < 0 else "bottom",
+                        fontsize=9, fontweight="bold", color=style.LOSS if v < 0 else style.GAIN)
+    # Channels are read apart by fill (solid = consumption, hatched = labor) and explained in the
+    # subtitle -- no floating legend box, which in a packed 7-group bar panel can only land on the data.
+    ax.set_xticks(x)
+    ax.set_xticklabels(lab, rotation=30, ha="right")
+    ax.margins(y=0.20)
+    ax.set_ylabel("partial consumption-equivalent variation (%)")
+    fin_c, fin_n = cev_c[np.isfinite(cev_c)], cev_n[np.isfinite(cev_n)]
+    parts = []
+    if fin_c.size:
+        parts.append(f"consumption mean {np.mean(fin_c):+.2f}%")
+    if fin_n.size:
+        parts.append(f"labor mean {np.mean(fin_n):+.2f}%")
+    means = "  ·  ".join(parts)
+    style.title_block(
+        fig, title="Lifetime CEV by income group: consumption vs labor channel",
+        subtitle="Solid = consumption channel, hatched = labor channel  ·  partial CEVs, not additive"
+                 + (f"  ·  {means}" if means else "") + "  ·  negative = worse off",
+        source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
+        kicker="welfare: CEV decomposition", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+
+
 # --- CEV by age at the reform (remaining lifetime, transition cohorts) -----------
 
 def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, note=None,

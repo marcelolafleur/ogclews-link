@@ -35,7 +35,8 @@ import os
 from ogcore.utils import safe_read_pickle
 
 from ogclews_link import (channels, figures, report_html,  # noqa: F401
-                          viz_dashboard, viz_distribution, viz_health, viz_transition, viz_welfare)
+                          viz_composition, viz_dashboard, viz_deck, viz_distribution,
+                          viz_energy, viz_health, viz_transition, viz_welfare)
 from ogclews_link import country as _country_mod
 from ogclews_link.country import CountryConfig
 
@@ -46,6 +47,11 @@ DEFAULT_COUNTRY = "phl"
 # Caveats for the SHARED PHL run's assumptions. Override with --note for any other scenario.
 DEFAULT_NOTE = ("Illustrative: +20% energy-price wedge (a cost-index proxy, not the CLEWS dual); "
                 "investment/carbon magnitudes uncalibrated; carbon revenue not recycled.")
+
+# Neutral section names for the deck cover/contents (order ~ the figure groups below).
+_DECK_SECTIONS = ["Across-steps channel decomposition", "Macro & fiscal transition",
+                  "Energy-system linkage", "Health channel", "Welfare (CEV)",
+                  "Distribution & composition"]
 
 
 def _resolve(cli_val, env_key, default):
@@ -139,7 +145,6 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
 
     # --- top-level figures (across steps) ---------------------------------------
     _try(figures.across_steps_waterfall, layered, fig_dir, note=note)
-    _try(figures.macro_honest, layered, fig_dir, note=note)
     _try(figures.energy_physical, country, fig_dir)
     _try(figures.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
     _try(report_html.write_html_report, layered, os.path.join(fig_dir, "report.html"))
@@ -159,26 +164,43 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     start_year = _start_year(base_dir, country)
 
     # --- editorial transition-path figures for the headline reform --------------
-    base_params = _params(run_dir, "baseline")  # also feeds the closure-rule marker + health figs
+    base_params = _params(run_dir, "baseline")        # also feeds closure marker, energy, health, welfare
+    headline_params = _params(run_dir, headline_step)
     headline_tpi = _tpi(run_dir, headline_step)
     if base_tpi is not None and headline_tpi is not None:
         for fn in (viz_transition.macro_transition, viz_transition.fiscal_transition,
-                   viz_transition.revenue_transition, viz_transition.rates_transition):
+                   viz_transition.revenue_transition, viz_transition.rates_transition,
+                   viz_transition.public_investment):
             _try(fn, base_tpi, headline_tpi, fig_dir, start_year=start_year, note=note,
                  params=base_params)
+
+    # --- energy-system linkage (the CLEWS-to-OG inputs) -------------------------
+    # The energy-price channel's applied wedge = the FIRST reform step's params (the +20% energy-price
+    # proxy), so the flagship compares the CLEWS energy-price ratio to the wedge that channel actually
+    # applied -- not the headline's cumulative energy+carbon wedge.
+    ep_params = _params(run_dir, layered[0]["step"]) if layered else None
+    ep_ref = ep_params if ep_params is not None else headline_params
+    if base_params is not None and ep_ref is not None:
+        _try(viz_energy.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note)
+    _try(viz_energy.capex_by_technology, country, fig_dir, note=note)
+    if base_tpi is not None:
+        _try(viz_energy.channel_inputs_over_time, country, base_tpi, fig_dir, note=note)
 
     # --- health-channel visuals -------------------------------------------------
     if gbd_csv and os.path.isfile(gbd_csv):
         _try(viz_health.gbd_age_profiles, gbd_csv, country.name, int(country.gbd_year), fig_dir, note=note)
-    headline_params = _params(run_dir, headline_step)
     if base_params is not None and headline_params is not None:
         _try(viz_health.mortality_by_age, base_params, headline_params, fig_dir, note=note)
+        _try(viz_health.morbidity_by_age, base_params, headline_params, fig_dir, note=note)
+        _try(viz_health.demographic_transition_by_age, base_params, headline_params, fig_dir, note=note)
     _try(viz_health.gdp_split, layered, fig_dir, note=note)
 
     # --- welfare: consumption-equivalent variation (CEV) ------------------------
     base_ss, headline_ss = _ss(run_dir, "baseline"), _ss(run_dir, headline_step)
     if None not in (base_ss, headline_ss, base_params, headline_params):
         _try(viz_welfare.cev_by_group, base_ss, headline_ss, base_params, headline_params,
+             fig_dir, note=note)
+        _try(viz_welfare.cev_decomposition, base_ss, headline_ss, base_params, headline_params,
              fig_dir, note=note)
     if base_tpi is not None and headline_tpi is not None and None not in (base_params, headline_params):
         _try(viz_welfare.cev_by_age, base_tpi, headline_tpi, base_params, headline_params,
@@ -188,11 +210,27 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     _try(viz_distribution.energy_demand_by_group, layered, fig_dir, note=note)
     if None not in (base_ss, headline_ss, base_params):
         _try(viz_distribution.consumption_by_age, base_ss, headline_ss, base_params, fig_dir, note=note)
+        _try(viz_distribution.asset_by_age, base_ss, headline_ss, base_params, fig_dir, note=note)
+    if base_tpi is not None and headline_tpi is not None and base_params is not None:
+        _try(viz_distribution.income_composition_by_age, base_tpi, headline_tpi, base_params, fig_dir, note=note)
+
+    # --- multi-good / multi-sector composition (the GE structure) ---------------
+    conc = getattr(country, "concordance", None)  # the run's energy good/industry indices (portable)
+    if None not in (base_ss, headline_ss, base_params):
+        _try(viz_composition.consumption_by_good, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
+        _try(viz_composition.sectoral_reallocation, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
+    if base_tpi is not None and headline_tpi is not None and base_params is not None:
+        _try(viz_composition.consumption_by_good_by_group, base_tpi, headline_tpi, base_params, fig_dir, note=note, concordance=conc)
 
     # --- one-page headline dashboard --------------------------------------------
     if None not in (base_tpi, headline_tpi, base_ss, headline_ss, base_params, headline_params):
         _try(viz_dashboard.headline_dashboard, layered, base_tpi, headline_tpi, base_ss, headline_ss,
              base_params, headline_params, country, fig_dir, start_year=start_year, note=note)
+
+    # --- deck front matter & at-a-glance summary --------------------------------
+    _try(viz_deck.methods_card, layered, country, fig_dir, note=note)
+    _try(viz_deck.summary_table, layered, fig_dir, note=note)
+    _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=note)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []
