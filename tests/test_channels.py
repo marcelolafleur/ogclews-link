@@ -110,7 +110,7 @@ def test_carbon_both_sides():
 
 
 def test_discount_rate_postsolve():
-    ctx = _ctx()
+    ctx = _ctx(with_reform=True)  # post_solve channel forwards the REFORM equilibrium rate
     assert get("discount_rate").post_solve is True
     prov = get("discount_rate").apply(ctx, rate_key="r_p")
     assert ctx.clews_inputs["DiscountRate"]["rate"] == 0.05

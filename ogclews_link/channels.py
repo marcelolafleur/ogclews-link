@@ -91,8 +91,18 @@ def recycle_via_transfers(ctx, i_good: int, dtau_path) -> float | None:
     Y = np.asarray(b["Y"])[:T]
     bump = (_fit(dtau_path, T) * pi * Ci) / np.maximum(Y, 1e-12)   # extra revenue, share of GDP
     aT = np.asarray(p.alpha_T, dtype=float)
-    p.alpha_T = aT + _fit(bump, aT.shape[0])                       # carry into the SS tail
-    return float(np.mean(bump[:10]))
+    new_aT = aT + _fit(bump, aT.shape[0])                          # carry into the SS tail
+    if np.any(new_aT < 0):
+        # A cheaper-energy reform (dtau<0) shrinks the recycle and, unfloored, would drive alpha_T
+        # NEGATIVE -- a lump-sum TAX on households (TR=alpha_T*Y), bypassing OG-Core's alpha_T>=0
+        # validator since we set the attribute directly. Floor at 0 to keep it a transfer. NOTE: a
+        # sign-flipping recycle means transfers are the wrong closure instrument for this reform --
+        # the floor protects the solve, but the scenario should route the rebate elsewhere.
+        print("[guardrail] recycle_via_transfers: bump would push alpha_T < 0 (a lump-sum tax on "
+              "households); floored at 0. A negative recycle implies the closure instrument should change.")
+        new_aT = np.maximum(new_aT, 0.0)
+    p.alpha_T = new_aT
+    return float(np.mean((new_aT - aT)[:10]))   # realized recycle (post-floor), share of GDP
 
 
 # --- #1 energy price -> household demand (+ incidence) --------------------------
@@ -193,6 +203,11 @@ class InvestmentChannel(Channel):
         if target == "alpha_I":
             p.alpha_I = np.asarray(p.alpha_I, dtype=float) + full
         else:
+            # alpha_bs_I is read by OG-Core's get_I_g ONLY when baseline_spending=True (default False),
+            # so this branch is a silent no-op under the default closure -- warn rather than fail quietly.
+            if not bool(getattr(p, "baseline_spending", False)):
+                print(f"[guardrail] investment target={target!r} writes alpha_bs_I, which OG-Core ignores "
+                      f"unless baseline_spending=True (currently False) -- this shock will have NO effect.")
             p.alpha_bs_I = np.asarray(p.alpha_bs_I, dtype=float) * (1.0 + full)
         return {"target": target, "public_only": public_only, "persist": persist,
                 "smooth_years": smooth_years, "cumulative_pct_gdp": float(path.sum()),
@@ -267,7 +282,10 @@ class DiscountRateChannel(Channel):
     post_solve = True
 
     def apply(self, ctx, rate_key="r_p", scalar=True, region="RE1"):
-        r = signals.og_interest_rate(ctx.base_tpi, rate_key)  # OG real per-period (market) rate
+        if ctx.reform_tpi is None:
+            raise ValueError("DiscountRateChannel is post_solve and needs ctx.reform_tpi (the reform "
+                             "equilibrium rate); it was None -- run it after the reform solve.")
+        r = signals.og_interest_rate(ctx.reform_tpi, rate_key)  # REFORM OG real per-period (market) rate
         rate = float(np.mean(r[:10])) if scalar else r.tolist()
         ctx.clews_inputs["DiscountRate"] = {"region": region, "rate": rate, "key": rate_key,
                                             "convention": "real; OG market cost of capital; period~annual if S=80"}
@@ -392,7 +410,11 @@ class DemandChannel(Channel):
 
     def apply(self, ctx, driver="Y_m", elasticity=1.0, og_index=None, clews_fuel=None):
         c = ctx.country
-        idx = og_index if og_index is not None else c.concordance.energy_industry_index
+        # default index must match the slice space: og_sector_output slices Y_m (industry m index),
+        # og_consumption_good slices C_i (good i index). PHL masks this (both indices == 1).
+        default_idx = (c.concordance.energy_industry_index if driver == "Y_m"
+                       else c.concordance.energy_good_index)
+        idx = og_index if og_index is not None else default_idx
         get = signals.og_sector_output if driver == "Y_m" else signals.og_consumption_good
         yb, yr = get(ctx.base_tpi, idx), get(ctx.reform_tpi, idx)
         T = min(len(yb), len(yr))
