@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 
 _CDN = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
-# editorial colorblind-safe palette (kept in sync with figures/style.py)
+# editorial colorblind-safe palette (Chart.js hex; visually aligned with style.py)
 STEP_COLORS = ["#0F5499", "#E3120B", "#0D7680", "#E69F00", "#7A6FAC"]
 VAR_COLORS = {"Y": "#0F5499", "C": "#E3120B", "K": "#0D7680", "L": "#E69F00"}
 
@@ -16,9 +16,9 @@ def write_html_report(layered, out_path, title="OG-CLEWS across-steps results"):
     solved = [r for r in layered if "macro" in r]
     failed = [r["step"] for r in layered if "macro" not in r]
     steps = [r["step"] for r in solved]
-    from .figures import INCOME_LABELS
+    from . import style
     J = len(solved[0]["consumption_by_J"]) if solved else 7
-    jlabels = INCOME_LABELS if J == 7 else [f"group {i + 1}" for i in range(J)]
+    jlabels = style.income_labels(J)
     payload = {
         "steps": steps,
         "energy_demand": [r["energy_demand_pct"] for r in solved],

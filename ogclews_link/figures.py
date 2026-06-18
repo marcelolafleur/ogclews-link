@@ -29,16 +29,14 @@ from . import style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-# OG-PHL lifetime-income groups (lambdas [.25,.25,.2,.1,.1,.09,.01]) -> percentile labels
-INCOME_LABELS = ["0-25%", "25-50%", "50-70%", "70-80%", "80-90%", "90-99%", "Top 1%"]
 LOSS, GAIN = style.LOSS, style.GAIN
 STEP_COLORS = style.CATEGORICAL
 
-_SRC = "Source: OG-PHL (OG-Core) x CLEWS coupled model · author's calculations"
+_SRC = style.SRC
 
 
-def _labels(J):
-    return INCOME_LABELS if J == 7 else [f"group {i + 1}" for i in range(J)]
+def _labels(J, lambdas=None):
+    return style.income_labels(J, lambdas)
 
 
 # --- the hero: distributional incidence + mechanism + dollars --------------------
@@ -92,9 +90,9 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
     ax.set_xlim(0, max(2.2, float(share.max()) * 1.5))
     ax.set_xlabel("baseline energy budget share (%)")
     ax.set_ylabel("consumption change (%)")
-    ax.set_title("Why — exposure or general equilibrium?")
+    ax.set_title("Welfare vs baseline energy share")
     ax.annotate(
-        f"every group spends ~the same\nshare on energy (~{sp:.1f}%), yet welfare\noutcomes differ widely — so incidence\nis general-equilibrium / fiscal-driven,\nnot energy-exposure-driven",
+        f"energy is ~{sp:.1f}% of the baseline\nbudget, on average across groups",
         xy=(sp, float(np.median(w))), xytext=(0.045, 0.94), textcoords="axes fraction",
         fontsize=8.5, color=style.SUB, va="top", ha="left",
         arrowprops=dict(arrowstyle="->", color="#BBBBBB", lw=0.8))
@@ -109,8 +107,8 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
         ax.bar(range(J), dC, color=style.signed(dC), width=0.74, zorder=2)
         ax.set_xticks(range(J))
         ax.set_xticklabels(lab, rotation=30, ha="right")
-        ax.set_ylabel("$ / household / year (approx.)")
-        ax.set_title("How much, in pesos-equivalent")
+        ax.set_ylabel("consumption change / household / year (approx.)")
+        ax.set_title("How much per household")
         pad = 0.02 * (np.nanmax(np.abs(dC)) or 1.0)
         for j, v in enumerate(dC):
             ax.annotate(f"{v:+,.0f}", (j, v), xytext=(0, 4 if v >= 0 else -4),
@@ -184,8 +182,8 @@ def across_steps_waterfall(layered, out_dir, note=None):
         if split is not None and i > 0:
             mort_marg = split["mortality"] - yvals[i - 1]
             morb_marg = (yvals[i] - yvals[i - 1]) - mort_marg
-            segments[i] = [(mort_marg, style.CATEGORICAL[2], "mortality (lives saved)"),
-                           (morb_marg, style.CATEGORICAL[3], "morbidity (productivity)")]
+            segments[i] = [(mort_marg, style.CATEGORICAL[2], "mortality"),
+                           (morb_marg, style.CATEGORICAL[3], "morbidity")]
     saved = [_waterfall(yvals, labels,
                         "What each channel adds to GDP",
                         "Marginal contribution to GDP as channels are layered in",
@@ -222,10 +220,13 @@ def macro_honest(layered, out_dir, ylim=0.5, note=None):
     ax.set_xticks(range(n))
     ax.set_xticklabels(steps, rotation=15, ha="right")
     ax.set_ylabel("change vs baseline (%)")
-    ax.annotate("macro effects are <0.1% by construction\n(energy is ~1.4% of consumption)",
-                (0.015, 0.04), xycoords="axes fraction", fontsize=8.5, color=style.SUB, va="bottom")
-    style.title_block(fig, title="Macro aggregates barely move — by construction",
-                      subtitle="Change vs baseline (%), fixed ±0.5% axis  ·  Y output, C consumption, K capital, L labor",
+    finite = [(abs(y), y, v) for (_x, y, v, _c) in ends if y is not None]
+    if finite:
+        _, mval, mvar = max(finite)
+        ax.annotate(f"largest move: {mval:+.2f}% ({mvar})",
+                    (0.015, 0.04), xycoords="axes fraction", fontsize=8.5, color=style.SUB, va="bottom")
+    style.title_block(fig, title="Macro aggregates vs baseline",
+                      subtitle="Change vs baseline (%), fixed axis  ·  Y output, C consumption, K capital, L labor",
                       source=f"{_SRC}.  {note}" if note else _SRC, kicker="macro aggregates", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "macro_honest.png"))]
 
@@ -256,14 +257,15 @@ def energy_physical(country, out_dir):
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.13)
     ax.set_ylabel(f"emissions ({country.co2_emission})")
     avoided = float(np.nansum((erb.values - er.values)))
-    if np.isfinite(avoided) and avoided > 0:
+    if np.isfinite(avoided) and abs(avoided) > 0:
         ymid = float(er.index[len(er) // 2])
         yv = float(np.nanmean([erb.values[len(er) // 2], er.values[len(er) // 2]]))
-        ax.annotate(f"cumulative avoided\n≈ {avoided:,.0f} {country.co2_emission}",
+        word = "avoided" if avoided > 0 else "additional"
+        ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission}",
                     (ymid, yv), xytext=(6, 18), textcoords="offset points",
                     fontsize=8.5, color=style.TEAL, fontweight="medium")
-    style.title_block(fig, title="The reform bends the emissions path down",
-                      subtitle="Energy-system emissions, baseline vs reform",
+    style.title_block(fig, title="Emissions: baseline vs reform",
+                      subtitle="Energy-system emissions over the transition, baseline vs reform",
                       source=_SRC, kicker="energy system", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "emissions_path.png"))]
 

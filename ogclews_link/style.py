@@ -17,6 +17,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib import font_manager as fm
 
 # --- palette: editorial, colorblind-safe -----------------------------------------
@@ -140,10 +141,22 @@ def zero_line(ax, axis="y", value=0.0):
     (ax.axhline if axis == "y" else ax.axvline)(value, color="#333333", lw=1.0, zorder=1.5)
 
 
-def label_ends(ax, points, dx=6):
+def label_ends(ax, points, dx=6, min_gap=None):
     """Direct end-of-line labels in the series color (kills the legend box). points: iterable
-    of (x, y, text, color). Caller should widen the right margin to fit."""
-    for x, y, text, color in points:
+    of (x, y, text, color). Caller should widen the right margin to fit. When ``min_gap`` (in
+    y-data units) is given, labels that would collide are nudged apart vertically (text only --
+    they still read by color), so converging lines stay legible."""
+    pts = list(points)
+    ys = [p[1] for p in pts]
+    if min_gap:
+        order = sorted(range(len(pts)), key=lambda i: pts[i][1])
+        cur = [pts[i][1] for i in order]
+        for k in range(1, len(cur)):
+            if cur[k] - cur[k - 1] < min_gap:
+                cur[k] = cur[k - 1] + min_gap
+        for k, i in enumerate(order):
+            ys[i] = cur[k]
+    for (x, _y, text, color), y in zip(pts, ys):
         ax.annotate(text, (x, y), xytext=(dx, 0), textcoords="offset points",
                     color=color, fontsize=10, fontweight="medium", va="center", ha="left")
 
@@ -151,6 +164,63 @@ def label_ends(ax, points, dx=6):
 def signed(vals, gain=GAIN, loss=LOSS):
     """Diverging color per value sign (gains vs losses)."""
     return [loss if v < 0 else gain for v in vals]
+
+
+# --- honest, scenario-portable wording -------------------------------------------
+# A figure must never ASSERT a result that holds only for one run. Numbers may be stamped
+# on a figure (they are computed from the data); DIRECTION and MAGNITUDE words must be
+# DERIVED from those numbers, never hardcoded. These helpers centralize that, so titles can
+# default to neutral descriptions and any derived phrasing is true by construction for any
+# scenario. The country/scenario identity rides in the title and the run directory, so the
+# source credit stays model-generic.
+
+SRC = "Source: OG-Core x CLEWS coupled model · author's calculations"
+
+
+def source_line(note=None):
+    """Grey credit line; appends an optional per-run caveat note."""
+    return f"{SRC}.  {note}" if note else SRC
+
+
+# OG-Core's default 7-group lifetime-income partition (lambdas [.25,.25,.2,.1,.1,.09,.01]);
+# this is the OG-Core default shared across country models, not a PHL-only choice.
+_DEFAULT_J7 = ["0-25%", "25-50%", "50-70%", "70-80%", "80-90%", "90-99%", "Top 1%"]
+
+
+def income_labels(J, lambdas=None):
+    """Percentile labels for J lifetime-income groups. Derived from `lambdas` (population
+    shares) when given, so they match the run's actual partition; else the OG-Core default-7
+    labels for J==7, else generic 'group N'."""
+    if lambdas is not None and len(lambdas) == J:
+        edges = np.concatenate([[0.0], np.cumsum(np.asarray(lambdas, dtype=float))]) * 100
+        out = []
+        for a, b in zip(edges[:-1], edges[1:]):
+            lo, hi = round(float(a)), round(float(b))
+            out.append(f"Top {100 - lo}%" if (hi >= 99.5 and lo >= 90) else f"{lo}-{hi}%")
+        return out
+    if J == 7:
+        return list(_DEFAULT_J7)
+    return [f"group {i + 1}" for i in range(J)]
+
+
+def retire_age(params, default=None):
+    """OG-Core retirement AGE from a model_params object. Prefers ``retirement_age`` (already an
+    age, e.g. 65); else converts ``retire`` (a lifecycle index counted from the start age E) via
+    E + retire. Returns ``default`` (None) when neither is present -- callers should omit the
+    marker rather than guess a value."""
+    ra = getattr(params, "retirement_age", None)
+    if ra is not None:
+        try:
+            return int(np.atleast_1d(ra).flat[0])
+        except Exception:  # noqa: BLE001
+            pass
+    retire, E = getattr(params, "retire", None), getattr(params, "E", None)
+    if retire is not None and E is not None:
+        try:
+            return int(np.atleast_1d(E).flat[0]) + int(np.atleast_1d(retire).flat[0])
+        except Exception:  # noqa: BLE001
+            pass
+    return default
 
 
 def save(fig, path):

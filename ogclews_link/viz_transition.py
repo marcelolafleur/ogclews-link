@@ -1,0 +1,212 @@
+"""Transition-path figures -- the TIME SERIES of the reform's deviation across the OG-Core
+transition (in calendar years), not the 10-year-mean snapshot the waterfall/macro_honest use.
+The dynamics are the story: the full path can differ sharply from its long-run (10-yr-mean)
+level, so these builders show the whole trajectory rather than a single snapshot.
+
+Editorial house theme (see style.py). Import-safe (matplotlib Agg). Builders take the already-
+loaded baseline/reform TPI dicts + the calendar start year, so they run from pickles in seconds.
+"""
+from __future__ import annotations
+
+import os
+
+import matplotlib
+
+matplotlib.use("Agg")
+import numpy as np  # noqa: E402
+
+from . import style  # noqa: E402
+
+style.apply()
+import matplotlib.pyplot as plt  # noqa: E402
+
+_SRC = style.SRC
+MACRO_VARS = [("Y", "GDP", style.CATEGORICAL[0]), ("C", "consumption", style.CATEGORICAL[1]),
+              ("K", "capital", style.CATEGORICAL[2]), ("L", "labor", style.CATEGORICAL[3])]
+
+
+def _years(start_year, n):
+    return np.arange(int(start_year), int(start_year) + int(n))
+
+
+def _pct_path(base_tpi, reform_tpi, var, n):
+    b = np.asarray(base_tpi[var], dtype=float)[:n]
+    r = np.asarray(reform_tpi[var], dtype=float)[:n]
+    return 100.0 * (r - b) / np.where(b == 0, np.nan, b)
+
+
+def _closure_window(params, start_year, default_n, *, tail=30):
+    """Calendar year the OG-Core budget-closure rule begins (start_year + tG1) and a plot horizon
+    that stops a modest tail past it -- long-run convergence (tG2) is centuries out and not worth
+    plotting. Returns (closure_year or None, n_years)."""
+    if params is None:
+        return None, int(default_n)
+    try:
+        tG1 = int(np.atleast_1d(params.tG1).flat[0])
+    except Exception:  # noqa: BLE001
+        return None, int(default_n)
+    return int(start_year) + tG1, min(int(default_n), tG1 + int(tail))
+
+
+def _closure_line(ax, closure_year, yrs):
+    """Dashed vertical marker where the budget-closure rule begins (only if within the span)."""
+    if closure_year is None or not (yrs[0] <= closure_year <= yrs[-1]):
+        return
+    ax.axvline(closure_year, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=1.8)
+    ax.annotate("closure rule", (closure_year, ax.get_ylim()[1]), xytext=(4, -4),
+                textcoords="offset points", fontsize=8, color=style.SUB, va="top")
+
+
+# --- the hero: macro aggregates over the transition ------------------------------
+
+def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
+                     params=None, title="Macro aggregates over the transition",
+                     name="macro_transition"):
+    """Y/C/K/L % deviation from baseline across the transition, calendar-year x-axis, lines
+    direct-labeled at their right ends. The largest GDP deviation is marked -- the path can be
+    several times the long-run (10-yr-mean) effect the snapshot figures report."""
+    os.makedirs(out_dir, exist_ok=True)
+    closure_year, hz = _closure_window(params, start_year, n_years)
+    n = min(int(hz), len(np.asarray(base_tpi["Y"])), len(np.asarray(reform_tpi["Y"])))
+    yrs = _years(start_year, n)
+    paths = {v: _pct_path(base_tpi, reform_tpi, v, n) for v, _, _ in MACRO_VARS}
+
+    fig, ax = plt.subplots(figsize=(8.2, 5.0))
+    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.085, right=0.86)
+    style.clean(ax, left=True)
+    ends = []
+    for v, lab, c in MACRO_VARS:
+        ax.plot(yrs, paths[v], color=c, lw=2.2, zorder=2)
+        ends.append((yrs[-1], paths[v][-1], lab, c))
+    style.zero_line(ax)
+    # call out the largest GDP deviation (the dynamic the snapshot hides) -- by magnitude, so
+    # the marker is honest whether the path runs above or below baseline
+    y = paths["Y"]
+    pk = int(np.nanargmax(np.abs(y)))
+    ax.scatter([yrs[pk]], [y[pk]], s=46, color=style.CATEGORICAL[0], zorder=4,
+               edgecolor="white", linewidth=1.0)
+    ax.annotate(f"largest deviation {y[pk]:+.2f}% in {yrs[pk]}", (yrs[pk], y[pk]),
+                xytext=(8, 12), textcoords="offset points", fontsize=9.5,
+                fontweight="bold", color=style.CATEGORICAL[0])
+    rng = float(np.nanmax([np.nanmax(np.abs(p)) for p in paths.values()]))
+    style.label_ends(ax, ends, min_gap=0.075 * rng)
+    ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.12)
+    ax.set_ylabel("change vs baseline (%)")
+    _closure_line(ax, closure_year, yrs)
+    style.title_block(
+        fig, title=title,
+        subtitle=f"% deviation from baseline, {yrs[0]}–{yrs[-1]}  ·  the 10-yr-mean snapshot reads only the left edge",
+        source=f"{_SRC}.  {note}" if note else _SRC, kicker="macro transition", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+
+
+# --- fiscal ratios over the transition -------------------------------------------
+
+def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
+                      params=None, name="fiscal_transition"):
+    """Debt/GDP and Revenue/GDP as LEVELS (baseline vs reform) across the transition -- the
+    fiscal footprint of the reform. (Carbon/consumption-tax revenue is not recycled here, so
+    the revenue line is a phantom-revenue diagnostic, flagged in the caption.)"""
+    os.makedirs(out_dir, exist_ok=True)
+    closure_year, hz = _closure_window(params, start_year, n_years)
+    n = min(int(hz), len(np.asarray(base_tpi["Y"])))
+    yrs = _years(start_year, n)
+
+    def ratio(tpi, num):
+        return 100.0 * np.asarray(tpi[num], float)[:n] / np.asarray(tpi["Y"], float)[:n]
+
+    panels = [("D", "Debt / GDP", "general government debt"),
+              ("total_tax_revenue", "Revenue / GDP", "total tax revenue")]
+    panels = [p for p in panels if p[0] in base_tpi and p[0] in reform_tpi]
+    if not panels:
+        return []
+    fig, axes = plt.subplots(1, len(panels), figsize=(4.9 * len(panels), 5.0))
+    axes = np.atleast_1d(axes)
+    fig.subplots_adjust(top=0.74, bottom=0.13, left=0.075, right=0.93, wspace=0.26)
+    for ax, (var, ttl, desc) in zip(axes, panels):
+        style.clean(ax, left=True)
+        rb, rr = ratio(base_tpi, var), ratio(reform_tpi, var)
+        ax.plot(yrs, rb, color=style.MUTE, lw=2.0, zorder=2)
+        ax.plot(yrs, rr, color=style.CATEGORICAL[0], lw=2.2, zorder=3)
+        ax.fill_between(yrs, rb, rr, color=style.CATEGORICAL[0], alpha=0.10, zorder=1)
+        style.label_ends(ax, [(yrs[-1], rb[-1], "baseline", style.MUTE),
+                              (yrs[-1], rr[-1], "reform", style.CATEGORICAL[0])],
+                         min_gap=0.05 * (float(np.nanmax(np.r_[rb, rr])) - float(np.nanmin(np.r_[rb, rr])) or 1))
+        ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.16)
+        ax.set_title(f"{ttl}  ·  {desc}")
+        ax.set_ylabel("% of GDP")
+        _closure_line(ax, closure_year, yrs)
+    style.title_block(
+        fig, title="Debt and revenue over the transition",
+        subtitle="Debt and revenue as a share of GDP, baseline vs reform",
+        source=f"{_SRC}.  {note}" if note else _SRC, kicker="fiscal paths", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+
+
+def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
+                       params=None, name="revenue_transition"):
+    """Consumption/energy-tax revenue % deviation from baseline across the transition."""
+    if "cons_tax_revenue" not in base_tpi or "cons_tax_revenue" not in reform_tpi:
+        return []
+    os.makedirs(out_dir, exist_ok=True)
+    closure_year, hz = _closure_window(params, start_year, n_years)
+    n = min(int(hz), len(np.asarray(base_tpi["Y"])))
+    yrs = _years(start_year, n)
+    dev = _pct_path(base_tpi, reform_tpi, "cons_tax_revenue", n)
+    meandev = float(np.nanmean(dev))
+    fig, ax = plt.subplots(figsize=(8.0, 4.8))
+    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.09, right=0.94)
+    style.clean(ax)
+    style.zero_line(ax)
+    ax.plot(yrs, dev, color=style.CATEGORICAL[2], lw=2.4, zorder=2)
+    ax.fill_between(yrs, 0, dev, color=style.CATEGORICAL[2], alpha=0.10, zorder=1)
+    ax.set_xlim(yrs[0], yrs[-1])
+    ax.set_ylim(0, float(np.nanmax(dev)) * 1.35)  # headroom so the line isn't jammed at the top
+    ax.annotate(f"~{meandev:+.1f}% vs baseline, on average", (yrs[len(yrs) // 2], dev[len(dev) // 2]),
+                xytext=(0, 14), textcoords="offset points", ha="center", fontsize=9,
+                color=style.TEAL, fontweight="medium")
+    ax.set_ylabel("revenue change vs baseline (%)")
+    _closure_line(ax, closure_year, yrs)
+    style.title_block(
+        fig, title="Consumption-tax revenue over the transition",
+        subtitle="Consumption-tax revenue, % deviation from baseline",
+        source=f"{_SRC}.  {note}" if note else _SRC, kicker="carbon revenue", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+
+
+def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
+                     params=None, name="rates_transition"):
+    """Interest rate r and wage w as % deviation from baseline across the transition. Both are
+    PRICES (r a rate, w a level), so % deviation is the comparable unit (not the ×100-of-a-wage-
+    level artifact). The computed max |deviation| is shown in the subtitle."""
+    have = [v for v in ("r", "w") if v in base_tpi and v in reform_tpi]
+    if not have:
+        return []
+    os.makedirs(out_dir, exist_ok=True)
+    closure_year, hz = _closure_window(params, start_year, n_years)
+    n = min(int(hz), len(np.asarray(base_tpi["Y"])))
+    yrs = _years(start_year, n)
+    fig, ax = plt.subplots(figsize=(8.0, 4.6))
+    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.10, right=0.88)
+    style.clean(ax, left=True)
+    style.zero_line(ax)
+    labels = {"r": ("interest rate", style.CATEGORICAL[4]), "w": ("wage", style.CATEGORICAL[2])}
+    ends, allv = [], []
+    for v in ("r", "w"):
+        if v not in have:
+            continue
+        d = _pct_path(base_tpi, reform_tpi, v, n)
+        allv.append(d)
+        lab, c = labels[v]
+        ax.plot(yrs, d, color=c, lw=2.2, zorder=2)
+        ends.append((yrs[-1], d[-1], lab, c))
+    rng = float(np.nanmax([np.nanmax(np.abs(d)) for d in allv]))
+    style.label_ends(ax, ends, min_gap=0.10 * rng)
+    ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.14)
+    ax.set_ylabel("change vs baseline (%)")
+    _closure_line(ax, closure_year, yrs)
+    style.title_block(
+        fig, title="Interest rate and wage over the transition",
+        subtitle=f"Interest rate and wage, % deviation from baseline  ·  max |deviation| {rng:.2f}%",
+        source=f"{_SRC}.  {note}" if note else _SRC, kicker="factor prices", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
