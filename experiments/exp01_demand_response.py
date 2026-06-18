@@ -221,7 +221,7 @@ def run_full():
     try:
         rev_b, rev_r = np.asarray(base["cons_tax_revenue"]), np.asarray(reform["cons_tax_revenue"])
         print(f"\nfiscal artifact -- cons_tax_revenue mean %chg (first 10): "
-              f"{100*np.nanmean((rev_r[:10]-rev_b[:10])/rev_b[:10]):.2f}%  (the phantom revenue to recycle)")
+              f"{100*np.nanmean((rev_r[:10]-rev_b[:10])/rev_b[:10]):.2f}%  (real revenue to government; recycle for a pure price signal)")
     except Exception:  # noqa: BLE001, S110
         pass
     print(f"\nresource_constraint_error max |.|: base={np.max(np.abs(base['resource_constraint_error'])):.2e} "
