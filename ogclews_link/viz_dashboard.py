@@ -23,9 +23,7 @@ from . import style, viz_transition, viz_welfare  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-from .figures import _labels  # noqa: E402
-
-_SRC = style.SRC
+from .figures import _bridge, _labels  # noqa: E402
 
 
 def _panel_emissions(ax, country):
@@ -59,10 +57,12 @@ def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
 
 def _panel_waterfall(ax, layered):
     solved = [r for r in layered if "macro" in r]
+    if len(solved) < 2:  # a bridge needs at least two solved steps to span
+        ax.set_title("3 · What each channel adds to GDP")
+        return
     labels = [r["step"].replace("+ ", "") for r in solved]
     yvals = [r["macro"]["Y"] for r in solved]
-    marg = np.diff(np.concatenate([[0.0], yvals]))
-    cum = np.concatenate([[0.0], np.cumsum(marg)])
+    marg, cum = _bridge(yvals)
     for i, m in enumerate(marg):
         ax.bar(i, m, bottom=cum[i], color=style.GAIN if m >= 0 else style.LOSS, width=0.64, zorder=2)
         if i < len(marg) - 1:
@@ -116,5 +116,5 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
     style.title_block(
         fig, title=f"{country.name}: coupled OG-Core × CLEWS scenario",
         subtitle="Emissions · macro transition · channel decomposition · welfare (CEV)",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="headline dashboard", top=0.975)
+        source=style.source_line(note), kicker="headline dashboard", top=0.975)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

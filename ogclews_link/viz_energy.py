@@ -18,7 +18,6 @@ scenario dirs at country.scenario.base_dir / reform_dir. Each builder is guarded
 """
 from __future__ import annotations
 
-import glob
 import os
 
 import matplotlib
@@ -27,24 +26,15 @@ matplotlib.use("Agg")
 import numpy as np  # noqa: E402
 
 from . import signals, style  # noqa: E402
+# Read the cost-of-electricity workbook through the channel's own finder so the figure
+# reads exactly what the channel read (single source of truth for the glob/lock-file skip).
+from .channels import _cost_xlsx  # noqa: E402,F401
 
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-_SRC = style.SRC
-
 
 # --- helpers --------------------------------------------------------------------
-
-def _cost_xlsx(scenario_dir: str) -> str:
-    """The CLEWS 'Cost of electricity generation' workbook in a scenario dir (skip Office lock
-    files). Mirrors channels._cost_xlsx so the figure reads exactly what the channel read."""
-    hits = [h for h in glob.glob(os.path.join(scenario_dir, "*Cost of electricity*.xlsx"))
-            if not os.path.basename(h).startswith("~$")]
-    if not hits:
-        raise FileNotFoundError(f"no '*Cost of electricity*.xlsx' in {scenario_dir}")
-    return sorted(hits)[0]
-
 
 def _energy_good_index(country) -> int:
     """The OG consumption good households buy as energy -- read from the concordance, never
@@ -62,11 +52,12 @@ def _applied_energy_wedge(base_params, reform_params, i_e: int):
         tr = np.asarray(reform_params.tau_c, dtype=float)
     except Exception:  # noqa: BLE001
         return None, None
-    if tb.ndim != 2 or tr.ndim != 2 or i_e >= tb.shape[1] or i_e >= tr.shape[1]:
+    if (tb.ndim != 2 or tr.ndim != 2 or i_e < 0
+            or i_e >= tb.shape[1] or i_e >= tr.shape[1]):
         return None, None
     n = min(tb.shape[0], tr.shape[0])
-    be, re = tb[:n, i_e], tr[:n, i_e]
-    wedge = (1.0 + re) / np.where((1.0 + be) == 0, np.nan, (1.0 + be)) - 1.0
+    be, rf = tb[:n, i_e], tr[:n, i_e]
+    wedge = (1.0 + rf) / np.where((1.0 + be) == 0, np.nan, (1.0 + be)) - 1.0
     # "flat" within numerical noise -> report it as the single constant the run applied
     finite = wedge[np.isfinite(wedge)]
     is_flat = bool(finite.size and (finite.max() - finite.min()) < 1e-4)
@@ -135,11 +126,11 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
         kind = "constant" if is_flat else "near-constant"
         sub += f"  ·  applied wedge {kind} at {applied_mult:.2f}"
     cap = "Applied wedge is the run's tau_c on the energy good; the headline run used an " \
-          "illustrative flat shock, not the CLEWS path."
+          "illustrative flat shock, not the CLEWS path"
     style.title_block(
         fig, title="CLEWS energy-price ratio vs the applied wedge",
         subtitle=sub,
-        source=style.source_line(f"{cap}  {note}" if note else cap),
+        source=style.source_line(note, extra=cap),
         kicker=f"energy price · good {i_e + 1}", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -153,6 +144,8 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
     selected via country.is_power; magnitudes are model-MUSD with no deflator. Returns [] if the
     CapitalInvestment exports are unreadable, or skips technologies with a zero increment."""
     try:
+        # signals exposes no public CLEWS-export finder; reuse its private _find (same locator
+        # the channels use) rather than re-implement the glob here.
         mb = signals.read_clews_matrix(signals._find(country.scenario.base_dir, "CapitalInvestment"))
         mr = signals.read_clews_matrix(signals._find(country.scenario.reform_dir, "CapitalInvestment"))
     except Exception:  # noqa: BLE001
@@ -200,8 +193,7 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
         subtitle=f"{len(vals)} power technologies with a non-zero increment  ·  "
                  f"net {vals.sum():+,.0f} MUSD",
         source=style.source_line(
-            "Model MUSD, no deflator applied (CLEWS monetary units)."
-            + (f"  {note}" if note else "")),
+            note, extra="Model MUSD, no deflator applied (CLEWS monetary units)"),
         kicker="investment · power sector", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -289,7 +281,7 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
         fig, title="Time-varying CLEWS-to-OG energy signals",
         subtitle="The sourced signals over calendar years, before each channel maps them into OG-Core",
         source=style.source_line(
-            "Channels may collapse a path to a scalar (e.g. a flat wedge or a 10-year mean) "
-            "before feeding OG-Core." + (f"  {note}" if note else "")),
+            note, extra="Channels may collapse a path to a scalar (e.g. a flat wedge or a "
+            "10-year mean) before feeding OG-Core"),
         kicker="clews → og signals", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

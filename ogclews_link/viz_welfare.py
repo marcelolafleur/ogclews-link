@@ -31,7 +31,6 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .figures import _labels  # noqa: E402
 
-_SRC = style.SRC
 _BEQ_NOTE = "lifetime CEV (consumption + labor felicity; warm-glow bequest omitted, second-order)"
 
 
@@ -78,6 +77,19 @@ class _Felicity:
             return np.nan
 
 
+def _ss_felicity(base_ss, reform_ss, base_params, reform_params):
+    """Shared steady-state CEV preamble: a _Felicity built on the base params, the base/reform
+    (c, n) SS arrays, the SS row of chi_n, and the SS bequest/survival rows for each scenario.
+    Returns (fe, cb, nb, cr, nr, chi, rho_b, rho_r)."""
+    fe = _Felicity(base_params)
+    cb, nb = np.asarray(base_ss["c"], float), np.asarray(base_ss["n"], float)      # (S, J)
+    cr, nr = np.asarray(reform_ss["c"], float), np.asarray(reform_ss["n"], float)
+    chi = np.asarray(base_params.chi_n, float)[-1]                                  # SS row (S,)
+    rho_b = np.asarray(base_params.rho, float)[-1]
+    rho_r = np.asarray(reform_params.rho, float)[-1]
+    return fe, cb, nb, cr, nr, chi, rho_b, rho_r
+
+
 # --- CEV by lifetime-income group (long-run, steady state) -----------------------
 
 def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, note=None,
@@ -85,12 +97,7 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     """Steady-state lifetime CEV by lifetime-income group -- the long-run welfare effect. Read it
     against the incidence_hero's consumption proxy: the proxy is near-term and cross-sectional,
     while CEV is the proper long-run lifetime-welfare measure."""
-    fe = _Felicity(base_params)
-    cb, nb = np.asarray(base_ss["c"], float), np.asarray(base_ss["n"], float)      # (S, J)
-    cr, nr = np.asarray(reform_ss["c"], float), np.asarray(reform_ss["n"], float)
-    chi = np.asarray(base_params.chi_n, float)[-1]                                  # SS row (S,)
-    rho_b = np.asarray(base_params.rho, float)[-1]
-    rho_r = np.asarray(reform_params.rho, float)[-1]
+    fe, cb, nb, cr, nr, chi, rho_b, rho_r = _ss_felicity(base_ss, reform_ss, base_params, reform_params)
     J = cb.shape[1]
     cev = 100.0 * np.array([fe.cev((cb[:, j], nb[:, j]), (cr[:, j], nr[:, j]),
                                    chi, rho_b, rho_r, j) for j in range(J)])
@@ -102,7 +109,6 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     style.clean(ax)
     style.zero_line(ax)
     ax.bar(range(J), cev, width=0.66, color=style.signed(cev), zorder=2)
-    pad = 0.03 * (np.nanmax(np.abs(cev)) or 1.0)
     for j, v in enumerate(cev):
         ax.annotate(f"{v:+.2f}%", (j, v), xytext=(0, -11 if v < 0 else 6),
                     textcoords="offset points", ha="center", va="top" if v < 0 else "bottom",
@@ -115,7 +121,7 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
         fig, title="Lifetime welfare effect by income group (CEV)",
         subtitle=f"Steady-state lifetime CEV by income group, poorest to richest  ·  "
                  f"mean {np.nanmean(cev):+.2f}% (range {np.nanmin(cev):+.2f}% to {np.nanmax(cev):+.2f}%)  ·  negative = worse off",
-        source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
+        source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV by group", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -131,12 +137,7 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
     channel-shifted felicity, so the two partials do NOT add up to the full CEV -- they read as
     'how much of the welfare move would this channel deliver on its own'. Grouped bars per group,
     sign-colored by the computed value."""
-    fe = _Felicity(base_params)
-    cb, nb = np.asarray(base_ss["c"], float), np.asarray(base_ss["n"], float)      # (S, J)
-    cr, nr = np.asarray(reform_ss["c"], float), np.asarray(reform_ss["n"], float)
-    chi = np.asarray(base_params.chi_n, float)[-1]                                  # SS row (S,)
-    rho_b = np.asarray(base_params.rho, float)[-1]
-    rho_r = np.asarray(reform_params.rho, float)[-1]
+    fe, cb, nb, cr, nr, chi, rho_b, rho_r = _ss_felicity(base_ss, reform_ss, base_params, reform_params)
     J = cb.shape[1]
     # Consumption channel: reform c, baseline n.  Labor channel: baseline c, reform n.  Each is
     # solved by the same root-find as the full CEV, just with the relevant reform component swapped.
@@ -184,7 +185,7 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
         fig, title="Lifetime CEV by income group: consumption vs labor channel",
         subtitle="Solid = consumption channel, hatched = labor channel  ·  partial CEVs, not additive"
                  + (f"  ·  {means}" if means else "") + "  ·  negative = worse off",
-        source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
+        source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV decomposition", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -252,6 +253,6 @@ def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, not
     style.title_block(
         fig, title="Remaining-lifetime welfare effect by age (CEV)",
         subtitle=f"Remaining-lifetime CEV by age at the reform, λ-weighted  ·  ages {ages[0]}–{ages[-1]}",
-        source=f"{_SRC}.  {_BEQ_NOTE}.  {note}" if note else f"{_SRC}.  {_BEQ_NOTE}.",
+        source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV by age", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

@@ -30,13 +30,19 @@ style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
 LOSS, GAIN = style.LOSS, style.GAIN
-STEP_COLORS = style.CATEGORICAL
-
-_SRC = style.SRC
 
 
 def _labels(J, lambdas=None):
     return style.income_labels(J, lambdas)
+
+
+def _bridge(values):
+    """Waterfall bridge math: from a sequence of cumulative `values`, the per-step MARGINAL
+    contributions (`marg`) and the running cumulative with a leading zero (`cum`, length n+1).
+    The one place this lives, shared by figures._waterfall and viz_dashboard._panel_waterfall."""
+    marg = np.diff(np.concatenate([[0.0], values]))
+    cum = np.concatenate([[0.0], np.cumsum(marg)])
+    return marg, cum
 
 
 # --- the hero: distributional incidence + mechanism + dollars --------------------
@@ -109,7 +115,6 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
         ax.set_xticklabels(lab, rotation=30, ha="right")
         ax.set_ylabel("consumption change / household / year (approx.)")
         ax.set_title("How much per household")
-        pad = 0.02 * (np.nanmax(np.abs(dC)) or 1.0)
         for j, v in enumerate(dC):
             ax.annotate(f"{v:+,.0f}", (j, v), xytext=(0, 4 if v >= 0 else -4),
                         textcoords="offset points", ha="center",
@@ -118,7 +123,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
 
     style.title_block(fig, title=title,
                       subtitle="Consumption change by income group, poorest to richest",
-                      source=f"{_SRC}.  {note}", kicker=kicker, top=0.965)
+                      source=style.source_line(note), kicker=kicker, top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -131,8 +136,7 @@ def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
     maps a bar index -> [(value, color, label), ...] that SUM to that bar's marginal, drawn as a
     stacked bar with a small legend -- e.g. the health bar split into mortality + morbidity parts."""
     segments = segments or {}
-    marg = np.diff(np.concatenate([[0.0], values]))
-    cum = np.concatenate([[0.0], np.cumsum(marg)])
+    marg, cum = _bridge(values)
     fig, ax = plt.subplots(figsize=(7.6, 5.0))
     fig.subplots_adjust(top=0.76, bottom=0.17, left=0.11, right=0.95)
     style.clean(ax)
@@ -163,7 +167,7 @@ def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
         ax.legend([Patch(facecolor=c) for c in seg_handles.values()], list(seg_handles),
                   loc="upper left", frameon=False, fontsize=8.5)
     style.title_block(fig, title=title, subtitle=f"{subtitle}  ·  net {cum[-1]:+.3f}%",
-                      source=f"{_SRC}.  {note}" if note else _SRC, kicker=kicker, top=0.965)
+                      source=style.source_line(note), kicker=kicker, top=0.965)
     return style.save(fig, out_path)
 
 
@@ -227,7 +231,7 @@ def macro_honest(layered, out_dir, ylim=0.5, note=None):
                     (0.015, 0.04), xycoords="axes fraction", fontsize=8.5, color=style.SUB, va="bottom")
     style.title_block(fig, title="Macro aggregates vs baseline",
                       subtitle="Change vs baseline (%), fixed axis  ·  Y output, C consumption, K capital, L labor",
-                      source=f"{_SRC}.  {note}" if note else _SRC, kicker="macro aggregates", top=0.965)
+                      source=style.source_line(note), kicker="macro aggregates", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "macro_honest.png"))]
 
 
@@ -266,7 +270,7 @@ def energy_physical(country, out_dir):
                     fontsize=8.5, color=style.TEAL, fontweight="medium")
     style.title_block(fig, title="Emissions: baseline vs reform",
                       subtitle="Energy-system emissions over the transition, baseline vs reform",
-                      source=_SRC, kicker="energy system", top=0.965)
+                      source=style.source_line(), kicker="energy system", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "emissions_path.png"))]
 
 

@@ -1,22 +1,27 @@
-"""Write a self-contained HTML report (Chart.js from CDN) from a layered across-steps result
-list, so results can be opened in a browser and explored variable by variable. One file, no
-server. Reusable for any run that produces the layered_results.json shape.
+"""Write a single-page HTML report from a layered across-steps result list, so results can be
+opened in a browser and explored variable by variable. Reusable for any run that produces the
+layered_results.json shape.
+
+Not fully self-contained: the page loads Chart.js from a public CDN, so a network connection is
+required when it is first opened (the rest -- data, styling, layout -- is inlined).
 """
 from __future__ import annotations
 
 import json
 
+from . import style
+
 _CDN = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
-# editorial colorblind-safe palette (Chart.js hex; visually aligned with style.py)
-STEP_COLORS = ["#0F5499", "#E3120B", "#0D7680", "#E69F00", "#7A6FAC"]
-VAR_COLORS = {"Y": "#0F5499", "C": "#E3120B", "K": "#0D7680", "L": "#E69F00"}
+# Chart.js palette derived from the editorial categorical cycle (single source of truth in
+# style.py) -- steps reuse the cycle in order; the macro vars map to its first four hues.
+STEP_COLORS = list(style.CATEGORICAL)
+VAR_COLORS = dict(zip(("Y", "C", "K", "L"), style.CATEGORICAL))
 
 
 def write_html_report(layered, out_path, title="OG-CLEWS across-steps results"):
     solved = [r for r in layered if "macro" in r]
     failed = [r["step"] for r in layered if "macro" not in r]
     steps = [r["step"] for r in solved]
-    from . import style
     J = len(solved[0]["consumption_by_J"]) if solved else 7
     jlabels = style.income_labels(J)
     payload = {
@@ -58,7 +63,8 @@ new Chart(c_energy,{{type:'bar',data:{{labels:D.steps,datasets:[{{data:D.energy_
 new Chart(c_rev,{{type:'bar',data:{{labels:D.steps,datasets:[{{data:D.revenue,backgroundColor:'#378ADD',borderRadius:4}}]}},options:base}});
 new Chart(c_macro,{{type:'bar',data:{{labels:D.steps,datasets:Object.keys(D.macro).map(v=>({{label:v,data:D.macro[v],backgroundColor:D.varColors[v],borderRadius:4}}))}},
  options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:true,position:'top'}},tooltip:{{callbacks:{{label:c=>c.dataset.label+' '+pct(c.raw)}}}}}}}}}});
-const lineSets=key=>D[key].map((row,i)=>({{label:D.steps[i],data:row,borderColor:D.stepColors[i],backgroundColor:D.stepColors[i],borderDash:i===0?[]:[6,4].slice(0,i+1),borderWidth:2,pointRadius:3,tension:.25}}));
+const DASHES=[[],[6,4],[2,3],[10,4,2,4],[1,3]];  // step 0 solid (baseline); reform steps cycle distinct patterns
+const lineSets=key=>D[key].map((row,i)=>({{label:D.steps[i],data:row,borderColor:D.stepColors[i],backgroundColor:D.stepColors[i],borderDash:DASHES[i%DASHES.length],borderWidth:2,pointRadius:3,tension:.25}}));
 const lineOpts={{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:true,position:'top'}},tooltip:{{callbacks:{{label:c=>c.dataset.label+': '+pct(c.raw)}}}}}},scales:{{x:{{title:{{display:true,text:'lifetime-income group (lowest to highest)'}}}}}}}};
 new Chart(c_welfare,{{type:'line',data:{{labels:D.jlabels,datasets:lineSets('welfare')}},options:lineOpts}});
 new Chart(c_energyJ,{{type:'line',data:{{labels:D.jlabels,datasets:lineSets('energyJ')}},options:lineOpts}});

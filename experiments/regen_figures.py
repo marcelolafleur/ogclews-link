@@ -14,8 +14,8 @@ order for every input is CLI flag > env var > default:
     --fig-dir / OGCLEWS_FIG_DIR   output: where figures are written (default: <run-dir>/figures,
                                   i.e. INTO the run/scenario directory; override for viz iteration)
     --gbd-csv / OGCLEWS_GBD_CSV   input  (read-only): IHME GBD burden CSV for health profiles
-    --headline-step               reform that gets transition/welfare/dashboard/OG-suite figures
-                                  (default: the last step in layered_results.json)
+    --headline-step / OGCLEWS_HEADLINE_STEP   reform that gets transition/welfare/dashboard/OG-suite
+                                  figures (default: the last step in layered_results.json)
     --note    / OGCLEWS_NOTE      honest caveat caption stamped on every figure
 
 Defaults: read from the shared health-lane run, write figures into that run's own figures/ subdir,
@@ -136,7 +136,8 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     writing to `fig_dir`. `headline_step` None -> auto-detect (last layered step)."""
     os.makedirs(fig_dir, exist_ok=True)
     ie = country.concordance.energy_good_index
-    layered = json.load(open(os.path.join(run_dir, "layered_results.json")))
+    with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
+        layered = json.load(f)
     if headline_step is None:
         headline_step = _default_headline(layered)
     print(f"regen: read {run_dir}\n       write {fig_dir}")
@@ -157,10 +158,8 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
              os.path.join(fig_dir, "og_suite"), plots=True)
 
     base_tpi = _tpi(run_dir, "baseline")
-    try:
-        factor = float(safe_read_pickle(os.path.join(run_dir, "baseline", "SS", "SS_vars.pkl"))["factor"])
-    except Exception:  # noqa: BLE001
-        factor = None
+    base_ss = _ss(run_dir, "baseline")  # also feeds the CEV/distribution/composition figures below
+    factor = float(base_ss["factor"]) if base_ss and "factor" in base_ss else None
     start_year = _start_year(base_dir, country)
 
     # --- editorial transition-path figures for the headline reform --------------
@@ -196,7 +195,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     _try(viz_health.gdp_split, layered, fig_dir, note=note)
 
     # --- welfare: consumption-equivalent variation (CEV) ------------------------
-    base_ss, headline_ss = _ss(run_dir, "baseline"), _ss(run_dir, headline_step)
+    headline_ss = _ss(run_dir, headline_step)  # base_ss loaded once above
     if None not in (base_ss, headline_ss, base_params, headline_params):
         _try(viz_welfare.cev_by_group, base_ss, headline_ss, base_params, headline_params,
              fig_dir, note=note)

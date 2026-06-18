@@ -30,8 +30,6 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from .figures import _labels  # noqa: E402
 
-_SRC = style.SRC
-
 
 # --- energy-port resolution (read-only from the contract concordance) ------------
 # The concordance pins the energy good (route A) and energy industry (route B). The builders
@@ -84,13 +82,6 @@ def _sector_labels(M, energy0=None):
     return [f"sector {k + 1}" + (" *" if energy0 is not None and k == energy0 else "") for k in range(M)]
 
 
-def _pct_dev(reform, base):
-    """Signed %-deviation reform vs base, NaN where base is zero."""
-    base = np.asarray(base, float)
-    reform = np.asarray(reform, float)
-    return 100.0 * (reform - base) / np.where(base == 0, np.nan, base)
-
-
 # --- SS consumption change by composite good -------------------------------------
 
 def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
@@ -100,12 +91,13 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     is marked with an asterisk so the basket re-mix reads against its energy port -- by index, so
     it is portable across country models. `concordance` (the driver passes country.concordance)
     pins the energy port; PHL_CONCORDANCE is only a fallback."""
-    cb = np.asarray(base_ss.get("C_i"), float).ravel() if base_ss.get("C_i") is not None else None
-    cr = np.asarray(reform_ss.get("C_i"), float).ravel() if reform_ss.get("C_i") is not None else None
+    cb_raw, cr_raw = base_ss.get("C_i"), reform_ss.get("C_i")
+    cb = np.asarray(cb_raw, float).ravel() if cb_raw is not None else None
+    cr = np.asarray(cr_raw, float).ravel() if cr_raw is not None else None
     if cb is None or cr is None or cb.shape != cr.shape or cb.size == 0:
         return []
     I = cb.size
-    dev = _pct_dev(cr, cb)
+    dev = style.pct_dev(cr, cb)
     energy0 = _energy_index("energy_good_index", I, concordance)
     lab = _good_labels(I, energy0)
 
@@ -159,7 +151,7 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
         r = np.asarray(r, float).ravel()
         if b.shape != r.shape or b.size == 0:
             continue
-        series.append((lbl, col, _pct_dev(r, b)))
+        series.append((lbl, col, style.pct_dev(r, b)))
     if not series:
         return []
     M = series[0][2].size
@@ -179,7 +171,6 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
     markers = ["o", "s", "D", "^", "v"]
     all_vals = np.concatenate([s[2][np.isfinite(s[2])] for s in series]) if series else np.array([])
     span = (np.max(all_vals) - np.min(all_vals)) if all_vals.size else 1.0
-    pad = 0.02 * (span or 1.0)
     for si, (lbl, col, vals) in enumerate(series):
         ys = np.arange(M) + offs[si]
         ax.scatter(vals, ys, s=64, color=col, marker=markers[si % len(markers)], zorder=3,
@@ -229,7 +220,7 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
     b0 = cib[0].sum(axis=1)
     r0 = cir[0].sum(axis=1)
     I, J = b0.shape
-    dev = _pct_dev(r0, b0)                          # (I, J)
+    dev = style.pct_dev(r0, b0)                      # (I, J)
 
     # poorest / middle / richest -- distinct indices, degrade if J is tiny
     picks = sorted(set([0, J // 2, J - 1]))

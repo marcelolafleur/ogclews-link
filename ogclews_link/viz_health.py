@@ -27,7 +27,6 @@ from . import health_profile, style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-_SRC = style.SRC
 MORT, MORB = style.CATEGORICAL[2], style.CATEGORICAL[3]  # teal / orange -- match the waterfall
 
 
@@ -69,7 +68,7 @@ def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15
     style.title_block(
         fig, title="Attributable burden by age: deaths vs disability",
         subtitle="Ambient-PM2.5 attributable rate by age, peak-normalized  ·  deaths h(s) vs disability g(s)",
-        source=f"{gbd_src}.  {note}" if note else gbd_src, kicker="health: age profiles", top=0.965)
+        source=style.source_line(note, base=gbd_src), kicker="health: age profiles", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -106,14 +105,14 @@ def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
         ax.annotate(f"retirement ({retire_age})", (retire_age, ax.get_ylim()[1] * 0.92),
                     xytext=(6, 0), textcoords="offset points", fontsize=8.5, color=style.SUB, va="top")
         ax.annotate(f"{work_share:.0f}% working-age · {100 - work_share:.0f}% retired",
-                    (ages[0] + 2, max(dist) * 0.82), fontsize=9, color=style.SUB, va="top")
+                    (ages[0] + 2, np.max(dist) * 0.82), fontsize=9, color=style.SUB, va="top")
     ax.set_xlim(ages[0] - 1, ages[-1] + 1)
     ax.set_xlabel("age")
     ax.set_ylabel("share of avoided deaths (%)")
     style.title_block(
         fig, title=f"Avoided mortality by age, peaking near {peak_age}",
         subtitle="Age distribution of the reform's avoided mortality (solved survival rates)",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="health: avoided mortality", top=0.965)
+        source=style.source_line(note), kicker="health: avoided mortality", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -285,5 +284,5 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     style.title_block(
         fig, title="Health channel: mortality vs morbidity contribution to GDP",
         subtitle=f"GDP contribution of the health channel  ·  net {mort + morb:+.4f}%",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="health: GDP split", top=0.965)
+        source=style.source_line(note), kicker="health: GDP split", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

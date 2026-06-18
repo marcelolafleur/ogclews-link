@@ -20,7 +20,6 @@ from . import style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-_SRC = style.SRC
 MACRO_VARS = [("Y", "GDP", style.CATEGORICAL[0]), ("C", "consumption", style.CATEGORICAL[1]),
               ("K", "capital", style.CATEGORICAL[2]), ("L", "labor", style.CATEGORICAL[3])]
 
@@ -29,10 +28,17 @@ def _years(start_year, n):
     return np.arange(int(start_year), int(start_year) + int(n))
 
 
+def _clamp_n(hz, base_tpi, reform_tpi, *vars_):
+    """Plot horizon clamped to BOTH dicts' actual lengths for every variable plotted, so a
+    shorter reform array can never make _pct_path slice mismatched lengths and crash."""
+    lens = [len(np.asarray(d[v])) for v in vars_
+            for d in (base_tpi, reform_tpi) if v in d]
+    return min([int(hz)] + lens)
+
+
 def _pct_path(base_tpi, reform_tpi, var, n):
-    b = np.asarray(base_tpi[var], dtype=float)[:n]
-    r = np.asarray(reform_tpi[var], dtype=float)[:n]
-    return 100.0 * (r - b) / np.where(b == 0, np.nan, b)
+    return style.pct_dev(np.asarray(reform_tpi[var], dtype=float)[:n],
+                         np.asarray(base_tpi[var], dtype=float)[:n])
 
 
 def _closure_window(params, start_year, default_n, *, tail=30):
@@ -67,7 +73,7 @@ def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     several times the long-run (10-yr-mean) effect the snapshot figures report."""
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
-    n = min(int(hz), len(np.asarray(base_tpi["Y"])), len(np.asarray(reform_tpi["Y"])))
+    n = _clamp_n(hz, base_tpi, reform_tpi, *(v for v, _, _ in MACRO_VARS))
     yrs = _years(start_year, n)
     paths = {v: _pct_path(base_tpi, reform_tpi, v, n) for v, _, _ in MACRO_VARS}
 
@@ -96,7 +102,7 @@ def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     style.title_block(
         fig, title=title,
         subtitle=f"% deviation from baseline, {yrs[0]}–{yrs[-1]}  ·  the 10-yr-mean snapshot reads only the left edge",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="macro transition", top=0.965)
+        source=style.source_line(note), kicker="macro transition", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -109,17 +115,17 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
     the revenue line is a phantom-revenue diagnostic, flagged in the caption.)"""
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
-    n = min(int(hz), len(np.asarray(base_tpi["Y"])))
-    yrs = _years(start_year, n)
-
-    def ratio(tpi, num):
-        return 100.0 * np.asarray(tpi[num], float)[:n] / np.asarray(tpi["Y"], float)[:n]
 
     panels = [("D", "Debt / GDP", "general government debt"),
               ("total_tax_revenue", "Revenue / GDP", "total tax revenue")]
     panels = [p for p in panels if p[0] in base_tpi and p[0] in reform_tpi]
     if not panels:
         return []
+    n = _clamp_n(hz, base_tpi, reform_tpi, "Y", *(p[0] for p in panels))
+    yrs = _years(start_year, n)
+
+    def ratio(tpi, num):
+        return 100.0 * np.asarray(tpi[num], float)[:n] / np.asarray(tpi["Y"], float)[:n]
     fig, axes = plt.subplots(1, len(panels), figsize=(4.9 * len(panels), 5.0))
     axes = np.atleast_1d(axes)
     fig.subplots_adjust(top=0.74, bottom=0.13, left=0.075, right=0.93, wspace=0.26)
@@ -139,7 +145,7 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
     style.title_block(
         fig, title="Debt and revenue over the transition",
         subtitle="Debt and revenue as a share of GDP, baseline vs reform",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="fiscal paths", top=0.965)
+        source=style.source_line(note), kicker="fiscal paths", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -150,7 +156,7 @@ def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, 
         return []
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
-    n = min(int(hz), len(np.asarray(base_tpi["Y"])))
+    n = _clamp_n(hz, base_tpi, reform_tpi, "cons_tax_revenue")
     yrs = _years(start_year, n)
     dev = _pct_path(base_tpi, reform_tpi, "cons_tax_revenue", n)
     meandev = float(np.nanmean(dev))
@@ -170,7 +176,7 @@ def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, 
     style.title_block(
         fig, title="Consumption-tax revenue over the transition",
         subtitle="Consumption-tax revenue, % deviation from baseline",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="carbon revenue", top=0.965)
+        source=style.source_line(note), kicker="carbon revenue", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -184,7 +190,7 @@ def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
         return []
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
-    n = min(int(hz), len(np.asarray(base_tpi["Y"])))
+    n = _clamp_n(hz, base_tpi, reform_tpi, *have)
     yrs = _years(start_year, n)
     fig, ax = plt.subplots(figsize=(8.0, 4.6))
     fig.subplots_adjust(top=0.76, bottom=0.13, left=0.10, right=0.88)
@@ -208,7 +214,7 @@ def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     style.title_block(
         fig, title="Interest rate and wage over the transition",
         subtitle=f"Interest rate and wage, % deviation from baseline  ·  max |deviation| {rng:.2f}%",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="factor prices", top=0.965)
+        source=style.source_line(note), kicker="factor prices", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -234,9 +240,7 @@ def public_investment(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
         return []
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
-    lens = [len(np.asarray(base_tpi[v])) for v, _, _ in _PUBINV_VARS if v in base_tpi]
-    lens += [len(np.asarray(reform_tpi[v])) for v, _, _ in _PUBINV_VARS if v in reform_tpi]
-    n = min([int(hz)] + lens)
+    n = _clamp_n(hz, base_tpi, reform_tpi, *(v for v, _, _ in _PUBINV_VARS))
     yrs = _years(start_year, n)
     vars_here = [(v, lab, c) for v, lab, c in _PUBINV_VARS
                  if v in base_tpi and v in reform_tpi]
@@ -261,5 +265,5 @@ def public_investment(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
     style.title_block(
         fig, title="Public investment and public capital over the transition",
         subtitle=f"% deviation from baseline, {yrs[0]}–{yrs[-1]}  ·  max |deviation| {rng:.2f}%",
-        source=f"{_SRC}.  {note}" if note else _SRC, kicker="public capital", top=0.965)
+        source=style.source_line(note), kicker="public capital", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

@@ -29,8 +29,6 @@ from . import style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-_SRC = style.SRC
-
 
 # --- small shared helpers --------------------------------------------------------
 
