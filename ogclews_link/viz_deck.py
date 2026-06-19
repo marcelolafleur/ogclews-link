@@ -150,10 +150,19 @@ def methods_card(layered, country, out_dir, *, note=None, name="methods_card"):
 
 # --- (2) results-by-step summary table -------------------------------------------
 
+def _marginal(cur, prev):
+    """Marginal contribution of a step: the column-wise change from the previous step's cumulative
+    values (the first step's previous is baseline = 0). None where either side is absent."""
+    return [None if c is None or p is None else c - p for c, p in zip(cur, prev)]
+
+
 def summary_table(layered, out_dir, *, note=None, name="summary_table"):
-    """The across-steps results as a table-as-figure: one row per solved step; columns Y%, C%,
-    K%, L%, energy demand %, cons-tax revenue %. These are exactly the columns
-    figures.across_steps_table writes to CSV -- the same field selection, no new computation.
+    """The across-steps results as a table-as-figure: columns Y%, C%, K%, L%, energy demand %,
+    cons-tax revenue % (same field selection as figures.across_steps_table's CSV). The stored
+    step values are CUMULATIVE (each step layered on the last), so each printed row is the step's
+    MARGINAL contribution (this step's cumulative minus the previous step's) and a final Total row
+    restates the full-reform cumulative -- the marginals sum to it. Values are the average over the
+    first 10 transition years (the run's macro_pct_diff window), not a steady-state level.
     Numeric cells use a single neutral ink; the +/- sign carries direction, color carries no
     good/bad meaning (so falling energy demand, the policy goal, never reads as "bad")."""
     solved = _solved(layered)
@@ -163,13 +172,21 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
 
     col_labels = ["step", "Output %", "Consumption %", "Capital %", "Labor %",
                   "Energy demand %", "Consumption-tax revenue %"]
-    rows = []
-    for r in solved:
+
+    def _cumvals(r):
         macro = r.get("macro", {}) or {}
         fiscal = r.get("fiscal", {}) or {}
-        vals = [macro.get("Y"), macro.get("C"), macro.get("K"), macro.get("L"),
+        return [macro.get("Y"), macro.get("C"), macro.get("K"), macro.get("L"),
                 r.get("energy_demand_pct"), fiscal.get("cons_tax_revenue_pct")]
-        rows.append([str(r.get("step", ""))] + [_fmt_pct(v) for v in vals])
+
+    cum = [_cumvals(r) for r in solved]
+    rows, prev = [], [0.0] * len(col_labels[1:])
+    for r, cv in zip(solved, cum):
+        rows.append([str(r.get("step", ""))] + [_fmt_pct(v) for v in _marginal(cv, prev)])
+        prev = cv
+    # Total = the full-reform cumulative (the last step's stored values; equals the marginal sum).
+    total_idx = len(rows) + 1  # +1 for the header row
+    rows.append(["All policies (total)"] + [_fmt_pct(v) for v in cum[-1]])
 
     fig, ax = plt.subplots(figsize=(10.0, 1.4 + 0.62 * (len(rows) + 1)))
     fig.subplots_adjust(top=0.74, bottom=0.10, left=0.045, right=0.965)
@@ -202,17 +219,22 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
         # already shows direction. A single neutral ink keeps falling energy demand (the
         # policy goal) from reading as "bad".
         cell.set_text_props(color=style.INK)
+        if rr == total_idx:  # the Total row: bold, set off by a rule above
+            cell.set_text_props(color=style.INK, fontweight="bold")
+            cell.visible_edges = "T"
+            cell.set_linewidth(1.0)
+            cell.set_edgecolor("#333333")
 
-    # subtle banding for row legibility (data-ink stays low: faint, behind text)
+    # subtle banding for row legibility (data-ink stays low: faint, behind text); skip the Total row
     for rr in range(1, len(rows) + 1):
-        if rr % 2 == 0:
+        if rr % 2 == 0 and rr != total_idx:
             for cc in range(ncols):
                 table[(rr, cc)].set_facecolor("#FAFAFA")
 
     style.title_block(
-        fig, title="Results as each policy is added",
-        subtitle="One row per policy step  ·  long-run % change vs baseline"
-                 "  ·  the +/- sign shows direction; color carries no good/bad meaning",
+        fig, title="What each policy step contributes",
+        subtitle="Average % change vs baseline over the first 10 years  ·  each row is that policy's "
+                 "own (marginal) contribution; the last line is all policies combined",
         source=style.source_line(note), kicker="summary table", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -232,12 +254,28 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, name="cover"
         style.title_block(
             fig,
             title=f"{cname}: coupled OG-Core x CLEWS scenario",
-            subtitle="A model of households over their whole life (OG-Core) linked to an energy,"
-                     " land and water system (CLEWS), one policy at a time."
-                     "  Illustrative -- magnitudes are not to be taken literally.",
+            subtitle="An economy-wide model of households over their whole life, coupled to an"
+                     " energy, land and water system.",
             kicker="scenario deck", top=0.965)
 
-        x, y = 0.045, 0.78
+        x, y = 0.045, 0.80
+
+        def para(text, *, bold=False, color=style.SUB, size=10.5, gap=0.012):
+            nonlocal y
+            for chunk in textwrap.wrap(text, 96) or [""]:
+                fig.text(x, y, chunk, fontsize=size, color=color,
+                         fontweight="bold" if bold else "normal", ha="left", va="top")
+                y -= 0.031
+            y -= gap
+
+        # Plain-language statement of the scenario, with the health channel spelled out.
+        para("The scenario", bold=True, size=11.5, color=style.INK)
+        para("Four policies are layered onto the economy, one at a time: a higher energy price, "
+             "clean-energy investment, a carbon tax, and a health channel.")
+        para("The health channel: cleaner air means fewer pollution deaths and less illness, so "
+             "people live and work longer -- and this run adds that to the economy.")
+        y -= 0.020
+
         if titles:
             fig.text(x, y, "Contents", fontsize=11.5, fontweight="bold", color=style.INK,
                      ha="left", va="top")

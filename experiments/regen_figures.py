@@ -48,10 +48,10 @@ DEFAULT_COUNTRY = "phl"
 DEFAULT_NOTE = ("Illustrative -- magnitudes are not to be taken literally: assumed ~20% higher energy cost "
                 "(a stand-in, not the energy model's detailed price path); investment and carbon sizes "
                 "uncalibrated; carbon-tax revenue is not returned to households.")
-# The full caveat above is shown in full on the methods card and the cover. Individual charts carry
-# only this one-line credit caveat -- the long note, stamped under every chart, wraps to 2-3 lines
-# and collides with the x-axis label, so the detail lives on the deck's dedicated caveats page.
-FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally; see methods card."
+# The full caveat above is shown in full on the cover. Individual charts carry only this one-line
+# credit caveat -- the long note, stamped under every chart, wraps to 2-3 lines and collides with
+# the x-axis label, so the detail lives on the cover.
+FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally."
 
 # Neutral section names for the deck cover/contents (order ~ the figure groups below).
 _DECK_SECTIONS = ["Across-steps channel decomposition", "Macro & fiscal transition",
@@ -234,8 +234,8 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
              base_params, headline_params, country, fig_dir, start_year=start_year, note=note)
 
     # --- deck front matter & at-a-glance summary --------------------------------
-    # methods_card & cover carry the FULL caveat; summary_table is a chart-like page (short caveat).
-    _try(viz_deck.methods_card, layered, country, fig_dir, note=full_note)
+    # The cover carries the FULL caveat + the plain-language scenario description; summary_table is
+    # a chart-like page (short caveat).
     _try(viz_deck.summary_table, layered, fig_dir, note=note)
     _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note)
 
