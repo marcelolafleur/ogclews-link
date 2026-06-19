@@ -58,6 +58,27 @@ _DECK_SECTIONS = ["Across-steps channel decomposition", "Macro & fiscal transiti
                   "Energy-system linkage", "Health channel", "Welfare (CEV)",
                   "Distribution & composition"]
 
+# index.html portal: each deck section -> the figure basenames it groups (the cover and per-step
+# incidence are added automatically by report_html.write_index). Only files that exist are shown,
+# so a partial run degrades gracefully. Mirrors _DECK_SECTIONS in order.
+_INDEX_SECTIONS = [
+    ("Across-steps channel decomposition",
+     ["summary_table", "waterfall_gdp", "waterfall_poorest", "headline_dashboard"]),
+    ("Macro & fiscal transition",
+     ["macro_transition", "fiscal_transition", "revenue_transition", "rates_transition",
+      "public_investment"]),
+    ("Energy-system linkage",
+     ["clews_signal_vs_applied", "capex_by_technology", "channel_inputs", "emissions_path"]),
+    ("Health channel",
+     ["health_age_profiles", "health_mortality_by_age", "health_morbidity_by_age",
+      "health_demography", "health_gdp_split"]),
+    ("Welfare (who wins and loses)",
+     ["welfare_cev_by_group", "welfare_cev_decomposition", "welfare_cev_by_age"]),
+    ("Distribution & composition",
+     ["consumption_by_age", "asset_by_age", "income_composition_by_age", "consumption_by_good",
+      "consumption_by_good_by_group", "sectoral_reallocation", "energy_by_income"]),
+]
+
 
 def _resolve(cli_val, env_key, default):
     return cli_val or os.environ.get(env_key) or default
@@ -254,6 +275,12 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
                 title=f"{country.name}: {label}", note=note, factor=factor) is not None:
             made.append(label)
     print(f"Regenerated top-level figures in {fig_dir}/ + incidence for: {made}")
+
+    # --- scenario entry point: one index.html at the run-dir root linking the whole deck --------
+    index = _try(report_html.write_index, fig_dir, os.path.join(run_dir, "index.html"),
+                 _INDEX_SECTIONS, country=country, note=full_note)
+    if index:
+        print(f"Wrote scenario index -> {index}")
 
 
 def main(argv=None):
