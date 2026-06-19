@@ -23,7 +23,8 @@ SENTINEL = 999999.0
 __all__ = ["cost_of_electricity_ratio", "read_clews_matrix", "read_clews_long",
            "power_capex_increment", "emissions_by_year", "emissions_ratio",
            "og_sector_output", "og_consumption_good", "og_interest_rate",
-           "commodity_shadow_price", "commodity_shadow_price_ratio"]
+           "commodity_shadow_price", "commodity_shadow_price_ratio",
+           "clews_activity_by_year", "water_demand_ratio", "cooking_solid_fuel_change"]
 
 
 def _find(scenario_dir: str, metric: str, exclude: str = "") -> str:
@@ -101,9 +102,12 @@ def power_capex_increment(base_dir, reform_dir, country, public_only=False) -> p
     return (reform.loc[years] - base.loc[years]).sort_index()
 
 
-def emissions_by_year(scenario_dir, country) -> pd.Series:
-    """Total CO2e by year for a scenario. Prefers the *ByMode variant, which is present for
-    BOTH base and reform here, so the two sides are aggregated identically (avoids a
+def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
+    """Total emissions of one species by year for a scenario. ``species`` defaults to
+    ``country.co2_emission`` (CO2e); pass ``"PM2_5"`` for the health-relevant pollutant -- it is
+    tracked in the SAME *ByMode file and moves differently (PEP cuts PM2.5 ~15-20% via transport
+    electrification vs CO2e ~38% via power decarbonization). Prefers the *ByMode variant, which is
+    present for BOTH base and reform here, so the two sides are aggregated identically (avoids a
     base=ByMode / reform=plain mismatch); summing over modes recovers the total."""
     try:
         path = _find(scenario_dir, "AnnualTechnologyEmissionByMode")
@@ -114,16 +118,60 @@ def emissions_by_year(scenario_dir, country) -> pd.Series:
     ycol = cols.get("y") or next(c for c in df.columns if df[c].astype(str).str.fullmatch(r"\d{4}").all())
     ecol = cols.get("e")
     vcol = df.columns[-1]
+    sp = species or country.co2_emission
     if ecol is not None:
-        df = df[df[ecol].astype(str).str.contains(country.co2_emission, case=False, na=False)]
+        df = df[df[ecol].astype(str).str.contains(sp, case=False, na=False, regex=False)]
     return df.groupby(ycol)[vcol].sum().sort_index()
 
 
-def emissions_ratio(base_dir, reform_dir, country) -> pd.Series:
-    base, reform = emissions_by_year(base_dir, country), emissions_by_year(reform_dir, country)
+def emissions_ratio(base_dir, reform_dir, country, species=None) -> pd.Series:
+    base = emissions_by_year(base_dir, country, species)
+    reform = emissions_by_year(reform_dir, country, species)
     years = sorted(set(base.index) & set(reform.index))
     b = base.loc[years].replace(0.0, np.nan)
     return (reform.loc[years] / b).sort_index()
+
+
+# --- generic activity reader + the water / cooking signals ----------------------
+
+def clews_activity_by_year(scenario_dir, tech_prefixes) -> pd.Series:
+    """Sum CLEWS TotalAnnualTechnologyActivityByMode over technologies whose code starts with any of
+    ``tech_prefixes`` (a str or sequence of str), by year. The generic activity reader behind the
+    water-stress and cooking-pollution signals -- the model has 132 technologies across AGR/HOU/INDU/
+    LND/POW/PRO/SER/TRA/WTR, far beyond the power techs the emissions/capex readers use."""
+    path = _find(scenario_dir, "TotalAnnualTechnologyActivityByMode")
+    df = read_clews_long(path)
+    cols = {c.lower(): c for c in df.columns}
+    tcol = cols.get("t") or df.columns[1]
+    ycol = cols.get("y") or next(c for c in df.columns if df[c].astype(str).str.fullmatch(r"\d{4}").all())
+    vcol = df.columns[-1]
+    pref = (tech_prefixes,) if isinstance(tech_prefixes, str) else tuple(tech_prefixes)
+    sub = df[df[tcol].astype(str).apply(lambda t: t.startswith(pref))]
+    return sub.groupby(ycol)[vcol].sum().sort_index()
+
+
+def water_demand_ratio(base_dir, reform_dir, prefixes=("PHL_DEM_PWR",)) -> pd.Series:
+    """Reform/base ratio of CLEWS water-demand activity (default power-sector water, PHL_DEM_PWR*),
+    by year -- the water-stress signal. This is the LARGEST reform-differential non-energy signal in
+    the live PEP run (power-sector water demand grows ~5x surface / ~12x groundwater by 2050): the
+    energy transition's water footprint."""
+    b = clews_activity_by_year(base_dir, prefixes)
+    r = clews_activity_by_year(reform_dir, prefixes)
+    years = sorted(set(b.index) & set(r.index))
+    bb = b.loc[years].replace(0.0, np.nan)
+    return (r.loc[years] / bb).sort_index()
+
+
+def cooking_solid_fuel_change(base_dir, reform_dir, cook_prefix="PHL_HOU_COOK",
+                              solid=("BIOM", "COAL", "OIL")) -> float:
+    """Fractional change (reform vs base) in SOLID-FUEL household cooking activity -- the household
+    air-pollution (HAP) signal. Negative == a clean-cooking transition (less solid fuel -> lower HAP).
+    NB: ~0 in the live PEP pair because biomass/coal cooking are identical base->reform (only electric
+    cooking moves, and it FALLS) -- the cooking block is inert/stylized; see CookingHealthChannel."""
+    prefs = tuple(f"{cook_prefix}_{s}" for s in solid)
+    b = float(clews_activity_by_year(base_dir, prefs).sum())
+    r = float(clews_activity_by_year(reform_dir, prefs).sum())
+    return (r - b) / b if b else 0.0
 
 
 # --- OG-Core output extractors (for og->clews and recycling channels) -----------

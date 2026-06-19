@@ -209,6 +209,20 @@ def placeholder_profile(num_ages: int = 100) -> np.ndarray:
     return _to_shape(shape)
 
 
+def hap_profile(num_ages: int = 100) -> np.ndarray:
+    """PLACEHOLDER household-air-pollution (HAP) age shape (peak 1) -- BIMODAL, unlike the elderly-skewed
+    ambient shape. GBD attributes a large share of HAP burden to the UNDER-5 (lower-respiratory infection
+    + neonatal outcomes) AND to the elderly (cardiopulmonary: IHD/stroke/COPD), so HAP h(s) has a young
+    peak and an old peak. NOT calibrated -- the real shape is a GBD "Household air pollution from solid
+    fuels" deaths-by-age pull (rei ~87; see DATA.md). Distinct from placeholder_profile() so the
+    age-incidence of a clean-cooking reform differs from an ambient-PM2.5 reform."""
+    s = np.arange(num_ages, dtype=float)
+    young = np.exp(-((s - 1.0) ** 2) / (2.0 * 3.0 ** 2))          # under-5 LRI/neonatal peak
+    old = 1.0 / (1.0 + np.exp(-(s - 70.0) / 8.0))                 # elderly cardiopulmonary rise
+    old[s < 40] *= 0.02                                           # negligible HAP mortality in prime ages
+    return _to_shape(np.maximum(young, old))
+
+
 def load_profile(path: str) -> np.ndarray:
     """Load a saved 1-column age profile (the build_*_profile output format), as a peak-1 shape."""
     return _to_shape(np.loadtxt(path, delimiter=","))

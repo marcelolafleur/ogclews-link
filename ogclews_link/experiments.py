@@ -41,6 +41,51 @@ EXPERIMENTS = {
         "health", [("health", {})],
         "CLEWS emissions change -> illustrative dose-response -> OG mortality/productivity."),
 
+    # --- exploratory channels (channel-exploration lane; see NEW-CHANNELS-FEASIBILITY.md) ---
+
+    # #7/#8 the financing contrast: same diaspora resource as household remittances vs a bond that
+    # funds public investment. Run as two ARMS (not summed) and compare incidence/welfare.
+    "remittances_boom": Experiment(
+        "remittances_boom", [("remittances", {"shock_pct_gdp": 0.03, "concentrate_low_income": True})],
+        "Remittances arm: +3pp-of-GDP remittance inflow to (low-income-tilted) households -- "
+        "consumption support + income-effect labor-supply response (alpha_RM, eta_RM)."),
+    "diaspora_bond_finance": Experiment(
+        "diaspora_bond_finance",
+        [("diaspora_bonds", {"issuance_pct_gdp": 0.02, "years": 10, "discount_bps": 100.0})],
+        "Diaspora-bond arm: a 2%-GDP/yr issuance (100bps patriotic discount) funding public "
+        "investment -- crowd-in vs future debt service (alpha_I, world rate)."),
+
+    # #9 crop/food price -- the high-leverage regressive channel (food ~35.7% of consumption)
+    "food_price": Experiment(
+        "food_price",
+        [("food_price", {"yield_loss": 0.10, "pass_through": 0.7, "route": "tau_c", "food_cmin": 0.02})],
+        "A 10% climate crop-yield loss -> food-price wedge with a subsistence floor: regressive "
+        "incidence on the food good (external IRRI/IFPRI driver; tau_c route)."),
+
+    # #10 climate temperature damage (ABSOLUTE level shock -- see channel guardrail)
+    "climate_damage": Experiment(
+        "climate_damage", [("climate_damage", {"temp_rise": 2.0})],
+        "+2 degC: heat-stress labor-productivity loss (e) + crop-TFP loss (Z[NatRes]). Absolute "
+        "level shock -- honest only applied to baseline AND reform (not PEP-attributable)."),
+
+    # #11 water stress -- the strongest live non-energy CLEWS signal (power-sector water +5-12x)
+    "water_stress": Experiment(
+        "water_stress", [("water_stress", {"route": "Z", "elasticity": 0.02})],
+        "CLEWS power-sector water demand -> cost-push on the electricity industry's TFP "
+        "(the transition's water footprint -- the largest non-energy reform signal)."),
+
+    # #12 household cooking air pollution (HAP) -- inert in this scenario; needs a clean-cooking run
+    "cooking_health": Experiment(
+        "cooking_health", [("cooking_health", {})],
+        "Household solid-fuel cooking -> HAP mortality via disease_pop (bimodal age profile). "
+        "INERT in the live PEP pair (cooking unchanged) -- demonstrates the transform, flags the signal."),
+
+    # #13 LDC graduation -- not applicable to PHL (no-op); shown for the framework's reach
+    "ldc_graduation": Experiment(
+        "ldc_graduation", [("ldc_graduation", {"acknowledge_non_ldc": True})],
+        "Hypothetical LDC graduation (PHL is not an LDC): trade-preference loss + financing cost + "
+        "ODA cut. acknowledge_non_ldc=True to run the illustrative transform."),
+
     # composed: a full single-pass soft link
     "full": Experiment(
         "full",

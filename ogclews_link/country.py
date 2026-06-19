@@ -36,6 +36,9 @@ class CountryConfig:
     # mortality h(s) + excess_deaths and morbidity g(s) + YLD-rate magnitude. None -> placeholders.
     gbd_burden_csv: str | None = None
     gbd_year: int = 2023
+    # UN Least Developed Country status -- gates the ldc_graduation channel. PHL is NOT an LDC (never
+    # was), so it stays False and that channel no-ops here; set True only for an actual graduating LDC.
+    is_ldc: bool = False
 
     def is_power(self, tech: str) -> bool:
         return tech.startswith(self.power_prefix)

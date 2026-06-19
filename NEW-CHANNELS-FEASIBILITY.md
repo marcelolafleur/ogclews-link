@@ -260,3 +260,41 @@ defensible *CLEWS-driven* new channel on offer, and it wasn't on the brainstorm 
 **What needs a solve to validate (hold for explicit go):** prototyping any of #2–#6 to a measured GDP/welfare
 number requires an OG solve (minutes). The transforms themselves can be unit-tested without solving, following
 the existing `tests/test_channels.py` pattern.
+
+---
+
+## Prototypes — built and tested (this branch)
+
+All seven ideas (5 + 2 discovered) are now prototyped as real channels following the existing `Channel`
+pattern: each a verified transform with guardrails, a transform-level test (no OG solve), an experiment, and
+any needed signal reader. **`tests/test_channels.py`: 37 passed, 0 failed** (was 25). Magnitudes are
+illustrative pending calibration — flagged in every `validate()`.
+
+| Channel id | OG primitive(s) touched | Class (`channels.py`) | Experiment | Live-data check |
+|---|---|---|---|---|
+| `remittances` | `alpha_RM_1/T`, `g_RM`, `eta_RM` | RemittancesChannel | `remittances_boom` | baseline α_RM=7.2% verified |
+| `diaspora_bonds` | `alpha_I`, `world_int_rate_annual`, `zeta_D` | DiasporaBondChannel | `diaspora_bond_finance` | finite issuance → SS tail clean |
+| `food_price` | `tau_c[Food]`, `Z[NatRes]`, `c_min[Food]` | FoodPriceChannel | `food_price` | Food=35.7% good (alpha_c) |
+| `climate_damage` | `e` (heat-labor), `Z[NatRes]` | ClimateDamageChannel | `climate_damage` | absolute-shock guardrail |
+| `water_stress` | `Z` cost-push / `alpha_I` | WaterStressChannel | `water_stress` | **water ratio 5.34× @2050** |
+| `cooking_health` | `health_shock` (disease_pop) + bimodal HAP h(s) | CookingHealthChannel | `cooking_health` | **solid-fuel Δ +0.5% (inert, as predicted)** |
+| `ldc_graduation` | `tau_c`, `world_int_rate`, `alpha_G` | LDCGraduationChannel | `ldc_graduation` | no-ops for PHL (not an LDC) |
+| **Bonus A** (PM2.5 proxy) | `health` channel `pollutant=` option | HealthChannel + `emissions_by_year(species=)` | — | **PM2.5 0.85 vs CO2e 0.62 @2050** |
+
+New signal readers (`signals.py`): `clews_activity_by_year`, `water_demand_ratio`, `cooking_solid_fuel_change`,
+`emissions_by_year(species=)`. New concordance ports (`contract.py`): `food_good_index`, `agri_industry_index`.
+New country flag (`country.py`): `is_ldc` (PHL = False → `ldc_graduation` no-ops).
+
+**Validated on real CLEWS, end-to-end (not stubbed):** water `PHL_DEM_PWR` reform/base = **5.34× by 2050**
+(strong live signal); cooking solid-fuel change = **+0.5%** (inert — the cooking block is untouched by PEP, as
+the analysis found); PM2.5 ratio **0.85** vs CO2e **0.62** at 2050 (different enough that the PM2.5 dose proxy
+materially changes the health signal).
+
+**Honesty guardrails worth re-reading before any headline run** (each stated in-code in `validate()`):
+`climate_damage` is an *absolute* shock with no CLEWS differential (must also hit the baseline, or it reads as
+PEP-attributable — it isn't); `cooking_health` is *inert* until a clean-cooking scenario + cooking-block
+recalibration exist; `food_price` is *external-data* driven (no CLEWS crop signal); `diaspora_bonds` is a
+*reduced-form* of an external bond; `ldc_graduation` is *not applicable* to PHL.
+
+**Still needs a solve (held for explicit go):** measuring the GDP/welfare effect of any experiment requires
+`python -m ogclews_link run <experiment>` (an OG solve, minutes each).

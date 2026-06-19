@@ -28,10 +28,14 @@ def _params():
     io = np.full((I, M), 0.25)
     io[I_E, M_E] = 0.107
     return types.SimpleNamespace(
-        T=T, J=J, M=M, I=I, baseline=False,
+        T=T, J=J, M=M, I=I, E=2, baseline=False,
         tau_c=np.full((TS, I), 0.12), Z=np.ones((TS, M)),
         alpha_I=np.full(TS, 0.02), alpha_T=np.full(TS, 0.05), alpha_bs_I=np.ones(TS),
-        c_min=np.zeros(I), e=np.ones((T, S, J)), chi_n=np.ones((TS, S)), io_matrix=io)
+        alpha_G=np.full(TS, 0.10), c_min=np.zeros(I), e=np.ones((T, S, J)),
+        chi_n=np.ones((TS, S)), io_matrix=io,
+        # open-economy / remittance primitives (PHL baseline values: alpha_RM ~= 7.2% of GDP)
+        alpha_RM_1=0.072, alpha_RM_T=0.072, g_RM=[0.03], eta_RM=np.full((S, J), 1.0 / (S * J)),
+        world_int_rate_annual=[0.04], initial_foreign_debt_ratio=0.2, zeta_D=np.full(TS, 0.4))
 
 
 def _tpi(scale=1.0):
@@ -53,7 +57,9 @@ def _ctx(with_reform=False):
 
 def test_registry():
     ids = set(all_channels())
-    assert ids == {"energy_price", "investment", "carbon", "discount_rate", "health", "demand"}, ids
+    assert ids == {"energy_price", "investment", "carbon", "discount_rate", "health", "demand",
+                   "remittances", "diaspora_bonds", "food_price", "climate_damage",
+                   "water_stress", "cooking_health", "ldc_graduation"}, ids
 
 
 def test_energy_price_controlled():
@@ -381,6 +387,127 @@ def test_run_manifest():
     assert m["scenario"]["name"] == "PEP_vs_Base"
     assert m["clews_run"] == "/some/muiogo/run"
     assert m["channels"][0]["id"] == "energy_price" and len(m["provenance"]) == 1
+
+
+# --- exploratory channels (channel-exploration lane) ----------------------------
+
+def test_remittances_sets_alpha_rm():
+    ctx = _ctx()
+    prov = get("remittances").apply(ctx, shock_pct_gdp=0.03)         # +3pp of GDP on the 7.2% baseline
+    assert abs(ctx.og_reform.alpha_RM_1 - (0.072 + 0.03)) < 1e-9
+    assert abs(ctx.og_reform.alpha_RM_T - (0.072 + 0.03)) < 1e-9, "persist=True -> SS level moves too"
+    assert abs(prov["d_pct_gdp"] - 0.03) < 1e-9
+
+
+def test_remittances_eta_tilt_preserves_total():
+    ctx = _ctx()
+    eta0 = np.asarray(ctx.og_reform.eta_RM).copy()
+    get("remittances").apply(ctx, alpha_rm_mult=1.0, concentrate_low_income=True)
+    eta1 = np.asarray(ctx.og_reform.eta_RM)
+    assert abs(eta1.sum() - eta0.sum()) < 1e-9                       # aggregate RM distribution preserved
+    assert eta1[..., 0].sum() > eta0[..., 0].sum()                  # mass shifted to lowest-income type
+
+
+def test_diaspora_bonds_fund_investment_at_discount():
+    ctx = _ctx()
+    aI0 = np.asarray(ctx.og_reform.alpha_I).copy()
+    wr0 = float(np.mean(ctx.og_reform.world_int_rate_annual))
+    get("diaspora_bonds").apply(ctx, issuance_pct_gdp=0.02, years=10, discount_bps=100.0)
+    aI = np.asarray(ctx.og_reform.alpha_I)
+    assert abs(aI[0] - (aI0[0] + 0.02)) < 1e-9                       # proceeds bump public investment
+    assert aI[-1] == aI0[-1]                                         # FINITE issuance: SS tail untouched
+    assert float(np.mean(ctx.og_reform.world_int_rate_annual)) < wr0  # patriotic discount lowers world rate
+
+
+def test_food_price_tau_c_and_cmin():
+    ctx = _ctx()
+    i_f = PHL.concordance.food_good_index
+    get("food_price").apply(ctx, yield_loss=0.10, pass_through=0.7, route="tau_c", food_cmin=0.02)
+    pr = 0.7 * 0.10 / 0.90                                           # supply-shift -> consumer price rise
+    tau = np.asarray(ctx.og_reform.tau_c)[0, i_f]
+    assert abs((1 + tau) - (1 + pr) * 1.12) < 1e-9, tau
+    assert np.asarray(ctx.og_reform.tau_c)[-1, i_f] > 0.12          # permanent: reaches the SS tail
+    assert np.asarray(ctx.og_reform.c_min)[i_f] == 0.02            # food subsistence floor -> regressive
+
+
+def test_food_price_Z_route():
+    ctx = _ctx()
+    m_a = PHL.concordance.agri_industry_index
+    get("food_price").apply(ctx, yield_loss=0.10, route="Z")
+    assert abs(np.asarray(ctx.og_reform.Z)[0, m_a] - 0.90) < 1e-9   # ag-TFP cut (price emerges endogenously)
+
+
+def test_climate_damage_e_and_Z():
+    ctx = _ctx()
+    m_a = PHL.concordance.agri_industry_index
+    get("climate_damage").apply(ctx, temp_rise=2.0, labor_loss_per_deg=0.015, ag_loss_per_deg=0.08,
+                                phase_years=10)
+    assert abs(np.asarray(ctx.og_reform.e)[-1, 0, 0] - (1 - 0.03)) < 1e-9   # +2C -> -3% labor at full ramp
+    assert abs(np.asarray(ctx.og_reform.Z)[0, m_a] - (1 - 0.16)) < 1e-9     # -16% ag TFP (0.08*2)
+
+
+def test_water_stress_cost_push():
+    import pandas as pd
+    ctx = _ctx()
+    sy = PHL.scenario.og_start_year
+    m_e = PHL.concordance.energy_industry_index
+    orig = signals.water_demand_ratio
+    signals.water_demand_ratio = lambda b, r, prefixes=None: pd.Series([5.0, 5.0], index=[sy, sy + 1])
+    try:
+        prov = get("water_stress").apply(ctx, route="Z", elasticity=0.02)
+    finally:
+        signals.water_demand_ratio = orig
+    assert prov["peak_excess"] == 4.0                               # 5x water demand -> +400% excess
+    assert abs(np.asarray(ctx.og_reform.Z)[0, m_e] - (1 - 0.08)) < 1e-9    # 0.02*4 cost-push haircut
+
+
+def test_cooking_health_solid_fuel_signal():
+    ctx = _ctx()
+    prov = get("cooking_health").apply(ctx, hap_deaths=25_000.0, solid_fuel_change=-0.3)
+    shock = ctx.extras.get("health_shock")
+    assert shock is not None and len(shock["profile"]) == 100       # disease_pop spec + bimodal HAP h(s)
+    assert shock["excess_deaths"] < 0                               # less solid fuel -> lives saved
+    assert abs(shock["excess_deaths"] - (25_000.0 * -0.3)) < 1e-6
+    assert prov["inert_signal"] is False
+    h = shock["profile"]
+    assert h[1] > h[30] and h[85] > h[30]                           # BIMODAL: under-5 AND elderly peaks
+
+
+def test_ldc_graduation_noop_for_phl():
+    ctx = _ctx()
+    tau0 = np.asarray(ctx.og_reform.tau_c).copy()
+    prov = get("ldc_graduation").apply(ctx)                         # PHL not an LDC, no ack -> no-op
+    assert prov["applied"] is False
+    assert np.allclose(np.asarray(ctx.og_reform.tau_c), tau0)       # nothing mutated
+
+
+def test_ldc_graduation_applied_when_acknowledged():
+    ctx = _ctx()
+    i_t = PHL.concordance.food_good_index
+    wr0 = float(np.mean(ctx.og_reform.world_int_rate_annual))
+    aG0 = np.asarray(ctx.og_reform.alpha_G).copy()
+    get("ldc_graduation").apply(ctx, trade_wedge=0.05, financing_bps=100.0, aid_cut_pct_gdp=0.01,
+                                acknowledge_non_ldc=True)
+    assert np.asarray(ctx.og_reform.tau_c)[0, i_t] > 0.12          # trade-preference loss wedge
+    assert float(np.mean(ctx.og_reform.world_int_rate_annual)) > wr0  # lost concessional finance
+    assert np.asarray(ctx.og_reform.alpha_G)[0] < aG0[0]           # ODA cut
+
+
+def test_new_channel_guardrails():
+    ctx = _ctx()
+    assert get("remittances").validate(ctx, ["remittances", "diaspora_bonds"])  # the contrast note
+    assert get("climate_damage").validate(ctx, ["climate_damage"])              # absolute-shock caveat
+    assert get("cooking_health").validate(ctx, ["cooking_health"])              # inert-signal caveat
+    assert get("ldc_graduation").validate(ctx, ["ldc_graduation"])              # not-applicable-to-PHL
+
+
+def test_health_pm25_pollutant_option():
+    if not HAVE_CLEWS:
+        print("  (skip: CLEWS dirs absent)"); return
+    co2 = signals.emissions_ratio(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL)             # CO2e
+    pm = signals.emissions_ratio(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL, species="PM2_5")
+    assert len(co2) > 5 and len(pm) > 5
+    assert not np.allclose(co2.values, pm.values)                  # the two pollutants move differently
 
 
 def main():

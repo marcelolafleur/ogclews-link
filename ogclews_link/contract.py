@@ -27,9 +27,15 @@ class Concordance:
     energy cost (route B). ``energy_good_index`` is the OG consumption good i that
     households buy and react to (route A). Both must be verified against the country
     calibration (e.g. OG-PHL ``calibration_values.PROD_DICT`` / ``CONS_DICT``).
+
+    ``food_good_index`` / ``agri_industry_index`` are the food consumption good and the
+    agriculture (Natural Resources) production industry -- the ports for a crop/food-price
+    channel (food is the largest non-services good, ~35.7% of consumption in PHL).
     """
     energy_industry_index: int
     energy_good_index: int
+    food_good_index: int = 0       # I=5 order: [Food, Energy&water, Non-durables, Durables, Services]
+    agri_industry_index: int = 0   # M=4 order: [Natural Resources, Electricity, ConsTradeServices, Mfg]
 
 
 @dataclass
@@ -50,4 +56,6 @@ class UnitMap:
 PHL_CONCORDANCE = Concordance(
     energy_industry_index=1,   # M=4 order [NaturalResources, Electricity, ConsTradeServices, Manufacturing]
     energy_good_index=1,       # I=5 order [Food, "Energy and water", Non-durables, Durables, Services]
+    food_good_index=0,         # "Food" is consumption good 0 (alpha_c=0.357, the largest non-services good)
+    agri_industry_index=0,     # "Natural Resources" (rice/maize/fish/forestry) is production industry 0
 )

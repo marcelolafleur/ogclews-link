@@ -313,10 +313,14 @@ class HealthChannel(Channel):
 
     def apply(self, ctx, excess_deaths=None, total_pollution_deaths=None, morbidity_response=0.01,
               affects=("mortality", "e"), profile_path=None, morbidity_profile=None,
-              phase_years=5, prod_J=7, gbd_csv=None, gbd_location=None, gbd_year=None):
+              phase_years=5, prod_J=7, gbd_csv=None, gbd_location=None, gbd_year=None,
+              pollutant=None):
         c = ctx.country
         p = ctx.og_reform
-        er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c)
+        # pollutant selects the CLEWS emission species used as the dose proxy: None -> CO2e (default,
+        # back-compatible), or "PM2_5" -- the actual health-relevant pollutant, tracked in the same
+        # files and moving DIFFERENTLY (PEP cuts PM2.5 ~15-20% via transport vs CO2e ~38% via power).
+        er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, species=pollutant)
         demis = float(np.nanmean(er.values[:10])) - 1.0   # <0 == reform is cleaner
         if not np.isfinite(demis):
             raise ValueError(f"health: emissions_ratio gave a non-finite change ({demis}); "
@@ -328,7 +332,8 @@ class HealthChannel(Channel):
         gbd = gbd_csv or getattr(c, "gbd_burden_csv", None)
         gloc = gbd_location or getattr(c, "name", None)
         gyr = int(gbd_year or getattr(c, "gbd_year", 2023))
-        prov = {"emissions_change": demis, "affects": list(affects), "gbd_source": bool(gbd)}
+        prov = {"emissions_change": demis, "affects": list(affects), "gbd_source": bool(gbd),
+                "pollutant": pollutant or c.co2_emission}
         if "mortality" in affects:
             # disease_pop method: stash a SIGNED excess-deaths target + age shape; the runtime's
             # health_pop.disease_pop solves rho += shock_scale*g_t*h(s) (clipped) to hit it, then
@@ -434,9 +439,388 @@ class DemandChannel(Channel):
                 "OG-industry/good -> CLEWS-fuel concordance and an annual->timeslice decision."]
 
 
+# ================================================================================
+# EXPLORATORY CHANNELS (channel-exploration lane). Prototypes from
+# NEW-CHANNELS-FEASIBILITY.md: financing (remittances/diaspora bonds), crop/food,
+# climate, water, household cooking, LDC graduation. Each is a verified transform with
+# guardrails; magnitudes are ILLUSTRATIVE pending calibration (flagged in validate()).
+# ================================================================================
+
+
+# --- #7 diaspora remittances -> household income + labor supply -----------------
+
+class RemittancesChannel(Channel):
+    """OG-Core models remittances natively: aggregate RM = alpha_RM * Y, distributed to households
+    by eta_RM (an untaxed lump-sum in the budget). PHL baseline already runs alpha_RM ~= 0.072 (7.2%
+    of GDP), so this channel VARIES that level (a remittance boom/bust, or the consumption-support arm
+    of the remittances-vs-diaspora-bonds contrast). The labor-supply response is the pure income
+    effect (higher non-labor income -> less labor); no chi_n edit. OG-Core SUBTRACTS aggregate RM in
+    the resource constraint while adding it to budgets, so this is a redistribution + labor-supply
+    device, NOT a free national windfall -- read welfare as incidence across eta_RM, not added GDP."""
+    id = "remittances"
+    label = "Diaspora remittances -> household income / labor supply (alpha_RM, eta_RM)"
+    direction = POLICY
+    theory_status = "structural_core"
+
+    def apply(self, ctx, alpha_rm=None, alpha_rm_mult=None, shock_pct_gdp=None, g_rm=None,
+              concentrate_low_income=False, persist=True):
+        p = ctx.og_reform
+        base1 = float(getattr(p, "alpha_RM_1", 0.0))
+        baseT = float(getattr(p, "alpha_RM_T", base1))
+        if alpha_rm is not None:                       # absolute remittances/GDP target
+            new1 = newT = float(alpha_rm)
+        elif alpha_rm_mult is not None:                # scale the baseline level
+            new1, newT = base1 * float(alpha_rm_mult), baseT * float(alpha_rm_mult)
+        elif shock_pct_gdp is not None:                # additive %-GDP shock
+            new1, newT = base1 + float(shock_pct_gdp), baseT + float(shock_pct_gdp)
+        else:
+            new1, newT = base1, baseT
+        p.alpha_RM_1 = max(new1, 0.0)
+        p.alpha_RM_T = max(newT, 0.0) if persist else baseT   # persist=False -> a transitory shock
+        if g_rm is not None:
+            p.g_RM = list(np.atleast_1d(np.asarray(g_rm, dtype=float)))
+        moved = None
+        if concentrate_low_income and hasattr(p, "eta_RM"):
+            # tilt incidence toward the lowest lifetime-income type (last axis j=0), renormalizing to
+            # the array's ORIGINAL total so aggregate RM is unchanged -- only WHO receives it shifts.
+            eta = np.array(p.eta_RM, dtype=float)
+            tot = eta.sum()
+            w = np.ones(eta.shape[-1]); w[0] = 2.0      # double the lowest-income weight (illustrative)
+            eta = eta * w
+            eta = eta * (tot / eta.sum()) if eta.sum() else eta
+            p.eta_RM = eta
+            moved = True
+        return {"alpha_RM_1": float(p.alpha_RM_1), "alpha_RM_T": float(p.alpha_RM_T),
+                "baseline_alpha_RM": base1, "d_pct_gdp": float(p.alpha_RM_1 - base1),
+                "persist": persist, "eta_tilted_low_income": moved}
+
+    def validate(self, ctx, active):
+        w = ["remittances enter as an untaxed lump-sum (alpha_RM*Y distributed by eta_RM); the "
+             "labor-supply effect is the income effect, NOT a chi_n change. OG-Core SUBTRACTS RM in "
+             "the resource constraint (redistribution + labor supply, not a national windfall) -- read "
+             "welfare as eta_RM incidence. PHL baseline alpha_RM ~= 0.072; set levels relative to that."]
+        if "diaspora_bonds" in active:
+            w.append("remittances + diaspora_bonds is the intended CONTRAST (household consumption "
+                     "support vs diaspora-financed public investment): run them as separate arms, not summed.")
+        return w
+
+
+# --- #8 diaspora bonds -> foreign-financed public investment --------------------
+
+class DiasporaBondChannel(Channel):
+    """The financing-side counterpart to remittances: instead of flowing to households, diaspora
+    savings are captured into a sovereign bond that funds PUBLIC INVESTMENT (alpha_I -> K_g) -- the
+    natural home for the CLEWS transition capex the `investment` channel reads. Reduced-form over
+    OG-Core's open-economy machinery (it has no distinct 'tranche' object): proceeds bump alpha_I, an
+    optional 'patriotic discount' lowers world_int_rate_annual, and the foreign share of new debt
+    (zeta_D) rises. The burden is future debt service at the world rate; the benefit is crowded-in
+    public capital at a discounted cost of funds."""
+    id = "diaspora_bonds"
+    label = "Diaspora bonds -> foreign-financed public investment (alpha_I, world rate, zeta_D)"
+    direction = POLICY
+    theory_status = "research"
+
+    def apply(self, ctx, issuance_pct_gdp=0.01, years=10, discount_bps=0.0,
+              fund="public_investment", foreign_share=None):
+        from .policy_levers import route_revenue
+        p = ctx.og_reform
+        n = np.asarray(p.alpha_I).shape[0]
+        path = np.zeros(n)
+        path[: min(int(years), n)] = float(issuance_pct_gdp)     # FINITE issuance window (taper in SS)
+        routed = route_revenue(p, path, to=fund, fill_ss_tail=False)
+        prov = {"issuance_pct_gdp": float(issuance_pct_gdp), "years": int(years),
+                "funded": routed.get("param"), "cumulative_pct_gdp": float(path.sum())}
+        if discount_bps:                                          # patriotic discount: below-market rate
+            wr0 = np.atleast_1d(np.asarray(getattr(p, "world_int_rate_annual", [0.04]), dtype=float))
+            p.world_int_rate_annual = list(np.maximum(wr0 - float(discount_bps) / 1e4, 0.0))
+            prov["world_rate"] = float(np.mean(p.world_int_rate_annual))
+            prov["discount_bps"] = float(discount_bps)
+        if foreign_share is not None and hasattr(p, "zeta_D"):    # more new debt absorbed abroad
+            zd = np.array(p.zeta_D, dtype=float)
+            zd[...] = float(foreign_share)
+            p.zeta_D = zd
+            prov["zeta_D"] = float(foreign_share)
+        return prov
+
+    def validate(self, ctx, active):
+        w = ["diaspora_bonds is a REDUCED-FORM of an external bond: OG-Core has no separate diaspora "
+             "tranche, so proceeds bump alpha_I and the discount is a world-rate cut. The PHL has issued "
+             "retail $-bonds (~US$1.6bn, 2021) but NO true patriotic-discount diaspora bond -- treat "
+             "discount_bps as a SENSITIVITY axis, not an observed parameter."]
+        if "investment" in active:
+            w.append("diaspora_bonds + investment both write alpha_I: use diaspora_bonds as the FINANCING "
+                     "of the investment channel's transition capex, not an independent second bump.")
+        return w
+
+
+# --- #9 crop / food price -> household demand + regressive incidence -------------
+
+class FoodPriceChannel(Channel):
+    """A crop/food-price shock on the FOOD consumption good (i=food, alpha_c~=0.357 in PHL -- ~25x the
+    consumption weight of energy, so high welfare leverage and, with a subsistence floor, strongly
+    regressive). Two routes (run as ALTERNATIVES, then compare): a consumption-price wedge tau_c[food]
+    (clones the energy_price plumbing) or an agricultural-TFP hit Z[NatRes] (the GTAP-standard
+    land-augmenting shock, letting the price emerge endogenously). EXTERNALLY DRIVEN: the live CLEWS
+    has no crop signal (PHL_LND_CRP=0), so `yield_loss` comes from IRRI (~10%/degC) / IFPRI-IMPACT."""
+    id = "food_price"
+    label = "Crop yield loss -> food price + regressive incidence (tau_c[Food] / Z[NatRes])"
+    direction = CLEWS_TO_OG
+    theory_status = "reduced_form"   # external climate-crop driven; no CLEWS crop signal yet
+
+    def apply(self, ctx, yield_loss=0.10, pass_through=0.7, route="tau_c", food_cmin=0.0):
+        c = ctx.country
+        p = ctx.og_reform
+        i_f = int(getattr(c.concordance, "food_good_index", 0))
+        m_a = int(getattr(c.concordance, "agri_industry_index", 0))
+        yl = float(yield_loss)
+        # a fractional crop yield LOSS -> a consumer food-price rise via supply elasticity / import
+        # pass-through (PHL is a large rice importer, so pass_through is high).
+        price_rise = float(pass_through) * yl / max(1.0 - yl, 1e-6)
+        prov = {"yield_loss": yl, "pass_through": float(pass_through), "route": route,
+                "implied_price_rise": price_rise}
+        if route in ("tau_c", "both"):
+            tau = np.array(p.tau_c, dtype=float)
+            tau[:, i_f] = (1.0 + price_rise) * (1.0 + tau[:, i_f]) - 1.0     # permanent: full SS tail
+            p.tau_c = tau
+            prov["tau_c_food_0"] = float(tau[0, i_f])
+        if route in ("Z", "both"):
+            Z = np.array(p.Z, dtype=float)
+            Z[:, m_a] = Z[:, m_a] * (1.0 - yl)                              # ag-TFP hit (endogenous price)
+            p.Z = Z
+            prov["Z_natres_mult"] = float(1.0 - yl)
+        if food_cmin > 0:
+            cm = np.array(p.c_min, dtype=float)
+            cm[i_f] = float(food_cmin)            # food as a NECESSITY -> regressive incidence (Stone-Geary)
+            p.c_min = cm
+            prov["food_cmin"] = float(food_cmin)
+        return prov
+
+    def validate(self, ctx, active):
+        return ["food_price is EXTERNALLY driven: the live CLEWS emits no crop signal (PHL_LND_CRP=0; "
+                "only agricultural ENERGY demand), so yield_loss must come from IRRI/IFPRI climate-crop "
+                "data, not CLEWS. Food is ~35.7% of consumption -> high welfare leverage; set food_cmin>0 "
+                "for the regressive incidence. tau_c (price wedge) and Z (ag-TFP) are ALTERNATIVE "
+                "representations -- route='both' double-counts the same shock; pick one and compare."]
+
+
+# --- #10 climate (temperature) -> labor productivity + crop TFP -----------------
+
+class ClimateDamageChannel(Channel):
+    """Temperature damage to effective labor e (heat stress, ILO 'Working on a Warmer Planet') and to
+    agricultural TFP Z[NatRes] (crop heat sensitivity). EXTERNAL-DATA channel: CLEWS treats climate as
+    exogenous and applies the SAME physical climate to base and reform, so there is NO base-vs-reform
+    climate signal -- this is an ABSOLUTE level shock and is honest ONLY if applied to the BASELINE too
+    (else it reads as 'PEP causes climate damage', which is false). Use the temp path consistent with
+    the PEP emissions scenario."""
+    id = "climate_damage"
+    label = "Temperature -> labor productivity (e) + crop TFP (Z[NatRes])"
+    direction = POLICY
+    theory_status = "research"
+
+    def apply(self, ctx, temp_rise=2.0, labor_loss_per_deg=0.015, ag_loss_per_deg=0.08,
+              affects=("e", "Z"), exposed_J=None, phase_years=10):
+        c = ctx.country
+        p = ctx.og_reform
+        dT = float(temp_rise)
+        prov = {"temp_rise": dT, "affects": list(affects)}
+        if "e" in affects:
+            e = np.array(p.e, dtype=float)
+            T, S, J = e.shape
+            haircut = float(labor_loss_per_deg) * dT            # fractional labor-productivity loss
+            cols = list(range(J)) if exposed_J is None else [j for j in exposed_J if 0 <= j < J]
+            ramp = np.linspace(0.0, haircut, max(int(phase_years), 1))
+            for t in range(T):
+                h = ramp[t] if t < len(ramp) else haircut
+                for j in cols:
+                    e[t, :, j] *= (1.0 - h)
+            p.e = e
+            prov["labor_haircut"] = haircut
+            prov["exposed_J"] = cols
+        if "Z" in affects:
+            m_a = int(getattr(c.concordance, "agri_industry_index", 0))
+            Z = np.array(p.Z, dtype=float)
+            Z[:, m_a] = Z[:, m_a] * (1.0 - float(ag_loss_per_deg) * dT)
+            p.Z = Z
+            prov["ag_Z_mult"] = float(1.0 - float(ag_loss_per_deg) * dT)
+        return prov
+
+    def validate(self, ctx, active):
+        w = ["climate_damage is an ABSOLUTE level shock with NO CLEWS base-vs-reform signal (climate is "
+             "exogenous, identical across scenarios). It is honest ONLY if also applied to the baseline "
+             "(the Runner solves the baseline WITHOUT channels, so a reform-only application would read "
+             "as PEP-attributable climate damage -- it is NOT). Frame as 'both futures are poorer'."]
+        if "health" in active:
+            w.append("climate_damage + health: heat MORTALITY would route through the same disease_pop "
+                     "machinery -- reconcile cause-of-death accounting or double-count. This channel does "
+                     "labor (e) + crop (Z) only; do not also add an aggregate-GDP elasticity (it embeds both).")
+        return w
+
+
+# --- #11 water stress -> energy/ag cost-push (the strongest live CLEWS signal) ---
+
+class WaterStressChannel(Channel):
+    """The transition's WATER FOOTPRINT as a cost-push. Power-sector water demand is the LARGEST
+    reform-differential non-energy CLEWS signal in the live PEP run (PHL_DEM_PWR water ~5x surface /
+    ~12x groundwater by 2050). A rising water requirement raises the cost of provision in the
+    water-using industry -> a small TFP haircut Z[m] (default electricity), or routes a water-
+    infrastructure investment to alpha_I. Magnitudes ILLUSTRATIVE (no water-shadow-price bridge yet)."""
+    id = "water_stress"
+    label = "CLEWS water demand -> cost-push (Z) or water-infra investment (alpha_I)"
+    direction = CLEWS_TO_OG
+    theory_status = "research"
+
+    def apply(self, ctx, route="Z", elasticity=0.02, target_industry=None,
+              prefixes=("PHL_DEM_PWR",), invest_scale=0.5):
+        from .policy_levers import route_revenue
+        c = ctx.country
+        p = ctx.og_reform
+        ratio = signals.water_demand_ratio(c.scenario.base_dir, c.scenario.reform_dir, prefixes)
+        n = np.asarray(p.Z).shape[0]
+        rpath = _align_to_start(ratio, c.scenario.og_start_year, n)
+        excess = np.maximum(rpath - 1.0, 0.0)                 # fractional extra water the reform needs
+        prov = {"route": route, "elasticity": float(elasticity),
+                "mean_water_ratio": float(np.nanmean(ratio.values[:10])) if len(ratio) else 1.0,
+                "peak_excess": float(np.max(excess))}
+        if route == "Z":
+            m = int(target_industry) if target_industry is not None else c.concordance.energy_industry_index
+            haircut = float(elasticity) * excess              # cost-push -> TFP haircut on the water user
+            Z = np.array(p.Z, dtype=float)
+            Z[:, m] = Z[:, m] * (1.0 - haircut)
+            p.Z = Z
+            prov["industry"] = m
+            prov["peak_Z_haircut"] = float(np.max(haircut))
+        elif route == "alpha_I":                              # build water infrastructure to meet demand
+            prov.update(route_revenue(p, float(invest_scale) * elasticity * excess,
+                                      to="public_investment", fill_ss_tail=False))
+        return prov
+
+    def validate(self, ctx, active):
+        return ["water_stress reads the LARGEST live non-energy CLEWS signal (power-sector water demand), "
+                "but the OG entry is a design choice: a Z cost-push (no energy-in-production in OG yet) or "
+                "alpha_I water infrastructure. The water->cost elasticity is ILLUSTRATIVE pending a "
+                "water-shadow-price / cost bridge. Do not combine the Z route with energy_price on the "
+                "same industry without separating the operating-cost vs water-scarcity components."]
+
+
+# --- #12 household cooking air pollution (HAP) -> mortality/productivity ---------
+
+class CookingHealthChannel(Channel):
+    """Household air pollution from solid-fuel COOKING, via the same disease_pop machinery as the
+    `health` channel but driven by the SOLID-FUEL cooking share (BIOM+COAL+OIL) and a BIMODAL HAP age
+    profile (under-5 + elderly), distinct from ambient PM2.5 (elderly-skewed). A clean-cooking reform
+    (solid fuel -> LPG/electric) lowers the share -> fewer HAP deaths. NB: in the LIVE PEP pair the
+    signal is ~0 (biomass/coal cooking are identical base->reform; only electric cooking moves, and it
+    FALLS) and the cooking block is stylized (~100% solid fuel; PHL is heavily LPG) -- so this needs a
+    clean-cooking scenario + cooking-block recalibration to bite (see validate())."""
+    id = "cooking_health"
+    label = "Household cooking air pollution (HAP) -> mortality (disease_pop) / productivity"
+    direction = CLEWS_TO_OG
+    theory_status = "reduced_form"
+
+    # PLACEHOLDER total PHL HAP deaths/yr (order 10^4, declining as LPG access rises); real value is a
+    # GBD "Household air pollution from solid fuels" pull (rei ~87) -- see DATA.md. Do NOT report off it.
+    _PLACEHOLDER_HAP_DEATHS = 25_000.0
+
+    def apply(self, ctx, hap_deaths=None, solid_fuel_change=None, profile_path=None,
+              phase_years=5, morbidity_response=0.0, prod_J=7):
+        c = ctx.country
+        p = ctx.og_reform
+        ds = (float(solid_fuel_change) if solid_fuel_change is not None
+              else signals.cooking_solid_fuel_change(c.scenario.base_dir, c.scenario.reform_dir))
+        profile = (health_profile.load_profile(profile_path) if profile_path
+                   else health_profile.hap_profile())
+        total = float(hap_deaths) if hap_deaths is not None else self._PLACEHOLDER_HAP_DEATHS
+        if hap_deaths is None:
+            print(f"[guardrail] cooking_health: using PLACEHOLDER total HAP deaths "
+                  f"({self._PLACEHOLDER_HAP_DEATHS:,.0f}); supply a GBD HAP pull before reporting numbers.")
+        excess = total * ds                       # ds<0 (less solid fuel) -> lives saved (negative)
+        ctx.extras["health_shock"] = {"excess_deaths": float(excess), "profile": profile,
+                                      "phase_years": phase_years, "rc_ss": c.rc_ss}
+        prov = {"solid_fuel_change": ds, "hap_excess_deaths": float(excess),
+                "profile": "bimodal HAP (under-5 + elderly)" if profile_path is None else "file",
+                "inert_signal": abs(ds) < 1e-9}
+        if morbidity_response and "e" in dir(p):   # optional productivity co-benefit on e
+            e = np.array(p.e, dtype=float)
+            benefit = -float(morbidity_response) * ds
+            e[:, :, :prod_J] *= (1.0 + benefit)
+            p.e = e
+            prov["morbidity_benefit"] = benefit
+        return prov
+
+    def validate(self, ctx, active):
+        w = ["cooking_health reuses disease_pop but is driven by the SOLID-FUEL cooking share + a "
+             "BIMODAL HAP age profile (under-5 LRI/neonatal + elderly cardiopulmonary). In the live PEP "
+             "pair the signal is ~0 (biomass/coal cooking identical base->reform; cooking block is "
+             "stylized ~100% solid fuel vs PHL's heavy LPG) -- it needs a CLEAN-COOKING scenario + "
+             "cooking recalibration to produce a real effect. HAP is INDOOR personal exposure of "
+             "solid-fuel users: do NOT double-count with the `health` channel's ambient PM2.5 deaths."]
+        if "health" in active:
+            w.append("cooking_health + health both write ctx.extras['health_shock'] -> the LATER one "
+                     "wins (only one mortality recompute per solve). Run them in SEPARATE experiments, "
+                     "or combine the targets into one disease_pop call.")
+        return w
+
+
+# --- #13 LDC graduation -> trade-preference loss / financing cost / ODA ----------
+
+class LDCGraduationChannel(Channel):
+    """UN LDC graduation: loss of trade preferences (EBA/GSP -> higher export tariffs), concessional
+    finance ('dual graduation' -> higher borrowing cost), and LDC-targeted ODA. NOT APPLICABLE to the
+    Philippines (a lower-middle-income country, never an LDC) -> a no-op here unless the country is
+    flagged is_ldc or the caller acknowledges. Calibratable for an actual graduating LDC (Bangladesh /
+    Nepal / Lao PDR, 24 Nov 2026). Levers: a trade wedge (tau_c, single-good proxy for the EU-garment-
+    concentrated shock), world_int_rate up, alpha_G down (aid cut), phased over the smooth transition."""
+    id = "ldc_graduation"
+    label = "LDC graduation -> trade-preference loss, financing cost, ODA cut"
+    direction = POLICY
+    theory_status = "research"
+
+    def apply(self, ctx, trade_wedge=0.05, financing_bps=100.0, aid_cut_pct_gdp=0.01,
+              phase_years=5, acknowledge_non_ldc=False):
+        from .policy_levers import route_revenue
+        c = ctx.country
+        p = ctx.og_reform
+        if not (bool(getattr(c, "is_ldc", False)) or acknowledge_non_ldc):
+            print(f"[guardrail] ldc_graduation: {getattr(c, 'name', 'country')} is NOT flagged as an LDC "
+                  "(the Philippines never was) -- no-op. Set country.is_ldc=True or pass "
+                  "acknowledge_non_ldc=True to model a hypothetical graduation.")
+            return {"applied": False, "reason": "country not an LDC"}
+        i_t = int(getattr(c.concordance, "food_good_index", 0))   # tradable proxy (single-good map)
+        prov = {"applied": True, "trade_wedge": float(trade_wedge), "financing_bps": float(financing_bps),
+                "aid_cut_pct_gdp": float(aid_cut_pct_gdp)}
+        # (a) preference loss -> export-weighted tariff increase, as an ad-valorem consumption wedge
+        if trade_wedge:
+            tau = np.array(p.tau_c, dtype=float)
+            tau[:, i_t] = (1.0 + float(trade_wedge)) * (1.0 + tau[:, i_t]) - 1.0
+            p.tau_c = tau
+        # (b) loss of concessional finance -> higher world interest rate
+        if financing_bps:
+            wr0 = np.atleast_1d(np.asarray(getattr(p, "world_int_rate_annual", [0.04]), dtype=float))
+            p.world_int_rate_annual = list(wr0 + float(financing_bps) / 1e4)
+            prov["world_rate"] = float(np.mean(p.world_int_rate_annual))
+        # (c) ODA cut -> lower government consumption (alpha_G), phased over the smooth-transition window
+        if aid_cut_pct_gdp:
+            n = np.asarray(p.alpha_G).shape[0]
+            cut = np.zeros(n)
+            cut[: min(int(phase_years), n)] = -float(aid_cut_pct_gdp)
+            cut[min(int(phase_years), n):] = -float(aid_cut_pct_gdp)   # permanent loss
+            prov.update({"aid_route": route_revenue(p, cut, to="government_consumption")})
+        return prov
+
+    def validate(self, ctx, active):
+        return ["ldc_graduation is NOT applicable to the Philippines (never an LDC) -- it no-ops unless "
+                "is_ldc/acknowledge_non_ldc. For a real graduating LDC the levers are well-precedented "
+                "(WTO-EIF 2022; GTAP), but a single-good OG compresses the EU-garment-concentrated trade "
+                "shock into one wedge (lossy); calibrate the wedge to utilization-weighted preference "
+                "margins, not gross tariff lines."]
+
+
 def register_all():
     for cls in (EnergyPriceChannel, InvestmentChannel, CarbonChannel,
-                DiscountRateChannel, HealthChannel, DemandChannel):
+                DiscountRateChannel, HealthChannel, DemandChannel,
+                RemittancesChannel, DiasporaBondChannel, FoodPriceChannel,
+                ClimateDamageChannel, WaterStressChannel, CookingHealthChannel,
+                LDCGraduationChannel):
         try:
             register(cls())
         except ValueError:
