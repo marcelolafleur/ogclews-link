@@ -158,7 +158,8 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
         return []
     os.makedirs(out_dir, exist_ok=True)
 
-    col_labels = ["step", "Y %", "C %", "K %", "L %", "energy demand %", "cons-tax revenue %"]
+    col_labels = ["step", "Output %", "Consumption %", "Capital %", "Labor %",
+                  "Energy demand %", "Consumption-tax revenue %"]
     rows, cell_vals = [], []
     for r in solved:
         macro = r.get("macro", {}) or {}

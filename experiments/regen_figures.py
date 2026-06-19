@@ -45,8 +45,9 @@ SHARED_RUN = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/across_steps"
 
 DEFAULT_COUNTRY = "phl"
 # Caveats for the SHARED PHL run's assumptions. Override with --note for any other scenario.
-DEFAULT_NOTE = ("Illustrative: +20% energy-price wedge (a cost-index proxy, not the CLEWS dual); "
-                "investment/carbon magnitudes uncalibrated; carbon revenue not recycled.")
+DEFAULT_NOTE = ("Illustrative -- magnitudes are not to be taken literally: assumed ~20% higher energy cost "
+                "(a stand-in, not the energy model's detailed price path); investment and carbon sizes "
+                "uncalibrated; carbon-tax revenue is not returned to households.")
 
 # Neutral section names for the deck cover/contents (order ~ the figure groups below).
 _DECK_SECTIONS = ["Across-steps channel decomposition", "Macro & fiscal transition",
