@@ -51,8 +51,8 @@ def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15
     ax.axvspan(work_lo, work_hi, color="0.90", zorder=0)
     ax.plot(ages, hs, color=MORT, lw=2.4, zorder=3)
     ax.plot(ages[:len(gs)], gs, color=MORB, lw=2.4, zorder=3)
-    style.label_ends(ax, [(ages[-1], hs[-1], "mortality h(s)", MORT),
-                          (len(gs) - 1, gs[-1], "morbidity g(s)", MORB)], min_gap=0.07)
+    style.label_ends(ax, [(ages[-1], hs[-1], "death risk", MORT),
+                          (len(gs) - 1, gs[-1], "illness risk", MORB)], min_gap=0.07)
     # working-age contrast: morbidity vs mortality at the band midpoint
     mid = (work_lo + work_hi) // 2
     ax.annotate(f"at age {mid}, disability is ~{gs[mid] / max(hs[mid], 1e-9):.0f}× the death risk",
@@ -66,8 +66,8 @@ def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15
     ax.set_xlabel("age")
     ax.set_ylabel("attributable rate by age (peak = 1)")
     style.title_block(
-        fig, title="Who air pollution harms, by age: deaths vs disability",
-        subtitle="PM2.5 air-pollution death & disability rates by age, peak-normalized  ·  deaths vs disability",
+        fig, title="Air-pollution death and disability rates, by age",
+        subtitle="PM2.5 air-pollution death and illness rates by age  ·  each curve is scaled to its own peak, so this shows the age pattern, not the relative size of death vs illness risk",
         source=style.source_line(note, base=gbd_src), kicker="health: age profiles", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -108,7 +108,7 @@ def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
                     (ages[0] + 2, np.max(dist) * 0.82), fontsize=9, color=style.SUB, va="top")
     ax.set_xlim(ages[0] - 1, ages[-1] + 1)
     ax.set_xlabel("age")
-    ax.set_ylabel("share of avoided deaths (%)")
+    ax.set_ylabel("share of total avoided deaths, by age (bars sum to 100%)")
     style.title_block(
         fig, title=f"Deaths avoided, by age (peaks near {peak_age})",
         subtitle="Where the reform's avoided deaths fall, by age (from solved survival rates)",
@@ -173,7 +173,7 @@ def morbidity_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
         ax.axvline(retire_age, color=style.INK, lw=1.0, ls=(0, (4, 3)), zorder=3)
         ax.annotate(f"retirement ({retire_age})", (retire_age, ax.get_ylim()[1] * 0.92),
                     xytext=(6, 0), textcoords="offset points", fontsize=8.5, color=style.SUB, va="top")
-        ax.annotate(f"working-age band: {work_share:+.0f}% of the change",
+        ax.annotate(f"{work_share:.0f}% of the change lands on working-age people",
                     (ages[0] + 1, ax.get_ylim()[1] * 0.90), fontsize=9, color=style.SUB, va="top")
         # label the peak bar so the largest labeled magnitude sits on the visual mass
         peak_i = int(np.argmax(np.abs(dist)))
@@ -186,11 +186,11 @@ def morbidity_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
                     fontsize=8.5, color=style.SUB)
     ax.set_xlim(ages[0] - 1, ages[-1] + 1)
     ax.set_xlabel("age")
-    ax.set_ylabel("share of effective-labor change (%)")
+    ax.set_ylabel("share of the productivity change, by age (%)")
     yr_txt = f"transition year {year}" if year else f"transition row t={t}"
     style.title_block(
         fig, title="Where the reform changes worker productivity, by age",
-        subtitle=f"Worker-productivity change by age, averaged across income groups  ·  {yr_txt}",
+        subtitle=f"Worker-productivity change by age, averaged across income groups  ·  {yr_txt}  ·  the model assigns productivity at all ages but only working ages supply labor, so a post-retirement peak does not lift output",
         source=style.source_line(note), kicker="health: morbidity", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -268,8 +268,8 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     labs = ["mortality", "morbidity"]
 
     os.makedirs(out_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(6.4, 5.0))
-    fig.subplots_adjust(top=0.74, bottom=0.12, left=0.16, right=0.95)
+    fig, ax = plt.subplots(figsize=(7.2, 5.0))
+    fig.subplots_adjust(top=0.74, bottom=0.17, left=0.16, right=0.95)
     style.clean(ax)
     style.zero_line(ax)
     bars = ax.bar([0, 1], vals, width=0.56, color=[MORT, MORB], zorder=2)
@@ -281,8 +281,13 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     ax.set_xticklabels(labs)
     ax.margins(y=0.22)
     ax.set_ylabel("marginal contribution to GDP (%)")
+    # Mechanism note in the bottom margin (figure coords), clear of the source line at y=0.008.
+    fig.text(0.5, 0.05,
+             "fewer deaths means more retirees -- people who consume but no longer supply labor --\n"
+             "so the mortality channel's measured-GDP contribution can be negative; bar values are illustrative.",
+             ha="center", va="bottom", fontsize=8.0, color=style.SUB)
     style.title_block(
-        fig, title="Health policy's GDP contribution: fewer deaths vs less illness",
+        fig, title="Health policy's effect on GDP: from fewer deaths vs from less illness",
         subtitle=f"GDP contribution from the health policy  ·  net {mort + morb:+.4f}%",
         source=style.source_line(note), kicker="health: GDP split", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

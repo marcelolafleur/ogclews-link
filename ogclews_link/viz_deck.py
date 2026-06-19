@@ -117,8 +117,9 @@ def methods_card(layered, country, out_dir, *, note=None, name="methods_card"):
         # income-group definition
         heading("Income groups")
         if groups:
-            line(f"Households are split into {len(groups)} lifetime-income groups, ordered"
-                 " poorest to richest. Bracket labels are population-share percentiles:")
+            line(f"Households are split into {len(groups)} groups by how much they earn over"
+                 " their lifetime, poorest to richest; brackets are slices of the population,"
+                 " with the richest 1% in their own group:")
             # Wrap the bracket labels on the same width budget as the other body lines, so a
             # non-default J (more groups) or wider labels stay on-page instead of running off.
             line("  ".join(groups), color=style.INK, indent=sub_x + 0.012)
@@ -151,8 +152,9 @@ def methods_card(layered, country, out_dir, *, note=None, name="methods_card"):
 def summary_table(layered, out_dir, *, note=None, name="summary_table"):
     """The across-steps results as a table-as-figure: one row per solved step; columns Y%, C%,
     K%, L%, energy demand %, cons-tax revenue %. These are exactly the columns
-    figures.across_steps_table writes to CSV -- the same field selection, no new computation. Each
-    numeric cell is text-colored by its sign (style.signed convention: gains blue, losses red)."""
+    figures.across_steps_table writes to CSV -- the same field selection, no new computation.
+    Numeric cells use a single neutral ink; the +/- sign carries direction, color carries no
+    good/bad meaning (so falling energy demand, the policy goal, never reads as "bad")."""
     solved = _solved(layered)
     if not solved:
         return []
@@ -160,25 +162,26 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
 
     col_labels = ["step", "Output %", "Consumption %", "Capital %", "Labor %",
                   "Energy demand %", "Consumption-tax revenue %"]
-    rows, cell_vals = [], []
+    rows = []
     for r in solved:
         macro = r.get("macro", {}) or {}
         fiscal = r.get("fiscal", {}) or {}
         vals = [macro.get("Y"), macro.get("C"), macro.get("K"), macro.get("L"),
                 r.get("energy_demand_pct"), fiscal.get("cons_tax_revenue_pct")]
         rows.append([str(r.get("step", ""))] + [_fmt_pct(v) for v in vals])
-        cell_vals.append(vals)
 
-    fig, ax = plt.subplots(figsize=(9.6, 1.0 + 0.52 * (len(rows) + 1)))
+    fig, ax = plt.subplots(figsize=(12.0, 1.0 + 0.52 * (len(rows) + 1)))
     fig.subplots_adjust(top=0.74, bottom=0.10, left=0.045, right=0.965)
     ax.set_axis_off()
 
+    ncols = len(col_labels)
     table = ax.table(cellText=rows, colLabels=col_labels, cellLoc="right", loc="center")
     table.auto_set_font_size(False)
     table.set_fontsize(10)
+    # Size each column to its widest cell so the spelled-out headers (e.g. "Consumption-tax
+    # revenue %") get the room they need instead of colliding with the neighbour.
+    table.auto_set_column_width(col=list(range(ncols)))
     table.scale(1, 1.55)
-
-    ncols = len(col_labels)
     for (rr, cc), cell in table.get_celld().items():
         cell.set_edgecolor(style.GRID)
         cell.set_linewidth(0.7)
@@ -193,18 +196,10 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
             cell.set_edgecolor("#333333")
             continue
         cell.visible_edges = "B"
-        # sign-color the numeric body cells (cc>=1) by their underlying value
-        if cc >= 1:
-            v = cell_vals[rr - 1][cc - 1]
-            if v is not None:
-                try:
-                    f = float(v)
-                except (TypeError, ValueError):
-                    f = 0.0
-                color = style.LOSS if f < 0 else (style.GAIN if f > 0 else style.SUB)
-                cell.set_text_props(color=color)
-        else:
-            cell.set_text_props(color=style.INK)
+        # Numeric body cells carry no good/bad color encoding -- the +/- sign in the text
+        # already shows direction. A single neutral ink keeps falling energy demand (the
+        # policy goal) from reading as "bad".
+        cell.set_text_props(color=style.INK)
 
     # subtle banding for row legibility (data-ink stays low: faint, behind text)
     for rr in range(1, len(rows) + 1):
@@ -214,7 +209,8 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
 
     style.title_block(
         fig, title="Results as each policy is added",
-        subtitle="One row per policy step  ·  change (reform vs baseline, %)  ·  blue positive, red negative",
+        subtitle="One row per policy step  ·  long-run % change vs baseline"
+                 "  ·  the +/- sign shows direction; color carries no good/bad meaning",
         source=style.source_line(note), kicker="summary table", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -227,13 +223,16 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, name="cover"
     strings). States no result. If `fig_titles` is empty, just renders the cover."""
     cname = getattr(country, "name", None) or "country"
     titles = [str(t) for t in (fig_titles or []) if str(t).strip()]
+    titles = ["Welfare (who wins and loses)" if t == "Welfare (CEV)" else t
+              for t in titles]
 
     def draw(fig, ax):
         style.title_block(
             fig,
             title=f"{cname}: coupled OG-Core x CLEWS scenario",
-            subtitle="An OLG macro model (OG-Core) coupled to an energy-land-water system (CLEWS),"
-                     " shown one policy at a time.",
+            subtitle="A model of households over their whole life (OG-Core) linked to an energy,"
+                     " land and water system (CLEWS), one policy at a time."
+                     "  Illustrative -- magnitudes are not to be taken literally.",
             kicker="scenario deck", top=0.965)
 
         x, y = 0.045, 0.78

@@ -59,7 +59,7 @@ def _closure_line(ax, closure_year, yrs):
     if closure_year is None or not (yrs[0] <= closure_year <= yrs[-1]):
         return
     ax.axvline(closure_year, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=1.8)
-    ax.annotate("closure rule", (closure_year, ax.get_ylim()[1]), xytext=(4, -4),
+    ax.annotate("budget rule begins", (closure_year, ax.get_ylim()[1]), xytext=(4, -4),
                 textcoords="offset points", fontsize=8, color=style.SUB, va="top")
 
 
@@ -101,7 +101,7 @@ def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     _closure_line(ax, closure_year, yrs)
     style.title_block(
         fig, title=title,
-        subtitle=f"% change vs baseline, {yrs[0]}–{yrs[-1]}  ·  the long-run snapshot shows only the start of this path",
+        subtitle=f"% change vs baseline, {yrs[0]}–{yrs[-1]}  ·  shows how the economy gets there over time",
         source=style.source_line(note), kicker="macro transition", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 

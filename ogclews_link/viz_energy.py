@@ -36,6 +36,43 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 # --- helpers --------------------------------------------------------------------
 
+# Plain names for the power-generation technology tokens CLEWS exports use. The CLEWS
+# row labels are raw codes (e.g. "PHL_POW_PP_NUSMR"); these map the meaningful token to a
+# name a non-specialist reader recognizes. Unrecognized tokens fall back to the cleaned code.
+_POWER_TECH_NAMES = {
+    "NUSMR": "Nuclear (SMR)",
+    "WON": "Onshore wind",
+    "WOFF": "Offshore wind",
+    "SPV": "Solar PV",
+    "HYD": "Hydro",
+    "NGCC": "Gas (combined cycle)",
+    "NGGT": "Gas (turbine)",
+    "COAL": "Coal",
+    "OIL": "Oil",
+    "BIO": "Biomass",
+    "GEO": "Geothermal",
+    "NUC": "Nuclear",
+}
+
+
+def _plain_tech_label(token: str) -> str:
+    """Turn a raw CLEWS power-tech code into a plain name. Strips a leading country/power
+    prefix (e.g. "PHL_POW_PP_") and any trailing variant suffix (e.g. "_T1"), then maps the
+    remaining technology token to a plain name. Falls back to the cleaned token if the
+    technology is not recognized."""
+    cleaned = str(token).strip()
+    # strip a leading country/power prefix: everything up to and including the last "PP_",
+    # or failing that the conventional "<COUNTRY>_POW_" head.
+    upper = cleaned.upper()
+    if "PP_" in upper:
+        cleaned = cleaned[upper.rindex("PP_") + len("PP_"):]
+    elif "_POW_" in upper:
+        cleaned = cleaned[upper.index("_POW_") + len("_POW_"):]
+    # drop a trailing variant suffix (e.g. "_T1", "_1") so "WON_T1" maps on "WON"
+    core = cleaned.split("_")[0] if "_" in cleaned else cleaned
+    return _POWER_TECH_NAMES.get(core.upper(), cleaned.replace("_", " "))
+
+
 def _energy_good_index(country) -> int:
     """The OG consumption good households buy as energy -- read from the concordance, never
     hardcoded. The good is labeled by its 1-based index, energy highlighted by that index."""
@@ -117,7 +154,7 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
 
     style.label_ends(ax, ends, min_gap=0.08 * rng)
     ax.set_xlim(years[0], years[-1] + (years[-1] - years[0]) * 0.14)
-    ax.set_ylabel("reform / base energy-price ratio")
+    ax.set_ylabel("energy price vs baseline (1.0 = no change)")
 
     # subtitle carries only COMPUTED numbers; direction/magnitude are derived, never asserted
     sub = (f"Energy-system price ratio (reform vs baseline) ranges {rv.min():.2f} to {rv.max():.2f} "
@@ -131,7 +168,7 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
         fig, title="Energy-price signal: what the energy model produced vs what this run assumed",
         subtitle=sub,
         source=style.source_line(note, extra=cap),
-        kicker=f"energy price · good {i_e + 1}", top=0.965)
+        kicker="energy price", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -173,7 +210,7 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
     ypos = np.arange(len(vals))
     ax.barh(ypos, vals, color=style.signed(vals), zorder=2, height=0.72)
     ax.set_yticks(ypos)
-    ax.set_yticklabels(labels, fontsize=9)
+    ax.set_yticklabels([_plain_tech_label(t) for t in labels], fontsize=9)
     span = float(np.nanmax(np.abs(vals))) or 1.0
     for y, v in zip(ypos, vals):
         off = 0.012 * span * (1 if v >= 0 else -1)
@@ -193,7 +230,8 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
         subtitle=f"Cumulative change (reform vs baseline) across {len(vals)} power technologies  ·  "
                  f"net {vals.sum():+,.0f} MUSD",
         source=style.source_line(
-            note, extra="Model MUSD, no inflation adjustment applied (energy-model monetary units)"),
+            note, extra="Model units, not real pesos -- read the direction and relative size, "
+            "not the absolute amount"),
         kicker="investment · power sector", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -278,10 +316,10 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
                     fontsize=8.5, color=style.SUB)
     axes[-1].set_xlabel("year")
     style.title_block(
-        fig, title="Energy-system signals fed into the economy, over time",
+        fig, title="What we feed into the economy: energy prices, clean-energy investment, and emissions",
         subtitle="The energy-system signals over calendar years, before each policy step enters the economic model",
         source=style.source_line(
             note, extra="A policy step may reduce a year-by-year path to a single number "
             "(e.g. a flat price shock or a 10-year average) before it enters the economic model"),
-        kicker="clews → og signals", top=0.965)
+        kicker="CLEWS to OG signals", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

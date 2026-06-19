@@ -181,7 +181,7 @@ def income_composition_by_age(base_tpi, reform_tpi, base_params, out_dir, *, not
     Capped at ``max_age`` -- the final model ages are a terminal-period boundary (assets fully
     drawn down), not a lifecycle feature -- so those spikes do not set the scale."""
     comps = [("labor_income", "labor income"), ("capital_income", "capital income"),
-             ("bq", "bequests")]
+             ("bq", "income from inheritances")]
     lam = np.asarray(base_params.lambdas, float).ravel()
     E = int(np.atleast_1d(base_params.E).flat[0])
     series, ages = [], None
@@ -232,10 +232,15 @@ def income_composition_by_age(base_tpi, reform_tpi, base_params, out_dir, *, not
     style.mark_retirement(ax, base_params, label_top=True)
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.18)
     ax.set_xlabel("age")
-    ax.set_ylabel("income-component change vs baseline (%)")
+    ax.set_ylabel("change in income vs baseline (%)")
+    fig.text(0.045, 0.045,
+             "Note: income from inheritances is split equally across households in this run, so its "
+             "line is flat by design; it dips because fewer deaths leave fewer inheritances.",
+             fontsize=8.5, color=style.SUB, ha="left", va="bottom")
     style.title_block(
         fig, title="Change in income, by source and age",
-        subtitle="Labor, capital, and bequest income  ·  first-decade average, across income groups",
+        subtitle="Labor income, capital income, and income from inheritances  ·  first-decade average, "
+                 "across income groups",
         source=style.source_line(note),
         kicker="distribution: income sources", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

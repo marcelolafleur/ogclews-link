@@ -116,7 +116,11 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     ax.set_xticks(range(J))
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.margins(y=0.20)
-    ax.set_ylabel("consumption-equivalent variation (%)")
+    ax.set_ylabel("Lifetime welfare effect (%)")
+    fig.text(0.045, 0.045,
+             "Note: carbon-tax revenue is not returned to households in this run; "
+             "a design that returned it would change these results.",
+             fontsize=8.5, color=style.SUB, ha="left", va="bottom")
     style.title_block(
         fig, title="Lifetime welfare effect by income group",
         subtitle=f"Long-run welfare effect by income group, poorest to richest "
@@ -174,7 +178,7 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
     ax.set_xticks(x)
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.margins(y=0.20)
-    ax.set_ylabel("partial consumption-equivalent variation (%)")
+    ax.set_ylabel("lifetime welfare effect, by channel (%)")
     fin_c, fin_n = cev_c[np.isfinite(cev_c)], cev_n[np.isfinite(cev_n)]
     parts = []
     if fin_c.size:
@@ -182,9 +186,16 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
     if fin_n.size:
         parts.append(f"work mean {np.mean(fin_n):+.2f}%")
     means = "  ·  ".join(parts)
+    work_mean = float(np.mean(fin_n)) if fin_n.size else float("nan")
+    work_note = ("Note: the work-channel effect is about "
+                 f"{work_mean:+.2f}%, so its bars sit close to zero."
+                 if np.isfinite(work_mean) else
+                 "Note: the work-channel effect sits close to zero, so its bars are hard to see.")
+    fig.text(0.045, 0.045, work_note, fontsize=8.5, color=style.SUB, ha="left", va="bottom")
     style.title_block(
         fig, title="Lifetime welfare effect by income group: spending vs work",
-        subtitle="Solid = spending, hatched = work  ·  each on its own; the two don't sum to the total"
+        subtitle="Solid = spending, hatched = work  ·  each channel on its own; they don't add up to "
+                 "the full effect because the two interact"
                  + (f"  ·  {means}" if means else "") + "  ·  negative = worse off",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV decomposition", top=0.965)

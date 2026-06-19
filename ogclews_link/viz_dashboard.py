@@ -38,7 +38,7 @@ def _panel_emissions(ax, country):
                           (er.index[-1], er.values[-1], "reform", style.GAIN)], min_gap=0.0)
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.18)
     ax.set_ylabel(f"emissions ({country.co2_emission})")
-    ax.set_title("1 · Emissions: baseline vs reform")
+    ax.set_title("1 · Emissions: baseline vs reform (to 2050s)")
 
 
 def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
@@ -52,13 +52,13 @@ def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
     style.zero_line(ax)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.18)
     ax.set_ylabel("change vs baseline (%)")
-    ax.set_title("2 · The economy over time")
+    ax.set_title("2 · The economy over time (to 2100s)")
 
 
 def _panel_waterfall(ax, layered):
     solved = [r for r in layered if "macro" in r]
     if len(solved) < 2:  # a bridge needs at least two solved steps to span
-        ax.set_title("3 · What each policy adds to GDP")
+        ax.set_title("3 · Each policy's contribution to GDP")
         return
     labels = [r["step"].replace("+ ", "") for r in solved]
     yvals = [r["macro"]["Y"] for r in solved]
@@ -72,7 +72,7 @@ def _panel_waterfall(ax, layered):
     ax.set_xticklabels(labels, rotation=18, ha="right")
     ax.margins(y=0.16)
     ax.set_ylabel("GDP change (%)")
-    ax.set_title(f"3 · What each policy adds to GDP  ·  net {cum[-1]:+.3f}%")
+    ax.set_title(f"3 · Each policy's contribution to GDP  ·  net {cum[-1]:+.3f}%")
 
 
 def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
@@ -89,7 +89,7 @@ def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
     ax.set_xticks(range(J))
     ax.set_xticklabels(_labels(J), rotation=30, ha="right", fontsize=8)
     ax.margins(y=0.18)
-    ax.set_ylabel("lifetime CEV (%)")
+    ax.set_ylabel("Lifetime welfare effect (%)")
     ax.set_title("4 · Welfare by income group")
 
 
@@ -106,7 +106,7 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
     try:
         _panel_emissions(axes[0, 0], country)
     except Exception as e:  # noqa: BLE001 -- emissions needs the external CLEWS dir; degrade gracefully
-        axes[0, 0].set_title("1 · Emissions: baseline vs reform")
+        axes[0, 0].set_title("1 · Emissions: baseline vs reform (to 2050s)")
         axes[0, 0].text(0.5, 0.5, f"(emissions unavailable:\n{type(e).__name__})", ha="center",
                         va="center", transform=axes[0, 0].transAxes, color=style.MUTE, fontsize=9)
     _panel_macro(axes[0, 1], base_tpi, reform_tpi, start_year)
@@ -115,6 +115,6 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
 
     style.title_block(
         fig, title=f"{country.name}: coupled OG-Core × CLEWS scenario",
-        subtitle="Emissions · the economy over time · what each policy adds · who's affected",
+        subtitle="Emissions · the economy over time · each policy's contribution · who's affected",
         source=style.source_line(note), kicker="headline dashboard", top=0.975)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

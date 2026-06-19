@@ -189,10 +189,13 @@ def across_steps_waterfall(layered, out_dir, note=None):
             mort_marg = split["mortality"] - yvals[i - 1]
             morb_marg = (yvals[i] - yvals[i - 1]) - mort_marg
             segments[i] = [(mort_marg, style.CATEGORICAL[2], "mortality"),
-                           (morb_marg, style.CATEGORICAL[3], "morbidity")]
+                           (morb_marg, style.CATEGORICAL[3], "illness")]
+    gdp_subtitle = "Contribution to output as each policy step is added"
+    if segments:
+        gdp_subtitle += "  ·  mortality/illness split shown for the health bar only"
     saved = [_waterfall(yvals, labels,
-                        "What each policy step adds to output",
-                        "Contribution to output as each policy step is added",
+                        "Each policy step's contribution to output",
+                        gdp_subtitle,
                         "GDP change (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
                         segments=segments)]
     saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
@@ -261,13 +264,13 @@ def energy_physical(country, out_dir):
     style.label_ends(ax, [(eb.index[-1], eb.values[-1], "baseline", style.MUTE),
                           (er.index[-1], er.values[-1], "reform", style.GAIN)])
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.13)
-    ax.set_ylabel(f"emissions ({country.co2_emission})")
+    ax.set_ylabel(f"emissions ({country.co2_emission}, model units)")
     avoided = float(np.nansum((erb.values - er.values)))
     if np.isfinite(avoided) and abs(avoided) > 0:
         ymid = float(er.index[len(er) // 2])
         yv = float(np.nanmean([erb.values[len(er) // 2], er.values[len(er) // 2]]))
         word = "avoided" if avoided > 0 else "additional"
-        ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission}",
+        ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission} (model units)",
                     (ymid, yv), xytext=(6, 18), textcoords="offset points",
                     fontsize=8.5, color=style.TEAL, fontweight="medium")
     style.title_block(fig, title="Emissions: baseline vs reform",

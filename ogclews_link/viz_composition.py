@@ -118,7 +118,7 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     ax.margins(y=0.20)
     ax.set_ylabel("consumption change vs baseline (%)")
     fin = dev[np.isfinite(dev)]
-    parts = []
+    parts = ["model goods are composite categories; only the energy good is identified"]
     if fin.size:
         parts.append(f"range {np.min(fin):+.2f}% to {np.max(fin):+.2f}%")
     if energy0 is not None:
@@ -191,8 +191,11 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
         ax.set_xlim(lo - 0.16 * (span or 1.0), hi + 0.20 * (span or 1.0))
     ax.set_xlabel("change vs baseline (%)")
     ax.legend(loc="upper left", frameon=False, fontsize=8.5)
-    sub = (f"* marks the energy industry (sector {energy0 + 1})" if energy0 is not None
-           else "Output, capital, and jobs, one cluster per industry")
+    sub = "model sectors are composite industries; only the energy industry is identified"
+    if energy0 is not None:
+        sub += f"  ·  * marks the energy industry (sector {energy0 + 1})"
+    else:
+        sub += "  ·  output, capital, and jobs, one cluster per industry"
     style.title_block(
         fig, title="Long-run change by industry: output, capital, jobs",
         subtitle=sub, source=style.source_line(note),
@@ -265,7 +268,8 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
         ax.set_title(glab[j] if j < len(glab) else f"group {j + 1}")
         if ai == 0:
             ax.set_ylabel("consumption change vs baseline (%)")
-    sub = "Year-0 change in spending by type of good, for the poorest / middle / richest group"
+    sub = ("Year-0 change in spending by type of good, for the poorest / middle / richest group"
+           "  ·  model goods are composite categories; only the energy good is identified")
     if energy0 is not None:
         sub += f"  ·  * marks the energy good (good {energy0 + 1})"
     style.title_block(
