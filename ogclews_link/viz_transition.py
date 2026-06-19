@@ -69,7 +69,7 @@ def _closure_line(ax, closure_year, yrs):
 # --- the hero: macro aggregates over the transition ------------------------------
 
 def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
-                     params=None, title="The economy over time (output, consumption, capital, labor)",
+                     params=None, title="The economy over time, vs baseline (output, consumption, capital, labor)",
                      name="macro_transition"):
     """Y/C/K/L % deviation from baseline across the transition, calendar-year x-axis, lines
     direct-labeled at their right ends. The largest GDP deviation is marked -- the path can be
@@ -160,31 +160,37 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
 
 def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
                        params=None, name="revenue_transition"):
-    """Consumption/energy-tax revenue % deviation from baseline across the transition."""
-    if "cons_tax_revenue" not in base_tpi or "cons_tax_revenue" not in reform_tpi:
+    """Consumption-tax revenue (the carbon tax flows through it) as a share of GDP, baseline AND
+    reform LEVELS across the transition -- not just the change -- so the absolute paths and the gap
+    between them both read. Closure-rule marker; capped to the closure window."""
+    if not all("cons_tax_revenue" in t and "Y" in t for t in (base_tpi, reform_tpi)):
         return []
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
-    n = _clamp_n(hz, base_tpi, reform_tpi, "cons_tax_revenue")
+    n = _clamp_n(hz, base_tpi, reform_tpi, "cons_tax_revenue", "Y")
     yrs = _years(start_year, n)
-    dev = _pct_path(base_tpi, reform_tpi, "cons_tax_revenue", n)
-    meandev = float(np.nanmean(dev))
+
+    def _share(tpi):  # revenue as % of GDP (a level, comparable across base/reform)
+        rev = np.asarray(tpi["cons_tax_revenue"], dtype=float)[:n]
+        gdp = np.asarray(tpi["Y"], dtype=float)[:n]
+        return 100.0 * rev / np.where(gdp == 0, np.nan, gdp)
+
+    rb, rr = _share(base_tpi), _share(reform_tpi)
     fig, ax = plt.subplots(figsize=(8.0, 4.8))
-    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.09, right=0.94)
-    style.clean(ax)
-    style.zero_line(ax)
-    ax.plot(yrs, dev, color=style.CATEGORICAL[2], lw=2.4, zorder=2)
-    ax.fill_between(yrs, 0, dev, color=style.CATEGORICAL[2], alpha=0.10, zorder=1)
-    ax.set_xlim(yrs[0], yrs[-1])
-    ax.set_ylim(0, float(np.nanmax(dev)) * 1.35)  # headroom so the line isn't jammed at the top
-    ax.annotate(f"~{meandev:+.1f}% vs baseline, on average", (yrs[len(yrs) // 2], dev[len(dev) // 2]),
-                xytext=(0, 14), textcoords="offset points", ha="center", fontsize=9,
-                color=style.TEAL, fontweight="medium")
-    ax.set_ylabel("revenue change vs baseline (%)")
+    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.10, right=0.88)
+    style.clean(ax, left=True)
+    ax.plot(yrs, rb, color=style.MUTE, lw=2.2, zorder=2)
+    ax.plot(yrs, rr, color=style.CATEGORICAL[2], lw=2.4, zorder=3)
+    ax.fill_between(yrs, rb, rr, color=style.CATEGORICAL[2], alpha=0.10, zorder=1)
+    rng = float(np.nanmax(np.concatenate([rb, rr])) - np.nanmin(np.concatenate([rb, rr]))) or 1.0
+    style.label_ends(ax, [(yrs[-1], rb[-1], "baseline", style.MUTE),
+                          (yrs[-1], rr[-1], "reform", style.CATEGORICAL[2])], min_gap=0.08 * rng)
+    ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.14)
+    ax.set_ylabel("consumption-tax revenue (% of GDP)")
     _closure_line(ax, closure_year, yrs)
     style.title_block(
-        fig, title="Consumption-tax revenue over time",
-        subtitle="Consumption-tax revenue, % change vs baseline",
+        fig, title="Consumption-tax revenue over time (incl. carbon)",
+        subtitle=f"Revenue as a share of GDP, baseline vs reform, {yrs[0]}-{yrs[-1]}",
         source=style.source_line(note), kicker="carbon revenue", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 

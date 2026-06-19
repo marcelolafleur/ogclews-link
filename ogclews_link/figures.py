@@ -143,14 +143,12 @@ def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
     fig.subplots_adjust(top=0.76, bottom=0.17, left=0.11, right=0.95)
     style.clean(ax)
     style.zero_line(ax)
-    seg_handles = {}
     for i, m in enumerate(marg):
         if i in segments:                              # stacked sub-parts that sum to this marginal
             base = cum[i]
             for val, color, lab in segments[i]:
                 ax.bar(i, val, bottom=base, color=color, width=0.62, zorder=2,
                        edgecolor="white", linewidth=0.6)
-                seg_handles.setdefault(lab, color)
                 base += val
         else:
             ax.bar(i, m, bottom=cum[i], color=GAIN if m >= 0 else LOSS, width=0.62, zorder=2)
@@ -163,15 +161,22 @@ def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(labels, rotation=15, ha="right")
     ax.set_ylabel(ylabel)
-    ax.margins(x=0.06, y=0.13)  # footroom so the smallest marginal label clears the axis rule
-    from matplotlib.patches import Patch
-    if seg_handles:
-        ax.legend([Patch(facecolor=c) for c in seg_handles.values()], list(seg_handles),
-                  loc="upper left", frameon=False, fontsize=8.5)
-    else:  # state the sign-color key so blue/red bars read without the caption
-        ax.legend([Patch(facecolor=GAIN), Patch(facecolor=LOSS)], ["positive", "negative"],
-                  loc="upper left", frameon=False, fontsize=8.5)
-    style.title_block(fig, title=title, subtitle=f"{subtitle}  ·  net {cum[-1]:+.3f}%",
+    ax.margins(x=0.06, y=0.22)  # headroom for the net label + any segment callout
+    y0, y1 = ax.get_ylim()
+    # Label the mortality/illness split DIRECTLY on the bar it belongs to, with a leader -- not a
+    # global legend (which wrongly implies every bar is split, and its teal swatch reads like the
+    # blue bars). seg_handles drives whether there is anything to call out.
+    for i, segs in segments.items():
+        ytxt = cum[i + 1] + 0.06 * (y1 - y0)
+        ax.annotate("", xy=(i, cum[i + 1]), xytext=(i - 0.45, ytxt),
+                    arrowprops=dict(arrowstyle="-", color="#BBBBBB", lw=0.8), zorder=4)
+        for k, (val, color, lab) in enumerate(segs):
+            ax.text(i - 0.45, ytxt + k * 0.052 * (y1 - y0), f"{lab} {val:+.3f}", color=color,
+                    fontsize=8.5, fontweight="medium", ha="center", va="bottom", zorder=4)
+    # Net effect shown IN the figure (top-left), not in the title.
+    ax.text(0.015, 0.97, f"net {cum[-1]:+.3f}%", transform=ax.transAxes, fontsize=10.5,
+            fontweight="bold", color=style.INK, va="top", ha="left")
+    style.title_block(fig, title=title, subtitle=subtitle,
                       source=style.source_line(note), kicker=kicker, top=0.965)
     return style.save(fig, out_path)
 
@@ -193,18 +198,15 @@ def across_steps_waterfall(layered, out_dir, note=None):
             morb_marg = (yvals[i] - yvals[i - 1]) - mort_marg
             segments[i] = [(mort_marg, style.CATEGORICAL[2], "mortality"),
                            (morb_marg, style.CATEGORICAL[3], "illness")]
-    gdp_subtitle = "Contribution to output as each policy step is added"
-    if segments:
-        gdp_subtitle += "  ·  mortality/illness split shown for the health bar only"
     saved = [_waterfall(yvals, labels,
-                        "Each policy step's contribution to output",
-                        gdp_subtitle,
-                        "GDP change (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
+                        "What each scenario adds to output, vs baseline",
+                        "Contribution as each scenario is layered on  ·  first 10 years (2026-2035)",
+                        "GDP change vs baseline (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
                         segments=segments)]
     saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
-                            "Each policy step's contribution for the poorest group",
-                            "Contribution to the welfare effect for the poorest 25%",
-                            "consumption change (%)",
+                            "What each scenario adds for the poorest group, vs baseline",
+                            "Welfare effect for the poorest 25%  ·  first 10 years (2026-2035)",
+                            "consumption change vs baseline (%)",
                             os.path.join(out_dir, "waterfall_poorest.png"), note))
     return saved
 
@@ -245,10 +247,13 @@ def macro_honest(layered, out_dir, ylim=0.5, note=None):
 
 # --- the physical energy side (a CLEWS linkage must show the energy system) -------
 
-def energy_physical(country, out_dir):
+def energy_physical(country, out_dir, *, illustrative=True):
     """CLEWS emissions, reform vs baseline (the transition's physical signal), lines
-    direct-labeled and the avoided-emissions wedge called out."""
+    direct-labeled and the avoided-emissions wedge called out. `illustrative` gates the
+    "model units" disclosure (dropped once the emissions are calibrated to real tonnes)."""
     from . import signals
+
+    units = " (model units)" if illustrative else ""
 
     os.makedirs(out_dir, exist_ok=True)
     try:
@@ -267,13 +272,13 @@ def energy_physical(country, out_dir):
     style.label_ends(ax, [(eb.index[-1], eb.values[-1], "baseline", style.MUTE),
                           (er.index[-1], er.values[-1], "reform", style.GAIN)])
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.13)
-    ax.set_ylabel(f"emissions ({country.co2_emission}, model units)")
+    ax.set_ylabel(f"emissions ({country.co2_emission}{units})")
     avoided = float(np.nansum((erb.values - er.values)))
     if np.isfinite(avoided) and abs(avoided) > 0:
         ymid = float(er.index[len(er) // 2])
         yv = float(np.nanmean([erb.values[len(er) // 2], er.values[len(er) // 2]]))
         word = "avoided" if avoided > 0 else "additional"
-        ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission} (model units)",
+        ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission}{units}",
                     (ymid, yv), xytext=(6, 26), textcoords="offset points",
                     fontsize=8.5, color=style.TEAL, fontweight="medium", zorder=5,
                     bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8))

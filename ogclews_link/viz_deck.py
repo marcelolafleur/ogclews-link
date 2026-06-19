@@ -186,7 +186,7 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
         prev = cv
     # Total = the full-reform cumulative (the last step's stored values; equals the marginal sum).
     total_idx = len(rows) + 1  # +1 for the header row
-    rows.append(["All policies (total)"] + [_fmt_pct(v) for v in cum[-1]])
+    rows.append(["All scenarios (total)"] + [_fmt_pct(v) for v in cum[-1]])
 
     fig, ax = plt.subplots(figsize=(10.0, 1.4 + 0.62 * (len(rows) + 1)))
     fig.subplots_adjust(top=0.74, bottom=0.10, left=0.045, right=0.965)
@@ -232,23 +232,25 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
                 table[(rr, cc)].set_facecolor("#FAFAFA")
 
     style.title_block(
-        fig, title="What each policy step contributes",
-        subtitle="Average % change vs baseline over the first 10 years  ·  each row is that policy's "
-                 "own (marginal) contribution; the last line is all policies combined",
+        fig, title="Contribution of each scenario over the first 10 years (2026-2035)",
+        subtitle="Average % change vs baseline  ·  each row is that scenario's own (marginal) "
+                 "contribution; the last line is all scenarios combined",
         source=style.source_line(note), kicker="summary table", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
 # --- (3) cover page --------------------------------------------------------------
 
-def cover_page(layered, country, fig_titles, out_dir, *, note=None, name="cover"):
-    """The deck's title page: country name + scenario headline (country.name only -- no result
-    word), and a contents list of the section/figure titles passed in via `fig_titles` (a list of
-    strings). States no result. If `fig_titles` is empty, just renders the cover."""
+def cover_page(layered, country, fig_titles, out_dir, *, note=None, illustrative=True, name="cover"):
+    """The deck's title page: country name + scenario headline, a plain-language statement of the
+    scenario (the four layered changes with their magnitudes, and what the health channel is), and
+    a contents list of the section titles in `fig_titles`. `illustrative` gates the
+    "illustrative/assumed/stand-in" qualifiers on the magnitudes. States no result."""
     cname = getattr(country, "name", None) or "country"
     titles = [str(t) for t in (fig_titles or []) if str(t).strip()]
-    titles = ["Welfare (who wins and loses)" if t == "Welfare (CEV)" else t
-              for t in titles]
+    a = "an assumed " if illustrative else "a "          # illustrative qualifiers, gated
+    standin = " (a flat stand-in for the energy model's own price path)" if illustrative else ""
+    tag = "  (illustrative magnitudes)" if illustrative else ""
 
     def draw(fig, ax):
         style.title_block(
@@ -268,12 +270,18 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, name="cover"
                 y -= 0.031
             y -= gap
 
-        # Plain-language statement of the scenario, with the health channel spelled out.
+        # Plain-language statement of the scenario: the four layered changes WITH their magnitudes,
+        # and what the health channel is. (Illustrative qualifiers gated by `illustrative`.)
         para("The scenario", bold=True, size=11.5, color=style.INK)
-        para("Four policies are layered onto the economy, one at a time: a higher energy price, "
-             "clean-energy investment, a carbon tax, and a health channel.")
-        para("The health channel: cleaner air means fewer pollution deaths and less illness, so "
-             "people live and work longer -- and this run adds that to the economy.")
+        para(f"Four changes are layered onto the economy, one at a time{tag}:")
+        para(f"1.  Energy price -- {a}+20% rise in the price of the energy good{standin}.",
+             color=style.INK)
+        para("2.  Clean-energy investment -- the energy model's grid and generation capex, "
+             "added to public investment.", color=style.INK)
+        para(f"3.  Carbon tax -- {a}$50 per tonne of CO2, charged on the energy good.",
+             color=style.INK)
+        para("4.  Health -- cleaner air means fewer pollution deaths and less illness, so people "
+             "live and work longer; derived from the emissions change.", color=style.INK)
         y -= 0.020
 
         if titles:

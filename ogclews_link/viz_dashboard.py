@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from .figures import _bridge, _labels  # noqa: E402
 
 
-def _panel_emissions(ax, country):
+def _panel_emissions(ax, country, illustrative=True):
     from . import signals
     eb = signals.emissions_by_year(country.scenario.base_dir, country)
     er = signals.emissions_by_year(country.scenario.reform_dir, country)
@@ -36,13 +36,25 @@ def _panel_emissions(ax, country):
     ax.fill_between(er.index, erb.values, er.values, color=style.GAIN, alpha=0.12, zorder=1)
     style.label_ends(ax, [(eb.index[-1], eb.values[-1], "base", style.MUTE),
                           (er.index[-1], er.values[-1], "reform", style.GAIN)], min_gap=0.0)
+    # the headline number: cumulative avoided emissions (worth showing, as in earlier versions)
+    avoided = float(np.nansum(erb.values - er.values))
+    if np.isfinite(avoided) and abs(avoided) > 0:
+        units = " (model units)" if illustrative else ""
+        word = "avoided" if avoided > 0 else "added"
+        ax.annotate(f"cumulative {word} ≈ {abs(avoided):,.0f} {country.co2_emission}{units}",
+                    (0.03, 0.95), xycoords="axes fraction", ha="left", va="top",
+                    fontsize=8.5, color=style.TEAL, fontweight="medium")
+    yr0, yr1 = int(eb.index[0]), int(er.index[-1])
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.18)
     ax.set_ylabel(f"emissions ({country.co2_emission})")
-    ax.set_title("1 · Emissions: baseline vs reform (to 2050s)")
+    ax.set_title(f"1 · Emissions: baseline vs reform ({yr0}-{yr1})")
 
 
-def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
-    n = min(n_years, len(np.asarray(base_tpi["Y"])))
+def _panel_macro(ax, base_tpi, reform_tpi, start_year, params=None, n_years=80):
+    # Clamp to the closure window and mark where the budget rule begins -- same as the standalone
+    # macro figure. We don't plot the long forced-closure glide (it's not the interesting part).
+    closure_year, hz = viz_transition._closure_window(params, start_year, n_years)
+    n = viz_transition._clamp_n(hz, base_tpi, reform_tpi, "Y", "C")
     yrs = viz_transition._years(start_year, n)
     for v, lab, c in (("Y", "GDP", style.CATEGORICAL[0]), ("C", "consumption", style.CATEGORICAL[1])):
         d = viz_transition._pct_path(base_tpi, reform_tpi, v, n)
@@ -51,14 +63,15 @@ def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
                     color=c, fontsize=9.5, fontweight="medium", va="center")
     style.zero_line(ax)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.18)
+    viz_transition._closure_line(ax, closure_year, yrs)
     ax.set_ylabel("change vs baseline (%)")
-    ax.set_title("2 · The economy over time (to 2100s)")
+    ax.set_title(f"2 · The economy over time ({yrs[0]}-{yrs[-1]})")
 
 
 def _panel_waterfall(ax, layered):
     solved = [r for r in layered if "macro" in r]
     if len(solved) < 2:  # a bridge needs at least two solved steps to span
-        ax.set_title("3 · Each policy's contribution to GDP")
+        ax.set_title("3 · Each scenario's contribution to GDP")
         return
     labels = [r["step"].replace("+ ", "") for r in solved]
     yvals = [r["macro"]["Y"] for r in solved]
@@ -70,9 +83,11 @@ def _panel_waterfall(ax, layered):
     style.zero_line(ax)
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels(labels, rotation=18, ha="right")
-    ax.margins(y=0.16)
-    ax.set_ylabel("GDP change (%)")
-    ax.set_title(f"3 · Each policy's contribution to GDP  ·  net {cum[-1]:+.3f}%")
+    ax.margins(y=0.22)
+    ax.set_ylabel("GDP change vs baseline (%)")
+    ax.text(0.03, 0.96, f"net {cum[-1]:+.3f}%", transform=ax.transAxes, fontsize=9.5,
+            fontweight="bold", color=style.INK, va="top", ha="left")  # net IN the panel, not the title
+    ax.set_title("3 · Each scenario's contribution to GDP  ·  first 10 years")
 
 
 def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
@@ -89,32 +104,33 @@ def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
     ax.set_xticks(range(J))
     ax.set_xticklabels(_labels(J), rotation=30, ha="right", fontsize=8)
     ax.margins(y=0.18)
-    ax.set_ylabel("Lifetime welfare effect (%)")
-    ax.set_title("4 · Welfare by income group")
+    ax.set_ylabel("lifetime welfare change vs baseline (%)")
+    ax.set_title("4 · Welfare change from baseline, by income group  ·  long-run")
 
 
 def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_params,
                        reform_params, country, out_dir, *, start_year, note=None,
-                       name="headline_dashboard"):
+                       illustrative=True, name="headline_dashboard"):
     """The whole coupled run on one slide: emissions, macro dynamics, channel decomposition, welfare."""
     os.makedirs(out_dir, exist_ok=True)
     fig, axes = plt.subplots(2, 2, figsize=(12.6, 9.4))
-    fig.subplots_adjust(top=0.82, bottom=0.085, left=0.075, right=0.965, hspace=0.42, wspace=0.22)
+    fig.subplots_adjust(top=0.80, bottom=0.085, left=0.075, right=0.965, hspace=0.42, wspace=0.22)
     for ax in axes.ravel():
         style.clean(ax, left=True)
 
     try:
-        _panel_emissions(axes[0, 0], country)
+        _panel_emissions(axes[0, 0], country, illustrative=illustrative)
     except Exception as e:  # noqa: BLE001 -- emissions needs the external CLEWS dir; degrade gracefully
-        axes[0, 0].set_title("1 · Emissions: baseline vs reform (to 2050s)")
+        axes[0, 0].set_title("1 · Emissions: baseline vs reform")
         axes[0, 0].text(0.5, 0.5, f"(emissions unavailable:\n{type(e).__name__})", ha="center",
                         va="center", transform=axes[0, 0].transAxes, color=style.MUTE, fontsize=9)
-    _panel_macro(axes[0, 1], base_tpi, reform_tpi, start_year)
+    _panel_macro(axes[0, 1], base_tpi, reform_tpi, start_year, base_params)
     _panel_waterfall(axes[1, 0], layered)
     _panel_cev(axes[1, 1], base_ss, reform_ss, base_params, reform_params)
 
+    # No deck-level subtitle: each panel titles itself, and a subtitle here reads as if it
+    # describes only panel 1.
     style.title_block(
         fig, title=f"{country.name}: coupled OG-Core × CLEWS scenario",
-        subtitle="Emissions · the economy over time · each policy's contribution · who's affected",
         source=style.source_line(note), kicker="headline dashboard", top=0.975)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

@@ -53,31 +53,29 @@ DEFAULT_NOTE = ("Illustrative -- magnitudes are not to be taken literally: assum
 # the x-axis label, so the detail lives on the cover.
 FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally."
 
-# Neutral section names for the deck cover/contents (order ~ the figure groups below).
-_DECK_SECTIONS = ["Across-steps channel decomposition", "Macro & fiscal transition",
-                  "Energy-system linkage", "Health channel", "Welfare (CEV)",
-                  "Distribution & composition"]
-
-# index.html portal: each deck section -> the figure basenames it groups (the cover and per-step
-# incidence are added automatically by report_html.write_index). Only files that exist are shown,
-# so a partial run degrades gracefully. Mirrors _DECK_SECTIONS in order.
+# index.html / cover organization: a reading order of headline -> how the scenario is built ->
+# detailed results. Each section maps to the figure basenames it groups (cover + per-step incidence
+# are added automatically by report_html.write_index). Only files that exist are shown, so a partial
+# run degrades gracefully.
 _INDEX_SECTIONS = [
-    ("Across-steps channel decomposition",
-     ["summary_table", "waterfall_gdp", "waterfall_poorest", "headline_dashboard"]),
-    ("Macro & fiscal transition",
+    ("Headline",
+     ["headline_dashboard", "summary_table", "waterfall_gdp", "waterfall_poorest"]),
+    ("How the scenario is built",
+     ["channel_inputs", "clews_signal_vs_applied", "capex_by_technology", "emissions_path"]),
+    ("Macro & fiscal detail",
      ["macro_transition", "fiscal_transition", "revenue_transition", "rates_transition",
       "public_investment"]),
-    ("Energy-system linkage",
-     ["clews_signal_vs_applied", "capex_by_technology", "channel_inputs", "emissions_path"]),
     ("Health channel",
      ["health_age_profiles", "health_mortality_by_age", "health_morbidity_by_age",
       "health_demography", "health_gdp_split"]),
-    ("Welfare (who wins and loses)",
+    ("Welfare -- who wins and loses",
      ["welfare_cev_by_group", "welfare_cev_decomposition", "welfare_cev_by_age"]),
     ("Distribution & composition",
      ["consumption_by_age", "asset_by_age", "income_composition_by_age", "consumption_by_good",
       "consumption_by_good_by_group", "sectoral_reallocation", "energy_by_income"]),
 ]
+# Cover contents list mirrors the index section order (single source of truth).
+_DECK_SECTIONS = [title for title, _ in _INDEX_SECTIONS]
 
 
 def _resolve(cli_val, env_key, default):
@@ -157,12 +155,19 @@ def _slug(label):
     return label.strip().lstrip("+ ").replace(" ", "_") or "step"
 
 
-def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, note=DEFAULT_NOTE):
+def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, note=DEFAULT_NOTE,
+                  illustrative=True):
     """Rebuild the full figure set for `country` from the solved pickles under `run_dir`,
-    writing to `fig_dir`. `headline_step` None -> auto-detect (last layered step)."""
+    writing to `fig_dir`. `headline_step` None -> auto-detect (last layered step).
+
+    `illustrative` (default True) is the single switch for the placeholder phase: while True the
+    charts carry the short caveat and the unit-labelled "model units" disclosures; flip it to False
+    once the run is calibrated and every figure drops that language with no per-figure edits."""
     os.makedirs(fig_dir, exist_ok=True)
-    # Charts carry the one-line FIG_CAVEAT; the methods card and cover carry the full `note`.
-    full_note, note = note, FIG_CAVEAT
+    # Charts carry the one-line FIG_CAVEAT; the cover carries the full `note`. Both empty when the
+    # run is calibrated (illustrative=False), so the caveat language lives in ONE place.
+    full_note = note if illustrative else ""
+    note = FIG_CAVEAT if illustrative else ""
     ie = country.concordance.energy_good_index
     with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
         layered = json.load(f)
@@ -174,7 +179,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
 
     # --- top-level figures (across steps) ---------------------------------------
     _try(figures.across_steps_waterfall, layered, fig_dir, note=note)
-    _try(figures.energy_physical, country, fig_dir)
+    _try(figures.energy_physical, country, fig_dir, illustrative=illustrative)
     _try(figures.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
     _try(report_html.write_html_report, layered, os.path.join(fig_dir, "report.html"))
 
@@ -208,10 +213,12 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     ep_params = _params(run_dir, layered[0]["step"]) if layered else None
     ep_ref = ep_params if ep_params is not None else headline_params
     if base_params is not None and ep_ref is not None:
-        _try(viz_energy.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note)
-    _try(viz_energy.capex_by_technology, country, fig_dir, note=note)
+        _try(viz_energy.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note,
+             illustrative=illustrative)
+    _try(viz_energy.capex_by_technology, country, fig_dir, note=note, illustrative=illustrative)
     if base_tpi is not None:
-        _try(viz_energy.channel_inputs_over_time, country, base_tpi, fig_dir, note=note)
+        _try(viz_energy.channel_inputs_over_time, country, base_tpi, fig_dir, note=note,
+             illustrative=illustrative)
 
     # --- health-channel visuals -------------------------------------------------
     if gbd_csv and os.path.isfile(gbd_csv):
@@ -220,7 +227,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
         _try(viz_health.mortality_by_age, base_params, headline_params, fig_dir, note=note)
         _try(viz_health.morbidity_by_age, base_params, headline_params, fig_dir, note=note)
         _try(viz_health.demographic_transition_by_age, base_params, headline_params, fig_dir, note=note)
-    _try(viz_health.gdp_split, layered, fig_dir, note=note)
+    _try(viz_health.gdp_split, layered, fig_dir, note=note, illustrative=illustrative)
 
     # --- welfare: consumption-equivalent variation (CEV) ------------------------
     headline_ss = _ss(run_dir, headline_step)  # base_ss loaded once above
@@ -252,13 +259,15 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     # --- one-page headline dashboard --------------------------------------------
     if None not in (base_tpi, headline_tpi, base_ss, headline_ss, base_params, headline_params):
         _try(viz_dashboard.headline_dashboard, layered, base_tpi, headline_tpi, base_ss, headline_ss,
-             base_params, headline_params, country, fig_dir, start_year=start_year, note=note)
+             base_params, headline_params, country, fig_dir, start_year=start_year, note=note,
+             illustrative=illustrative)
 
     # --- deck front matter & at-a-glance summary --------------------------------
     # The cover carries the FULL caveat + the plain-language scenario description; summary_table is
     # a chart-like page (short caveat).
     _try(viz_deck.summary_table, layered, fig_dir, note=note)
-    _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note)
+    _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note,
+         illustrative=illustrative)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []
@@ -293,6 +302,8 @@ def main(argv=None):
     ap.add_argument("--headline-step", help="reform step for transition/welfare/dashboard figures "
                                             "(default: last step in layered_results.json)")
     ap.add_argument("--note", help="honest caveat caption stamped on every figure")
+    ap.add_argument("--calibrated", action="store_true",
+                    help="drop the illustrative/model-units caveats (use once results are real)")
     args = ap.parse_args(argv)
 
     country = _resolve_country(_resolve(args.country, "OGCLEWS_COUNTRY", DEFAULT_COUNTRY))
@@ -304,7 +315,9 @@ def main(argv=None):
     note = _resolve(args.note, "OGCLEWS_NOTE", DEFAULT_NOTE)
     headline_step = _resolve(args.headline_step, "OGCLEWS_HEADLINE_STEP", None)  # None -> auto-detect
 
-    build_figures(country, run_dir, fig_dir, gbd_csv, headline_step=headline_step, note=note)
+    illustrative = not args.calibrated
+    build_figures(country, run_dir, fig_dir, gbd_csv, headline_step=headline_step, note=note,
+                  illustrative=illustrative)
 
 
 if __name__ == "__main__":

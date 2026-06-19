@@ -267,7 +267,7 @@ def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, not
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.16)
     ax.set_xlabel("age at the reform")
     ax.set_ylabel("remaining-lifetime CEV (%)")
-    ax.legend(loc="lower right", frameon=False, fontsize=8.5)
+    ax.legend(loc="best", frameon=False, fontsize=8.5)  # auto-place to avoid the retirement marker
     style.title_block(
         fig, title="Lifetime welfare effect, by current age",
         subtitle=f"Welfare effect by age at the reform, averaged across income groups  ·  ages {ages[0]}–{ages[-1]}",

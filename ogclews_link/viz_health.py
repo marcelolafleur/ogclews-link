@@ -260,9 +260,10 @@ def demographic_transition_by_age(base_params, reform_params, out_dir, *, note=N
 # --- 3. the GDP split: mortality vs morbidity ------------------------------------
 
 def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health", note=None,
-              name="health_gdp_split"):
+              illustrative=True, name="health_gdp_split"):
     """Standalone of the waterfall's health segment: the health channel's marginal GDP, split into
-    its mortality and morbidity parts (a clean standalone of the waterfall's health bar)."""
+    its mortality and morbidity parts (a clean standalone of the waterfall's health bar).
+    `illustrative` gates the "bar values are illustrative" disclosure."""
     by = {r.get("step"): r for r in layered}
     if health_step not in by or prev_step not in by or "health_split" not in by[health_step]:
         return []
@@ -288,12 +289,13 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     ax.margins(y=0.22)
     ax.set_ylabel("marginal contribution to GDP (%)")
     # Mechanism note in the bottom margin (figure coords), clear of the source line.
+    illus = "  Bar values are illustrative." if illustrative else ""
     fig.text(0.5, 0.055,
              "fewer deaths means more retirees -- people who consume but no longer supply labor --\n"
-             "so the mortality channel's measured-GDP contribution can be negative; bar values are illustrative.",
+             "so the mortality channel's measured-GDP contribution can be negative." + illus,
              ha="center", va="bottom", fontsize=8.0, color=style.SUB)
     style.title_block(
-        fig, title="Health policy's effect on GDP: from fewer deaths vs from less illness",
-        subtitle=f"GDP contribution from the health policy  ·  net {mort + morb:+.4f}%",
+        fig, title="Health channel's effect on GDP: from fewer deaths vs from less illness",
+        subtitle=f"GDP contribution from the health channel  ·  net {mort + morb:+.4f}%",
         source=style.source_line(note), kicker="health: GDP split", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

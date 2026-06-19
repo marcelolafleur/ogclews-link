@@ -99,7 +99,7 @@ def energy_demand_by_group(layered, out_dir, *, note=None, name="energy_by_incom
     ax.set_ylabel("energy-good demand change (%)")
     style.title_block(
         fig, title="Change in energy use, by income group",
-        subtitle="Energy-good demand change by income group, poorest to richest  ·  one line per policy step",
+        subtitle="Energy-good demand change by income group, poorest to richest  ·  one line per scenario",
         source=style.source_line(note), kicker="distribution: energy demand", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 

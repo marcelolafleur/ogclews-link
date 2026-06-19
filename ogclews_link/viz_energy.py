@@ -108,7 +108,7 @@ def _gdp_musd(country):
 # --- (1) flagship: real CLEWS price signal vs the applied wedge -------------------
 
 def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, note=None,
-                            name="clews_signal_vs_applied"):
+                            illustrative=True, name="clews_signal_vs_applied"):
     """The real CLEWS energy-price cost ratio (reform/base electricity cost) over calendar years,
     with the flat proxy wedge the coupled run actually applied to the OG energy good overlaid.
 
@@ -146,13 +146,13 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
     # lift the end-label clear of the 1.0 parity reference when the ratio ends near parity, so the
     # solid reference line does not strike through the text
     _ylab = rv[-1] + (0.05 * rng if rv[-1] >= 1.0 else -0.05 * rng)
-    ends = [(years[-1], _ylab, "CLEWS cost ratio", style.CATEGORICAL[0])]
+    ends = [(years[-1], _ylab, "energy model's path", style.CATEGORICAL[0])]
 
     # the flat applied wedge -- grey the proxy, color the signal
     if applied_mult is not None:
         ax.axhline(applied_mult, color=style.MUTE, lw=2.0, ls=(0, (5, 3)), zorder=2)
         # lift the end-label clear of its own dashed axhline so the line does not strike through it
-        ends.append((years[-1], applied_mult + 0.03 * rng, "applied wedge", style.MUTE))
+        ends.append((years[-1], applied_mult + 0.03 * rng, "flat price this run used", style.MUTE))
 
     style.label_ends(ax, ends, min_gap=0.08 * rng)
     ax.set_xlim(years[0], years[-1] + (years[-1] - years[0]) * 0.14)
@@ -164,8 +164,8 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
     if applied_mult is not None:
         kind = "a constant" if is_flat else "a near-constant"
         sub += f"  ·  this run instead assumed {kind} energy price of {applied_mult:.2f}"
-    cap = "The assumed shock is the run's energy-good price multiplier; the headline run used an " \
-          "illustrative flat price shock, not the year-by-year energy-system path"
+    cap = ("The flat price is the run's energy-good multiplier; this illustrative run used a flat "
+           "shock, not the year-by-year energy-system path") if illustrative else None
     style.title_block(
         fig, title="Energy-price signal: what the energy model produced vs what this run assumed",
         subtitle=sub,
@@ -176,12 +176,14 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
 
 # --- (2) power-sector capex increment by technology ------------------------------
 
-def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technology"):
-    """Cumulative reform-minus-base power-sector CapitalInvestment by technology -- the
-    investment the transition reallocates across the generation fleet. Diverging horizontal bars
-    from zero, sorted by value, each labeled with its computed model-MUSD. Power technologies are
-    selected via country.is_power; magnitudes are model-MUSD with no deflator. Returns [] if the
-    CapitalInvestment exports are unreadable, or skips technologies with a zero increment."""
+def capex_by_technology(country, out_dir, *, note=None, illustrative=True,
+                        name="capex_by_technology"):
+    """Cumulative reform-minus-base power-sector CapitalInvestment by technology, straight from the
+    ENERGY MODEL (CLEWS CapitalInvestment exports) -- the investment the transition reallocates
+    across the generation fleet. Diverging horizontal bars from zero, sorted by value, each labeled
+    with its computed value. Power technologies are selected via country.is_power; magnitudes are
+    model units with no deflator (gated by `illustrative`). Returns [] if the CapitalInvestment
+    exports are unreadable, or skips technologies with a zero increment."""
     try:
         # signals exposes no public CLEWS-export finder; reuse its private _find (same locator
         # the channels use) rather than re-implement the glob here.
@@ -226,26 +228,34 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
     hi = float(max(vals.max(), 0.0))
     margin = 0.28 * span
     ax.set_xlim(lo - margin, hi + margin)
-    ax.set_xlabel("change in capital investment (model units)")
+    units = " (model units)" if illustrative else ""
+    try:
+        yrs = [int(c) for c in mb.columns]
+        span = f", cumulated over {min(yrs)}-{max(yrs)}"
+    except Exception:  # noqa: BLE001 -- columns aren't year-like; omit the window
+        span = ""
+    ax.set_xlabel(f"change in capital investment{units}")
+    extra = ("Model units, not real pesos -- read the direction and relative size, not the absolute "
+             "amount") if illustrative else None
     style.title_block(
-        fig, title="Change in power-sector investment, by technology",
-        subtitle=f"Cumulative change (reform vs baseline) across {len(vals)} power technologies  ·  "
-                 f"net {vals.sum():+,.0f} MUSD",
-        source=style.source_line(
-            note, extra="Model units, not real pesos -- read the direction and relative size, "
-            "not the absolute amount"),
+        fig, title="Change in power-sector investment, by technology (energy model)",
+        subtitle=f"Energy-model investment, reform vs baseline, across {len(vals)} power "
+                 f"technologies{span}  ·  net {vals.sum():+,.0f}{units}",
+        source=style.source_line(note, extra=extra),
         kicker="investment · power sector", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
 # --- (3) the time-varying CLEWS->OG signals as small multiples -------------------
 
-def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="channel_inputs"):
-    """Small multiples (shared calendar x-axis) of the time-varying CLEWS->OG signals that can be
-    sourced from the live scenario: the energy-price cost ratio, the power-capex increment (as %
-    of GDP), and the emissions gap (reform/base). Each panel is a neutral description; where a
-    channel collapses a path to a scalar before feeding OG, that fact is annotated as a computed
-    number. Panels that cannot be read are skipped; returns [] if none can be built."""
+def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, illustrative=True,
+                             name="channel_inputs"):
+    """Small multiples (shared calendar x-axis) of the time-varying signals the ENERGY MODEL hands
+    to the economy -- i.e. how the scenario is wired together: the energy-price cost ratio, the
+    power-capex increment (as % of GDP), and the emissions gap (reform/base). A setup/methods
+    figure, not a result. Each panel is a neutral description; where a channel collapses a path to
+    a scalar before feeding OG, that fact is annotated. Skipped panels degrade gracefully; [] if
+    none can be built."""
     gdp = _gdp_musd(country)
     panels = []  # (title, years, values, baseline_value, color, annotate-fn)
 
@@ -320,11 +330,11 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
                     fontsize=8.5, color=style.SUB, zorder=6,
                     bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
     axes[-1].set_xlabel("year")
+    extra = ("A scenario may reduce a year-by-year path to a single number (e.g. a flat price shock "
+             "or a 10-year average) before it enters the economic model") if illustrative else None
     style.title_block(
-        fig, title="What we feed into the economy: energy prices, clean-energy investment, and emissions",
-        subtitle="The energy-system signals over calendar years, before each policy step enters the economic model",
-        source=style.source_line(
-            note, extra="A policy step may reduce a year-by-year path to a single number "
-            "(e.g. a flat price shock or a 10-year average) before it enters the economic model"),
-        kicker="CLEWS to OG signals", top=0.965)
+        fig, title="How the scenario is built: the signals the energy model hands to the economy",
+        subtitle="The inputs the energy model feeds into the economy, over time",
+        source=style.source_line(note, extra=extra),
+        kicker="scenario setup · energy model to economy", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
