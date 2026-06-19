@@ -82,7 +82,11 @@ This note is the human narrative.)
 
 - **Door 1 — template gallery** reads `templates`: each is a question-framed, pre-assembled
   `[(channel, options)]` (plus a `run_mode`: `single` / `layered` / `compare_set`). One click → view
-  precomputed results, or fork into door 2 with everything pre-filled.
+  precomputed results, or fork into door 2 with everything pre-filled. Each template also carries usage
+  metadata — `reads_clews` / `emits_clews` / `requires` / `direction` / `notes` — documenting the real
+  coupling (what it reads from CLEWS, and which OG→CLEWS artifacts feed back only on a CLEWS re-solve).
+  `experiments.py` derives `EXPERIMENTS` / `ACROSS_STEPS` from these, so the catalog is the single source
+  for templates too (guarded by `test_experiments_match_catalog`).
 - **Door 2 — guided builder** reads `channels` + `levers`: render a card per channel; for each enabled
   channel show its `tier: core` options inline (default-filled), `advanced` collapsed; disable options
   whose `depends_on` is unmet and targets that fail `separability`; run `guardrails` as pure validation on

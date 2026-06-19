@@ -153,6 +153,18 @@ def test_templates_validate():
             assert res["ok"], (name, [str(i) for i in res["errors"]])
 
 
+def test_experiments_match_catalog():
+    # experiments.py is DERIVED from the catalog (single source) -- verify the derivation round-trips.
+    from ogclews_link import experiments
+    single = {n: t for n, t in CAT["templates"].items() if t.get("run_mode") != "layered"}
+    assert set(experiments.names()) == set(single)
+    for name, tpl in single.items():
+        want = [(next(iter(d)), dict(next(iter(d.values())) or {})) for d in tpl["channels"]]
+        assert experiments.get(name).channels == want, (name, experiments.get(name).channels, want)
+    layers = CAT["templates"]["across_steps"]["layers"]
+    assert [lbl for lbl, _ in experiments.ACROSS_STEPS] == [layer["label"] for layer in layers]
+
+
 def main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = failed = 0
