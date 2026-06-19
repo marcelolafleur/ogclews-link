@@ -115,10 +115,13 @@ def title_block(fig, title, subtitle=None, source=None, kicker=None,
                  fontweight="bold", ha="left", va="top")
         y -= 0.050
     fig.text(x, y, title, fontsize=15, fontweight="bold", color=INK, ha="left", va="top")
+    # wrap=True wraps long deks/source notes to the figure width instead of overflowing the
+    # canvas -- with savefig.bbox="tight" an unwrapped line would stretch the saved image far
+    # wider than the plot, leaving the chart marooned in a thin, over-wide frame.
     if subtitle:
-        fig.text(x, y - 0.046, subtitle, fontsize=11, color=SUB, ha="left", va="top")
+        fig.text(x, y - 0.046, subtitle, fontsize=11, color=SUB, ha="left", va="top", wrap=True)
     if source:
-        fig.text(x, 0.008, source, fontsize=8, color=MUTE, ha="left", va="bottom")
+        fig.text(x, 0.008, source, fontsize=8, color=MUTE, ha="left", va="bottom", wrap=True)
 
 
 def clean(ax, left=False, grid="y"):

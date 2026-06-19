@@ -52,13 +52,13 @@ def _fmt_pct(v):
 
 
 def _text_page(out_dir, name, *, draw, figsize=(8.4, 10.9)):
-    """A full-figure text page: a single axis with all chrome removed, ready for figure-coord
-    text. Returns the saved path in a one-element list (the builder contract)."""
+    """A full-figure text page for figure-coord text. The draw callback writes via fig.text only
+    (no axis is used), so we add none -- that lets savefig.bbox='tight' crop the canvas to the
+    text block instead of leaving a large empty band of unused page. Returns the saved path in a
+    one-element list (the builder contract)."""
     os.makedirs(out_dir, exist_ok=True)
     fig = plt.figure(figsize=figsize)
-    ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_axis_off()
-    draw(fig, ax)
+    draw(fig, None)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -141,8 +141,9 @@ def methods_card(layered, country, out_dir, *, note=None, name="methods_card"):
             fig.text(x, y, f"Scenario country: {cname}.", fontsize=9.5,
                      color=style.MUTE, ha="left", va="top")
             y -= 0.026
-        fig.text(x, y, style.source_line(note), fontsize=8, color=style.MUTE,
-                 ha="left", va="top")
+        # Credit only -- the full caveat is already spelled out in the Assumptions section above.
+        fig.text(x, y, style.source_line(), fontsize=8.5, color=style.MUTE,
+                 ha="left", va="top", wrap=True)
 
     return _text_page(out_dir, name, draw=draw)
 
@@ -170,18 +171,19 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
                 r.get("energy_demand_pct"), fiscal.get("cons_tax_revenue_pct")]
         rows.append([str(r.get("step", ""))] + [_fmt_pct(v) for v in vals])
 
-    fig, ax = plt.subplots(figsize=(12.0, 1.0 + 0.52 * (len(rows) + 1)))
+    fig, ax = plt.subplots(figsize=(10.0, 1.4 + 0.62 * (len(rows) + 1)))
     fig.subplots_adjust(top=0.74, bottom=0.10, left=0.045, right=0.965)
     ax.set_axis_off()
 
     ncols = len(col_labels)
-    table = ax.table(cellText=rows, colLabels=col_labels, cellLoc="right", loc="center")
+    # bbox=[0,0,1,1] makes the table fill its axes, so it sits directly under the subtitle with no
+    # tall empty band from vertical centering. Column widths still size to content below.
+    table = ax.table(cellText=rows, colLabels=col_labels, cellLoc="right", bbox=[0, 0, 1, 1])
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     # Size each column to its widest cell so the spelled-out headers (e.g. "Consumption-tax
     # revenue %") get the room they need instead of colliding with the neighbour.
     table.auto_set_column_width(col=list(range(ncols)))
-    table.scale(1, 1.55)
     for (rr, cc), cell in table.get_celld().items():
         cell.set_edgecolor(style.GRID)
         cell.set_linewidth(0.7)
@@ -250,7 +252,9 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, name="cover"
                     y -= 0.030
                 y -= 0.006
 
-        fig.text(x, 0.020, style.source_line(note), fontsize=8, color=style.MUTE,
-                 ha="left", va="bottom")
+        # Source rides just below the contents (not pinned to the page bottom) so the tight-crop
+        # fits the cover to its content instead of leaving a tall empty band beneath it.
+        fig.text(x, y - 0.03, style.source_line(note), fontsize=8, color=style.MUTE,
+                 ha="left", va="top", wrap=True)
 
     return _text_page(out_dir, name, draw=draw)

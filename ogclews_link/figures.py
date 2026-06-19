@@ -164,9 +164,12 @@ def _waterfall(values, labels, title, subtitle, ylabel, out_path, note=None,
     ax.set_xticklabels(labels, rotation=15, ha="right")
     ax.set_ylabel(ylabel)
     ax.margins(x=0.06, y=0.13)  # footroom so the smallest marginal label clears the axis rule
+    from matplotlib.patches import Patch
     if seg_handles:
-        from matplotlib.patches import Patch
         ax.legend([Patch(facecolor=c) for c in seg_handles.values()], list(seg_handles),
+                  loc="upper left", frameon=False, fontsize=8.5)
+    else:  # state the sign-color key so blue/red bars read without the caption
+        ax.legend([Patch(facecolor=GAIN), Patch(facecolor=LOSS)], ["positive", "negative"],
                   loc="upper left", frameon=False, fontsize=8.5)
     style.title_block(fig, title=title, subtitle=f"{subtitle}  ·  net {cum[-1]:+.3f}%",
                       source=style.source_line(note), kicker=kicker, top=0.965)
@@ -199,7 +202,7 @@ def across_steps_waterfall(layered, out_dir, note=None):
                         "GDP change (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
                         segments=segments)]
     saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
-                            "What each policy step adds for the poorest group",
+                            "Each policy step's contribution for the poorest group",
                             "Contribution to the welfare effect for the poorest 25%",
                             "consumption change (%)",
                             os.path.join(out_dir, "waterfall_poorest.png"), note))
@@ -271,8 +274,9 @@ def energy_physical(country, out_dir):
         yv = float(np.nanmean([erb.values[len(er) // 2], er.values[len(er) // 2]]))
         word = "avoided" if avoided > 0 else "additional"
         ax.annotate(f"cumulative {word}\n≈ {abs(avoided):,.0f} {country.co2_emission} (model units)",
-                    (ymid, yv), xytext=(6, 18), textcoords="offset points",
-                    fontsize=8.5, color=style.TEAL, fontweight="medium")
+                    (ymid, yv), xytext=(6, 26), textcoords="offset points",
+                    fontsize=8.5, color=style.TEAL, fontweight="medium", zorder=5,
+                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8))
     style.title_block(fig, title="Emissions: baseline vs reform",
                       subtitle="Energy-system emissions over time, baseline vs reform",
                       source=style.source_line(), kicker="energy system", top=0.965)

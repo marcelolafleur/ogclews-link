@@ -59,8 +59,11 @@ def _closure_line(ax, closure_year, yrs):
     if closure_year is None or not (yrs[0] <= closure_year <= yrs[-1]):
         return
     ax.axvline(closure_year, color=style.SUB, lw=0.9, ls=(0, (4, 3)), zorder=1.8)
+    # White halo + high zorder so the label stays readable where a series peaks near the closure
+    # year (the marker would otherwise sit right under it on several transition figures).
     ax.annotate("budget rule begins", (closure_year, ax.get_ylim()[1]), xytext=(4, -4),
-                textcoords="offset points", fontsize=8, color=style.SUB, va="top")
+                textcoords="offset points", fontsize=8, color=style.SUB, va="top", zorder=6,
+                bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.85))
 
 
 # --- the hero: macro aggregates over the transition ------------------------------
@@ -95,9 +98,15 @@ def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
                 xytext=(8, 12), textcoords="offset points", fontsize=9.5,
                 fontweight="bold", color=style.CATEGORICAL[0])
     rng = float(np.nanmax([np.nanmax(np.abs(p)) for p in paths.values()]))
-    style.label_ends(ax, ends, min_gap=0.075 * rng)
+    # Nudge near-zero end-labels (e.g. capital/labor, which can both finish ~0) off the zero axis
+    # and onto their own side, then de-collide with a generous gap so they don't stack and touch.
+    off = 0.06 * rng
+    ends = [(x, (off if y >= 0 else -off) if abs(y) < off else y, t, c) for (x, y, t, c) in ends]
+    style.label_ends(ax, ends, min_gap=0.09 * rng)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.12)
     ax.set_ylabel("change vs baseline (%)")
+    _y0, _y1 = ax.get_ylim()                          # top headroom so the closure label clears
+    ax.set_ylim(_y0, _y1 + 0.14 * (_y1 - _y0))        # the GDP-peak marker
     _closure_line(ax, closure_year, yrs)
     style.title_block(
         fig, title=title,
@@ -210,6 +219,8 @@ def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     style.label_ends(ax, ends, min_gap=0.10 * rng)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.14)
     ax.set_ylabel("change vs baseline (%)")
+    _y0, _y1 = ax.get_ylim()                          # top headroom so the peak isn't clipped and
+    ax.set_ylim(_y0, _y1 + 0.16 * (_y1 - _y0))        # the closure label clears the peak
     _closure_line(ax, closure_year, yrs)
     style.title_block(
         fig, title="Interest rates and wages over time",
@@ -261,6 +272,8 @@ def public_investment(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
     style.label_ends(ax, ends, min_gap=max(0.16 * rng, 0.08))
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.14)
     ax.set_ylabel("change vs baseline (%)")
+    _y0, _y1 = ax.get_ylim()                          # top headroom so the closure label clears
+    ax.set_ylim(_y0, _y1 + 0.14 * (_y1 - _y0))        # the steep public-investment rise
     _closure_line(ax, closure_year, yrs)
     style.title_block(
         fig, title="Public investment and public capital over time",

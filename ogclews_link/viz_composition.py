@@ -118,11 +118,13 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     ax.margins(y=0.20)
     ax.set_ylabel("consumption change vs baseline (%)")
     fin = dev[np.isfinite(dev)]
-    parts = ["model goods are composite categories; only the energy good is identified"]
+    if energy0 is not None:
+        parts = [f"goods are composite categories; * marks the energy good (good {energy0 + 1}), "
+                 f"the only one identified"]
+    else:
+        parts = ["goods are composite categories"]
     if fin.size:
         parts.append(f"range {np.min(fin):+.2f}% to {np.max(fin):+.2f}%")
-    if energy0 is not None:
-        parts.append(f"* marks the energy good (good {energy0 + 1})")
     sub = "  ·  ".join(parts)
     style.title_block(
         fig, title="Long-run change in spending, by type of good",
@@ -268,10 +270,12 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
         ax.set_title(glab[j] if j < len(glab) else f"group {j + 1}")
         if ai == 0:
             ax.set_ylabel("consumption change vs baseline (%)")
-    sub = ("Year-0 change in spending by type of good, for the poorest / middle / richest group"
-           "  ·  model goods are composite categories; only the energy good is identified")
+    sub = "Year-0 change in spending by type of good, for the poorest / middle / richest group"
     if energy0 is not None:
-        sub += f"  ·  * marks the energy good (good {energy0 + 1})"
+        sub += (f"  ·  goods are composite categories; * marks the energy good (good {energy0 + 1}), "
+                f"the only one identified")
+    else:
+        sub += "  ·  goods are composite categories"
     style.title_block(
         fig, title="Change in spending by type of good, across income groups",
         subtitle=sub, source=style.source_line(note),

@@ -48,6 +48,10 @@ DEFAULT_COUNTRY = "phl"
 DEFAULT_NOTE = ("Illustrative -- magnitudes are not to be taken literally: assumed ~20% higher energy cost "
                 "(a stand-in, not the energy model's detailed price path); investment and carbon sizes "
                 "uncalibrated; carbon-tax revenue is not returned to households.")
+# The full caveat above is shown in full on the methods card and the cover. Individual charts carry
+# only this one-line credit caveat -- the long note, stamped under every chart, wraps to 2-3 lines
+# and collides with the x-axis label, so the detail lives on the deck's dedicated caveats page.
+FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally; see methods card."
 
 # Neutral section names for the deck cover/contents (order ~ the figure groups below).
 _DECK_SECTIONS = ["Across-steps channel decomposition", "Macro & fiscal transition",
@@ -136,6 +140,8 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     """Rebuild the full figure set for `country` from the solved pickles under `run_dir`,
     writing to `fig_dir`. `headline_step` None -> auto-detect (last layered step)."""
     os.makedirs(fig_dir, exist_ok=True)
+    # Charts carry the one-line FIG_CAVEAT; the methods card and cover carry the full `note`.
+    full_note, note = note, FIG_CAVEAT
     ie = country.concordance.energy_good_index
     with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
         layered = json.load(f)
@@ -228,9 +234,10 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
              base_params, headline_params, country, fig_dir, start_year=start_year, note=note)
 
     # --- deck front matter & at-a-glance summary --------------------------------
-    _try(viz_deck.methods_card, layered, country, fig_dir, note=note)
+    # methods_card & cover carry the FULL caveat; summary_table is a chart-like page (short caveat).
+    _try(viz_deck.methods_card, layered, country, fig_dir, note=full_note)
     _try(viz_deck.summary_table, layered, fig_dir, note=note)
-    _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=note)
+    _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note)
 
     # --- per-step incidence hero ------------------------------------------------
     made = []

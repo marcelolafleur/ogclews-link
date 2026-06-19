@@ -28,6 +28,7 @@ from . import style  # noqa: E402
 
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.patches import Patch  # noqa: E402
 
 from .figures import _labels  # noqa: E402
 
@@ -104,8 +105,8 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     lab = _labels(J, np.asarray(base_params.lambdas, float).ravel())
 
     os.makedirs(out_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(7.8, 5.0))
-    fig.subplots_adjust(top=0.76, bottom=0.16, left=0.10, right=0.95)
+    fig, ax = plt.subplots(figsize=(7.8, 5.1))
+    fig.subplots_adjust(top=0.76, bottom=0.19, left=0.10, right=0.95)
     style.clean(ax)
     style.zero_line(ax)
     ax.bar(range(J), cev, width=0.66, color=style.signed(cev), zorder=2)
@@ -117,15 +118,14 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.margins(y=0.20)
     ax.set_ylabel("Lifetime welfare effect (%)")
-    fig.text(0.045, 0.045,
+    fig.text(0.045, 0.055,
              "Note: carbon-tax revenue is not returned to households in this run; "
              "a design that returned it would change these results.",
-             fontsize=8.5, color=style.SUB, ha="left", va="bottom")
+             fontsize=8.5, color=style.SUB, ha="left", va="bottom", wrap=True)
     style.title_block(
         fig, title="Lifetime welfare effect by income group",
-        subtitle=f"Long-run welfare effect by income group, poorest to richest "
-                 f"(consumption-equivalent: the % change in lifetime spending that leaves a household equally well off)  ·  "
-                 f"mean {np.nanmean(cev):+.2f}% (range {np.nanmin(cev):+.2f}% to {np.nanmax(cev):+.2f}%)  ·  negative = worse off",
+        subtitle=f"By income group, poorest to richest (negative = worse off)  ·  consumption-equivalent: "
+                 f"the % of lifetime spending that leaves a household equally well off  ·  mean {np.nanmean(cev):+.2f}%",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV by group", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -153,19 +153,18 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
     lab = _labels(J, np.asarray(base_params.lambdas, float).ravel())
 
     os.makedirs(out_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8.2, 5.0))
-    fig.subplots_adjust(top=0.76, bottom=0.16, left=0.10, right=0.95)
+    fig, ax = plt.subplots(figsize=(8.2, 5.1))
+    fig.subplots_adjust(top=0.72, bottom=0.19, left=0.10, right=0.95)
     style.clean(ax)
     style.zero_line(ax)
     x = np.arange(J)
     bw = 0.38
-    for off, vals in ((-bw / 2, cev_c), (bw / 2, cev_n)):
-        ax.bar(x + off, vals, width=bw, color=style.signed(vals), zorder=2,
-               edgecolor="white", linewidth=0.6)
-    # hatch the labor-channel bars so the two channels read apart beyond color (color = sign only)
-    for j in range(J):
-        ax.bar(x[j] + bw / 2, cev_n[j], width=bw, fill=False, hatch="////",
-               edgecolor="white", linewidth=0.0, zorder=3)
+    # spending channel: solid, sign-colored.  work channel: same sign-color but hatched, so the
+    # two read apart by FILL (named in the legend) while color still encodes only the sign.
+    ax.bar(x - bw / 2, cev_c, width=bw, color=style.signed(cev_c), zorder=2,
+           edgecolor="white", linewidth=0.6)
+    ax.bar(x + bw / 2, cev_n, width=bw, color=style.signed(cev_n), zorder=2,
+           edgecolor="white", linewidth=0.6, hatch="////")
     for off, vals in ((-bw / 2, cev_c), (bw / 2, cev_n)):
         for j, v in enumerate(vals):
             if not np.isfinite(v):
@@ -173,8 +172,15 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
             ax.annotate(f"{v:+.2f}", (x[j] + off, v), xytext=(0, -10 if v < 0 else 5),
                         textcoords="offset points", ha="center", va="top" if v < 0 else "bottom",
                         fontsize=9, fontweight="bold", color=style.LOSS if v < 0 else style.GAIN)
-    # Channels are read apart by fill (solid = consumption, hatched = labor) and explained in the
-    # subtitle -- no floating legend box, which in a packed 7-group bar panel can only land on the data.
+    # A two-swatch legend ABOVE the plot states the fill convention outright (solid = spending,
+    # hatched = work), so the chart reads without the caption. Placed above the axes it never
+    # lands on the bars regardless of their sign; grey swatches carry the PATTERN only, while the
+    # bar color still encodes gain/loss.
+    legend_handles = [Patch(facecolor=style.MUTE, edgecolor="white", label="spending channel"),
+                      Patch(facecolor=style.MUTE, edgecolor="white", hatch="////", label="work channel")]
+    ax.legend(handles=legend_handles, loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2,
+              frameon=False, fontsize=9.5, handlelength=1.5, handleheight=1.3,
+              columnspacing=1.6, borderaxespad=0.3)
     ax.set_xticks(x)
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.margins(y=0.20)
@@ -191,11 +197,11 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
                  f"{work_mean:+.2f}%, so its bars sit close to zero."
                  if np.isfinite(work_mean) else
                  "Note: the work-channel effect sits close to zero, so its bars are hard to see.")
-    fig.text(0.045, 0.045, work_note, fontsize=8.5, color=style.SUB, ha="left", va="bottom")
+    fig.text(0.045, 0.055, work_note, fontsize=8.5, color=style.SUB, ha="left", va="bottom", wrap=True)
     style.title_block(
         fig, title="Lifetime welfare effect by income group: spending vs work",
-        subtitle="Solid = spending, hatched = work  ·  each channel on its own; they don't add up to "
-                 "the full effect because the two interact"
+        subtitle="Each channel's welfare effect on its own; the two don't add up to the full effect "
+                 "because they interact"
                  + (f"  ·  {means}" if means else "") + "  ·  negative = worse off",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV decomposition", top=0.965)

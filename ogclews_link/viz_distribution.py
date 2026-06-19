@@ -23,6 +23,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 from .figures import _labels  # noqa: E402
 
 STEP_COLORS = style.CATEGORICAL
+# Distinct dash patterns per step so that policy steps whose curves nearly coincide (e.g. the
+# price and investment steps) stay individually visible where they overlap, instead of one line
+# hiding under the next.
+STEP_LS = ["-", (0, (5, 2)), (0, (1, 1.4)), (0, (4, 2, 1, 2))]
 
 
 def _lam_weighted_avg(dev, lam):
@@ -80,7 +84,9 @@ def energy_demand_by_group(layered, out_dir, *, note=None, name="energy_by_incom
     for i, r in enumerate(solved):
         ev = np.asarray(r["energy_by_J"], float)
         c = STEP_COLORS[i % len(STEP_COLORS)]
-        ax.plot(range(J), ev, marker="o", color=c, lw=2.0, zorder=2)
+        ls = STEP_LS[i % len(STEP_LS)]
+        ax.plot(range(J), ev, marker="o", color=c, lw=2.0, ls=ls, zorder=2,
+                markeredgecolor="white", markeredgewidth=0.8)
         ends.append((J - 1, ev[-1], r["step"], c))
     # Floor the collision gap: scaling off the smallest end alone collapses toward 0 when the
     # lowest line ends near 0, so fall back to a fraction of the spread of all ends.
@@ -212,8 +218,8 @@ def income_composition_by_age(base_tpi, reform_tpi, base_params, out_dir, *, not
         return []
 
     os.makedirs(out_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8.4, 5.0))
-    fig.subplots_adjust(top=0.76, bottom=0.13, left=0.095, right=0.84)
+    fig, ax = plt.subplots(figsize=(8.4, 5.1))
+    fig.subplots_adjust(top=0.76, bottom=0.18, left=0.095, right=0.84)
     style.clean(ax, left=True)
     style.zero_line(ax)
     ends = []
@@ -233,9 +239,9 @@ def income_composition_by_age(base_tpi, reform_tpi, base_params, out_dir, *, not
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * 0.18)
     ax.set_xlabel("age")
     ax.set_ylabel("change in income vs baseline (%)")
-    fig.text(0.045, 0.045,
-             "Note: income from inheritances is split equally across households in this run, so its "
-             "line is flat by design; it dips because fewer deaths leave fewer inheritances.",
+    fig.text(0.045, 0.05,
+             "Note: inheritances are split equally across households in this run, so the line is flat by design;\n"
+             "it dips because fewer deaths leave fewer estates to pass on.",
              fontsize=8.5, color=style.SUB, ha="left", va="bottom")
     style.title_block(
         fig, title="Change in income, by source and age",

@@ -171,8 +171,10 @@ def morbidity_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
         work_share = float(dist[(ages >= work_lo) & (ages < retire_age)].sum())
         ax.axvspan(work_lo, retire_age, color="0.90", zorder=0)
         ax.axvline(retire_age, color=style.INK, lw=1.0, ls=(0, (4, 3)), zorder=3)
-        ax.annotate(f"retirement ({retire_age})", (retire_age, ax.get_ylim()[1] * 0.92),
-                    xytext=(6, 0), textcoords="offset points", fontsize=8.5, color=style.SUB, va="top")
+        ax.annotate(f"retirement ({retire_age})", (retire_age, ax.get_ylim()[1] * 0.99),
+                    xytext=(-6, 0), textcoords="offset points", fontsize=8.5, color=style.SUB,
+                    va="top", ha="right",
+                    bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.85))
         ax.annotate(f"{work_share:.0f}% of the change lands on working-age people",
                     (ages[0] + 1, ax.get_ylim()[1] * 0.90), fontsize=9, color=style.SUB, va="top")
         # label the peak bar so the largest labeled magnitude sits on the visual mass
@@ -239,6 +241,10 @@ def demographic_transition_by_age(base_params, reform_params, out_dir, *, note=N
         ends.append((ages[-1], float(d[-1]), lab, c))
     ymin, ymax = ax.get_ylim()                           # gap as a fraction of the actual y span
     span = ymax - ymin
+    # Nudge any end-label sitting on the zero line out to its own side, so the zero reference does
+    # not strike through a near-zero year's label (e.g. the first transition year).
+    off = 0.04 * span
+    ends = [(x, (off if y >= 0 else -off) if abs(y) < off else y, t, c) for (x, y, t, c) in ends]
     style.label_ends(ax, ends, min_gap=(0.05 * span if span > 0 else None))
     ax.set_xlim(ages[0], ages[-1] + 8)
     ax.set_xlabel("age")
@@ -246,7 +252,7 @@ def demographic_transition_by_age(base_params, reform_params, out_dir, *, note=N
     yrs = ", ".join(str(start + t) if start else f"t={t}" for t in idx)
     style.title_block(
         fig, title="Change in population share by age, over time",
-        subtitle=f"Change (reform vs baseline) in population share by age  ·  years {yrs}  ·  peak |change| {peak_abs:.3f} pts",
+        subtitle=f"Change (reform vs baseline) in population share by age  ·  years {yrs}  ·  peak |change| {peak_abs:.3g} pts",
         source=style.source_line(note), kicker="health: demography", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -268,8 +274,8 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     labs = ["mortality", "morbidity"]
 
     os.makedirs(out_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(7.2, 5.0))
-    fig.subplots_adjust(top=0.74, bottom=0.17, left=0.16, right=0.95)
+    fig, ax = plt.subplots(figsize=(7.6, 5.1))
+    fig.subplots_adjust(top=0.74, bottom=0.18, left=0.15, right=0.95)
     style.clean(ax)
     style.zero_line(ax)
     bars = ax.bar([0, 1], vals, width=0.56, color=[MORT, MORB], zorder=2)
@@ -281,8 +287,8 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     ax.set_xticklabels(labs)
     ax.margins(y=0.22)
     ax.set_ylabel("marginal contribution to GDP (%)")
-    # Mechanism note in the bottom margin (figure coords), clear of the source line at y=0.008.
-    fig.text(0.5, 0.05,
+    # Mechanism note in the bottom margin (figure coords), clear of the source line.
+    fig.text(0.5, 0.055,
              "fewer deaths means more retirees -- people who consume but no longer supply labor --\n"
              "so the mortality channel's measured-GDP contribution can be negative; bar values are illustrative.",
              ha="center", va="bottom", fontsize=8.0, color=style.SUB)

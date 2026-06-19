@@ -142,9 +142,11 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
 
     # the real CLEWS signal -- the data path
     ax.plot(years, rv, color=style.CATEGORICAL[0], lw=2.4, zorder=3)
-    ends = [(years[-1], rv[-1], "CLEWS cost ratio", style.CATEGORICAL[0])]
-
     rng = float(np.nanmax(rv) - np.nanmin(rv)) or 1.0
+    # lift the end-label clear of the 1.0 parity reference when the ratio ends near parity, so the
+    # solid reference line does not strike through the text
+    _ylab = rv[-1] + (0.05 * rng if rv[-1] >= 1.0 else -0.05 * rng)
+    ends = [(years[-1], _ylab, "CLEWS cost ratio", style.CATEGORICAL[0])]
 
     # the flat applied wedge -- grey the proxy, color the signal
     if applied_mult is not None:
@@ -203,8 +205,8 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
     vals = np.asarray([v for _, v in items], dtype=float)
 
     os.makedirs(out_dir, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(8.8, max(3.4, 0.5 * len(vals) + 2.2)))
-    fig.subplots_adjust(top=0.80, bottom=0.12, left=0.36, right=0.92)
+    fig, ax = plt.subplots(figsize=(8.8, max(3.9, 0.5 * len(vals) + 2.7)))
+    fig.subplots_adjust(top=0.80, bottom=0.22, left=0.36, right=0.92)
     style.clean(ax, left=False, grid="x")
     style.zero_line(ax, axis="x")
     ypos = np.arange(len(vals))
@@ -224,7 +226,7 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
     hi = float(max(vals.max(), 0.0))
     margin = 0.28 * span
     ax.set_xlim(lo - margin, hi + margin)
-    ax.set_xlabel("cumulative reform − base capital investment (model MUSD)")
+    ax.set_xlabel("change in capital investment (model units)")
     style.title_block(
         fig, title="Change in power-sector investment, by technology",
         subtitle=f"Cumulative change (reform vs baseline) across {len(vals)} power technologies  ·  "
@@ -294,7 +296,7 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
     xlo = min(int(p[1][0]) for p in panels)
     xhi = max(int(p[1][-1]) for p in panels)
     fig, axes = plt.subplots(len(panels), 1, sharex=True,
-                             figsize=(8.4, 2.0 * len(panels) + 1.6))
+                             figsize=(8.4, 2.4 * len(panels) + 1.6))
     axes = np.atleast_1d(axes)
     fig.subplots_adjust(top=0.82, bottom=0.10, left=0.10, right=0.93, hspace=0.42)
     for ax, (ttl, yrs, v, base_val, color, ann) in zip(axes, panels):
@@ -312,8 +314,11 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
         vspan = (vmax - vmin) or 1.0
         ends_high = (float(v[-1]) - vmin) / vspan >= 0.5
         ay, ava = (0.06, "bottom") if ends_high else (0.94, "top")
+        # White halo + high zorder so a mid-panel dip or spike crossing the label does not strike
+        # through it (the end-based placement above can't dodge an interior peak).
         ax.annotate(ann, (0.985, ay), xycoords="axes fraction", ha="right", va=ava,
-                    fontsize=8.5, color=style.SUB)
+                    fontsize=8.5, color=style.SUB, zorder=6,
+                    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85))
     axes[-1].set_xlabel("year")
     style.title_block(
         fig, title="What we feed into the economy: energy prices, clean-energy investment, and emissions",
