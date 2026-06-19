@@ -1,0 +1,422 @@
+# scenario_catalog.yaml — the declarative catalog the scenario builder prompts from.
+#
+# STATUS: design-stage proposal (branch scenario-builder-ux). NOT yet wired into code.
+# PURPOSE: one machine-readable description of every lever a user can set, so all three "doors"
+#   (template gallery, guided builder, expert config) render and validate from a single source.
+#   See scenario-catalog.md for the schema rationale and how the doors consume this.
+#
+# FIELD VOCABULARY mirrors ParamTools / PSL (title, description, notes, type, validators.range/choice,
+#   section) so it is recognizable to OG-Core developers. It is organized hierarchically by channel for
+#   the builder UI rather than as a flat ParamTools defaults file — it is ParamTools-*inspired*, not a
+#   drop-in ParamTools file.
+# DEFAULTS here MIRROR the apply() signatures in ogclews_link/channels.py and policy_levers.py. They are
+#   duplicated for the UI's benefit; a sync test must assert they match the code (the alternative —
+#   introspecting the signatures and keeping only human metadata here — is the lower-drift option and is
+#   the recommendation in scenario-catalog.md §"single source of truth").
+
+version: 0
+
+schema:
+  # Fields beyond ParamTools' built-ins that the builder UI reads.
+  additional_members:
+    unit: {type: str}                       # PolicyEngine-style code: "/1" (ratio), "currency-USD", ...
+    tier: {type: str}                       # core | advanced  — drives progressive disclosure
+    depends_on: {type: str, number_dims: 1} # show this option only when the predicate holds
+    conflicts_with: {type: str, number_dims: 1}
+  # Per-channel (not per-option) metadata.
+  channel_members:
+    direction: {type: str}                  # clews_to_og | og_to_clews | policy
+    theory_status: {type: str}              # structural_core | reduced_form (illustrative)
+    post_solve: {type: bool}                # needs the reform equilibrium before it can run
+
+# ---------------------------------------------------------------------------------------------------
+channels:
+
+  energy_price:
+    label: Energy price → household demand + incidence
+    description: >
+      Raises the consumption-tax wedge on the energy good so households face a higher energy price;
+      with a necessity floor it yields the textbook regressive incidence.
+    direction: clews_to_og
+    theory_status: structural_core
+    post_solve: false
+    conflicts_with: [carbon]          # both wedge the energy good's tau_c — a cost and a tax double-count
+    soft_conflicts: [investment]      # price = operating cost; investment = capital account — don't route the same burden through both
+    options:
+      price_source:
+        title: Price source
+        description: Where the price change comes from.
+        type: str
+        default: controlled
+        validators: {choice: {choices: [controlled, clews_cost_index, dual]}}
+        tier: core
+        notes: >
+          'dual' = the OSeMOSYS marginal-electricity-price (commodity-balance dual) reform/base ratio —
+          the rigorous source. 'clews_cost_index' = the cost-of-electricity index. 'controlled' = a
+          manual % you set, for mechanism testing.
+      shock:
+        title: Controlled price change
+        description: Energy-price change as a fraction (0.20 = +20%). Used only when price_source = controlled.
+        type: float
+        default: 0.20
+        unit: "/1"
+        validators: {range: {min: -0.5, max: 2.0, level: warn}}
+        depends_on: ["price_source == controlled"]
+        tier: core
+      recycle:
+        title: Recycle revenue to households
+        description: Return the energy-tax revenue as a lump-sum transfer (approx revenue-neutral), isolating the price effect from the fiscal effect.
+        type: bool
+        default: false
+        tier: core
+        notes: Off = the price increase acts partly as an un-rebated tax. See guardrail recycle_or_tax.
+      energy_cmin:
+        title: Energy necessity floor (c_min)
+        description: Minimum per-household energy consumption — makes energy a necessity, producing differential exposure by income.
+        type: float
+        default: 0.0
+        unit: "/1"
+        validators: {range: {min: 0.0, max: 1.0, level: warn}}
+        tier: advanced
+        notes: Must be calibrated BELOW every income group's baseline energy use, or the solve breaks (hard guardrail in apply()).
+      fuel:
+        title: Fuel / commodity code (dual only)
+        description: Which CLEWS commodity to match for the dual price; null = all electricity (ELC*) codes.
+        type: str
+        default: null
+        depends_on: ["price_source == dual"]
+        tier: advanced
+      use_clews_data:
+        title: (deprecated) use CLEWS cost index
+        description: Legacy flag superseded by price_source = clews_cost_index.
+        type: bool
+        default: false
+        tier: advanced
+        deprecated: true
+
+  investment:
+    label: CLEWS energy capex → public investment (crowding-out, debt)
+    description: >
+      Routes the CLEWS power-capex increment into OG public investment (alpha_I → K_g), so the energy
+      build competes with private capital and adds to debt.
+    direction: clews_to_og
+    theory_status: structural_core
+    post_solve: false
+    soft_conflicts: [energy_price]
+    options:
+      public_only:
+        title: Public infrastructure only
+        description: Route only public-infra (transmission & distribution) capex; exclude private generation capex.
+        type: bool
+        default: true
+        tier: core
+      target:
+        title: Spending parameter
+        description: Where the capex lands.
+        type: str
+        default: alpha_I
+        validators: {choice: {choices: [alpha_I, alpha_bs_I]}}
+        tier: advanced
+        notes: alpha_bs_I is ignored by OG-Core unless baseline_spending=True (default False) — usually a silent no-op (apply() warns).
+      scale:
+        title: Scale factor
+        description: Multiply the capex increment (illustrative until the CLEWS-MUSD↔GDP deflator bridge exists).
+        type: float
+        default: 1.0
+        validators: {range: {min: 0.0, max: 5.0, level: warn}}
+        tier: advanced
+      persist:
+        title: Permanent infrastructure
+        description: Carry the build into the steady state (permanent) vs taper to baseline (finite transition, default).
+        type: bool
+        default: false
+        tier: advanced
+      smooth_years:
+        title: Smoothing window (years)
+        description: Average lumpy year-to-year capex spikes over this many years.
+        type: int
+        default: 1
+        validators: {range: {min: 1, max: 20}}
+        tier: advanced
+
+  carbon:
+    label: Carbon price → OG fiscal revenue + CLEWS emissions penalty
+    description: One carbon price set as policy, feeding both an OG consumption-side tax on household energy and a CLEWS emissions penalty.
+    direction: policy
+    theory_status: structural_core
+    post_solve: false
+    conflicts_with: [energy_price]    # both add to the energy good's tau_c
+    options:
+      carbon_price:
+        title: Carbon price
+        description: Price per tonne of CO2.
+        type: float
+        default: 50.0
+        unit: currency-USD
+        validators: {range: {min: 0.0, max: 1000.0, level: warn}}
+        tier: core
+      apply_to_og:
+        title: Apply to OG (household tax)
+        description: Levy the carbon price as an OG consumption-side tax on household energy (~1.4% of consumption; industrial carbon is unpriced on the OG side).
+        type: bool
+        default: true
+        tier: core
+      apply_to_clews:
+        title: Apply to CLEWS (emissions penalty)
+        description: Feed the carbon price to CLEWS as an emissions penalty.
+        type: bool
+        default: true
+        tier: core
+      recycle:
+        title: Recycle OG carbon revenue
+        description: Rebate the OG carbon revenue to households as a transfer.
+        type: bool
+        default: false
+        tier: core
+        notes: Off = an un-routed tax (see guardrail recycle_or_tax).
+      carbon_intensity:
+        title: Carbon intensity of the energy good
+        description: Tonnes CO2 per unit of the OG energy good; sets the ad-valorem tax add-on.
+        type: float
+        default: 0.5
+        unit: tCO2-per-unit
+        validators: {range: {min: 0.0, max: 5.0, level: warn}}
+        tier: advanced
+        notes: Units must be right or the tax add-on blows past 100% (apply() warns). Treat magnitudes as illustrative until calibrated.
+
+  health:
+    label: CLEWS emissions → health → mortality / productivity
+    description: >
+      Translates the reform's emissions change into avoided (or added) deaths via an age profile, and
+      into a productivity (morbidity) effect on effective labor.
+    direction: clews_to_og
+    theory_status: reduced_form
+    post_solve: false
+    status_note: ILLUSTRATIVE — the dose-response and morbidity response are PLACEHOLDERS until a GBD ambient-PM2.5 export is supplied. Do not report calibrated numbers without gbd_csv.
+    options:
+      affects:
+        title: Effects to include
+        description: Mortality (recomputes the population) and/or e (productivity via effective labor).
+        type: list
+        default: [mortality, e]
+        validators: {choice: {choices: [mortality, e]}}
+        tier: core
+      phase_years:
+        title: Phase-in (years)
+        description: Years over which the health effect ramps in.
+        type: int
+        default: 5
+        validators: {range: {min: 1, max: 20}}
+        tier: core
+      excess_deaths:
+        title: Excess-deaths target (signed)
+        description: Direct signed target; negative = lives saved. Overrides the GBD/total computation.
+        type: int
+        default: null
+        tier: core
+      gbd_csv:
+        title: GBD burden export (CSV)
+        description: Path to a GBD ambient-PM2.5 deaths/YLD-by-age export. Supplying it retires the placeholders.
+        type: str
+        default: null
+        tier: advanced
+      total_pollution_deaths:
+        title: Total pollution deaths
+        description: Total attributable deaths; scaled by the emissions change to set the target.
+        type: float
+        default: null
+        tier: advanced
+      morbidity_response:
+        title: Morbidity productivity response
+        description: Per-person productivity haircut at peak exposure (placeholder unless GBD YLD data is supplied).
+        type: float
+        default: 0.01
+        validators: {range: {min: 0.0, max: 0.2, level: warn}}
+        tier: advanced
+      prod_J:
+        title: Productivity types affected
+        description: Number of ability types whose effective labor the morbidity effect touches.
+        type: int
+        default: 7
+        tier: advanced
+      gbd_location: {title: GBD location, description: Location name for the GBD lookup (defaults to the country name)., type: str, default: null, tier: advanced}
+      gbd_year: {title: GBD year, description: GBD reference year (default 2023)., type: int, default: null, tier: advanced}
+      profile_path: {title: Mortality age-profile file, description: Custom mortality h(s) age profile (overrides GBD)., type: str, default: null, tier: advanced}
+      morbidity_profile: {title: Morbidity age-profile, description: Custom morbidity g(s) age shape (overrides GBD; default uniform over active ages)., type: str, default: null, tier: advanced}
+
+  discount_rate:
+    label: OG equilibrium rate → CLEWS discount rate
+    description: Emits the reform's OG market cost of capital as the CLEWS discount rate (rate harmonization).
+    direction: og_to_clews
+    theory_status: structural_core
+    post_solve: true
+    options:
+      rate_key:
+        title: Rate key
+        description: Which OG rate to emit (the market portfolio return r_p).
+        type: str
+        default: r_p
+        tier: advanced
+      scalar:
+        title: Single value vs path
+        description: Emit one averaged rate (true) or the full time path (false).
+        type: bool
+        default: true
+        tier: advanced
+      region:
+        title: CLEWS region
+        description: Region tag to write the discount rate to.
+        type: str
+        default: RE1
+        tier: advanced
+
+  demand:
+    label: OG activity → CLEWS energy-service demand
+    description: Ratio-scales CLEWS demand by the reform/base change in OG activity (the forward driver that closes the loop).
+    direction: og_to_clews
+    theory_status: structural_core
+    post_solve: true
+    status_note: Inert in a single CLEWS→OG pass (ratio ≈ 1); becomes a real driver only inside the iterated loop.
+    options:
+      driver:
+        title: Activity driver
+        description: Drive demand by OG sector output (Y_m) or by the consumption good (C_i).
+        type: str
+        default: Y_m
+        validators: {choice: {choices: [Y_m, C_i]}}
+        tier: core
+      elasticity:
+        title: Demand elasticity
+        description: Exponent on the activity ratio.
+        type: float
+        default: 1.0
+        validators: {range: {min: 0.0, max: 3.0, level: warn}}
+        tier: advanced
+      og_index: {title: OG index override, description: Industry/good index to slice (null = the declared energy index)., type: int, default: null, tier: advanced}
+      clews_fuel: {title: CLEWS fuel, description: Target CLEWS fuel for the demand scaling., type: str, default: null, tier: advanced}
+
+# ---------------------------------------------------------------------------------------------------
+# Generic, resource-agnostic levers (policy_levers.py). Target an industry BY INDEX, so they are
+# separability-gated: disabled on single-industry (M=1) models and for undeclared resources.
+levers:
+
+  set_investment_incentive:
+    label: Private-capex incentive (by industry)
+    description: Bias private capex in one industry by lowering its cost of capital. In OG alone this looks ~free on GDP; the payoff is the coupled CLEWS outcome.
+    separability_gated: true
+    options:
+      industry:
+        title: Target industry / resource
+        description: Industry by name/resource (e.g. "energy") or integer index; resolved against the model's industry registry.
+        type: industry_ref
+        default: null
+        tier: advanced
+        notes: Greyed out on M=1 models and for resources the country config has not declared.
+      inv_tax_credit: {title: Investment tax credit, description: ITC rate on the industry's capex., type: float, default: null, unit: "/1", tier: advanced}
+      delta_tau: {title: Accelerated depreciation, description: Accelerated tax-depreciation rate., type: float, default: null, tier: advanced}
+      tau_b_mult: {title: Corporate-tax multiplier, description: Scale the industry's corporate income tax (e.g. 0.8 = a 20% CIT cut)., type: float, default: null, tier: advanced}
+      phase_years: {title: Phase-in (years), description: Apply over the first N periods (null = all)., type: int, default: null, tier: advanced}
+
+  route_revenue:
+    label: Route a revenue/spending stream
+    description: Direct a %-of-GDP path to a fiscal destination.
+    options:
+      pct_gdp_path:
+        title: Amount (share of GDP)
+        description: The %-GDP stream to route (a scalar or a path).
+        type: float
+        default: null
+        unit: "/1"
+        tier: core
+      to:
+        title: Destination
+        description: Where the stream goes.
+        type: str
+        default: transfers
+        validators: {choice: {choices: [transfers, public_investment, government_consumption, deficit]}}
+        tier: core
+        notes: >
+          EXOGENOUS / debt-financed — NOT a revenue-neutral recycle (for neutrality use a channel's
+          recycle option). 'deficit' is the one neutral choice here: no param change, the debt-ratio
+          rule absorbs it.
+      fill_ss_tail: {title: Fill steady-state tail, description: Carry the last value into the steady state (permanent) vs stop after the path., type: bool, default: true, tier: advanced}
+
+# ---------------------------------------------------------------------------------------------------
+# Templates = named, pre-assembled scenarios (door 1). Framed as questions. Mirrors experiments.py.
+templates:
+  energy_price:
+    question: Does household energy demand fall when energy gets pricier?
+    run_mode: single
+    channels: [{energy_price: {shock: 0.20}}]
+  clean_incidence:
+    question: Who bears a +20% energy price, once you strip out the tax artifact?
+    run_mode: single
+    channels: [{energy_price: {shock: 0.20, recycle: true, energy_cmin: 0.005}}]
+  investment:
+    question: What does financing the energy build through public investment cost (crowding-out, debt)?
+    run_mode: single
+    channels: [{investment: {target: alpha_I, public_only: false}}]
+  carbon:
+    question: A $50 carbon price as one lever on both sides — what happens?
+    run_mode: single
+    channels: [{carbon: {carbon_price: 50.0, recycle: true}}]
+  forward:
+    question: An energy reform that also feeds CLEWS its discount rate and demand — does the loop close?
+    run_mode: single
+    channels: [{energy_price: {shock: 0.20}}, {discount_rate: {}}, {demand: {driver: Y_m}}]
+  health:
+    question: What is the health dividend (or cost) of the emissions change?
+    run_mode: single
+    channels: [{health: {}}]
+  full:
+    question: All channels in one disciplined soft-link pass.
+    run_mode: single
+    channels:
+      - {energy_price: {shock: 0.20, recycle: true}}
+      - {investment: {target: alpha_I}}
+      - {carbon: {carbon_price: 50.0, apply_to_og: false}}
+      - {health: {}}
+      - {discount_rate: {}}
+      - {demand: {driver: Y_m}}
+  across_steps:
+    question: What does each channel add? (energy → +investment → +carbon → +health)
+    run_mode: layered          # cumulative comparison set, not one run
+    layers:
+      - {label: energy price,  channels: [{energy_price: {shock: 0.20}}]}
+      - {label: + investment,  channels: [{energy_price: {shock: 0.20}}, {investment: {target: alpha_I, public_only: false, scale: 0.3, smooth_years: 5}}]}
+      - {label: + carbon,      channels: [{energy_price: {shock: 0.20}}, {investment: {target: alpha_I, public_only: false, scale: 0.3, smooth_years: 5}}, {carbon: {carbon_price: 50.0, carbon_intensity: 0.002, apply_to_og: true, recycle: false}}]}
+      - {label: + health,      channels: [{energy_price: {shock: 0.20}}, {investment: {target: alpha_I, public_only: false, scale: 0.3, smooth_years: 5}}, {carbon: {carbon_price: 50.0, carbon_intensity: 0.002, apply_to_og: true, recycle: false}}, {health: {}}]}
+
+# ---------------------------------------------------------------------------------------------------
+# Guardrails the builder enforces as it assembles a scenario — from the channels' validate() methods
+# plus the design note. severity: block (hard-stop) | warn (allow, flag).
+guardrails:
+  - id: no_double_count
+    severity: block
+    applies_to: [energy_price, carbon]
+    message: >
+      energy_price and carbon both add to the energy good's tau_c. A resource cost and a tax are
+      different objects — do not stack them on the same good. Never route the same energy cost through
+      investment AND an I-O cost AND tau_c.
+  - id: operating_vs_capital
+    severity: warn
+    applies_to: [energy_price, investment]
+    message: Do not route the same transition burden through both a price/operating-cost drag and public investment (capital account).
+  - id: recycle_or_tax
+    severity: warn
+    applies_to: [energy_price, carbon, route_revenue]
+    message: A tau_c / carbon revenue stream must be recycled or routed, or it is an un-modeled, debt-financed fiscal expansion — not a clean price signal.
+  - id: separability
+    severity: block
+    applies_to: [set_investment_incentive]
+    message: Industry/resource targeting is unavailable on single-industry (M=1) models and for resources the country config has not declared.
+  - id: magnitude_calibration
+    severity: warn
+    applies_to: [investment, carbon, health]
+    message: >
+      Flag uncalibrated magnitudes — CLEWS-MUSD vs real GDP has no deflator bridge yet (investment,
+      carbon_intensity), and the health dose-response/morbidity response are placeholders pending GBD.
+  - id: post_solve_order
+    severity: warn
+    applies_to: [discount_rate, demand]
+    message: These run AFTER the reform solve; demand is inert in a single CLEWS→OG pass (it drives only inside the iterated loop).
