@@ -20,7 +20,10 @@ class CountryConfig:
     scenario: ScenarioPair
     power_prefix: str = "PHL_POW"           # all power-sector technologies
     public_power_markers: tuple = ("_TD",)  # techs treated as public infrastructure (T&D)
-    co2_emission: str = "CO2e"
+    co2_emission: str = "CO2e"        # carbon-policy / climate species (carbon channel + emissions chart)
+    health_emission: str = "PM2_5"    # the ambient pollutant the GBD health burden is attributed to; the
+                                      # health channel scales its PM2.5 dose-response by THIS species'
+                                      # reform/base emission ratio -- NOT CO2e (climate != air-pollution health)
     mindist_tpi: float = 1e-5
     # SS aggregate-resource-constraint gate for the LIVES-SAVED (mortality-down) health reform only:
     # apply_health_shock sets p.RC_SS to this when the target is negative; every other solve (baseline,

@@ -77,7 +77,7 @@ def test_energy_price_cmin():
     assert np.asarray(ctx.og_reform.c_min)[I_E] == 0.005
 
 
-def test_ss_tail_persistence():
+def test_ss_tail_persistence(monkeypatch):
     # permanent policy (carbon tax, recycled transfers) must reach the SS tail T:T+S;
     # temporary transition capex (investment) must taper to baseline there.
     ctx = _ctx()
@@ -86,10 +86,17 @@ def test_ss_tail_persistence():
     ctx2 = _ctx()
     get("energy_price").apply(ctx2, shock=0.20, recycle=True)
     assert np.asarray(ctx2.og_reform.alpha_T)[-1] > 0.05, "recycled alpha_T must persist into SS tail"
+    # investment is public-infra-only and PHL/PEP has ~0 grid capex, so inject a synthetic non-zero
+    # public-infra increment to actually exercise the finite-flow taper.
+    import pandas as pd
+    from ogclews_link import signals as _sig
+    yrs = list(range(2026, 2054))
+    monkeypatch.setattr(_sig, "power_capex_increment", lambda *a, **k: pd.Series([5000.0] * len(yrs), index=yrs))
     ctx3 = _ctx()
     a0 = np.asarray(ctx3.og_reform.alpha_I).copy()
-    get("investment").apply(ctx3, public_only=False, persist=False)
+    get("investment").apply(ctx3, persist=False)
     assert np.asarray(ctx3.og_reform.alpha_I)[-1] == a0[-1], "temporary investment must taper in SS tail"
+    assert not np.allclose(np.asarray(ctx3.og_reform.alpha_I)[:5], a0[:5]), "transition years must move"
 
 
 def test_empty_signal_no_crash():
@@ -103,10 +110,22 @@ def test_empty_signal_no_crash():
 
 def test_carbon_both_sides():
     ctx = _ctx()
-    prov = get("carbon").apply(ctx, carbon_price=50.0, carbon_intensity=0.5, recycle=True)
+    # units-sane illustrative intensity (50 USD/tCO2 * 0.005 = 25% add-on, < the 100% hard-block)
+    prov = get("carbon").apply(ctx, carbon_price=50.0, carbon_intensity=0.005, recycle=True)
     assert np.asarray(ctx.og_reform.tau_c)[0, I_E] > 0.12          # OG carbon tax raised energy tau_c
     assert "EmissionsPenalty" in ctx.clews_inputs                  # CLEWS side written
     assert set(prov["applied_to"]) == {"og_tau_c", "clews_emissions_penalty"}
+
+
+def test_carbon_blocks_absurd_tax():
+    import pytest
+    # carbon_intensity=0.5 with the uncalibrated deflator implies a ~2500% tau_c -> must hard-raise,
+    # not silently apply a meaningless tax.
+    with pytest.raises(ValueError):
+        get("carbon").apply(_ctx(), carbon_price=50.0, carbon_intensity=0.5)
+    # ...but an explicit illustrative override is allowed:
+    prov = get("carbon").apply(_ctx(), carbon_price=50.0, carbon_intensity=0.5, allow_illustrative=True)
+    assert "og_tau_c" in prov["applied_to"]
 
 
 def test_discount_rate_postsolve():
@@ -130,14 +149,17 @@ def test_guardrails_present():
     assert get("energy_price").validate(ctx, ["energy_price", "carbon"])  # double-count warning
 
 
-def test_investment_reads_clews():
+def test_investment_public_infra_only():
+    # public-infra-only: PHL/PEP has NO grid (T&D) capex delta, so the public-investment channel
+    # correctly contributes ~nothing (private generation capex's effect rides the energy channel).
     if not HAVE_CLEWS:
         print("  (skip: CLEWS dirs absent)"); return
     ctx = _ctx()
     a0 = np.asarray(ctx.og_reform.alpha_I).copy()
-    prov = get("investment").apply(ctx, target="alpha_I", public_only=False)
+    prov = get("investment").apply(ctx, target="alpha_I")
     assert "cumulative_pct_gdp" in prov
-    assert not np.allclose(np.asarray(ctx.og_reform.alpha_I), a0)  # alpha_I path moved
+    assert abs(prov["cumulative_pct_gdp"]) < 1e-9                  # no public-infra capex delta
+    assert np.allclose(np.asarray(ctx.og_reform.alpha_I), a0)      # alpha_I unchanged (honest ~0)
 
 
 def test_health_reads_clews():
