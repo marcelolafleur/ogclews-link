@@ -91,8 +91,18 @@ def recycle_via_transfers(ctx, i_good: int, dtau_path) -> float | None:
     Y = np.asarray(b["Y"])[:T]
     bump = (_fit(dtau_path, T) * pi * Ci) / np.maximum(Y, 1e-12)   # extra revenue, share of GDP
     aT = np.asarray(p.alpha_T, dtype=float)
-    p.alpha_T = aT + _fit(bump, aT.shape[0])                       # carry into the SS tail
-    return float(np.mean(bump[:10]))
+    new_aT = aT + _fit(bump, aT.shape[0])                          # carry into the SS tail
+    if np.any(new_aT < 0):
+        # A cheaper-energy reform (dtau<0) shrinks the recycle and, unfloored, would drive alpha_T
+        # NEGATIVE -- a lump-sum TAX on households (TR=alpha_T*Y), bypassing OG-Core's alpha_T>=0
+        # validator since we set the attribute directly. Floor at 0 to keep it a transfer. NOTE: a
+        # sign-flipping recycle means transfers are the wrong closure instrument for this reform --
+        # the floor protects the solve, but the scenario should route the rebate elsewhere.
+        print("[guardrail] recycle_via_transfers: bump would push alpha_T < 0 (a lump-sum tax on "
+              "households); floored at 0. A negative recycle implies the closure instrument should change.")
+        new_aT = np.maximum(new_aT, 0.0)
+    p.alpha_T = new_aT
+    return float(np.mean((new_aT - aT)[:10]))   # realized recycle (post-floor), share of GDP
 
 
 # --- #1 energy price -> household demand (+ incidence) --------------------------
@@ -166,22 +176,31 @@ class EnergyPriceChannel(Channel):
 
 class InvestmentChannel(Channel):
     id = "investment"
-    label = "CLEWS energy capex -> public investment (crowding-out, debt)"
+    label = "CLEWS public-infrastructure (grid/T&D) capex -> public investment (alpha_I -> K_g)"
     direction = CLEWS_TO_OG
     theory_status = "structural_core"
 
-    def apply(self, ctx, target="alpha_I", public_only=True, scale=1.0, persist=False, smooth_years=1):
+    def apply(self, ctx, target="alpha_I", scale=1.0, persist=False, smooth_years=1):
         c = ctx.country
         p = ctx.og_reform
-        inc = signals.power_capex_increment(c.scenario.base_dir, c.scenario.reform_dir, c, public_only)
-        # CLEWS monetary units are model-MUSD; dividing by real GDP assumes ~parity (no deflator
-        # bridge yet). public_only routes only public-infra (T&D) techs to K_g; private generation
-        # capex is NOT public investment. smooth_years dampens lumpy year-to-year capex spikes.
-        pct_gdp = scale * inc / c.gdp_musd
+        # PUBLIC-INFRASTRUCTURE ONLY. alpha_I -> K_g is OG-Core's GOVERNMENT public-capital lever -- it
+        # lifts every industry's productivity (via gamma_g), so only genuinely public infra (grid / T&D,
+        # per country.is_public) belongs here. PRIVATE generation capex is NOT public investment: its
+        # macro effect is the energy COST-PUSH (energy_price dual / I-O-calibrated Z), and a capex
+        # SUBSIDY policy is policy_levers.set_investment_incentive (tau_b / ITC / delta_tau).
+        inc = signals.power_capex_increment(c.scenario.base_dir, c.scenario.reform_dir, c, public_only=True)
+        # CLEWS money is model-MUSD; units.deflator is the (uncalibrated, =1.0) CLEWS-money<->GDP-basis
+        # bridge, made explicit so %-of-GDP is not a silent parity assumption. smooth_years dampens lumpy
+        # year-to-year capex.
+        pct_gdp = scale * inc * float(getattr(c.units, "deflator", 1.0)) / c.gdp_musd
         if smooth_years > 1:
             pct_gdp = pct_gdp.rolling(smooth_years, center=True, min_periods=1).mean()
         # transition capex is a FINITE flow: real during the CLEWS horizon, zero after (and in SS).
         path = _align_finite(pct_gdp, c.scenario.og_start_year, p.T)
+        if not np.any(np.abs(path) > 1e-12):
+            print("[guardrail] investment: no PUBLIC-infrastructure (grid/T&D) capex delta in this "
+                  "scenario -- the public-investment channel contributes ~0. Private generation capex is "
+                  "NOT routed here; its effect belongs to the energy cost-push channel.")
         full = np.zeros(np.asarray(p.alpha_I).shape[0])
         full[:p.T] = path
         if persist:                       # rare: permanent infrastructure -> carry the last value into SS
@@ -189,24 +208,26 @@ class InvestmentChannel(Channel):
         if np.max(path) > float(np.asarray(p.alpha_I)[0]):
             print(f"[guardrail] investment: peak alpha_I increment {np.max(path):.3f} > baseline "
                   f"alpha_I {float(np.asarray(p.alpha_I)[0]):.3f} -- large public-investment shock; "
-                  f"check units, public_only, and smooth_years.")
+                  f"check units.deflator and smooth_years.")
         if target == "alpha_I":
             p.alpha_I = np.asarray(p.alpha_I, dtype=float) + full
         else:
+            # alpha_bs_I is read by OG-Core's get_I_g ONLY when baseline_spending=True (default False),
+            # so this branch is a silent no-op under the default closure -- warn rather than fail quietly.
+            if not bool(getattr(p, "baseline_spending", False)):
+                print(f"[guardrail] investment target={target!r} writes alpha_bs_I, which OG-Core ignores "
+                      f"unless baseline_spending=True (currently False) -- this shock will have NO effect.")
             p.alpha_bs_I = np.asarray(p.alpha_bs_I, dtype=float) * (1.0 + full)
-        return {"target": target, "public_only": public_only, "persist": persist,
+        return {"target": target, "scope": "public_infrastructure", "persist": persist,
                 "smooth_years": smooth_years, "cumulative_pct_gdp": float(path.sum()),
                 "peak_pct_gdp": float(np.max(path))}
 
     def validate(self, ctx, active):
-        w = ["investment->alpha_I treats capex as PUBLIC infrastructure (K_g); verify the "
-             "public/private tagging (public_only=True keeps only T&D). CLEWS-MUSD vs real GDP "
-             "assumes unit parity -- add a deflator before headline use."]
-        if "energy_price" in active:
-            w.append("investment + energy_price: do not route the same transition burden through both a "
-                     "price/productivity drag and public investment (price = operating cost; investment "
-                     "= capital account).")
-        return w
+        return ["investment routes ONLY public-infrastructure (grid/T&D) capex to alpha_I -> K_g "
+                "(economy-wide public capital, productive via gamma_g). Private generation capex is NOT "
+                "here -- its macro effect is the energy cost-push, and a capex subsidy is "
+                "set_investment_incentive. CLEWS-money vs GDP uses units.deflator (=1.0, uncalibrated) -- "
+                "calibrate before any headline %-of-GDP."]
 
 
 # --- #3 carbon price -> fiscal revenue (OG) + EmissionsPenalty (CLEWS) -----------
@@ -217,26 +238,33 @@ class CarbonChannel(Channel):
     direction = POLICY
     theory_status = "structural_core"
 
-    def apply(self, ctx, carbon_price=50.0, carbon_intensity=0.5, apply_to_og=True,
-              apply_to_clews=True, recycle=False):
+    def apply(self, ctx, carbon_price=50.0, carbon_intensity=0.002, apply_to_og=True,
+              apply_to_clews=True, recycle=False, allow_illustrative=False):
         c = ctx.country
         i_e = c.concordance.energy_good_index
         p = ctx.og_reform
-        cp = _fit(carbon_price, p.T)              # USD/tCO2 path
+        cp = _fit(carbon_price, p.T)              # carbon price path (USD/tCO2)
         prov = {"carbon_price_mean": float(cp.mean()), "applied_to": []}
         if apply_to_og:
-            # consumption-side carbon tax on the energy good. UNITS: carbon_intensity must be tCO2
-            # per unit of the OG energy good, and carbon_price in the OG numeraire (NOT raw USD) for
-            # the ad-valorem ratio to be dimensionless -- no deflator is applied yet, so treat the
-            # magnitude as illustrative. OG has no energy in PRODUCTION, so this prices only
-            # HOUSEHOLD energy (~1.4% of consumption); industrial carbon is unpriced on the OG side.
+            # Consumption-side carbon tax on the energy good. UNITS (ad-valorem tau_c add-on =
+            # carbon-cost-per-unit-good / price-per-unit-good): carbon_price is USD/tCO2 -> convert to
+            # the OG numeraire via units.deflator (numeraire per USD); carbon_intensity is tCO2 per unit
+            # of the OG energy good; base_pi is the good's price in the numeraire. So the ratio is
+            # dimensionless ONLY once cp is in the numeraire. units.deflator is the (still-uncalibrated)
+            # USD<->numeraire bridge -- at the default 1.0, USD is treated 1:1 as numeraire, so the
+            # MAGNITUDE is illustrative until it is calibrated. OG has no energy in PRODUCTION, so this
+            # prices only HOUSEHOLD energy (~1.4% of consumption); industrial carbon is unpriced here.
             base_pi = (np.asarray(ctx.base_tpi["p_i"])[:p.T, i_e] if ctx.base_tpi is not None
                        else np.ones(p.T))
-            dtau = cp * carbon_intensity / np.maximum(base_pi, 1e-9)
-            if float(dtau.mean()) > 1.0:
-                print(f"[guardrail] carbon: mean implied tau_c add-on {dtau.mean():.2f} (>100%) -- "
-                      f"carbon_intensity/price units are almost certainly off (need tCO2 per unit good "
-                      f"and price in OG numeraire). Treat as illustrative.")
+            cp_num = cp * float(getattr(c.units, "deflator", 1.0))     # USD/tCO2 -> numeraire/tCO2
+            dtau = cp_num * carbon_intensity / np.maximum(base_pi, 1e-9)
+            if float(dtau.mean()) > 1.0 and not allow_illustrative:
+                raise ValueError(
+                    f"carbon: implied mean tau_c add-on {dtau.mean():.2f} (>100%) on the energy good -- "
+                    "the USD->numeraire deflator (units.deflator) and/or carbon_intensity (tCO2 per unit "
+                    "of the OG energy good) are uncalibrated, so this is not a real ad-valorem rate. "
+                    "Calibrate them, or pass allow_illustrative=True to proceed with an explicitly "
+                    "illustrative magnitude (do NOT report it as a policy result).")
             tau = np.array(p.tau_c, dtype=float)
             tau[:, i_e] = tau[:, i_e] + _fit(dtau, tau.shape[0])   # permanent policy: full tail
             p.tau_c = tau
@@ -267,7 +295,10 @@ class DiscountRateChannel(Channel):
     post_solve = True
 
     def apply(self, ctx, rate_key="r_p", scalar=True, region="RE1"):
-        r = signals.og_interest_rate(ctx.base_tpi, rate_key)  # OG real per-period (market) rate
+        if ctx.reform_tpi is None:
+            raise ValueError("DiscountRateChannel is post_solve and needs ctx.reform_tpi (the reform "
+                             "equilibrium rate); it was None -- run it after the reform solve.")
+        r = signals.og_interest_rate(ctx.reform_tpi, rate_key)  # REFORM OG real per-period (market) rate
         rate = float(np.mean(r[:10])) if scalar else r.tolist()
         ctx.clews_inputs["DiscountRate"] = {"region": region, "rate": rate, "key": rate_key,
                                             "convention": "real; OG market cost of capital; period~annual if S=80"}
@@ -298,8 +329,12 @@ class HealthChannel(Channel):
               phase_years=5, prod_J=7, gbd_csv=None, gbd_location=None, gbd_year=None):
         c = ctx.country
         p = ctx.og_reform
-        er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c)
-        demis = float(np.nanmean(er.values[:10])) - 1.0   # <0 == reform is cleaner
+        # The GBD burden is PM2.5-attributable, so scale the dose-response by the PM2.5 emission
+        # reform/base ratio (c.health_emission), NOT CO2e -- a decarbonization reform moves CO2e and
+        # PM2.5 by different ratios (e.g. CCS cuts CO2e but not PM2.5; coal->gas cuts PM2.5 sharply).
+        species = getattr(c, "health_emission", None)
+        er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, species=species)
+        demis = float(np.nanmean(er.values[:10])) - 1.0   # <0 == reform is cleaner (less PM2.5)
         if not np.isfinite(demis):
             raise ValueError(f"health: emissions_ratio gave a non-finite change ({demis}); "
                              "check the CLEWS emissions files.")
@@ -310,7 +345,8 @@ class HealthChannel(Channel):
         gbd = gbd_csv or getattr(c, "gbd_burden_csv", None)
         gloc = gbd_location or getattr(c, "name", None)
         gyr = int(gbd_year or getattr(c, "gbd_year", 2023))
-        prov = {"emissions_change": demis, "affects": list(affects), "gbd_source": bool(gbd)}
+        prov = {"emissions_change": demis, "emissions_species": species or c.co2_emission,
+                "affects": list(affects), "gbd_source": bool(gbd)}
         if "mortality" in affects:
             # disease_pop method: stash a SIGNED excess-deaths target + age shape; the runtime's
             # health_pop.disease_pop solves rho += shock_scale*g_t*h(s) (clipped) to hit it, then
@@ -392,7 +428,11 @@ class DemandChannel(Channel):
 
     def apply(self, ctx, driver="Y_m", elasticity=1.0, og_index=None, clews_fuel=None):
         c = ctx.country
-        idx = og_index if og_index is not None else c.concordance.energy_industry_index
+        # default index must match the slice space: og_sector_output slices Y_m (industry m index),
+        # og_consumption_good slices C_i (good i index). PHL masks this (both indices == 1).
+        default_idx = (c.concordance.energy_industry_index if driver == "Y_m"
+                       else c.concordance.energy_good_index)
+        idx = og_index if og_index is not None else default_idx
         get = signals.og_sector_output if driver == "Y_m" else signals.og_consumption_good
         yb, yr = get(ctx.base_tpi, idx), get(ctx.reform_tpi, idx)
         T = min(len(yb), len(yr))

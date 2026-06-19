@@ -6,12 +6,12 @@ Two sources, in increasing rigor:
     generation" workbook each scenario already ships. An *average* cost index; a
     serviceable first proxy for the price the household should face.
 
-  * ``commodity_shadow_price`` -- the rigorous source: the dual of the OSeMOSYS
-    commodity-balance constraint (``EBa11``/``EBb4``), i.e. the *marginal* cost of
-    the commodity. NOT in default output; the solver must be configured to emit
-    marginals (GLPK ``--wglp`` + marginals, CPLEX ``.sol`` dual section, or a
-    pyomo/otoole stack). This is the highest-value, least-exposed CLEWS output and
-    the object the de novo analysis identifies as load-bearing.
+  * the *rigorous* source -- the dual of the OSeMOSYS commodity-balance constraint
+    (``EBa11``/``EBb4``), i.e. the *marginal* cost of the commodity -- is implemented
+    in ``signals.commodity_shadow_price`` (it reads a MUIOGO CBC dual export). NOT in
+    default CLEWS output; the solver must emit marginals. This is the highest-value,
+    least-exposed CLEWS output and the object the de novo analysis identifies as
+    load-bearing.
 """
 from __future__ import annotations
 
@@ -42,19 +42,3 @@ def cost_of_electricity_ratio(base_xlsx: str, reform_xlsx: str, *, sheet=0,
     base, reform = _read(base_xlsx), _read(reform_xlsx)
     common = base.index.intersection(reform.index)
     return (reform.loc[common] / base.loc[common]).sort_index()
-
-
-def commodity_shadow_price(*args, **kwargs):  # pragma: no cover
-    """Dual of the commodity-balance constraint = the marginal energy price.
-
-    Not implementable from the curated CSV/xlsx exports -- it requires the LP duals.
-    To produce it: re-run the CLEWS scenario with the solver emitting marginals and
-    read the multiplier on ``EBa11_EnergyBalanceEachTS5`` (timeslice) or
-    ``EBb4_EnergyBalanceEachYear4`` (annual) for the electricity commodity, then
-    un-discount by (1 + DiscountRate)^(y - y0) and demand-weight slices to annual.
-    Belongs to the MUIOGO-orchestrated path where CLEWS is actually re-run.
-    """
-    raise NotImplementedError(
-        "Commodity shadow price needs CLEWS re-run with solver marginals enabled. "
-        "See docstring; use cost_of_electricity_ratio() as the first-pass proxy."
-    )

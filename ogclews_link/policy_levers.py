@@ -108,9 +108,16 @@ def set_investment_incentive(p, industry_index, *, inv_tax_credit=None, delta_ta
 
 
 def route_revenue(p, pct_gdp_path, *, to="transfers", fill_ss_tail=True):
-    """Direct a revenue stream (per-period %-of-GDP path) to a fiscal destination: 'transfers'
+    """Add an EXOGENOUS (caller-supplied) %-of-GDP spending path to a fiscal destination: 'transfers'
     (alpha_T), 'public_investment' (alpha_I -> K_g), 'government_consumption' (alpha_G), or 'deficit'
-    (no-op -> the budget closure / debt-ratio rule absorbs it). Industry-agnostic. Returns provenance."""
+    (no-op -> the budget closure / debt-ratio rule absorbs it). Industry-agnostic. Returns provenance.
+
+    NOT a revenue recycle. Under OG-Core's default closure (budget_balance=False) alpha_T/alpha_I/alpha_G
+    drive SPENDING, and this path has NO link to collected revenue (total_tax_revenue), so a positive
+    bump is a DEBT-FINANCED spending increase, not a neutral recycle. For a revenue-neutral transfer
+    recycle, use ``channels.recycle_via_transfers`` (which estimates the revenue base). The 'deficit'
+    destination is the one neutral option here: no param change, the debt-ratio rule absorbs the stream.
+    """
     valid = {"transfers": "alpha_T", "public_investment": "alpha_I",
              "government_consumption": "alpha_G", "deficit": None}
     if to not in valid:

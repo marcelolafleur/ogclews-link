@@ -101,9 +101,10 @@ def power_capex_increment(base_dir, reform_dir, country, public_only=False) -> p
     return (reform.loc[years] - base.loc[years]).sort_index()
 
 
-def emissions_by_year(scenario_dir, country) -> pd.Series:
-    """Total CO2e by year for a scenario. Prefers the *ByMode variant, which is present for
-    BOTH base and reform here, so the two sides are aggregated identically (avoids a
+def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
+    """Total emissions of `species` (default ``country.co2_emission``, e.g. CO2e; the health channel
+    passes ``country.health_emission`` = PM2.5) by year. Prefers the *ByMode variant, which is present
+    for BOTH base and reform here, so the two sides are aggregated identically (avoids a
     base=ByMode / reform=plain mismatch); summing over modes recovers the total."""
     try:
         path = _find(scenario_dir, "AnnualTechnologyEmissionByMode")
@@ -115,12 +116,13 @@ def emissions_by_year(scenario_dir, country) -> pd.Series:
     ecol = cols.get("e")
     vcol = df.columns[-1]
     if ecol is not None:
-        df = df[df[ecol].astype(str).str.contains(country.co2_emission, case=False, na=False)]
+        df = df[df[ecol].astype(str).str.contains(species or country.co2_emission, case=False, na=False)]
     return df.groupby(ycol)[vcol].sum().sort_index()
 
 
-def emissions_ratio(base_dir, reform_dir, country) -> pd.Series:
-    base, reform = emissions_by_year(base_dir, country), emissions_by_year(reform_dir, country)
+def emissions_ratio(base_dir, reform_dir, country, species=None) -> pd.Series:
+    base, reform = (emissions_by_year(base_dir, country, species),
+                    emissions_by_year(reform_dir, country, species))
     years = sorted(set(base.index) & set(reform.index))
     b = base.loc[years].replace(0.0, np.nan)
     return (reform.loc[years] / b).sort_index()

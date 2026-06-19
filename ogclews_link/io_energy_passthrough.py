@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .energy_calibration import ELECTRICITY_COMMODITY, ENERGY_AND_FUELS, M4_PROD_DICT
+from .energy_calibration import ELECTRICITY_COMMODITY, ENERGY_AND_FUELS, M4_PROD_DICT, _gross_output
 
 
 def _activity_commodity_maps(sam):
@@ -36,7 +36,7 @@ def leontief_energy_intensity(energy_commodity, sam=None):
         sam = read_SAM()
     acts, comms = _activity_commodity_maps(sam)
     X = sam.loc[comms, acts].astype(float).values          # use table: commodity rows x activity cols
-    gross = sam[acts].astype(float).values.sum(axis=0)     # activity gross output (column totals)
+    gross = _gross_output(sam, acts)                       # activity gross output (primary-row column totals)
     gross_safe = np.where(gross > 0, gross, np.nan)
     A = X / gross_safe                                     # technical coefficients (commodity~activity)
     A = np.nan_to_num(A, nan=0.0)
@@ -59,7 +59,7 @@ def cost_push_by_industry(g, energy_commodity=None, prod_dict=None, sam=None):
         from ogphl.input_output import read_SAM
         sam = read_SAM()
     acts, e_direct, eps_total, sr = leontief_energy_intensity(energy_commodity, sam)
-    gross = {a: float(sam[a].astype(float).sum()) for a in acts}
+    gross = {a: float(g) for a, g in zip(acts, _gross_output(sam, acts))}
     idx = {a: i for i, a in enumerate(acts)}
     out = {"_spectral_radius_A": sr}
     for ind, codes in prod_dict.items():

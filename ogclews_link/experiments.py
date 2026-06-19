@@ -21,8 +21,10 @@ EXPERIMENTS = {
 
     # #2 transition investment -> public capital -> crowding-out, debt
     "investment": Experiment(
-        "investment", [("investment", {"target": "alpha_I", "public_only": False})],
-        "CLEWS power capex increment -> OG public investment (alpha_I); crowding-out + debt cost."),
+        "investment", [("investment", {"target": "alpha_I"})],
+        "PUBLIC-infrastructure (grid/T&D) capex -> alpha_I -> K_g. NB: PHL/PEP has ~0 grid-capex delta "
+        "(the transition is generation-side), so this contributes ~nothing here; private generation "
+        "capex's macro effect lives in the energy channel, a capex subsidy in set_investment_incentive."),
 
     # #3 carbon price -> OG fiscal revenue + CLEWS EmissionsPenalty (one price, both sides)
     "carbon": Experiment(
@@ -60,8 +62,9 @@ EXPERIMENTS = {
 # (investment scaled, small carbon intensity) pending the currency/deflator bridge -- the point
 # is the composition, not calibrated policy numbers.
 _EP = ("energy_price", {"shock": 0.20})
-# finite (transition-only) + smoothed + gentle scale, so the cumulative steps converge
-_INV = ("investment", {"target": "alpha_I", "public_only": False, "scale": 0.3, "smooth_years": 5})
+# public-infrastructure (grid/T&D) only; ~0 for PHL/PEP (generation-side transition), so the
+# "+ investment" step below contributes ~nothing -- the generation capex's effect is in the energy step.
+_INV = ("investment", {"target": "alpha_I", "scale": 0.3, "smooth_years": 5})
 _CARB = ("carbon", {"carbon_price": 50.0, "carbon_intensity": 0.002, "apply_to_og": True, "recycle": False})
 _HEALTH = ("health", {})
 

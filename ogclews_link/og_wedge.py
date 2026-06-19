@@ -64,9 +64,11 @@ def set_energy_consumption_wedge(p, i_energy: int, price_ratio_by_t, *, recycle:
     ``p.tau_c`` is (T, I); ``price_ratio_by_t`` is the reform/base effective-price
     ratio over time (scalar or path). Returns (p, diagnostics).
 
-    The induced consumption-tax revenue is a *mechanical artifact* unless the signal
-    truly is a carbon tax. Revenue-neutral recycling needs realized revenue and is a
-    POST-SOLVE closure (``recycle_consumption_tax_revenue``); ``recycle`` only records intent.
+    The induced consumption-tax revenue is REAL modeled revenue that, absent recycling,
+    accrues to government (funds G / reduces debt under the default closure) -- so for a
+    pure price signal it should be recycled, or it acts as a de-facto energy tax.
+    Revenue-neutral recycling uses ``channels.recycle_via_transfers`` (a first-order,
+    baseline-quantity estimate); ``recycle`` here only records intent.
     """
     tau_c = np.array(p.tau_c, dtype=float)
     T = tau_c.shape[0]
@@ -102,23 +104,6 @@ def set_energy_industry_tfp(p, m_energy: int, cost_ratio_by_t):
     p.Z = Z
     return p, {"route": "Z", "m_energy": m_energy, "Z_base": base, "Z_new": Z[:, m_energy].copy(),
                "cost_ratio": ratio}
-
-
-# --- Post-solve closure: neutralize the tau_c phantom revenue --------------------
-
-def recycle_consumption_tax_revenue(p, extra_revenue_by_t):
-    """Return the mechanical energy-tax revenue lump-sum via transfers (first-order).
-
-    ``p.alpha_T`` is the transfer-share-of-GDP path. ``extra_revenue_by_t`` is the
-    reform-minus-base consumption-tax revenue attributable to the energy wedge,
-    expressed as a share of GDP (compute it from a first OG solve). This is the
-    minimal revenue-neutral guard against the phantom-revenue artifact; a fuller
-    closure would recycle through whichever instrument the scenario specifies.
-    """
-    alpha_T = np.array(p.alpha_T, dtype=float)
-    T = alpha_T.shape[0]
-    p.alpha_T = alpha_T + _as_path(extra_revenue_by_t, T)
-    return p
 
 
 # --- Read-back: the demand response and its incidence ---------------------------

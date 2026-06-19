@@ -26,9 +26,10 @@ Every lever targets an industry **by index**, so it is resource-agnostic:
   **CLEWS side** (emissions/energy-security) that OG doesn't price, which is precisely what the
   soft-link is for. A builder should surface that an in-OG capex subsidy looks ~free/slightly-negative
   on GDP; the benefit is the coupled CLEWS outcome.
-- `route_revenue(p, pct_gdp_path, to=)` — direct a tax's revenue to `transfers` (`alpha_T`),
-  `public_investment` (`alpha_I`→K_g), `government_consumption` (`alpha_G`), or `deficit` (no-op → the
-  budget closure / debt-ratio rule absorbs it).
+- `route_revenue(p, pct_gdp_path, to=)` — add an *exogenous, caller-supplied* %-GDP spending path to
+  `transfers` (`alpha_T`), `public_investment` (`alpha_I`→K_g), `government_consumption` (`alpha_G`), or
+  `deficit` (no-op → the budget closure / debt-ratio rule absorbs it). NOT a revenue-neutral recycle (no
+  link to collected revenue); for neutrality use the channels' `recycle_via_transfers`.
 
 **The generality hook — a per-model registry, NOT a hardcoded catalog.** OG-Core carries only `p.M`
 (the industry COUNT) — no names, no resource tags. So the industry structure is **derived per onboarded
@@ -60,12 +61,14 @@ expose each lever as a structured choice with a default and a domain:
 | energy carrier | electricity / fuels / energy+water | electricity | drives θ_m & the dual to use (see energy spec) |
 | energy-cost representation | investment-crowding-out / I-O-calibrated-Z / tau_c(recycled) | investment | never stack on the same cost |
 | private-capex incentive | ITC % / accelerated-depreciation / CIT cut | none | `set_investment_incentive` |
-| revenue use | transfers / public-investment / govt-consumption / deficit | transfers(recycled) | `route_revenue` |
+| revenue use | transfers / public-investment / govt-consumption / deficit | transfers (exogenous, debt-financed — NOT a recycle) | `route_revenue` |
 | shock size `g` | from CLEWS dual ratio, or a manual % | CLEWS dual | dual is the rigorous source |
 | phase-in years | int | 5 | |
 
-Defaults encode the *defensible* choices (investment channel for capex; recycled revenue; dual-sourced
-price), so a user who accepts defaults gets a sound scenario; advanced users override.
+Defaults encode the *defensible* choices (investment channel for capex; dual-sourced price), so a user who
+accepts defaults gets a sound scenario; advanced users override. **Caveat:** ``route_revenue`` adds an
+*exogenous, debt-financed* spending path — it is NOT a revenue-neutral recycle; use the channels'
+``recycle_via_transfers`` (recycle=True) for neutrality.
 
 ## 3. Templates
 

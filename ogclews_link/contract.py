@@ -6,7 +6,7 @@ explicit, reviewable data -- not buried in a run script. See the de novo analysi
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -30,9 +30,6 @@ class Concordance:
     """
     energy_industry_index: int
     energy_good_index: int
-    tech_to_industry: dict = field(default_factory=dict)   # CLEWS technology -> OG industry m
-    fuel_to_good: dict = field(default_factory=dict)        # CLEWS fuel/commodity -> OG good i
-    public_technologies: tuple = ()                          # techs treated as public infrastructure
 
 
 @dataclass
@@ -53,5 +50,4 @@ class UnitMap:
 PHL_CONCORDANCE = Concordance(
     energy_industry_index=1,   # M=4 order [NaturalResources, Electricity, ConsTradeServices, Manufacturing]
     energy_good_index=1,       # I=5 order [Food, "Energy and water", Non-durables, Durables, Services]
-    public_technologies=("PHL_POW_TD",),  # T&D as public infrastructure (assumption -- document per country)
 )

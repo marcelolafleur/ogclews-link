@@ -42,7 +42,7 @@ def incidence(base_tpi, reform_tpi, i_energy, n=10):
 
 
 def fiscal_check(base_tpi, reform_tpi, n=10):
-    """Consumption-tax revenue change (the phantom-revenue diagnostic) + resource-constraint error."""
+    """Consumption-tax revenue change (revenue accruing to government as G/debt absent recycling) + resource-constraint error."""
     out = {}
     if "cons_tax_revenue" in base_tpi:
         b, r = np.asarray(base_tpi["cons_tax_revenue"]), np.asarray(reform_tpi["cons_tax_revenue"])

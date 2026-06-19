@@ -155,8 +155,11 @@ I-O cost-push, tied to the CLEWS dual via `g`), it *carries inter-industry pass-
 amplification), and it gives the correct sign (a supply-side cost ⇒ lower GDP), unlike the tau_c route.
 **Honest limits vs route C:** it is still a TFP haircut — it conflates "costlier" with "less productive"
 at the industry level, has **no factor substitution** away from energy, and the energy "market" is still
-not modeled (no firm energy *quantity* to reconcile with CLEWS supply). The cost-push *magnitudes* are
-right; the substitution and quantity channels are not. This is the ceiling of what's achievable without
+not modeled (no firm energy *quantity* to reconcile with CLEWS supply). The cost-push is a *gross-output*
+cost fraction applied to *value-added* TFP (Z), so its **magnitude is a conservative proxy, not exact**
+(gross ≠ value added; a value-added-equivalent haircut would be larger, likely *understating* the GDP
+effect) — the sign is right, but the magnitude, substitution, and quantity channels are not. This is the
+ceiling of what's achievable without
 the Phase-2 production PR.
 
 ## 6. Phasing & honest cost
