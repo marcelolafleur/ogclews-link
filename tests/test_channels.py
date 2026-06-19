@@ -30,6 +30,7 @@ def _params():
     return types.SimpleNamespace(
         T=T, J=J, M=M, I=I, baseline=False,
         tau_c=np.full((TS, I), 0.12), Z=np.ones((TS, M)),
+        gamma=np.full(M, 0.53785), gamma_g=np.full(M, 0.05),   # per-industry, time-invariant (1-D, M)
         alpha_I=np.full(TS, 0.02), alpha_T=np.full(TS, 0.05), alpha_bs_I=np.ones(TS),
         c_min=np.zeros(I), e=np.ones((T, S, J)), chi_n=np.ones((TS, S)), io_matrix=io)
 
@@ -53,7 +54,8 @@ def _ctx(with_reform=False):
 
 def test_registry():
     ids = set(all_channels())
-    assert ids == {"energy_price", "investment", "carbon", "discount_rate", "health", "demand"}, ids
+    assert ids == {"energy_price", "investment", "capital_intensity", "carbon", "discount_rate",
+                   "health", "demand"}, ids
 
 
 def test_energy_price_controlled():
@@ -160,6 +162,88 @@ def test_investment_public_infra_only():
     assert "cumulative_pct_gdp" in prov
     assert abs(prov["cumulative_pct_gdp"]) < 1e-9                  # no public-infra capex delta
     assert np.allclose(np.asarray(ctx.og_reform.alpha_I), a0)      # alpha_I unchanged (honest ~0)
+
+
+# --- #2b capital intensity (gamma_energy) lever + calibration + channel ---------
+
+def test_capital_intensity_lever_scale():
+    from ogclews_link import policy_levers
+    p = _params()
+    prov = policy_levers.set_capital_intensity(p, M_E, gamma_scale=1.122)
+    assert abs(np.asarray(p.gamma)[M_E] - 0.53785 * 1.122) < 1e-9     # energy gamma scaled
+    for m in range(M):                                               # every OTHER industry untouched
+        if m != M_E:
+            assert abs(np.asarray(p.gamma)[m] - 0.53785) < 1e-12
+    # labor share is the residual 1 - gamma - gamma_g (no separate parameter)
+    assert abs(prov["labor_share_new"] - (1 - 0.53785 * 1.122 - 0.05)) < 1e-9
+    assert prov["mode"] == "scale" and prov["gamma_old"] == 0.53785
+
+
+def test_capital_intensity_lever_target_and_identity():
+    from ogclews_link import policy_levers
+    p = _params()
+    prov = policy_levers.set_capital_intensity(p, M_E, gamma_target=0.60)
+    assert abs(np.asarray(p.gamma)[M_E] - 0.60) < 1e-12
+    # gamma + gamma_g + labor == 1 by construction
+    assert abs(prov["gamma_new"] + prov["gamma_g"] + prov["labor_share_new"] - 1.0) < 1e-12
+
+
+def test_capital_intensity_lever_blocks_infeasible():
+    import pytest
+    from ogclews_link import policy_levers
+    # gamma 0.99 + gamma_g 0.05 -> labor share -0.04 < floor: a <=0 labor exponent OG-Core won't catch
+    with pytest.raises(ValueError):
+        policy_levers.set_capital_intensity(_params(), M_E, gamma_target=0.99)
+    with pytest.raises(ValueError):                                  # scale big enough to break the floor
+        policy_levers.set_capital_intensity(_params(), M_E, gamma_scale=1.8)
+    with pytest.raises(ValueError):                                  # gamma > 1
+        policy_levers.set_capital_intensity(_params(), M_E, gamma_target=1.2)
+
+
+def test_capital_intensity_lever_requires_exactly_one():
+    import pytest
+    from ogclews_link import policy_levers
+    with pytest.raises(ValueError):                                  # neither
+        policy_levers.set_capital_intensity(_params(), M_E)
+    with pytest.raises(ValueError):                                  # both
+        policy_levers.set_capital_intensity(_params(), M_E, gamma_target=0.6, gamma_scale=1.1)
+
+
+def test_capital_intensity_channel_explicit():
+    ctx = _ctx()
+    g0 = float(np.asarray(ctx.og_reform.gamma)[M_E])
+    prov = get("capital_intensity").apply(ctx, gamma_scale=1.122)    # explicit -> no CLEWS read
+    assert float(np.asarray(ctx.og_reform.gamma)[M_E]) > g0
+    assert prov["calibration"]["source"].startswith("explicit")
+
+
+def test_capital_intensity_validate():
+    ctx = _ctx()
+    msgs = get("capital_intensity").validate(ctx, ["capital_intensity"])
+    assert msgs and any("STRUCTURAL" in m for m in msgs)             # double-count discipline message
+    msgs2 = get("capital_intensity").validate(ctx, ["capital_intensity", "investment"])
+    assert any("COMPLEMENTARY" in m for m in msgs2)                  # vs the public-investment channel
+
+
+def test_capital_cost_share_reader():
+    if not HAVE_CLEWS:
+        print("  (skip: CLEWS dirs absent)"); return
+    sb = signals.capital_cost_share(PHL.scenario.base_dir, PHL, window=(2026, 2035))
+    sr = signals.capital_cost_share(PHL.scenario.reform_dir, PHL, window=(2026, 2035))
+    assert 0.0 < sb < 1.0 and 0.0 < sr < 1.0
+    cal = signals.capital_intensity_ratio(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL)
+    assert cal["ratio"] > 1.0                                        # PEP mix more capital-intensive near-term
+    assert abs(cal["ratio"] - sr / sb) < 1e-9
+
+
+def test_capital_intensity_channel_calibrates_from_clews():
+    if not HAVE_CLEWS:
+        print("  (skip: CLEWS dirs absent)"); return
+    ctx = _ctx()
+    g0 = float(np.asarray(ctx.og_reform.gamma)[M_E])
+    prov = get("capital_intensity").apply(ctx)                       # no scale -> calibrate from CLEWS
+    assert prov["calibration"]["ratio"] > 1.0
+    assert float(np.asarray(ctx.og_reform.gamma)[M_E]) > g0 and prov["labor_share_new"] > 0
 
 
 def test_health_reads_clews():

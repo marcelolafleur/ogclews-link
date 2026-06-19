@@ -107,6 +107,57 @@ def set_investment_incentive(p, industry_index, *, inv_tax_credit=None, delta_ta
     return prov
 
 
+def set_capital_intensity(p, industry_index, *, gamma_target=None, gamma_scale=None,
+                          labor_share_floor=0.05):
+    """Raise (or set) industry ``industry_index``'s capital share ``gamma[m]`` -- a PERMANENT,
+    time-invariant STRUCTURAL shift (OG-Core's ``gamma`` is a length-M vector, NOT time-varying).
+
+    Use this to reflect a structurally more capital-intensive industry -- e.g. an energy sector
+    rebuilt around capex-heavy, fuel-free generation (renewables/CCS). Higher ``gamma[m]`` raises
+    that industry's marginal product of capital (``firm.get_r`` -> ``get_MPx(Y, K, gamma[m])``), so
+    it pulls capital in; the rise in the economy-wide cost of capital and the crowding-out of other
+    industries' investment then emerge ENDOGENOUSLY from OG-Core's multi-industry capital market.
+    This is the PRIVATE-generation counterpart to the public-infrastructure investment channel
+    (alpha_I -> K_g): it changes how capital-hungry energy is and lets the model do the rest.
+
+    Pass exactly one of:
+      * ``gamma_target`` -- the new absolute capital share for industry m;
+      * ``gamma_scale``  -- a multiplier on the current ``gamma[m]`` (e.g. a CLEWS-derived
+        reform/base capital-cost-share ratio; see ``signals.capital_intensity_ratio``).
+
+    Labor's share is the RESIDUAL ``1 - gamma - gamma_g`` in OG-Core's CES/Cobb-Douglas production
+    function -- it is NOT a separate parameter -- so raising ``gamma[m]`` lowers labor's share
+    automatically; there is nothing else to set. OG-Core only range-checks each ``gamma`` element in
+    [0, 1]; it does NOT enforce ``gamma + gamma_g <= 1``, so an over-large shift would silently drive
+    the labor exponent ``1 - gamma - gamma_g`` to <= 0 and break the production function. This
+    HARD-BLOCKS any shift that would leave the residual labor share below ``labor_share_floor``
+    (default 0.05). Pure param mutation (duck-typed ``p``); returns provenance."""
+    if (gamma_target is None) == (gamma_scale is None):
+        raise ValueError("set_capital_intensity: pass exactly one of gamma_target / gamma_scale")
+    g = np.array(p.gamma, dtype=float)                 # 1-D length M (firm.py indexes p.gamma[m])
+    M = g.shape[0]
+    m = int(industry_index)
+    if not 0 <= m < M:
+        raise ValueError(f"industry_index {m} out of range [0,{M}); resolve a name to an index first")
+    gamma_old = float(g[m])
+    gamma_g_m = float(np.asarray(p.gamma_g, dtype=float)[m])
+    gamma_new = float(gamma_target) if gamma_target is not None else gamma_old * float(gamma_scale)
+    if not 0.0 <= gamma_new <= 1.0:
+        raise ValueError(f"set_capital_intensity: gamma_new={gamma_new:.4f} outside [0,1]")
+    labor_new = 1.0 - gamma_new - gamma_g_m
+    if labor_new < labor_share_floor:
+        raise ValueError(
+            f"set_capital_intensity: gamma_new={gamma_new:.4f} + gamma_g={gamma_g_m:.4f} would leave a "
+            f"residual labor share {labor_new:.4f} < floor {labor_share_floor} (OG-Core does NOT guard "
+            f"this; a <=0 labor exponent breaks the production function). Lower the shift, or pass a "
+            f"smaller labor_share_floor only if you mean it.")
+    g[m] = gamma_new
+    p.gamma = g
+    return {"m": m, "gamma_old": gamma_old, "gamma_new": gamma_new, "gamma_g": gamma_g_m,
+            "labor_share_old": 1.0 - gamma_old - gamma_g_m, "labor_share_new": labor_new,
+            "mode": "target" if gamma_target is not None else "scale"}
+
+
 def route_revenue(p, pct_gdp_path, *, to="transfers", fill_ss_tail=True):
     """Add an EXOGENOUS (caller-supplied) %-of-GDP spending path to a fiscal destination: 'transfers'
     (alpha_T), 'public_investment' (alpha_I -> K_g), 'government_consumption' (alpha_G), or 'deficit'

@@ -21,7 +21,8 @@ from .clews_signal import cost_of_electricity_ratio  # re-exported
 
 SENTINEL = 999999.0
 __all__ = ["cost_of_electricity_ratio", "read_clews_matrix", "read_clews_long",
-           "power_capex_increment", "emissions_by_year", "emissions_ratio",
+           "power_capex_increment", "capital_cost_share", "capital_intensity_ratio",
+           "emissions_by_year", "emissions_ratio",
            "og_sector_output", "og_consumption_good", "og_interest_rate",
            "commodity_shadow_price", "commodity_shadow_price_ratio"]
 
@@ -99,6 +100,58 @@ def power_capex_increment(base_dir, reform_dir, country, public_only=False) -> p
     base, reform = _sum(base_dir), _sum(reform_dir)
     years = sorted(set(base.index) & set(reform.index))
     return (reform.loc[years] - base.loc[years]).sort_index()
+
+
+def _power_cost_sum(scenario_dir, country, metric, years) -> float:
+    """Sum a CLEWS per-technology annual cost (``metric``) over the country's POWER technologies
+    and over ``years``. Used to decompose the power fleet's annual cost into capital vs O&M."""
+    m = read_clews_matrix(_find(scenario_dir, metric))
+    keep = [t for t in m.index if country.is_power(t)]
+    cols = [y for y in years if y in m.columns]
+    if not keep or not cols:
+        return 0.0
+    return float(m.loc[keep, cols].values.sum())
+
+
+def capital_cost_share(scenario_dir, country, window=(2026, 2035)) -> float:
+    """Capital's share of the power fleet's annualized OWN cost over ``window``:
+
+        sum(AnnualizedInvestmentCost) /
+            sum(AnnualizedInvestmentCost + AnnualFixedOperatingCost + AnnualVariableOperatingCost)
+
+    summed over the country's power technologies and the years in ``window`` (inclusive). This is
+    the capital-intensity of the generation mix in cost-share terms -- renewables/CCS are nearly all
+    capital recovery (no fuel), so a cleaner mix raises this share.
+
+    NOTE: in this CLEWS/OSeMOSYS build FUEL is carried by upstream supply technologies, NOT the
+    PHL_POW power plants (their AnnualVariableOperatingCost is ~0), so fuel is EXCLUDED here. This is
+    therefore capital's share of the plants' OWN (capacity-related) cost -- a CONSERVATIVE proxy for
+    the mix's capital intensity (including fossil fuel OPEX in the denominator would make the
+    base-vs-reform contrast larger, not smaller)."""
+    years = list(range(int(window[0]), int(window[1]) + 1))
+    inv = _power_cost_sum(scenario_dir, country, "AnnualizedInvestmentCost", years)
+    fix = _power_cost_sum(scenario_dir, country, "AnnualFixedOperatingCost", years)
+    var = _power_cost_sum(scenario_dir, country, "AnnualVariableOperatingCost", years)
+    denom = inv + fix + var
+    if denom <= 0:
+        raise ValueError(f"capital_cost_share: zero/empty total power cost in {scenario_dir} over "
+                         f"{window} (no power techs matched, or years absent in the cost files).")
+    return inv / denom
+
+
+def capital_intensity_ratio(base_dir, reform_dir, country, window=(2026, 2035)) -> dict:
+    """Reform/base ratio of the power fleet's capital cost share (``capital_cost_share``) -- the
+    multiplicative ``gamma_scale`` for ``policy_levers.set_capital_intensity``. The reform/base
+    RATIO (not the level) is the calibration object, mirroring every other channel here: it uses
+    CLEWS only for the transition CHANGE and is robust to the (uncalibrated) money units. Returns
+    provenance: ``{base_share, reform_share, ratio, window, note}``."""
+    sb = capital_cost_share(base_dir, country, window)
+    sr = capital_cost_share(reform_dir, country, window)
+    return {"base_share": sb, "reform_share": sr, "ratio": float(sr / sb), "window": tuple(window),
+            "note": "ratio of capital's share of the power fleet's own annualized cost (capex "
+                    "recovery + fixed + variable O&M); fuel sits on upstream techs and is excluded "
+                    "-> conservative. gamma is time-invariant in OG-Core, so a single window is "
+                    "frozen into the permanent shift; this share is window-sensitive (verify)."}
 
 
 def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
