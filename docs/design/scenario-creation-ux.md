@@ -159,7 +159,9 @@ first-class mode, not three manual runs.
    signatures (the backend note's choice-catalog table is prose, not machine-readable). Promote it to a
    JSON/YAML: per channel → per option → `{label, description, type, default, domain/range, units,
    depends_on, conflicts_with, why_it_matters}`. **Every door reads this.** It's the single highest-
-   leverage artifact and it's mostly transcription of what already exists.
+   leverage artifact and it's mostly transcription of what already exists. *(Built on this branch:
+`ogclews_link/scenario_catalog.json` + the `scenario_catalog.py` loader/validator + a sync test; see
+`scenario-catalog.md`.)*
 2. **A template library** that emits `Experiment` JSON (formalize `EXPERIMENTS`/`ACROSS_STEPS` as the
    gallery, add the question-framed titles and the compare-sets).
 3. **The build/validate layer**: assemble `(channel, options)`, run the guardrails as pure validation,

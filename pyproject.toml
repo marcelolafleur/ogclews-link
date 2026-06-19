@@ -23,3 +23,6 @@ ogclews-link = "ogclews_link.cli:main"
 
 [tool.setuptools]
 packages = ["ogclews_link"]
+
+[tool.setuptools.package-data]
+ogclews_link = ["scenario_catalog.json"]

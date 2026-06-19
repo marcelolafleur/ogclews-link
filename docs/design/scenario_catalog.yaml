@@ -1,6 +1,9 @@
 # scenario_catalog.yaml — the declarative catalog the scenario builder prompts from.
 #
-# STATUS: design-stage proposal (branch scenario-builder-ux). NOT yet wired into code.
+# STATUS: prototype built (branch scenario-builder-ux). Loader/validator: ogclews_link/scenario_catalog.py.
+# AUTHORED SOURCE: this file. The loader reads the GENERATED ogclews_link/scenario_catalog.json -- do NOT
+#   hand-edit the JSON; regenerate after changing this file (test_json_matches_yaml guards against forgetting):
+#     python -c "import yaml,json; json.dump(yaml.safe_load(open('docs/design/scenario_catalog.yaml')), open('ogclews_link/scenario_catalog.json','w'), indent=2)"
 # PURPOSE: one machine-readable description of every lever a user can set, so all three "doors"
 #   (template gallery, guided builder, expert config) render and validate from a single source.
 #   See scenario-catalog.md for the schema rationale and how the doors consume this.
@@ -392,12 +395,12 @@ templates:
 # plus the design note. severity: block (hard-stop) | warn (allow, flag).
 guardrails:
   - id: no_double_count
-    severity: block
+    severity: warn
     applies_to: [energy_price, carbon]
     message: >
-      energy_price and carbon both add to the energy good's tau_c. A resource cost and a tax are
-      different objects — do not stack them on the same good. Never route the same energy cost through
-      investment AND an I-O cost AND tau_c.
+      energy_price and carbon both add to the energy good's tau_c (when carbon applies to OG). A resource
+      cost and a tax are different objects — ensure the underlying increase is not counted twice. (Never
+      route the same energy cost through investment AND an I-O cost AND tau_c.)
   - id: operating_vs_capital
     severity: warn
     applies_to: [energy_price, investment]

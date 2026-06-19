@@ -1,7 +1,8 @@
 # The scenario catalog — schema, lineage, and how the doors consume it
 
-**Status:** design proposal (branch `scenario-builder-ux`). **Artifact:** `scenario_catalog.yaml` (the
-instance, faithful to today's code). **Builds on:** `scenario-creation-ux.md` (the three-doors UX) and
+**Status:** prototype built (branch `scenario-builder-ux`). **Artifacts:** `docs/design/scenario_catalog.yaml`
+(authored source) → `ogclews_link/scenario_catalog.json` (generated, loaded), `ogclews_link/scenario_catalog.py`
+(loader + validator), `tests/test_scenario_catalog.py` (14 tests, incl. anti-drift checks). **Builds on:** `scenario-creation-ux.md` (the three-doors UX) and
 `scenario-builder-and-policy-levers.md` (the backend seam — this catalog is the machine-readable form of
 that note's prose "choice catalog").
 
@@ -49,9 +50,9 @@ Two deliberate departures from a literal ParamTools file:
   list to support dimensioned values. Our options are scalars/enums, so the plain form is far more
   readable; we adopt the record form only if an option ever needs to vary by year/region.
 
-> The `schema.additional_members` block in the YAML is a sketch; **this table is the authoritative field
-> list.** Channel-level fields (`direction`, `theory_status`, `post_solve`, `status_note`,
-> `conflicts_with`) and template/guardrail fields are documented here and in the YAML's comments.
+> The `schema.additional_members` block in the catalog is a sketch; **this table is the authoritative
+> field list.** Channel-level fields (`direction`, `theory_status`, `post_solve`, `status_note`,
+> `conflicts_with`) and the template/guardrail fields are documented here.
 
 ## The one real decision: a single source of truth for defaults
 
@@ -68,7 +69,14 @@ to handle it, in order of preference:
 3. **Duplicate + a sync test.** Keep both (as the YAML does now) and add a CI test asserting
    `catalog.default == signature.default` for every option. Lowest effort, catches drift late.
 
-The YAML is written as (3) so it stands alone today; the recommendation is to move to (1) when wiring it in.
+The catalog ships as (3): defaults are duplicated, and `test_catalog_defaults_match_signatures` asserts
+they equal the `apply()` signatures in both directions, so they cannot silently drift. The recommendation
+is still to move to (1) when this is productionized.
+
+(Authored as `docs/design/scenario_catalog.yaml`; the loader reads the generated
+`ogclews_link/scenario_catalog.json` — regenerate on change, and `test_json_matches_yaml` guards it.
+JSON keeps the loader stdlib-only, matching how OG-Core/Tax-Calculator ship their ParamTools catalogs.
+This note is the human narrative.)
 
 ## How each door consumes the catalog
 
@@ -111,9 +119,10 @@ Mapped to us, with almost everything already in place:
 
 ## Smallest slice to wire it in
 
-1. A **loader + validator**: parse the YAML, expose `guardrails` as pure functions over a candidate
-   `[(channel, options)]` (block vs warn). This is door 2's engine and door 3's linter — and it's cheap
-   (no solve).
+1. A **loader + validator** — **built**: `scenario_catalog.py` parses the JSON and exposes
+   `validate_scenario()` — option type/range/choice plus the `guardrails` as pure predicates, returning
+   errors / warnings / infos over a candidate `[(lever, options)]`. Door 2's engine and door 3's linter;
+   no solve.
 2. Move defaults to **option (1) introspection** + drop the duplicated `default:` values (or keep them and
    add the sync test).
 3. Formalize `templates` as the gallery loader and add the **scenario id/hash**.
