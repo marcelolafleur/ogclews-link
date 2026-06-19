@@ -2,8 +2,8 @@
 
   python -m ogclews_link list                 # named experiments
   python -m ogclews_link channels             # registered channels + direction/theory status
-  python -m ogclews_link run clean_incidence  # build baseline, apply channels, solve, report
-  python -m ogclews_link run full --workers 1 --out ./runs
+  python -m ogclews_link run energy_price     # build baseline, apply channels, solve, report
+  python -m ogclews_link run transition_package --workers 1 --out ./runs
 """
 from __future__ import annotations
 

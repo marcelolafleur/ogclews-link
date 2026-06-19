@@ -126,9 +126,6 @@ def _g_no_double_count(cat, s, model):
     # carbon price never touches the OG good, so it can co-exist with an energy-price shock.
     return "energy_price" in s and "carbon" in s and bool(_eff(cat, s, "carbon", "apply_to_og"))
 
-def _g_operating_vs_capital(cat, s, model):
-    return "energy_price" in s and "investment" in s
-
 def _g_recycle_or_tax(cat, s, model):
     taxy = ("energy_price" in s and not _eff(cat, s, "energy_price", "recycle")) or \
            ("carbon" in s and _eff(cat, s, "carbon", "apply_to_og") and not _eff(cat, s, "carbon", "recycle"))
@@ -156,7 +153,6 @@ def _g_post_solve(cat, s, model):
 # data and the code can't silently drift apart.
 _PREDICATES = {
     "no_double_count": _g_no_double_count,
-    "operating_vs_capital": _g_operating_vs_capital,
     "recycle_or_tax": _g_recycle_or_tax,
     "separability": _g_separability,
     "magnitude_calibration": _g_magnitude,

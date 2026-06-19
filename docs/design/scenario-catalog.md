@@ -2,7 +2,9 @@
 
 **Status:** prototype built (branch `scenario-builder-ux`). **Artifacts:** `docs/design/scenario_catalog.yaml`
 (authored source) → `ogclews_link/scenario_catalog.json` (generated, loaded), `ogclews_link/scenario_catalog.py`
-(loader + validator), `tests/test_scenario_catalog.py` (14 tests, incl. anti-drift checks). **Builds on:** `scenario-creation-ux.md` (the three-doors UX) and
+(loader + validator), `tests/test_scenario_catalog.py` (15 tests, incl. anti-drift checks). Economics base:
+synced to commit 448c458 (investment public-infra-only; carbon deflator-explicit, hard-raise on absurd
+tau_c; health on PM2.5). **Builds on:** `scenario-creation-ux.md` (the three-doors UX) and
 `scenario-builder-and-policy-levers.md` (the backend seam — this catalog is the machine-readable form of
 that note's prose "choice catalog").
 
@@ -83,7 +85,7 @@ This note is the human narrative.)
 - **Door 1 — template gallery** reads `templates`: each is a question-framed, pre-assembled
   `[(channel, options)]` (plus a `run_mode`: `single` / `layered` / `compare_set`). One click → view
   precomputed results, or fork into door 2 with everything pre-filled. Each template also carries usage
-  metadata — `reads_clews` / `emits_clews` / `requires` / `direction` / `notes` — documenting the real
+  metadata — `channels_used` / `reads_clews` / `emits_clews` / `requires` / `edit_hints` / `notes` — documenting the real
   coupling (what it reads from CLEWS, and which OG→CLEWS artifacts feed back only on a CLEWS re-solve).
   `experiments.py` derives `EXPERIMENTS` / `ACROSS_STEPS` from these, so the catalog is the single source
   for templates too (guarded by `test_experiments_match_catalog`).

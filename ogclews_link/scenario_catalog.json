@@ -123,22 +123,12 @@
       }
     },
     "investment": {
-      "label": "CLEWS energy capex \u2192 public investment (crowding-out, debt)",
-      "description": "Routes the CLEWS power-capex increment into OG public investment (alpha_I \u2192 K_g), so the energy build competes with private capital and adds to debt.\n",
+      "label": "CLEWS public-infrastructure (grid/T&D) capex \u2192 public investment (alpha_I \u2192 K_g)",
+      "description": "Routes ONLY the public-infrastructure (grid/T&D) share of the CLEWS power-capex increment into OG public investment (alpha_I \u2192 K_g, economy-wide public capital via gamma_g). Private generation capex is NOT here \u2014 its macro effect is the energy cost-push (energy_price), and a capex subsidy is the set_investment_incentive lever.\n",
       "direction": "clews_to_og",
       "theory_status": "structural_core",
       "post_solve": false,
-      "soft_conflicts": [
-        "energy_price"
-      ],
       "options": {
-        "public_only": {
-          "title": "Public infrastructure only",
-          "description": "Route only public-infra (transmission & distribution) capex; exclude private generation capex.",
-          "type": "bool",
-          "default": true,
-          "tier": "core"
-        },
         "target": {
           "title": "Spending parameter",
           "description": "Where the capex lands.",
@@ -240,9 +230,9 @@
         },
         "carbon_intensity": {
           "title": "Carbon intensity of the energy good",
-          "description": "Tonnes CO2 per unit of the OG energy good; sets the ad-valorem tax add-on.",
+          "description": "Tonnes CO2 per unit of the OG energy good; with the price (converted via units.deflator) it sets the ad-valorem tax add-on.",
           "type": "float",
-          "default": 0.5,
+          "default": 0.002,
           "unit": "tCO2-per-unit",
           "validators": {
             "range": {
@@ -252,7 +242,14 @@
             }
           },
           "tier": "advanced",
-          "notes": "Units must be right or the tax add-on blows past 100% (apply() warns). Treat magnitudes as illustrative until calibrated."
+          "notes": "The channel HARD-RAISES if the implied add-on exceeds 100% unless allow_illustrative=true; magnitudes are illustrative until units.deflator (USD\u2194numeraire) and the intensity are calibrated."
+        },
+        "allow_illustrative": {
+          "title": "Allow illustrative magnitude",
+          "description": "Proceed even if the implied tau_c add-on exceeds 100% (uncalibrated units) \u2014 explicitly illustrative; never report as a policy result.",
+          "type": "bool",
+          "default": false,
+          "tier": "advanced"
         }
       }
     },
@@ -538,51 +535,25 @@
   },
   "templates": {
     "energy_price": {
-      "question": "How does the CLEWS reform's energy price flow through to household demand and incidence?",
+      "question": "When the energy transition raises electricity prices, how much do households cut back, who is hit hardest, and does rebating the revenue make it fair?",
       "run_mode": "single",
       "direction": "clews->og",
+      "channels_used": [
+        "energy_price"
+      ],
       "reads_clews": [
-        "energy commodity-balance dual (EBb4_*): the marginal electricity price, reform vs base"
+        "cost-of-electricity workbook: the reform-vs-base electricity-price change"
       ],
-      "requires": [
-        "a MUIOGO CBC export with the EBb4 dual in the run dirs; else set price_source: clews_cost_index"
+      "edit_hints": [
+        "recycle on/off (rebate vs leave it as a tax)",
+        "energy_cmin (how essential energy is)",
+        "price_source: dual for the rigorous LP marginal price (needs a CBC export)"
       ],
-      "notes": "Drives the household energy wedge from the TRUE CLEWS marginal price (the OSeMOSYS LP dual), diluted by electricity's value-share of the energy good. Recycled: representing a real price via tau_c books phantom government revenue, so recycling isolates the price/substitution effect. (A rigorous resource-COST representation would use the production-input wedge -- see energy-as-production-input-spec.md.)\n",
+      "notes": "Household energy price driven by the CLEWS reform's cost-of-electricity change, with a necessity floor (c_min) so exposure is differential by income and the revenue recycled -- the textbook regressive-incidence read, plus the energy-demand response.\n",
       "channels": [
         {
           "energy_price": {
-            "price_source": "dual",
-            "recycle": true
-          }
-        }
-      ]
-    },
-    "energy_price_controlled": {
-      "question": "Mechanism check: does household energy demand fall to a known +20% price?",
-      "run_mode": "single",
-      "direction": "clews->og",
-      "reads_clews": [],
-      "notes": "A controlled +20% wedge (no CLEWS read), no recycle, no c_min -- the clean demand-response mechanism, not a coupled scenario.",
-      "channels": [
-        {
-          "energy_price": {
-            "price_source": "controlled",
-            "shock": 0.2
-          }
-        }
-      ]
-    },
-    "clean_incidence": {
-      "question": "Who bears a +20% energy price, once you strip out the tax artifact?",
-      "run_mode": "single",
-      "direction": "clews->og",
-      "reads_clews": [],
-      "notes": "Controlled +20% with revenue recycled (removes the phantom-tax artifact) and an energy necessity floor (c_min) so exposure is differential by income -- the textbook regressive incidence. c_min must be calibrated below every income group's baseline energy use.\n",
-      "channels": [
-        {
-          "energy_price": {
-            "price_source": "controlled",
-            "shock": 0.2,
+            "price_source": "clews_cost_index",
             "recycle": true,
             "energy_cmin": 0.005
           }
@@ -590,31 +561,46 @@
       ]
     },
     "investment": {
-      "question": "What does financing the energy build through PUBLIC investment cost (crowding-out, debt)?",
+      "question": "If the government publicly funds the grid and clean-power build-out, what does it cost in crowded-out private investment and public debt?",
       "run_mode": "single",
       "direction": "clews->og",
-      "reads_clews": [
-        "CapitalInvestment: reform-minus-base capex on PUBLIC power infrastructure (T&D)"
+      "channels_used": [
+        "investment"
       ],
-      "notes": "Routes only PUBLIC infrastructure (transmission & distribution) capex to public investment (alpha_I -> K_g); private generation capex is NOT public investment (use the private-capex incentive lever for that). Finite transition (tapers in the SS tail), smoothed over lumpy capex years. Magnitude illustrative until the CLEWS-MUSD <-> GDP deflator bridge exists.\n",
+      "reads_clews": [
+        "CapitalInvestment: reform-minus-base capex on public power infrastructure (T&D)"
+      ],
+      "edit_hints": [
+        "public_only (T&D-only vs all power capex)",
+        "smooth_years",
+        "persist (permanent infra vs transition)"
+      ],
+      "notes": "Routes the public-infrastructure (T&D) share of the reform's power capex into public investment (alpha_I -> K_g); the macro cost is crowding-out of private capital plus the debt service. Magnitude illustrative until the CLEWS-MUSD <-> GDP deflator bridge exists.\n",
       "channels": [
         {
           "investment": {
             "target": "alpha_I",
-            "public_only": true,
             "smooth_years": 5
           }
         }
       ]
     },
     "carbon": {
-      "question": "A $50 carbon price -- recycled household-energy tax on OG, plus an emissions penalty to CLEWS.",
+      "question": "What would a $50/tonne carbon tax do to emissions, GDP, and the income distribution -- and is it better to rebate the revenue to households or to pay down debt?",
       "run_mode": "single",
       "direction": "policy",
-      "emits_clews": [
-        "EmissionsPenalty (consumed only when CLEWS re-solves -- the multi-pass seam)"
+      "channels_used": [
+        "carbon"
       ],
-      "notes": "One carbon price set as policy. On OG it taxes HOUSEHOLD energy only (~1.4% of consumption; industrial carbon is unpriced on the OG side), recycled to households. carbon_intensity is illustrative (0.002 -> ~+10% on the energy wedge); the raw value needs the price-in-numeraire + tCO2-per-unit-good calibration (the channel hard-warns if the implied add-on exceeds 100%).\n",
+      "emits_clews": [
+        "EmissionsPenalty (consumed when CLEWS re-solves)"
+      ],
+      "edit_hints": [
+        "recycle: true (rebate to households) vs false (deficit reduction)",
+        "carbon_price",
+        "apply_to_og / apply_to_clews"
+      ],
+      "notes": "A carbon price set as policy: on OG it taxes household energy (~1.4% of consumption; industrial carbon is unpriced on the OG side) and rebates the revenue; on CLEWS it is an emissions penalty. carbon_intensity is illustrative (~+10% on the energy wedge) pending unit calibration.\n",
       "channels": [
         {
           "carbon": {
@@ -627,112 +613,92 @@
         }
       ]
     },
-    "forward": {
-      "question": "Emit the OG->CLEWS coupling inputs (discount rate, demand) -- the producer side of the loop.",
-      "run_mode": "single",
-      "direction": "og->clews",
-      "emits_clews": [
-        "DiscountRate (OG market rate r_p)",
-        "Demand (reform/base activity ratio)"
-      ],
-      "notes": "Post-solve channels WRITE CLEWS inputs from the OG reform; they are fed back ONLY when CLEWS re-solves (max_passes>1 with the CLEWS runner -- unbuilt). In a single pass the demand ratio is ~1 (inert) and the rate is emitted but not consumed. Use this to inspect what OG would hand CLEWS.\n",
-      "channels": [
-        {
-          "energy_price": {
-            "price_source": "controlled",
-            "shock": 0.2,
-            "recycle": true
-          }
-        },
-        {
-          "discount_rate": {}
-        },
-        {
-          "demand": {
-            "driver": "Y_m"
-          }
-        }
-      ]
-    },
     "health": {
-      "question": "What is the health dividend of the CLEWS reform's cleaner air (mortality + productivity)?",
+      "question": "What are the economic gains from the cleaner air the transition delivers -- lives saved and a more productive workforce?",
       "run_mode": "single",
       "direction": "clews->og",
+      "channels_used": [
+        "health"
+      ],
       "reads_clews": [
-        "AnnualTechnologyEmission(ByMode): reform/base CO2e ratio"
+        "AnnualTechnologyEmission(ByMode): the reform-vs-base PM2.5 emissions change (health_emission, not CO2e)"
       ],
       "requires": [
-        "GBD ambient-PM2.5 burden export for a calibrated deaths total + age profile; else an illustrative placeholder"
+        "GBD ambient-PM2.5 burden export for calibrated numbers; else an illustrative placeholder"
       ],
-      "notes": "Maps the reform's emissions change to avoided deaths (signed; cleaner air -> lives saved) via a GBD age profile, and to a productivity (morbidity) gain on effective labor. The dose-response is a PLACEHOLDER until GBD is supplied -- illustrative, not calibrated.\n",
+      "edit_hints": [
+        "affects: mortality and/or productivity (e)",
+        "phase_years",
+        "supply a GBD export for calibrated deaths"
+      ],
+      "notes": "Turns the reform's emissions change into avoided deaths (via a GBD age profile) and a labor- productivity gain, then feeds those into the economy. ILLUSTRATIVE until a GBD export is supplied.\n",
       "channels": [
         {
           "health": {}
         }
       ]
     },
-    "full": {
-      "question": "All six channels in one disciplined one-way pass (CLEWS->OG live; OG->CLEWS emitted).",
+    "transition_package": {
+      "question": "Take the whole transition together -- higher power prices, the public investment to build it, and the cleaner-air health gains -- and net out the effect on growth and household welfare.",
       "run_mode": "single",
-      "direction": "mixed",
+      "direction": "clews->og",
+      "channels_used": [
+        "energy_price",
+        "investment",
+        "health"
+      ],
       "reads_clews": [
-        "energy dual",
-        "CapitalInvestment (T&D)",
-        "emissions ratio"
+        "cost-of-electricity change",
+        "public (T&D) capex",
+        "emissions change"
       ],
-      "emits_clews": [
-        "EmissionsPenalty",
-        "DiscountRate",
-        "Demand (inert in a single pass)"
+      "edit_hints": [
+        "add carbon for a priced-emissions variant",
+        "drop a channel to isolate its contribution",
+        "recycle on the energy price"
       ],
-      "notes": "CLEWS->OG channels (price, investment, health) act on the reform; carbon is CLEWS-side only here (apply_to_og: false) to avoid double-wedging the energy tau_c alongside the energy-price channel. OG->CLEWS channels emit inputs for a future iterated loop.\n",
+      "notes": "A coherent package combining the three CLEWS->OG channels: the price households face, the public capital the build requires, and the health co-benefit. Carbon is omitted so it does not re-wedge the energy price (that would double-count); add it apply_to_og: false for the CLEWS-side penalty. The headline integrated result.\n",
       "channels": [
         {
           "energy_price": {
-            "price_source": "dual",
-            "recycle": true
+            "price_source": "clews_cost_index",
+            "recycle": true,
+            "energy_cmin": 0.005
           }
         },
         {
           "investment": {
             "target": "alpha_I",
-            "public_only": true,
             "smooth_years": 5
           }
         },
         {
-          "carbon": {
-            "carbon_price": 50.0,
-            "apply_to_og": false,
-            "apply_to_clews": true
-          }
-        },
-        {
           "health": {}
-        },
-        {
-          "discount_rate": {}
-        },
-        {
-          "demand": {
-            "driver": "Y_m"
-          }
         }
       ]
     },
     "across_steps": {
-      "question": "What does each channel add? energy -> +investment -> +carbon -> +health",
+      "question": "Of the transition's total welfare effect, how much comes from energy prices, the public investment, carbon pricing, and health -- layer by layer?",
       "run_mode": "layered",
       "direction": "clews->og",
-      "notes": "Cumulative one-way steps sharing one baseline -- the marginal contribution of each added channel. Magnitudes ILLUSTRATIVE (recycled energy price; smoothed/scaled public capex; small carbon intensity) pending the deflator bridge; the point is the composition, not calibrated policy numbers.\n",
+      "channels_used": [
+        "energy_price",
+        "investment",
+        "carbon",
+        "health"
+      ],
+      "edit_hints": [
+        "reorder or drop layers",
+        "add or remove a channel to see its marginal effect"
+      ],
+      "notes": "Cumulative steps sharing one baseline -- the marginal contribution of each added channel. Magnitudes ILLUSTRATIVE (smoothed/scaled public capex; small carbon intensity) pending the deflator bridge.\n",
       "layers": [
         {
           "label": "energy price",
           "channels": [
             {
               "energy_price": {
-                "price_source": "controlled",
-                "shock": 0.2,
+                "price_source": "clews_cost_index",
                 "recycle": true
               }
             }
@@ -743,15 +709,13 @@
           "channels": [
             {
               "energy_price": {
-                "price_source": "controlled",
-                "shock": 0.2,
+                "price_source": "clews_cost_index",
                 "recycle": true
               }
             },
             {
               "investment": {
                 "target": "alpha_I",
-                "public_only": true,
                 "scale": 0.3,
                 "smooth_years": 5
               }
@@ -763,15 +727,13 @@
           "channels": [
             {
               "energy_price": {
-                "price_source": "controlled",
-                "shock": 0.2,
+                "price_source": "clews_cost_index",
                 "recycle": true
               }
             },
             {
               "investment": {
                 "target": "alpha_I",
-                "public_only": true,
                 "scale": 0.3,
                 "smooth_years": 5
               }
@@ -791,15 +753,13 @@
           "channels": [
             {
               "energy_price": {
-                "price_source": "controlled",
-                "shock": 0.2,
+                "price_source": "clews_cost_index",
                 "recycle": true
               }
             },
             {
               "investment": {
                 "target": "alpha_I",
-                "public_only": true,
                 "scale": 0.3,
                 "smooth_years": 5
               }
@@ -829,15 +789,6 @@
         "carbon"
       ],
       "message": "energy_price and carbon both add to the energy good's tau_c (when carbon applies to OG). A resource cost and a tax are different objects \u2014 ensure the underlying increase is not counted twice. (Never route the same energy cost through investment AND an I-O cost AND tau_c.)\n"
-    },
-    {
-      "id": "operating_vs_capital",
-      "severity": "warn",
-      "applies_to": [
-        "energy_price",
-        "investment"
-      ],
-      "message": "Do not route the same transition burden through both a price/operating-cost drag and public investment (capital account)."
     },
     {
       "id": "recycle_or_tax",
