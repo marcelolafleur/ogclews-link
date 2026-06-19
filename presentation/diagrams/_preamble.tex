@@ -1,0 +1,77 @@
+% Shared preamble for every standalone diagram. Each diagram does:
+%   \documentclass[border=12pt]{standalone}
+%   \input{_preamble}
+%   \begin{document}\begin{tikzpicture} ... \end{tikzpicture}\end{document}
+% Compiled once to a tight-cropped PDF (the reusable asset); the Beamer deck then
+% \includegraphics those PDFs. Keeps diagram source out of the deck preamble.
+
+\usepackage[T1]{fontenc}
+\usepackage[scaled=1.0]{helvet}         % editorial sans (matches style.py fallback stack)
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fontawesome5}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, calc, fit, backgrounds,
+                shapes.geometric, shapes.arrows, shapes.misc,
+                decorations.pathreplacing, decorations.pathmorphing}
+
+\input{../theme/ogclews-colors}
+
+% ---- shared semantic styles -------------------------------------------------
+\tikzset{
+  % a model / container panel: faint tint, colored border, bold colored title set inline
+  panel/.style={rounded corners=5pt, line width=1.1pt, inner sep=11pt,
+                align=left, fill=white},
+  ogpanel/.style={panel, draw=ogc, fill=ogc!4},
+  clewspanel/.style={panel, draw=clews, fill=clews!4},
+  card/.style={rounded corners=4pt, line width=0.9pt, inner sep=8pt, align=left,
+               draw=grid, fill=white},
+  % small uppercase pill used for direction / theory-status tags
+  pill/.style={rounded corners=2.5pt, inner xsep=5pt, inner ysep=2.5pt,
+               font=\scriptsize\bfseries, text=white},
+  % flows
+  flow/.style={-{Stealth[length=3.2mm,width=2.6mm]}, line width=1.5pt},
+  thinflow/.style={-{Stealth[length=2.6mm,width=2.1mm]}, line width=1.0pt},
+  % annotation callout
+  note/.style={font=\footnotesize\itshape, text=sub, align=center},
+  kicklabel/.style={font=\scriptsize\bfseries, text=claret},
+}
+
+% kicker rule + label, used to title a standalone diagram lightly (optional)
+\newcommand{\kicker}[2]{% #1 = color, #2 = TEXT
+  \tikz[baseline]{\draw[line width=2pt,#1] (0,0.18) -- (0.55,0.18);}\,%
+  {\scriptsize\bfseries\color{#1} #2}}
+
+% ---- plain-language causal-chain flow (general audience, icon-led) -----------
+\tikzset{
+  stagecircle/.style={circle, minimum size=1.55cm, inner sep=0pt, text=white,
+                      font=\LARGE, line width=0pt},
+  stagelabel/.style={font=\small, text=ink, align=center, text width=3.1cm},
+  flowedge/.style={-{Stealth[length=3.4mm,width=3mm]}, line width=1.7pt, sub},
+  flowtitle/.style={font=\Large\bfseries, text=ink},
+  flowcap/.style={font=\small, text=sub, align=center},
+}
+% \stage{id}{x}{y}{fillcolor}{icon}{label}
+\newcommand{\stage}[6]{%
+  \node[stagecircle, fill=#4] (#1) at (#2,#3) {#5};
+  \node[stagelabel, below=2.5mm of #1] {#6};
+}
+
+% a small "data" sparkline card that shows the by-X profile a channel uses, with a
+% source tag -- the visible link between a mechanism and its model effect.
+% \datacard{x}{y}{title}{x-axis label}{source tag}{colour}{plot coords}
+% coords are relative to (x,y-0.05), spanning x in [-1.1,1.1], y in [-0.4,0.45].
+\newcommand{\datacard}[7]{%
+  \node[draw=grid, rounded corners=3pt, fill=white, minimum width=2.8cm,
+        minimum height=1.8cm, inner sep=0pt] at (#1,#2) {};
+  \node[font=\tiny\bfseries, text=sub, anchor=north] at (#1,#2+0.80) {#3};
+  \begin{scope}[shift={(#1,#2-0.05)}]
+    \draw[grid, line width=0.6pt] (-1.12,-0.42) -- (1.12,-0.42);
+    \draw[#6, line width=1.4pt, line cap=round] plot[smooth] coordinates {#7};
+    \node[font=\tiny, text=mute, anchor=north west] at (-1.08,-0.42) {#4};
+  \end{scope}
+  \node[font=\tiny\bfseries, text=white, fill=#6, rounded corners=1.5pt, inner xsep=2.5pt,
+        inner ysep=0.8pt, anchor=south east] at (#1+1.3,#2-0.86) {#5};
+}

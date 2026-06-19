@@ -1,0 +1,197 @@
+% ==========================================================================
+% OG-Core x CLEWS/OSeMOSYS — integration framework: demo deck.
+% Self-contained Beamer presentation that uses the standalone diagram PDFs
+% (diagrams/*.pdf, built first) and the curated example figures (figures/*.png).
+% Build: latexmk -pdf slides.tex   (or see ../build.sh)
+% ==========================================================================
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usefonttheme{professionalfonts}
+
+\input{theme/ogclews-colors}
+
+% ---- a minimal editorial theme keyed to the figure palette ------------------
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{normal text}{fg=ink}
+\setbeamercolor{frametitle}{fg=ink}
+\setbeamercolor{structure}{fg=ogc}
+\setbeamercolor{itemize item}{fg=ogc}
+\setbeamercolor{itemize subitem}{fg=clews}
+\setbeamercolor{block title}{fg=white,bg=ogc}
+\setbeamercolor{block body}{fg=ink,bg=ogc!6}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+\setbeamerfont{title}{series=\bfseries}
+\setbeamertemplate{itemize item}{\small\raise0.5pt\hbox{\textbullet}}
+\setbeamertemplate{itemize subitem}{\footnotesize\raise0.5pt\hbox{--}}
+
+% frametitle: a claret kicker rule above a bold ink title (mirrors style.py title_block)
+\setbeamertemplate{frametitle}{%
+  \vspace{0.42cm}%
+  {\color{claret}\rule{0.62cm}{2.2pt}}\par\vspace{2.5pt}%
+  \usebeamerfont{frametitle}\insertframetitle\par}
+
+% spare footline: caption left, frame number right (full-width box so \hfill works)
+\setbeamertemplate{footline}{%
+  \hbox to\paperwidth{\hspace{0.5cm}%
+    {\color{mute}\scriptsize OG-Core\,$\times$\,CLEWS · integration framework}%
+    \hfill{\color{mute}\scriptsize\insertframenumber\,/\,\inserttotalframenumber}%
+    \hspace{0.5cm}}%
+  \vspace{3pt}}
+
+% section divider frames
+\AtBeginSection[]{%
+  \begin{frame}[plain]
+    \vfill\centering
+    {\color{claret}\rule{1.1cm}{2.5pt}}\par\vspace{6pt}
+    {\usebeamerfont{title}\Large\color{ink}\insertsectionhead}\par
+    \vfill
+  \end{frame}}
+
+% a titled diagram frame: title + diagram (sized to leave room) + a short 1-2 line note
+\newcommand{\dgmframe}[3]{%
+  \begin{frame}{#1}%
+    \centering
+    \includegraphics[width=\linewidth,height=0.67\textheight,keepaspectratio]{diagrams/#2.pdf}\par
+    \vspace{3pt}{\scriptsize\color{mute}#3}%
+  \end{frame}}
+\newcommand{\srcline}[1]{\vspace{2pt}{\scriptsize\color{mute}#1}}
+% a full-bleed plain-language channel-flow frame (the diagram is self-titling)
+\newcommand{\chflow}[1]{%
+  \begin{frame}[plain]%
+    \vfill\centering
+    \includegraphics[width=\linewidth,height=0.86\textheight,keepaspectratio]{diagrams/#1.pdf}%
+    \vfill
+  \end{frame}}
+% a full-bleed figure frame: the editorial figures are self-titling, so no frame title;
+% optional one-line interpretive note below.
+\newcommand{\figframe}[2]{%
+  \begin{frame}[plain]%
+    \vfill\centering
+    \includegraphics[width=\linewidth,height=0.84\textheight,keepaspectratio]{figures/#1.png}\par
+    \vspace{3pt}{\scriptsize\color{mute}#2}%
+    \vfill
+  \end{frame}}
+
+\title{Coupling OG-Core with CLEWS / OSeMOSYS}
+\subtitle{A channel-based soft-link: how the variables interact, how scenarios are built,
+and the path to dual-consistency}
+\date{\today}
+
+\begin{document}
+
+% ---- title ------------------------------------------------------------------
+\begin{frame}[plain]
+  \vfill
+  {\color{claret}\rule{1.2cm}{2.5pt}}\par\vspace{10pt}
+  {\bfseries\LARGE\color{ink}Coupling OG-Core with CLEWS\,/\,OSeMOSYS}\par\vspace{8pt}
+  {\large\color{sub}A channel-based soft-link: how the variables interact,\\
+   how scenarios are built, and the path to dual-consistency}\par\vspace{18pt}
+  {\footnotesize\color{mute}OG-PHL calibration · \texttt{ogclews-link} orchestrator · \today}\par
+  \vfill
+\end{frame}
+
+% ===========================================================================
+\section{The coupling problem}
+
+\dgmframe{The structural seam}{architecture}{%
+  A \emph{soft} link — the two models stay separate and pass a few signals back and forth.
+  A hard link is impossible: one traces a path through time, the other plans all years at once.}
+
+% ===========================================================================
+\section{The six channels — how the two worlds connect}
+
+\begin{frame}{Six cause-and-effect links}
+  Six channels connect the energy system and the economy — each a simple cause-and-effect story:
+  \smallskip
+  \begin{itemize}\setlength\itemsep{4pt}
+    \item \textbf{Health} — cleaner air means healthier, more productive people
+    \item \textbf{Energy prices} — system costs reach household bills, and hit poorer families hardest
+    \item \textbf{Carbon price} — one price pushes the energy system cleaner \emph{and} raises
+          revenue that can be returned to households
+    \item \textbf{Investment} — building the power system is a public cost, funded by debt or taxes
+    \item \textbf{Cost of capital} — how patient the economy is shapes which projects get built
+    \item \textbf{Demand} — a growing economy needs more energy
+  \end{itemize}
+  \smallskip
+  {\color{sub}\small Each is walked as a plain flow next; the variable-level map is in the appendix.}
+\end{frame}
+
+\chflow{ch_health}
+\chflow{ch_energy}
+\chflow{ch_carbon}
+\chflow{ch_investment}
+\chflow{ch_discount}
+\chflow{ch_demand}
+
+% ===========================================================================
+\section{Running the coupled model}
+
+\dgmframe{Running it back and forth}{loop}{%
+  The economy and the energy system are re-solved in turn until energy demand stops changing.
+  Validated today: a single pass — the repeating loop is the next piece to build.}
+
+\dgmframe{The scenario builder}{scenarios}{%
+  A scenario is a list of \texttt{(channel, options)}; defaults encode the defensible choice. MUIOGO (the UI) prompts from this catalog and calls the same CLI.}
+
+% ===========================================================================
+\section{What it produces}
+
+\figframe{waterfall_gdp}{%
+  Marginal contribution of each policy step to output, health split into mortality vs morbidity. Magnitudes illustrative (see the figure's source line).}
+
+\figframe{energy_by_income}{%
+  Energy-good demand change by lifetime-income group — the heterogeneous incidence a single-agent macro core cannot show.}
+
+\figframe{health_gdp_split}{%
+  The +health GDP gain is the placeholder \emph{morbidity} multiplier, \emph{not} lives saved: PHL PM2.5 deaths skew elderly, so saved lives add retirees, not workers.}
+
+% ===========================================================================
+\section{Rigor \& roadmap}
+
+\dgmframe{Where each channel sits — and where it is heading}{maturity}{%
+  Filled = today; open = target. The practical frontier is a ladder of approximations to the dual-exchanging theoretical best.}
+
+\begin{frame}{What works today}
+  \begin{itemize}\setlength\itemsep{6pt}
+    \item The energy system's results — prices, build costs, emissions — flow into the economy, which
+          is then solved in full, \emph{including who is affected} across income groups.
+    \item On a real test case it reproduced a roughly 17\% fall in energy use and a clear pattern of
+          who bears the cost.
+    \item The economy also produces the signals the energy system needs back: energy demand and the
+          interest rate.
+    \item Every building block is unit-tested.
+  \end{itemize}
+  \medskip
+  {\color{sub}\small What isn't finished yet is shown per channel on the roadmap and listed under
+   Next steps — chiefly the automatic back-and-forth loop and calibrating the sizes.}
+\end{frame}
+
+\begin{frame}{Next steps}
+  \begin{itemize}\setlength\itemsep{5pt}
+    \item Feed in the energy system's real prices from a full model run.
+    \item Fix the money units so the cost and revenue sizes can be trusted.
+    \item Close the loop — re-solve the two models back and forth automatically until they agree.
+    \item Calibrate the health link on real Philippine pollution-and-health data.
+    \item Plug this in to MUIOGO, the planning tool, as its economy engine.
+  \end{itemize}
+  \medskip
+  \begin{block}{One line}
+    A small, careful library of cause-and-effect links — a step beyond the classic energy-economy
+    models, using a richer economy that tracks households, government, and who is affected.
+  \end{block}
+\end{frame}
+
+% ===========================================================================
+\section{Appendix}
+
+\dgmframe{Reference — the full channel map (for modelers)}{channels}{%
+  The same six channels at the variable level: each wires one OG-Core parameter to one CLEWS
+  variable. Direction = colour + arrowhead; theory status = line style.}
+
+\end{document}

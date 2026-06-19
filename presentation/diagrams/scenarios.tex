@@ -1,0 +1,78 @@
+% Diagram 4 — the scenario builder: a combinatorial space tamed by defensible
+% defaults + resource-agnostic levers + named templates, run through one CLI, with
+% guardrails enforced throughout. Mirrors scenario-builder-and-policy-levers.md.
+\documentclass[border=12pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  stage/.style={rounded corners=5pt, line width=1pt, inner sep=10pt, align=left,
+                anchor=north west},
+  problem/.style={stage, draw=mute, fill=grid!25, text width=3.7cm},
+  tame/.style={stage, draw=ogc, fill=ogc!4, text width=5.6cm},
+  tmpl/.style={stage, draw=clews, fill=clews!4, text width=5.2cm},
+  chip/.style={rounded corners=3pt, draw=policy!60, fill=policy!7, text=ink,
+               inner xsep=7pt, inner ysep=5pt, align=left, font=\scriptsize,
+               text width=3.45cm, anchor=north west},
+  stagearrow/.style={-{Stealth[length=3mm,width=2.5mm]}, line width=1.6pt, mute},
+}
+
+\begin{document}
+\begin{tikzpicture}
+
+% ---- stage 1: the problem ---------------------------------------------------
+\node[problem] (prob) at (0,0) {%
+  {\bfseries\color{ink}The combinatorial space}\\[5pt]
+  {\scriptsize\color{sub}a scenario is a list of \texttt{(channel, options)} — and it explodes:}\\[6pt]
+  {\footnotesize\color{ink} channels\\[1pt] $\times$\, options\\[1pt] $\times$\, industries / resources\\[1pt] $\times$\, revenue uses}\\[7pt]
+  {\scriptsize\itshape\color{mute} users shouldn't hand-edit Python to explore them.}%
+};
+
+% ---- stage 2: tamed by defaults + levers ------------------------------------
+\node[tame] (tame) at (6.3,0) {%
+  {\bfseries\color{ogc}Choice catalog}\, {\scriptsize\color{sub}defaults encode the defensible choice}\\[6pt]
+  {\renewcommand{\arraystretch}{1.18}%
+  \begin{tabular}{@{}p{2.9cm}p{2.2cm}@{}}
+    {\scriptsize\color{mute}CHOICE} & {\scriptsize\color{mute}DEFAULT}\\
+    {\scriptsize\color{sub}target industry}     & {\scriptsize\bfseries\color{ink}energy}\\
+    {\scriptsize\color{sub}energy carrier}      & {\scriptsize\bfseries\color{ink}electricity}\\
+    {\scriptsize\color{sub}cost representation} & {\scriptsize\bfseries\color{ink}investment}\\
+    {\scriptsize\color{sub}capex incentive}     & {\scriptsize\bfseries\color{ink}none}\\
+    {\scriptsize\color{sub}revenue use}         & {\scriptsize\bfseries\color{ink}transfers}\\
+    {\scriptsize\color{sub}shock size $g$}      & {\scriptsize\bfseries\color{ink}CLEWS dual}\\
+    {\scriptsize\color{sub}phase-in years}      & {\scriptsize\bfseries\color{ink}5}\\
+  \end{tabular}}\\[7pt]
+  {\footnotesize\bfseries\color{ogc}Generic levers}\, {\scriptsize\color{sub}(by industry \emph{index} — resource-agnostic)}\\[2pt]
+  {\scriptsize\texttt{set\_investment\_incentive}}\, {\scriptsize\color{sub}bias private capex}\\
+  {\scriptsize\texttt{route\_revenue}}\, {\scriptsize\color{sub}exogenous \%-GDP spending path}%
+};
+
+% ---- stage 3: templates + run -----------------------------------------------
+\node[tmpl] (tmpl) at (14.0,0) {%
+  {\bfseries\color{clews}Templates}\, {\scriptsize\color{sub}one-click, pre-assembled}\\[5pt]
+  {\scriptsize\textcolor{ogc}{$\blacksquare$}\, \color{ink}Energy transition}\, {\scriptsize\color{sub}invest + $Z$ + carbon}\\[2pt]
+  {\scriptsize\textcolor{clews}{$\blacksquare$}\, \color{ink}Clean-air health}\, {\scriptsize\color{sub}mortality + morbidity}\\[2pt]
+  {\scriptsize\textcolor{policy}{$\blacksquare$}\, \color{ink}Carbon-tax revenue-use}\, {\scriptsize\color{sub}transfers/infra/deficit}\\[2pt]
+  {\scriptsize\textcolor{amber}{$\blacksquare$}\, \color{ink}Energy investment push}\, {\scriptsize\color{sub}ITC $\pm$ deprec.}\\[7pt]
+  {\color{grid}\rule{4.9cm}{0.6pt}}\\[5pt]
+  {\bfseries\color{ink}Run reproducibly}\\[3pt]
+  \colorbox{ink!6}{\scriptsize\texttt{python -m ogclews\_link run <exp>}}\\[5pt]
+  {\scriptsize\color{sub}MUIOGO (UI) reads this catalog + templates, prompts with defaults filled, and calls the same CLI — no new solve machinery.}%
+};
+
+% ---- inter-stage arrows (clean horizontals across the gaps) ------------------
+\draw[stagearrow] (4.55,-1.9) -- (6.15,-1.9)
+   node[midway,above,font=\scriptsize,text=mute,align=center]{tamed by\\defaults};
+\draw[stagearrow] (12.75,-1.9) -- (13.85,-1.9)
+   node[midway,above,font=\scriptsize,text=mute,align=center]{assembled\\into};
+
+% ---- guardrail rail (anchored below the tallest column) ---------------------
+\coordinate (rail) at ($(prob.west |- tame.south)+(0,-1.15)$);
+\node[kicklabel, anchor=west] at ($(rail)+(0,0.5)$) {GUARDRAILS THE BUILDER ENFORCES};
+\draw[claret, line width=1.4pt] ($(rail)+(6.3,0.55)$) -- ($(rail)+(19.0,0.55)$);
+\node[chip] at ($(rail)+(0,0)$)    {{\bfseries No double-counting}\\ one energy cost $\to$ one channel};
+\node[chip] at ($(rail)+(4.75,0)$) {{\bfseries Recycle or it's a tax}\\ route every revenue stream};
+\node[chip] at ($(rail)+(9.5,0)$)  {{\bfseries Separability}\\ disable targets until calibrated};
+\node[chip] at ($(rail)+(14.25,0)$){{\bfseries Flag magnitudes}\\ CLEWS-MUSD vs GDP; placeholders};
+
+\end{tikzpicture}
+\end{document}

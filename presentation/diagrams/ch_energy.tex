@@ -1,0 +1,51 @@
+% Channel flow (plain language) — ENERGY PRICE: the full chain. A higher energy price
+% works through household budgets two ways -- a demand response (use less) and incidence
+% (poorer families spend a bigger share, so they bear more) -- converging on economic
+% effects. The "energy share by income" curve is the link that makes incidence regressive.
+\documentclass[border=14pt]{standalone}
+\input{_preamble}
+\begin{document}
+\begin{tikzpicture}
+
+\draw[claret, line width=2.2pt] (-0.55,4.0) -- (0.15,4.0);
+\node[flowtitle, anchor=west] at (-0.6,3.65) {Energy prices — who pays, and who feels it most};
+
+% ---- shared trunk -----------------------------------------------------------
+\stage{s1}{0}{0}{clews}{\faIndustry}{Energy-system cost}
+\stage{s2}{3.4}{0}{amber}{\faBolt}{Electricity price \& bills rise}
+\draw[flowedge] (s1) -- (s2);
+\node[font=\scriptsize\itshape, text=mute, align=center] at (5.05,0) {via a price\\wedge ($\tau_c$)};
+
+% ---- demand response (top) --------------------------------------------------
+\node[font=\scriptsize\bfseries, text=ogc, anchor=south] at (5.4,1.5) {DEMAND};
+\stage{m0}{6.8}{2.3}{ogc}{\faLightbulb}{Families use less energy}
+\stage{m1}{11.6}{2.3}{slate}{\faPlug}{Lower energy demand}
+\draw[flowedge] (s2) to[out=52,in=180] (m0);
+\draw[flowedge] (m0) -- (m1) node[midway, above, font=\scriptsize\itshape, text=mute]{everyone cuts back};
+
+% ---- incidence (bottom) -----------------------------------------------------
+\node[font=\scriptsize\bfseries, text=claret, anchor=north] at (5.4,-1.5) {INCIDENCE};
+\stage{b0}{6.8}{-2.3}{purple}{\faHome}{Energy is a necessity}
+\stage{b1}{11.6}{-2.3}{claret}{\faBalanceScale}{Poorer families bear more}
+\draw[flowedge] (s2) to[out=-52,in=180] (b0);
+\draw[flowedge] (b0) -- (b1);
+\datacard{9.2}{-2.3}{energy share of spending}{poorer $\rightarrow$ richer}{OG-Core}{purple}{(-1.12,0.4)(-0.5,0.2)(0,0.02)(0.5,-0.15)(1.12,-0.32)}
+
+% ---- converge on the economy ------------------------------------------------
+\node[stagecircle, fill=gain] (econ) at (15.0,0) {\faChartLine};
+\node[font=\small, text=ink, anchor=west, text width=2.7cm] at (16.0,0) {Household demand \& welfare};
+\draw[flowedge, slate]  (m1) to[out=-45,in=120] (econ);
+\draw[flowedge, claret] (b1) to[out=45,in=-120] (econ);
+\node[font=\scriptsize, text=slate, align=center] at (13.7,1.4) {less energy\\used};
+\node[font=\scriptsize\bfseries, text=claret, align=center] at (13.7,-1.4) {a regressive\\burden};
+
+% ---- caption + source -------------------------------------------------------
+\node[flowcap, text width=16cm] at (7.5,-4.5)
+  {A higher energy price makes everyone use less. Because energy is a \emph{necessity}, it bites harder
+   on lower-income budgets — so the burden is regressive. (It is a price wedge: recycling the revenue
+   isolates the pure price effect.)};
+\node[font=\scriptsize, text=mute, align=center] at (7.5,-5.45)
+  {Energy budget shares by income from the OG-Core household calibration};
+
+\end{tikzpicture}
+\end{document}

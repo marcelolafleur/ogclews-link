@@ -1,0 +1,32 @@
+% Channel flow (plain language) — COST OF CAPITAL: the economy's interest rate sets how
+% the energy planner values the future (a discounting curve), shaping which long-lived
+% projects get built; the effect on the economy returns through the loop.
+\documentclass[border=14pt]{standalone}
+\input{_preamble}
+\begin{document}
+\begin{tikzpicture}
+
+\draw[claret, line width=2.2pt] (-0.55,2.55) -- (0.15,2.55);
+\node[flowtitle, anchor=west] at (-0.6,2.2) {Cost of capital — how patient the economy is};
+
+\stage{s1}{0}{0}{ogc}{\faPercent}{The economy's cost of borrowing}
+\stage{s2}{3.7}{0}{clews}{\faHourglassHalf}{How the future is valued}
+% the discounting curve is the link from the rate to project choice
+\datacard{6.7}{0}{value of a future payoff}{years ahead $\rightarrow$}{OG rate}{clews}{(-1.12,0.42)(-0.45,0.18)(0.1,-0.02)(0.6,-0.2)(1.12,-0.33)}
+\stage{s3}{9.7}{0}{clews}{\faIndustry}{Which power projects get built}
+\node[stagecircle, fill=slate] (econ) at (13.3,0) {\faSync};
+\node[font=\small, text=ink, anchor=west, text width=2.8cm] at (14.3,0) {Back to the economy, via the loop};
+
+\draw[flowedge] (s1) -- (s2);
+\draw[flowedge] (s2) -- (5.25,0);
+\draw[flowedge] (8.15,0) -- (s3);
+\draw[flowedge, slate, dashed] (s3) -- (econ);
+
+% ---- caption ----------------------------------------------------------------
+\node[flowcap, text width=15.5cm] at (6.5,-2.4)
+  {A patient economy (a low rate) makes the planner favour clean projects that cost more now but pay
+   off later. So the rate shapes what gets built — and the effect on the economy returns through the
+   loop.};
+
+\end{tikzpicture}
+\end{document}

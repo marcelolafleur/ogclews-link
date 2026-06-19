@@ -1,0 +1,45 @@
+% Channel flow (plain language) — CARBON: one price, two effects, traced to the economy.
+% Cleaner energy system -> lower emissions (benefit valued via the other channels) AND
+% government revenue -> recycled to households -> roughly revenue-neutral.
+\documentclass[border=14pt]{standalone}
+\input{_preamble}
+\begin{document}
+\begin{tikzpicture}
+
+\draw[claret, line width=2.2pt] (-0.55,4.0) -- (0.15,4.0);
+\node[flowtitle, anchor=west] at (-0.6,3.65) {Carbon price — one price, two effects};
+
+\stage{s0}{0}{0}{policy}{\faTag}{A price on carbon}
+
+% ---- cleaner-energy effect (top) --------------------------------------------
+\node[font=\scriptsize\bfseries, text=clews, anchor=south, align=center] at (3.0,1.5)
+  {CLEANER ENERGY\\[-1pt]{\tiny\mdseries\itshape CLEWS · economy-wide}};
+\stage{a1}{4.9}{2.0}{clews}{\faLeaf}{Energy system shifts cleaner}
+\stage{a2}{9.5}{2.0}{clews}{\faWind}{Lower emissions}
+\draw[flowedge] (s0) to[out=48,in=180] (a1);
+\draw[flowedge] (a1) -- (a2);
+
+% ---- revenue effect (bottom) ------------------------------------------------
+\node[font=\scriptsize\bfseries, text=amber, anchor=north, align=center] at (3.0,-1.5)
+  {REVENUE\\[-1pt]{\tiny\mdseries\itshape OG · household energy only ($\tau_c$)}};
+\stage{b1}{4.9}{-2.0}{amber}{\faCoins}{Government raises revenue}
+\stage{b2}{9.5}{-2.0}{ogc}{\faHandHoldingUsd}{Recycled to households}
+\draw[flowedge] (s0) to[out=-48,in=180] (b1);
+\draw[flowedge] (b1) -- (b2);
+
+% ---- converge on the economy ------------------------------------------------
+\node[stagecircle, fill=gain] (econ) at (13.0,0) {\faChartLine};
+\node[font=\small, text=ink, anchor=west, text width=2.7cm] at (14.0,0) {Economic effects};
+\draw[flowedge, clews] (a2) to[out=-45,in=120] (econ);
+\draw[flowedge, ogc]   (b2) to[out=45,in=-120] (econ);
+\node[font=\scriptsize, text=clews, align=center] at (11.7,1.4) {emissions\\fall};
+\node[font=\scriptsize, text=ogc, align=center] at (11.7,-1.4) {if recycled,\\$\approx$ neutral};
+
+% ---- caption ----------------------------------------------------------------
+\node[flowcap, text width=16cm] at (6.5,-4.6)
+  {One carbon price pushes the energy system cleaner \emph{and} raises revenue. On the OG side it
+   prices \emph{household} energy only — economy-wide carbon is the CLEWS side. If the revenue is
+   recycled, the net is roughly revenue-neutral; the climate \& health payoff is valued elsewhere.};
+
+\end{tikzpicture}
+\end{document}
