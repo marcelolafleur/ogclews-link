@@ -1,126 +1,177 @@
 # OG-Core ⇄ CLEWS — channel mechanisms
 
-A mechanism-level explainer for the six integration channels: the triggering signal, the **specific
-OG-Core object** each one moves or reads, how it propagates, the resulting effect, and the
-scope/condition caveats that keep it honest.
-
-**One structural distinction.** CLEWS→OG and policy channels **move** an OG-Core parameter (a real
-input changed before the reform solve). OG→CLEWS channels **read** an OG-Core output and pass it to
-CLEWS — *nothing in OG changes*, so their macro effect on the economy returns only through the
-iterated loop.
+Each channel gets two passes: **What happens** — a plain account of the real-world story — and
+**In the model** — how OG-Core (and CLEWS) actually carry it, naming the parts. CLEWS→OG and policy
+channels *change* an OG input; OG→CLEWS channels *read* an OG output and hand it to CLEWS, so their
+effect on the economy only returns once the two models are run together in a loop.
 
 ## Summary
 
 | # | Channel | Direction | OG-Core object | moves / reads | One-line effect |
 |---|---------|-----------|----------------|:---:|-----------------|
-| 1 | `energy_price` | CLEWS→OG | `τ_c` — consumption-tax/price wedge on the energy good | **moves** | energy demand ↓; distributional incidence (regressive *only if* `c_min`>0) |
-| 2 | `investment` | CLEWS→OG | `α_I` → `K_g` — public-investment share → public capital | **moves** | productive public capital (output↑) vs debt/tax financing (crowds out). **Public infrastructure only** |
-| 3 | `carbon` | policy → both | `τ_c` on **household** energy (+ `α_T` recycle); CLEWS `EmissionsPenalty` | **moves** | household demand ↓ + revenue (≈neutral *if* recycled); CLEWS emissions ↓ |
-| 4 | `discount_rate` | OG→CLEWS | `r_p` — equilibrium cost of capital | *reads* | shifts CLEWS least-cost build mix; macro effect via the loop |
-| 5 | `health` | CLEWS→OG | `ρ` (mortality by age) **and** `e` (effective labour by age) | **moves** | mortality→demographics (≈0, elderly); morbidity→productivity (the main gain) |
-| 6 | `demand` | OG→CLEWS | `Y_m` / `C_i` — activity & consumption | *reads* | more CLEWS capacity (cost & emissions); macro effect via the loop |
+| 1 | Energy price | CLEWS→OG | `τ_c` — price wedge on the energy good | **moves** | demand ↓; incidence (regressive *if* energy is a necessity, `c_min`>0) |
+| 2 | Investment | CLEWS→OG | `α_I` → `K_g` — public investment → public capital | **moves** | productive public capital (output↑) vs debt/tax financing (crowds out). **Public infrastructure only** |
+| 3 | Carbon price | policy → both | `τ_c` on **household** energy (+`α_T` recycle); CLEWS `EmissionsPenalty` | **moves** | household demand ↓ + revenue; CLEWS emissions ↓ |
+| 4 | Cost of capital | OG→CLEWS | `r_p` — equilibrium return | *reads* | shifts CLEWS build mix; effect via the loop |
+| 5 | Health | CLEWS→OG | `ρ` (mortality) **and** `e` (effective labour) | **moves** | mortality→demographics (≈0, elderly); morbidity→productivity (the main gain) |
+| 6 | Demand | OG→CLEWS | `Y_m` / `C_i` — activity | *reads* | more CLEWS capacity; effect via the loop |
 
 ---
 
-## 1 · `energy_price` — CLEWS→OG (structural)
+## 1 · Energy price
+*CLEWS → OG · the cost of energy reaches households*
 
-- **Trigger.** The OSeMOSYS electricity commodity-balance **dual** (the marginal price of electricity),
-  as a reform/base ratio, share-diluted into the OG energy consumption good.
-- **OG object moved.** `τ_c` — the **consumption-tax / price wedge** on the energy good (optionally also
-  `c_min`, the Stone-Geary subsistence floor).
-- **Mechanism.** The wedge enters the household demand FOC,
-  `c_i = α_i·((1+τ_c)p_i / p̃)^{-1}·c + c_min_i`, and the composite price `p̃` — raising the effective
-  consumer price of energy.
-- **Effect.** Households cut energy demand (substitution), with a distributional incidence across the
-  `J` lifetime-income groups.
-- **Scope / conditions.**
-  1. **Regressivity is not automatic** — it comes from the *necessity floor*. The bare `τ_c` wedge is
-     ~homothetic (uniform budget shares → roughly proportional incidence). Regressive incidence appears
-     only when energy is set as a necessity (`c_min` > 0).
-  2. **It is a tax wedge, not a pure resource cost.** The revenue accrues to government; recycling it
-     (lump-sum via `α_T`) isolates the pure price/substitution + distributional effect. Left
-     un-recycled it is a tax-transfer, so the welfare/GDP read depends on the fiscal closure.
+**What happens**
+When the energy system gets more expensive to run, that cost lands on household energy bills. People
+respond to the higher price by using less. But the burden isn't shared evenly: energy is a basic
+necessity, and lower-income families spend a bigger share of their budget on it, so the same increase
+hits them hardest. So the channel does two things at once — it lowers energy use, and it shows who
+carries the cost. A higher price here also works like a tax, so the extra money goes to the government,
+and **the user decides what happens to it** — by default it's kept (leaving families poorer), or it can
+be returned to households, which offsets most of the loss.
 
-## 2 · `investment` — CLEWS→OG (structural)
+**In the model**
+OG-Core doesn't treat energy as an input to production, so the price can only act through households —
+it enters as a mark-up on the price of the energy good they buy (a consumption-tax wedge, `τ_c`). From
+there it works through a few connected parts:
+- energy becomes costlier relative to everything else, so households buy less of it — the demand
+  response (their demand for the energy good, `c_i`);
+- their overall cost of living edges up too (the composite price, `p̃`), trimming all spending a little;
+- the model can treat energy as a necessity with a *subsistence floor* (`c_min`) — an amount families
+  need whatever the price. That floor is what makes the burden regressive: poorer households can't cut
+  below it, so the rise costs them a larger share. Without it, everyone cuts back in the same proportion.
 
-- **Trigger.** The increment in CLEWS **public-infrastructure** (grid / transmission & distribution)
-  capital cost, as a share of GDP (via `units.deflator`), as a finite transition flow.
-- **OG object moved.** `α_I` — the public-investment share of GDP (`I_g = α_I·Y`) → public capital `K_g`.
-- **Mechanism.** `K_g` enters the CES production function as economy-wide public capital (productive via
-  `γ_g`, lifting every industry's output); the spending lands on the government budget (debt) and
-  competes in the capital market.
-- **Effect.** Two-sided — productive public capital raises output; the debt/tax financing crowds out
-  other spending (and can raise the interest rate). The net depends on the fiscal closure (no clean sign).
-- **Scope / conditions.** **Public infrastructure only.** The transition's *private generation capex* —
-  typically the bulk of the capital — is a **separate mechanism** not captured here: it enters as the
-  energy **cost-push** (the `energy_price` channel) or a capital-intensity (`γ`) shift on the energy
-  industry. Do not equate "investment channel" with "the transition's total capital effect." (Magnitude
-  illustrative until `units.deflator` is calibrated.)
+Because the model follows households separately by income and age (`J` income groups × `S` ages), this
+one price change yields a full map of who loses how much — the incidence. The mark-up also raises
+consumption-tax revenue (`cons_tax_revenue`), and **the user decides what's done with it** — by default
+it stays in the government budget; returned as transfers (`α_T`) it isolates the pure price effect,
+otherwise the channel is a net tax whose effect depends on how the budget is balanced.
 
-## 3 · `carbon` — policy → OG and CLEWS (structural)
+---
 
-- **Trigger.** A single carbon price (USD/tCO₂), set once and fed to both models.
-- **OG object moved.** `τ_c` on the energy good — a carbon tax on **household** energy — booking
-  consumption-tax revenue, optionally recycled via `α_T` (transfers). **CLEWS object:** `EmissionsPenalty`
-  (same price path).
-- **Mechanism.** On the OG side, identical to the energy-price wedge (household energy price ↑ → demand ↓)
-  plus the revenue is collected and, if recycled, rebated. On the CLEWS side, the price shifts the
-  least-cost mix.
-- **Effect.** Household energy demand ↓ + government revenue; if recycled, roughly revenue-neutral with a
-  distribution that depends on the rebate. CLEWS: emissions ↓.
-- **Scope / conditions.**
-  1. **The OG-side carbon tax prices household energy only.** OG-Core has no energy in production, so
-     industrial / economy-wide carbon is unpriced on the OG side — the economy-wide carbon price is the
-     **CLEWS `EmissionsPenalty`**. This is a fundamental scope limit of the mechanism, not a scenario detail.
-  2. **Recycling is optional** (a switch), not automatic.
+## 2 · Investment
+*CLEWS → OG · paying for the public build-out*
 
-## 4 · `discount_rate` — OG→CLEWS (structural, post-solve)
+**What happens**
+Building out the power system takes a lot of money up front. When that spending is *public* — the
+transmission and distribution grid — it adds to the country's public infrastructure, which makes the
+whole economy a little more productive. But it has to be paid for, by borrowing or taxes, and that money
+competes with everything else, crowding out other spending. Whether the economy comes out ahead depends
+on how the bill is financed. One thing to be clear about: this channel is only about the *public*
+infrastructure. The far larger sum — private companies building power plants — works through a different
+channel (it shows up as the cost of energy), not here.
 
-- **Trigger.** The OG reform equilibrium.
-- **OG object read.** `r_p` — the household equilibrium portfolio return (the real market **cost of
-  capital**). *An OG output, not a mutated input.*
-- **Mechanism.** `r_p` → CLEWS `DiscountRate` → the LP's intertemporal weighting → which technologies are
-  least-cost.
-- **Effect.** Shifts the energy system's least-cost build mix (low rate favours capital-heavy clean; high
-  rate favours cheap-now fossil) and cost trajectory.
-- **Scope / conditions.** One-way; nothing in OG changes — the macro effect returns only through the loop.
-  Confirm real-vs-nominal and annualization conventions.
+**In the model**
+On the CLEWS side, the public-infrastructure (grid / T&D) build appears as a stream of capital spending,
+converted to a share of GDP. That feeds OG-Core's public-investment lever (`α_I`), which adds to the
+stock of public capital (`K_g`). Public capital is productive in the model — it lifts output across every
+industry (its strength set by `γ_g`). At the same time the spending lands on the government's budget
+(financed by debt or taxes) and competes for savings, which crowds out other investment. The net sign
+isn't fixed — it depends on how the budget is closed. **Scope:** only genuinely public infrastructure
+routes here; private generation capex is a *separate* mechanism (the energy cost-push, or a
+capital-intensity shift on the energy industry), not this channel. Magnitudes are illustrative until the
+CLEWS-money↔GDP conversion (`units.deflator`) is calibrated.
 
-## 5 · `health` — CLEWS→OG (reduced-form)
+---
 
-- **Trigger.** The CLEWS **PM2.5** emissions reform/base ratio (not CO₂e — decarbonization moves PM2.5 and
-  CO₂e by different ratios), scaling an **external GBD dose-response**.
-- **OG objects moved (two).**
-  - **Mortality:** `ρ` — mortality rates by age — shifted by `shock_scale·g_t·h(s)` (`h(s)` = GBD by-age
-    deaths shape); the population is then recomputed (`get_pop_objs`) → demographics (`ω`, `g_n`).
-  - **Morbidity:** `e` — effective labour units by age — scaled by `(1 + benefit·g(s))` (`g(s)` = GBD
-    working-age YLD shape) → labour productivity.
-- **Mechanism.** `ρ` → population/demographics → labour-force composition; `e` → effective labour in CES
-  production → output per worker.
-- **Effect.** Mortality → demographics, but PM2.5 deaths skew **elderly** → added survivors are retirees →
-  ~0 output effect. Morbidity → **productivity** (`e`) → output ↑ (the dominant effect).
-- **Scope / conditions.** Dose-response magnitudes are placeholders pending GBD calibration (the real PHL
-  PM2.5 export is still a stand-in).
+## 3 · Carbon price
+*policy → OG and CLEWS · one price, set once, applied both sides*
 
-## 6 · `demand` — OG→CLEWS (structural, post-solve)
+**What happens**
+A carbon price is a single policy lever, set once and applied to both models, and it does two jobs. In
+the energy system it makes dirtier options more expensive, so the least-cost plan shifts toward cleaner
+ones and emissions fall. For households it raises the price of the energy they buy — so, exactly like the
+energy-price channel, they use less, and it raises revenue, with **the user deciding what happens to that
+revenue** (by default kept; it can be returned to households). One limit worth stating plainly: on the
+economy side the price only reaches the energy households buy directly. It can't price the carbon used by
+industry, because the economy model has no energy in production — the economy-wide carbon price lives on
+the energy-system side.
 
-- **Trigger.** The OG reform equilibrium.
-- **OG object read.** `Y_m` (industry output) or `C_i` (consumption of the good) — ratio-scales CLEWS
-  demand. *An OG output.*
-- **Mechanism.** Reform/base activity ratio → CLEWS `SpecifiedAnnualDemand` → the LP must meet higher
-  demand → more capacity / build / emissions.
-- **Effect.** The energy system builds more capacity (cost & emissions ↑).
-- **Scope / conditions.** One-way; **inert in a single pass** (ratio ≈ 1 without iteration); real only
-  inside the loop.
+**In the model**
+One carbon price (USD/tCO₂) is set once and fed both ways. On the energy-system side it enters as an
+emissions penalty (`EmissionsPenalty`), shifting the least-cost mix. On the economy side it enters
+exactly like the energy-price channel — a mark-up (`τ_c`) on the household energy good — so the same
+demand response and incidence apply, and it books consumption-tax revenue (`cons_tax_revenue`) that the
+user can recycle as transfers (`α_T`). The scope limit is structural: OG-Core has no energy in
+production, so the `τ_c` tax reaches only household energy (a small share of consumption); industrial and
+economy-wide carbon is priced only on the CLEWS side. (Magnitudes illustrative until `units.deflator` is
+calibrated.)
+
+---
+
+## 4 · Cost of capital
+*OG → CLEWS · the economy's interest rate guides the energy plan*
+
+**What happens**
+How much a country values the future — captured in its interest rate — ought to be the same whether
+you're looking at the economy or planning the energy system. This channel carries the economy's interest
+rate over to the energy planner. A patient economy (a low rate) makes options that cost more now but pay
+off for decades — clean, capital-heavy plants — look worthwhile; an impatient one (a high rate) favours
+whatever is cheapest today, often fossil. So the economy's interest rate shapes what the energy system
+chooses to build. This runs one way: it changes the energy plan, and that change only feeds back to the
+economy when the two models are run together in a loop.
+
+**In the model**
+This channel *reads* an output of the solved economy rather than changing an input. After the reform
+solve, it takes OG-Core's equilibrium return on capital (`r_p`) and passes it to the energy model as its
+discount rate (`DiscountRate`). That rate sets how the least-cost optimiser weighs up-front cost against
+long-run savings, which tilts the chosen technology mix. Nothing in the economy model changes here — the
+effect on output and welfare appears only once the loop sends the energy system's new prices and costs
+back. (Confirm the rate is on a consistent real, annual basis.)
+
+---
+
+## 5 · Health
+*CLEWS → OG · cleaner air, through health, into the economy*
+
+**What happens**
+Cleaner energy means less air pollution, and less pollution means better health — which reaches the
+economy in two ways. First, fewer people die early. But the deaths air pollution causes fall mostly on
+the elderly, who are largely retired, so saving those lives changes the population more than the
+workforce — the effect on output is small. Second, and more important, people get sick less; healthier
+working-age people are more productive, and that lifts output. So the economic gain from cleaner air comes
+mainly from a healthier workforce, not from the lives saved. (The size of both effects is still a
+placeholder until the health data is calibrated.)
+
+**In the model**
+The trigger is the change in fine-particulate (PM2.5) pollution from the energy system — not CO₂, since
+cutting CO₂ and cutting PM2.5 aren't the same thing — scaled by an external dose-response from the Global
+Burden of Disease (GBD). It moves two parts of the model, each using a by-age profile from GBD. Mortality
+shifts age-specific death rates (`ρ`); the model then recomputes the population, changing its size and age
+structure (demographics). Because pollution deaths skew old, the extra survivors are mostly past working
+age, so output barely moves. Morbidity shifts effective labour by age (`e`) — healthier workers supply
+more productive labour to production — and this is where the output gain comes from. The dose-response
+magnitudes are placeholders pending the real Philippine PM2.5 data.
+
+---
+
+## 6 · Demand
+*OG → CLEWS · a growing economy needs more energy*
+
+**What happens**
+A bigger, richer economy needs more energy — for homes, transport, and industry. This channel carries the
+economy's growth over to the energy system as higher demand for energy services, so the system plans to
+build and supply more, raising its costs and emissions. Like the interest-rate channel, it runs one way:
+it changes the energy plan, and that only matters for the economy once the two models are run back and
+forth together. On a single pass, with the economy barely moved from its baseline, this link does almost
+nothing — it comes alive inside the loop.
+
+**In the model**
+This channel also *reads* a solved-economy output rather than changing an input. It takes the economy's
+activity — industry output (`Y_m`) or household consumption of the good (`C_i`) — as a reform-vs-baseline
+ratio and scales the energy model's demand (`SpecifiedAnnualDemand`) by it. Higher demand forces the
+least-cost model to build more capacity, raising cost and emissions. Because it is a ratio against
+baseline, a single pass where the economy is essentially unchanged leaves it near 1 — inert — so it bites
+only once the loop iterates.
 
 ---
 
 ## Cross-cutting notes
 
-- **`energy_price` and `carbon` move the same lever** (`τ_c` on the energy good) but mean different things:
-  `energy_price` is a resource-cost passthrough (recycle to avoid a phantom-revenue artifact); `carbon`
-  is a tax (revenue is the point, recycled via `α_T`). Don't apply both to the same cost — they double-count.
+- **Energy price and carbon move the same lever** (`τ_c` on the energy good) but mean different things:
+  energy price is a resource-cost passthrough; carbon is a tax (revenue is the point). Don't apply both
+  to the same cost — they double-count.
 - **Magnitudes are illustrative** until `units.deflator` (CLEWS-money ↔ GDP basis) is calibrated — this
-  affects `carbon` and `investment` levels in particular.
-- **Direction families:** CLEWS→OG = `energy_price`, `investment`, `health`; policy = `carbon`;
-  OG→CLEWS = `discount_rate`, `demand`.
+  most affects carbon and investment levels.
+- **Direction families:** CLEWS→OG = energy price, investment, health; policy = carbon;
+  OG→CLEWS = cost of capital, demand.

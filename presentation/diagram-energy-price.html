@@ -1,0 +1,94 @@
+<title>Energy price — channel diagram</title>
+<style>
+  :root{
+    --ink:#222;--sub:#555;--mute:#888;--grid:#e6e6e6;
+    --ogc:#0f5499;--clews:#0d7680;--policy:#e3120b;--claret:#990f3d;--amber:#e69f00;
+    --model:#eef2f6;
+  }
+  *{box-sizing:border-box}
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0)}
+  body{margin:0;background:#fff;color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .sheet{max-width:880px;margin:0 auto;padding:32px 36px 36px}
+  /* header */
+  .kick{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .kick .rule{width:46px;height:3px;background:var(--claret)}
+  .kick .dir{font-size:11px;font-weight:700;letter-spacing:.03em;color:#fff;background:var(--clews);padding:3px 9px;border-radius:20px}
+  h1{font-size:25px;margin:2px 0}
+  .subt{color:var(--mute);font-style:italic;font-size:15px;margin:0 0 24px}
+  /* column captions, aligned to the two content columns */
+  .caps{display:grid;grid-template-columns:34px 1fr 1.05fr;gap:0 16px;margin:0 0 7px;padding:0 14px}
+  .caps .s{grid-column:2;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--claret)}
+  .caps .m{grid-column:3;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ogc)}
+  /* a step = one banded row grouping its story + model */
+  .step{display:grid;grid-template-columns:34px 1fr 1.05fr;gap:0 16px;align-items:center;
+    background:#fcfdfe;border:1px solid var(--grid);border-radius:11px;padding:13px 14px}
+  .mark{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:13px;color:#fff;background:var(--ink)}
+  .mark.t{background:var(--clews)}
+  .story{font-size:15.5px;line-height:1.5}
+  .story b{font-weight:700}
+  .model{background:var(--model);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:#384450}
+  .model .lab{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ogc);margin-bottom:2px}
+  var,code{font-family:"SFMono-Regular",Consolas,monospace;font-style:normal;background:#dde6ee;
+    color:var(--ogc);padding:.5px 5px;border-radius:4px;font-size:.92em;white-space:nowrap}
+  .reg{color:var(--claret);font-weight:700}
+  .user{color:var(--ink);font-weight:700}
+  /* flow arrow on the chain */
+  .down{display:flex;justify-content:center;color:var(--mute);font-size:15px;line-height:1;margin:5px 0}
+  /* the branch into three consequences */
+  .branchhead{display:flex;align-items:center;gap:8px;margin:14px 0 9px;color:var(--ink);font-weight:600;font-size:13.5px}
+  .branchhead .b{width:34px;text-align:center;color:var(--mute);font-size:16px}
+  .cons{margin-left:34px;border-left:3px solid var(--clews);border-radius:0 11px 11px 0;padding-left:0}
+  .cons .step{border-left:none;border-radius:0 11px 11px 0;margin-bottom:9px}
+  .cons .step:last-child{margin-bottom:0}
+  .cons .mark{width:11px;height:11px;background:#fff;border:2px solid var(--clews)}
+  .step.hi{background:#fdf3f6;border-color:#e7c3cf}
+  .foot{color:var(--mute);font-size:12px;margin-top:18px;border-top:1px solid var(--grid);padding-top:13px}
+</style>
+
+<div class="sheet">
+  <h2 class="sr-only">Energy-price channel: a plain story of how the energy system's cost reaches households, each step paired with the OG-Core model part it touches.</h2>
+  <div class="kick"><span class="rule"></span><span class="dir">CLEWS → OG</span></div>
+  <h1>Energy price</h1>
+  <p class="subt">the cost of energy reaches households</p>
+
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+
+  <div class="step">
+    <span class="mark t">1</span>
+    <div class="story">The energy system gets <b>more expensive to run</b>.</div>
+    <div class="model"><span class="lab">signal</span>the marginal price of electricity from CLEWS, vs. baseline.</div>
+  </div>
+
+  <div class="down">▼</div>
+
+  <div class="step">
+    <span class="mark">2</span>
+    <div class="story">That reaches households as a <b>higher energy bill</b>.</div>
+    <div class="model"><span class="lab">price</span>a price wedge on the energy good (<var>τ<sub>c</sub></var>) — the only door, since OG has no energy in production.</div>
+  </div>
+
+  <div class="branchhead"><span class="b">⌄</span><span>The wedge then does <b>three things</b>:</span></div>
+
+  <div class="cons">
+    <div class="step">
+      <span class="mark"></span>
+      <div class="story"><b>Households use less energy.</b></div>
+      <div class="model"><span class="lab">demand</span>their demand for energy falls (<var>c<sub>i</sub></var>); the overall cost of living edges up (<var>p̃</var>).</div>
+    </div>
+    <div class="step hi">
+      <span class="mark"></span>
+      <div class="story"><b class="reg">Lower-income families are hit hardest</b> — energy is a necessity, a bigger share of their budget.</div>
+      <div class="model"><span class="lab">who bears it</span>the subsistence floor (<var>c<sub>min</sub></var>) makes it regressive; read across <var>J</var> income × <var>S</var> age households.</div>
+    </div>
+    <div class="step">
+      <span class="mark"></span>
+      <div class="story">The money raised goes to the government — <span class="user">kept, or returned to households</span> (the user's choice).</div>
+      <div class="model"><span class="lab">revenue</span>books <code>cons_tax_revenue</code>; returning it as transfers (<var>α<sub>T</sub></var>) isolates the pure price effect.</div>
+    </div>
+  </div>
+
+  <div class="foot">Energy price is a resource-cost passthrough; the same wedge (<var>τ<sub>c</sub></var>) priced as policy is the <b>carbon</b> channel.</div>
+</div>
