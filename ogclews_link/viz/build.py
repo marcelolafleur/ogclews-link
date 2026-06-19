@@ -23,7 +23,7 @@ find the GBD CSV next to the run. The default --note describes THIS experiment's
 --note for a different scenario. A MUIOGO-OG run saves results in a scenario directory; point
 --run-dir at it and the visuals land alongside the results, organized under figures/.
 
-    PYTHONPATH=$PWD /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/regen_figures.py
+    PYTHONPATH=$PWD /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/regen_plots.py
 """
 from __future__ import annotations
 
@@ -34,9 +34,7 @@ import os
 
 from ogcore.utils import safe_read_pickle
 
-from ogclews_link import (channels, figures, report_html,  # noqa: F401
-                          viz_composition, viz_dashboard, viz_deck, viz_distribution,
-                          viz_energy, viz_health, viz_transition, viz_welfare)
+from ogclews_link.viz import plots, report, tables  # noqa: F401
 from ogclews_link import country as _country_mod
 from ogclews_link.country import CountryConfig
 
@@ -55,7 +53,7 @@ FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally."
 
 # index.html / cover organization: a reading order of headline -> how the scenario is built ->
 # detailed results. Each section maps to the figure basenames it groups (cover + per-step incidence
-# are added automatically by report_html.write_index). Only files that exist are shown, so a partial
+# are added automatically by report.write_index). Only files that exist are shown, so a partial
 # run degrades gracefully.
 _INDEX_SECTIONS = [
     ("Headline",
@@ -178,16 +176,16 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     print(f"       gbd  {gbd_csv if gbd_csv and os.path.isfile(gbd_csv) else '(none -- health profiles skipped)'}")
 
     # --- top-level figures (across steps) ---------------------------------------
-    _try(figures.across_steps_waterfall, layered, fig_dir, note=note)
-    _try(figures.energy_physical, country, fig_dir, illustrative=illustrative)
-    _try(figures.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
-    _try(report_html.write_html_report, layered, os.path.join(fig_dir, "report.html"))
+    _try(plots.across_steps_waterfall, layered, fig_dir, note=note)
+    _try(plots.energy_physical, country, fig_dir, illustrative=illustrative)
+    _try(tables.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
+    _try(report.write_html_report, layered, os.path.join(fig_dir, "report.html"))
 
     # --- OG-Core's own canonical suite (free reference set) for the headline reform ----
     base_dir = os.path.join(run_dir, "baseline")
     headline_dir = os.path.join(run_dir, headline_step) if headline_step else None
     if headline_dir and os.path.isdir(headline_dir):
-        _try(figures.og_default_outputs, base_dir, headline_dir,
+        _try(plots.og_default_outputs, base_dir, headline_dir,
              os.path.join(fig_dir, "og_suite"), plots=True)
 
     base_tpi = _tpi(run_dir, "baseline")
@@ -200,9 +198,9 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     headline_params = _params(run_dir, headline_step)
     headline_tpi = _tpi(run_dir, headline_step)
     if base_tpi is not None and headline_tpi is not None:
-        for fn in (viz_transition.macro_transition, viz_transition.fiscal_transition,
-                   viz_transition.revenue_transition, viz_transition.rates_transition,
-                   viz_transition.public_investment):
+        for fn in (plots.macro_transition, plots.fiscal_transition,
+                   plots.revenue_transition, plots.rates_transition,
+                   plots.public_investment):
             _try(fn, base_tpi, headline_tpi, fig_dir, start_year=start_year, note=note,
                  params=base_params)
 
@@ -213,60 +211,60 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     ep_params = _params(run_dir, layered[0]["step"]) if layered else None
     ep_ref = ep_params if ep_params is not None else headline_params
     if base_params is not None and ep_ref is not None:
-        _try(viz_energy.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note,
+        _try(plots.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note,
              illustrative=illustrative)
-    _try(viz_energy.capex_by_technology, country, fig_dir, note=note, illustrative=illustrative)
+    _try(plots.capex_by_technology, country, fig_dir, note=note, illustrative=illustrative)
     if base_tpi is not None:
-        _try(viz_energy.channel_inputs_over_time, country, base_tpi, fig_dir, note=note,
+        _try(plots.channel_inputs_over_time, country, base_tpi, fig_dir, note=note,
              illustrative=illustrative)
 
     # --- health-channel visuals -------------------------------------------------
     if gbd_csv and os.path.isfile(gbd_csv):
-        _try(viz_health.gbd_age_profiles, gbd_csv, country.name, int(country.gbd_year), fig_dir, note=note)
+        _try(plots.gbd_age_profiles, gbd_csv, country.name, int(country.gbd_year), fig_dir, note=note)
     if base_params is not None and headline_params is not None:
-        _try(viz_health.mortality_by_age, base_params, headline_params, fig_dir, note=note)
-        _try(viz_health.morbidity_by_age, base_params, headline_params, fig_dir, note=note)
-        _try(viz_health.demographic_transition_by_age, base_params, headline_params, fig_dir, note=note)
-    _try(viz_health.gdp_split, layered, fig_dir, note=note, illustrative=illustrative)
+        _try(plots.mortality_by_age, base_params, headline_params, fig_dir, note=note)
+        _try(plots.morbidity_by_age, base_params, headline_params, fig_dir, note=note)
+        _try(plots.demographic_transition_by_age, base_params, headline_params, fig_dir, note=note)
+    _try(plots.gdp_split, layered, fig_dir, note=note, illustrative=illustrative)
 
     # --- welfare: consumption-equivalent variation (CEV) ------------------------
     headline_ss = _ss(run_dir, headline_step)  # base_ss loaded once above
     if None not in (base_ss, headline_ss, base_params, headline_params):
-        _try(viz_welfare.cev_by_group, base_ss, headline_ss, base_params, headline_params,
+        _try(plots.cev_by_group, base_ss, headline_ss, base_params, headline_params,
              fig_dir, note=note)
-        _try(viz_welfare.cev_decomposition, base_ss, headline_ss, base_params, headline_params,
+        _try(plots.cev_decomposition, base_ss, headline_ss, base_params, headline_params,
              fig_dir, note=note)
     if base_tpi is not None and headline_tpi is not None and None not in (base_params, headline_params):
-        _try(viz_welfare.cev_by_age, base_tpi, headline_tpi, base_params, headline_params,
+        _try(plots.cev_by_age, base_tpi, headline_tpi, base_params, headline_params,
              fig_dir, note=note)
 
     # --- distributional richness ------------------------------------------------
-    _try(viz_distribution.energy_demand_by_group, layered, fig_dir, note=note)
+    _try(plots.energy_demand_by_group, layered, fig_dir, note=note)
     if None not in (base_ss, headline_ss, base_params):
-        _try(viz_distribution.consumption_by_age, base_ss, headline_ss, base_params, fig_dir, note=note)
-        _try(viz_distribution.asset_by_age, base_ss, headline_ss, base_params, fig_dir, note=note)
+        _try(plots.consumption_by_age, base_ss, headline_ss, base_params, fig_dir, note=note)
+        _try(plots.asset_by_age, base_ss, headline_ss, base_params, fig_dir, note=note)
     if base_tpi is not None and headline_tpi is not None and base_params is not None:
-        _try(viz_distribution.income_composition_by_age, base_tpi, headline_tpi, base_params, fig_dir, note=note)
+        _try(plots.income_composition_by_age, base_tpi, headline_tpi, base_params, fig_dir, note=note)
 
     # --- multi-good / multi-sector composition (the GE structure) ---------------
     conc = getattr(country, "concordance", None)  # the run's energy good/industry indices (portable)
     if None not in (base_ss, headline_ss, base_params):
-        _try(viz_composition.consumption_by_good, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
-        _try(viz_composition.sectoral_reallocation, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
+        _try(plots.consumption_by_good, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
+        _try(plots.sectoral_reallocation, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
     if base_tpi is not None and headline_tpi is not None and base_params is not None:
-        _try(viz_composition.consumption_by_good_by_group, base_tpi, headline_tpi, base_params, fig_dir, note=note, concordance=conc)
+        _try(plots.consumption_by_good_by_group, base_tpi, headline_tpi, base_params, fig_dir, note=note, concordance=conc)
 
     # --- one-page headline dashboard --------------------------------------------
     if None not in (base_tpi, headline_tpi, base_ss, headline_ss, base_params, headline_params):
-        _try(viz_dashboard.headline_dashboard, layered, base_tpi, headline_tpi, base_ss, headline_ss,
+        _try(plots.headline_dashboard, layered, base_tpi, headline_tpi, base_ss, headline_ss,
              base_params, headline_params, country, fig_dir, start_year=start_year, note=note,
              illustrative=illustrative)
 
     # --- deck front matter & at-a-glance summary --------------------------------
     # The cover carries the FULL caveat + the plain-language scenario description; summary_table is
     # a chart-like page (short caveat).
-    _try(viz_deck.summary_table, layered, fig_dir, note=note)
-    _try(viz_deck.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note,
+    _try(tables.summary_table, layered, fig_dir, note=note)
+    _try(tables.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note,
          illustrative=illustrative)
 
     # --- per-step incidence hero ------------------------------------------------
@@ -280,13 +278,13 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
             print(f"  (skip incidence for {label!r}: pickle missing)")
             continue
         sdir = os.path.join(fig_dir, "per_step", _slug(label))
-        if _try(figures.incidence_hero, base_tpi, reform_tpi, ie, sdir,
+        if _try(plots.incidence_hero, base_tpi, reform_tpi, ie, sdir,
                 title=f"{country.name}: {label}", note=note, factor=factor) is not None:
             made.append(label)
     print(f"Regenerated top-level figures in {fig_dir}/ + incidence for: {made}")
 
     # --- scenario entry point: one index.html at the run-dir root linking the whole deck --------
-    index = _try(report_html.write_index, fig_dir, os.path.join(run_dir, "index.html"),
+    index = _try(report.write_index, fig_dir, os.path.join(run_dir, "index.html"),
                  _INDEX_SECTIONS, country=country, note=full_note)
     if index:
         print(f"Wrote scenario index -> {index}")

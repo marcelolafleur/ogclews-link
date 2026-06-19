@@ -1,22 +1,9 @@
-"""Deck chrome -- the text and table pages that frame the figure set as a readable deck,
-built from the same style.py house theme as the charts:
-
-  * methods_card  -- a full-figure text card: the channel/step sequence, the income-group
-    definition, and the run's illustrative-assumptions caveats. Describes the setup only;
-    asserts no finding.
-  * summary_table -- the across-steps results as a table-as-figure: one row per solved step,
-    macro Y/C/K/L %, energy-demand %, and consumption-tax-revenue %, sign-colored per cell.
-    Exactly the columns figures.across_steps_table writes to CSV -- no new computation.
-  * cover_page    -- the title page: country name + scenario, and a contents list of the
-    section/figure titles in the deck. States no result.
-
-These are PAGES, not plots: no data axes, no judgment words. Any number shown is read straight
-from the passed-in records (the macro/fiscal/energy fields), never recomputed or characterized.
-Editorial house theme; import-safe (Agg). Builders take the already-loaded layered list / country
-config + out_dir + keyword-only note=None, name=...; they RETURN the list of saved paths.
-"""
+"""The deck's table-as-figure pages: the cover, the across-steps summary table, and the CSV the
+table mirrors -- the output_tables analog to plots.py. Pure chrome built on the house theme; reads
+numbers straight from the layered records, never recomputes a finding."""
 from __future__ import annotations
 
+import csv
 import os
 import textwrap
 
@@ -29,8 +16,6 @@ from . import style  # noqa: E402
 style.apply()
 import matplotlib.pyplot as plt  # noqa: E402
 
-
-# --- small shared helpers --------------------------------------------------------
 
 def _solved(layered):
     """The records that carry a solved macro block, in run order (degrade to [] if none)."""
@@ -61,94 +46,6 @@ def _text_page(out_dir, name, *, draw, figsize=(8.4, 10.9)):
     draw(fig, None)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
-
-# --- (1) methods & caveats card --------------------------------------------------
-
-def methods_card(layered, country, out_dir, *, note=None, name="methods_card"):
-    """A full-figure text card describing HOW to read the deck: the channel/step sequence (from
-    the layered step names), the lifetime-income-group definition (style.income_labels), and the
-    run's illustrative-assumptions caveats (the `note` string). Asserts no finding -- it states
-    the setup and the assumptions only. Pure text reflow; no axes."""
-    solved = _solved(layered)
-    steps = [str(r.get("step", "")) for r in solved if r.get("step")]
-    J = len(solved[0]["consumption_by_J"]) if solved and "consumption_by_J" in solved[0] else 0
-    groups = style.income_labels(J) if J else []
-    cname = getattr(country, "name", None)
-
-    def draw(fig, ax):
-        style.title_block(
-            fig,
-            title="How to read this deck",
-            subtitle="The model setup behind the figures -- the policies layered in, the income"
-                     " groups, and the assumptions.",
-            kicker="methods & caveats", top=0.965)
-
-        x, y, dy = 0.045, 0.80, 0.030
-        sub_x = 0.065
-
-        def heading(text):
-            nonlocal y
-            fig.text(x, y, text, fontsize=11.5, fontweight="bold", color=style.INK,
-                     ha="left", va="top")
-            y -= 0.034
-
-        def line(text, color=style.SUB, size=10.0, wrap=92, indent=sub_x):
-            nonlocal y
-            for chunk in textwrap.wrap(text, wrap) or [""]:
-                fig.text(indent, y, chunk, fontsize=size, color=color, ha="left", va="top")
-                y -= dy
-            y -= 0.004
-
-        def gap():
-            nonlocal y
-            y -= 0.018
-
-        # channel / step sequence
-        heading("Channel steps")
-        if steps:
-            line("Each step layers one more linkage onto the one before; figures read left to"
-                 " right in this order:")
-            for i, s in enumerate(steps, 1):
-                line(f"{i}.  {s}", color=style.INK, indent=sub_x + 0.012)
-        else:
-            line("(no solved steps found in this run)")
-        gap()
-
-        # income-group definition
-        heading("Income groups")
-        if groups:
-            line(f"Households are split into {len(groups)} groups by how much they earn over"
-                 " their lifetime, poorest to richest; brackets are slices of the population,"
-                 " with the richest 1% in their own group:")
-            # Wrap the bracket labels on the same width budget as the other body lines, so a
-            # non-default J (more groups) or wider labels stay on-page instead of running off.
-            line("  ".join(groups), color=style.INK, indent=sub_x + 0.012)
-        else:
-            line("(income-group partition not available in this run)")
-        gap()
-
-        # assumptions / caveats
-        heading("Assumptions & caveats")
-        if note:
-            line(str(note), color=style.SUB)
-        else:
-            line("Results are illustrative.", color=style.SUB)
-
-        # Footer rides just below where the body text actually ended (not pinned to the page
-        # bottom), so a short card doesn't leave a large empty band above the credit line.
-        y -= 0.012
-        if cname:
-            fig.text(x, y, f"Scenario country: {cname}.", fontsize=9.5,
-                     color=style.MUTE, ha="left", va="top")
-            y -= 0.026
-        # Credit only -- the full caveat is already spelled out in the Assumptions section above.
-        fig.text(x, y, style.source_line(), fontsize=8.5, color=style.MUTE,
-                 ha="left", va="top", wrap=True)
-
-    return _text_page(out_dir, name, draw=draw)
-
-
-# --- (2) results-by-step summary table -------------------------------------------
 
 def _marginal(cur, prev):
     """Marginal contribution of a step: the column-wise change from the previous step's cumulative
@@ -239,8 +136,6 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
-# --- (3) cover page --------------------------------------------------------------
-
 def cover_page(layered, country, fig_titles, out_dir, *, note=None, illustrative=True, name="cover"):
     """The deck's title page: country name + scenario headline, a plain-language statement of the
     scenario (the four layered changes with their magnitudes, and what the health channel is), and
@@ -304,3 +199,19 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, illustrative
                  ha="left", va="top", wrap=True)
 
     return _text_page(out_dir, name, draw=draw)
+
+
+def across_steps_table(layered, path):
+    solved = [r for r in layered if "macro" in r]
+    if not solved:
+        return None
+    J = len(solved[0]["consumption_by_J"])
+    lab = style.income_labels(J)
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["step", "energy_demand_pct", "Y_pct", "C_pct", "K_pct", "L_pct",
+                    "govt_revenue_pct"] + [f"consumption_{x}" for x in lab])
+        for r in solved:
+            w.writerow([r["step"], r["energy_demand_pct"]] + [r["macro"].get(v) for v in ("Y", "C", "K", "L")]
+                       + [r["fiscal"]["cons_tax_revenue_pct"]] + r["consumption_by_J"])
+    return path

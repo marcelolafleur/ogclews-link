@@ -83,16 +83,17 @@ def main():
         json.dump(layered, f, indent=2, default=str)
     from ogcore.utils import safe_read_pickle
 
-    from ogclews_link import figures, report_html
+    from ogclews_link.viz import plots, tables
+    from ogclews_link.viz import report as viz_report
     note = ("Illustrative: +20% energy-price wedge (a cost-index proxy, not the CLEWS dual); "
             "investment/carbon magnitudes uncalibrated; carbon revenue not recycled.")
-    report_html.write_html_report(layered, os.path.join(out_dir, "report.html"))
+    viz_report.write_html_report(layered, os.path.join(out_dir, "report.html"))
     fig_dir = os.path.join(out_dir, "figures")
     os.makedirs(fig_dir, exist_ok=True)
-    figures.across_steps_waterfall(layered, fig_dir, note=note)   # marginal channel contributions
-    figures.macro_honest(layered, fig_dir, note=note)             # fixed-axis: effects are ~0
-    figures.energy_physical(PHL, fig_dir)                         # the physical energy side
-    figures.across_steps_table(layered, os.path.join(fig_dir, "across_steps_summary.csv"))
+    plots.across_steps_waterfall(layered, fig_dir, note=note)   # marginal channel contributions
+    plots.macro_honest(layered, fig_dir, note=note)             # fixed-axis: effects are ~0
+    plots.energy_physical(PHL, fig_dir)                         # the physical energy side
+    tables.across_steps_table(layered, os.path.join(fig_dir, "across_steps_summary.csv"))
     base_dir = os.path.join(out_dir, "baseline")
     try:  # the income factor (model units -> currency) lives in the baseline SS output
         factor = float(safe_read_pickle(os.path.join(base_dir, "SS", "SS_vars.pkl"))["factor"])
@@ -102,9 +103,9 @@ def main():
         if ctx.reform_tpi is None:
             continue
         sdir = os.path.join(out_dir, label, "figures")
-        figures.incidence_hero(ctx.base_tpi, ctx.reform_tpi, ie, sdir,
+        plots.incidence_hero(ctx.base_tpi, ctx.reform_tpi, ie, sdir,
                                title=f"{PHL.name}: {label}", note=note, factor=factor)
-        figures.og_default_outputs(base_dir, os.path.join(out_dir, label), sdir)
+        plots.og_default_outputs(base_dir, os.path.join(out_dir, label), sdir)
     print(f"\nWrote {out_dir}/ : layered_results.json, report.html, figures/ (incidence, waterfall, "
           f"macro, emissions) + per-step incidence ({len(layered)} steps)")
 
