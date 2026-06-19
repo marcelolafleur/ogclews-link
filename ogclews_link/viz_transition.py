@@ -66,7 +66,7 @@ def _closure_line(ax, closure_year, yrs):
 # --- the hero: macro aggregates over the transition ------------------------------
 
 def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_years=80,
-                     params=None, title="Macro aggregates over the transition",
+                     params=None, title="The economy over time (output, consumption, capital, labor)",
                      name="macro_transition"):
     """Y/C/K/L % deviation from baseline across the transition, calendar-year x-axis, lines
     direct-labeled at their right ends. The largest GDP deviation is marked -- the path can be
@@ -101,7 +101,7 @@ def macro_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     _closure_line(ax, closure_year, yrs)
     style.title_block(
         fig, title=title,
-        subtitle=f"% deviation from baseline, {yrs[0]}–{yrs[-1]}  ·  the 10-yr-mean snapshot reads only the left edge",
+        subtitle=f"% change vs baseline, {yrs[0]}–{yrs[-1]}  ·  the long-run snapshot shows only the start of this path",
         source=style.source_line(note), kicker="macro transition", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -116,7 +116,7 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
     os.makedirs(out_dir, exist_ok=True)
     closure_year, hz = _closure_window(params, start_year, n_years)
 
-    panels = [("D", "Debt / GDP", "general government debt"),
+    panels = [("D", "Debt / GDP", "government debt"),
               ("total_tax_revenue", "Revenue / GDP", "total tax revenue")]
     panels = [p for p in panels if p[0] in base_tpi and p[0] in reform_tpi]
     if not panels:
@@ -143,7 +143,7 @@ def fiscal_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
         ax.set_ylabel("% of GDP")
         _closure_line(ax, closure_year, yrs)
     style.title_block(
-        fig, title="Debt and revenue over the transition",
+        fig, title="Government debt and revenue over time",
         subtitle="Debt and revenue as a share of GDP, baseline vs reform",
         source=style.source_line(note), kicker="fiscal paths", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -174,8 +174,8 @@ def revenue_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, 
     ax.set_ylabel("revenue change vs baseline (%)")
     _closure_line(ax, closure_year, yrs)
     style.title_block(
-        fig, title="Consumption-tax revenue over the transition",
-        subtitle="Consumption-tax revenue, % deviation from baseline",
+        fig, title="Consumption-tax revenue over time",
+        subtitle="Consumption-tax revenue, % change vs baseline",
         source=style.source_line(note), kicker="carbon revenue", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -212,8 +212,8 @@ def rates_transition(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n_
     ax.set_ylabel("change vs baseline (%)")
     _closure_line(ax, closure_year, yrs)
     style.title_block(
-        fig, title="Interest rate and wage over the transition",
-        subtitle=f"Interest rate and wage, % deviation from baseline  ·  max |deviation| {rng:.2f}%",
+        fig, title="Interest rates and wages over time",
+        subtitle=f"Interest rate and wage, % change vs baseline  ·  largest change {rng:.2f}%",
         source=style.source_line(note), kicker="factor prices", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -263,7 +263,7 @@ def public_investment(base_tpi, reform_tpi, out_dir, *, start_year, note=None, n
     ax.set_ylabel("change vs baseline (%)")
     _closure_line(ax, closure_year, yrs)
     style.title_block(
-        fig, title="Public investment and public capital over the transition",
-        subtitle=f"% deviation from baseline, {yrs[0]}–{yrs[-1]}  ·  max |deviation| {rng:.2f}%",
+        fig, title="Public investment and public capital over time",
+        subtitle=f"% change vs baseline, {yrs[0]}–{yrs[-1]}  ·  largest change {rng:.2f}%",
         source=style.source_line(note), kicker="public capital", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

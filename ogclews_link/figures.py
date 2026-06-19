@@ -78,7 +78,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
     ax.set_xticks(range(J))
     ax.set_xticklabels(lab, rotation=30, ha="right")
     ax.set_ylabel("consumption change (%)")
-    ax.set_title("Who bears it")
+    ax.set_title("Who's affected, by income group")
     ax.margins(y=0.16)  # headroom so the extreme-value labels clear the axis/tick labels
     jmin, jmax = int(np.argmin(w)), int(np.argmax(w))
     for j, va in ((jmin, "top" if w[jmin] < 0 else "bottom"),
@@ -96,7 +96,7 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
     ax.set_xlim(0, max(2.2, float(share.max()) * 1.5))
     ax.set_xlabel("baseline energy budget share (%)")
     ax.set_ylabel("consumption change (%)")
-    ax.set_title("Welfare vs baseline energy share")
+    ax.set_title("Welfare effect vs energy's share of spending")
     ax.annotate(
         f"energy is ~{sp:.1f}% of the baseline\nbudget, on average across groups",
         xy=(sp, float(np.median(w))), xytext=(0.045, 0.94), textcoords="axes fraction",
@@ -122,7 +122,9 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
         ax.margins(y=0.16)
 
     style.title_block(fig, title=title,
-                      subtitle="Consumption change by income group, poorest to richest",
+                      subtitle="Welfare effect by income group, poorest to richest  ·  "
+                               "(consumption-equivalent: the % change in lifetime spending that "
+                               "leaves a household equally well off)",
                       source=style.source_line(note), kicker=kicker, top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -189,13 +191,13 @@ def across_steps_waterfall(layered, out_dir, note=None):
             segments[i] = [(mort_marg, style.CATEGORICAL[2], "mortality"),
                            (morb_marg, style.CATEGORICAL[3], "morbidity")]
     saved = [_waterfall(yvals, labels,
-                        "What each channel adds to GDP",
-                        "Marginal contribution to GDP as channels are layered in",
+                        "What each policy step adds to output",
+                        "Contribution to output as each policy step is added",
                         "GDP change (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
                         segments=segments)]
     saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
-                            "What each channel adds for the poorest group",
-                            "Marginal welfare contribution for the 0-25% group",
+                            "What each policy step adds for the poorest group",
+                            "Contribution to the welfare effect for the poorest 25%",
                             "consumption change (%)",
                             os.path.join(out_dir, "waterfall_poorest.png"), note))
     return saved
@@ -229,7 +231,7 @@ def macro_honest(layered, out_dir, ylim=0.5, note=None):
         _, mval, mvar = max(finite)
         ax.annotate(f"largest move: {mval:+.2f}% ({mvar})",
                     (0.015, 0.04), xycoords="axes fraction", fontsize=8.5, color=style.SUB, va="bottom")
-    style.title_block(fig, title="Macro aggregates vs baseline",
+    style.title_block(fig, title="The economy vs baseline (output, consumption, capital, labor)",
                       subtitle="Change vs baseline (%), fixed axis  ·  Y output, C consumption, K capital, L labor",
                       source=style.source_line(note), kicker="macro aggregates", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "macro_honest.png"))]
@@ -269,7 +271,7 @@ def energy_physical(country, out_dir):
                     (ymid, yv), xytext=(6, 18), textcoords="offset points",
                     fontsize=8.5, color=style.TEAL, fontweight="medium")
     style.title_block(fig, title="Emissions: baseline vs reform",
-                      subtitle="Energy-system emissions over the transition, baseline vs reform",
+                      subtitle="Energy-system emissions over time, baseline vs reform",
                       source=style.source_line(), kicker="energy system", top=0.965)
     return [style.save(fig, os.path.join(out_dir, "emissions_path.png"))]
 

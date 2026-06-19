@@ -118,8 +118,9 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     ax.margins(y=0.20)
     ax.set_ylabel("consumption-equivalent variation (%)")
     style.title_block(
-        fig, title="Lifetime welfare effect by income group (CEV)",
-        subtitle=f"Steady-state lifetime CEV by income group, poorest to richest  ·  "
+        fig, title="Lifetime welfare effect by income group",
+        subtitle=f"Long-run welfare effect by income group, poorest to richest "
+                 f"(consumption-equivalent: the % change in lifetime spending that leaves a household equally well off)  ·  "
                  f"mean {np.nanmean(cev):+.2f}% (range {np.nanmin(cev):+.2f}% to {np.nanmax(cev):+.2f}%)  ·  negative = worse off",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV by group", top=0.965)
@@ -177,13 +178,13 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
     fin_c, fin_n = cev_c[np.isfinite(cev_c)], cev_n[np.isfinite(cev_n)]
     parts = []
     if fin_c.size:
-        parts.append(f"consumption mean {np.mean(fin_c):+.2f}%")
+        parts.append(f"spending mean {np.mean(fin_c):+.2f}%")
     if fin_n.size:
-        parts.append(f"labor mean {np.mean(fin_n):+.2f}%")
+        parts.append(f"work mean {np.mean(fin_n):+.2f}%")
     means = "  ·  ".join(parts)
     style.title_block(
-        fig, title="Lifetime CEV by income group: consumption vs labor channel",
-        subtitle="Solid = consumption channel, hatched = labor channel  ·  partial CEVs, not additive"
+        fig, title="Lifetime welfare effect by income group: spending vs work",
+        subtitle="Solid = spending, hatched = work  ·  each on its own; the two don't sum to the total"
                  + (f"  ·  {means}" if means else "") + "  ·  negative = worse off",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV decomposition", top=0.965)
@@ -251,8 +252,8 @@ def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, not
     ax.set_ylabel("remaining-lifetime CEV (%)")
     ax.legend(loc="lower right", frameon=False, fontsize=8.5)
     style.title_block(
-        fig, title="Remaining-lifetime welfare effect by age (CEV)",
-        subtitle=f"Remaining-lifetime CEV by age at the reform, λ-weighted  ·  ages {ages[0]}–{ages[-1]}",
+        fig, title="Lifetime welfare effect, by current age",
+        subtitle=f"Welfare effect by age at the reform, averaged across income groups  ·  ages {ages[0]}–{ages[-1]}",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV by age", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

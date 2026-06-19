@@ -52,13 +52,13 @@ def _panel_macro(ax, base_tpi, reform_tpi, start_year, n_years=80):
     style.zero_line(ax)
     ax.set_xlim(yrs[0], yrs[-1] + (yrs[-1] - yrs[0]) * 0.18)
     ax.set_ylabel("change vs baseline (%)")
-    ax.set_title("2 · Macro aggregates over the transition")
+    ax.set_title("2 · The economy over time")
 
 
 def _panel_waterfall(ax, layered):
     solved = [r for r in layered if "macro" in r]
     if len(solved) < 2:  # a bridge needs at least two solved steps to span
-        ax.set_title("3 · What each channel adds to GDP")
+        ax.set_title("3 · What each policy adds to GDP")
         return
     labels = [r["step"].replace("+ ", "") for r in solved]
     yvals = [r["macro"]["Y"] for r in solved]
@@ -72,7 +72,7 @@ def _panel_waterfall(ax, layered):
     ax.set_xticklabels(labels, rotation=18, ha="right")
     ax.margins(y=0.16)
     ax.set_ylabel("GDP change (%)")
-    ax.set_title(f"3 · What each channel adds to GDP  ·  net {cum[-1]:+.3f}%")
+    ax.set_title(f"3 · What each policy adds to GDP  ·  net {cum[-1]:+.3f}%")
 
 
 def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
@@ -90,7 +90,7 @@ def _panel_cev(ax, base_ss, reform_ss, base_params, reform_params):
     ax.set_xticklabels(_labels(J), rotation=30, ha="right", fontsize=8)
     ax.margins(y=0.18)
     ax.set_ylabel("lifetime CEV (%)")
-    ax.set_title("4 · Welfare by income group (CEV)")
+    ax.set_title("4 · Welfare by income group")
 
 
 def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_params,
@@ -115,6 +115,6 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
 
     style.title_block(
         fig, title=f"{country.name}: coupled OG-Core × CLEWS scenario",
-        subtitle="Emissions · macro transition · channel decomposition · welfare (CEV)",
+        subtitle="Emissions · the economy over time · what each policy adds · who's affected",
         source=style.source_line(note), kicker="headline dashboard", top=0.975)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

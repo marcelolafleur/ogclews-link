@@ -79,7 +79,7 @@ def methods_card(layered, country, out_dir, *, note=None, name="methods_card"):
         style.title_block(
             fig,
             title="How to read this deck",
-            subtitle="The model setup behind the figures -- the channels layered in, the income"
+            subtitle="The model setup behind the figures -- the policies layered in, the income"
                      " groups, and the assumptions.",
             kicker="methods & caveats", top=0.965)
 
@@ -212,8 +212,8 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
                 table[(rr, cc)].set_facecolor("#FAFAFA")
 
     style.title_block(
-        fig, title="Results by channel step",
-        subtitle="One row per solved step  ·  change vs baseline (%)  ·  blue positive, red negative",
+        fig, title="Results as each policy is added",
+        subtitle="One row per policy step  ·  change (reform vs baseline, %)  ·  blue positive, red negative",
         source=style.source_line(note), kicker="summary table", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -232,7 +232,7 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, name="cover"
             fig,
             title=f"{cname}: coupled OG-Core x CLEWS scenario",
             subtitle="An OLG macro model (OG-Core) coupled to an energy-land-water system (CLEWS),"
-                     " shown channel by channel.",
+                     " shown one policy at a time.",
             kicker="scenario deck", top=0.965)
 
         x, y = 0.045, 0.78

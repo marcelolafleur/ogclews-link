@@ -66,8 +66,8 @@ def gbd_age_profiles(csv_path, location, year, out_dir, *, note=None, work_lo=15
     ax.set_xlabel("age")
     ax.set_ylabel("attributable rate by age (peak = 1)")
     style.title_block(
-        fig, title="Attributable burden by age: deaths vs disability",
-        subtitle="Ambient-PM2.5 attributable rate by age, peak-normalized  ·  deaths h(s) vs disability g(s)",
+        fig, title="Who air pollution harms, by age: deaths vs disability",
+        subtitle="PM2.5 air-pollution death & disability rates by age, peak-normalized  ·  deaths vs disability",
         source=style.source_line(note, base=gbd_src), kicker="health: age profiles", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -110,8 +110,8 @@ def mortality_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
     ax.set_xlabel("age")
     ax.set_ylabel("share of avoided deaths (%)")
     style.title_block(
-        fig, title=f"Avoided mortality by age, peaking near {peak_age}",
-        subtitle="Age distribution of the reform's avoided mortality (solved survival rates)",
+        fig, title=f"Deaths avoided, by age (peaks near {peak_age})",
+        subtitle="Where the reform's avoided deaths fall, by age (from solved survival rates)",
         source=style.source_line(note), kicker="health: avoided mortality", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -189,8 +189,8 @@ def morbidity_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
     ax.set_ylabel("share of effective-labor change (%)")
     yr_txt = f"transition year {year}" if year else f"transition row t={t}"
     style.title_block(
-        fig, title="Age distribution of the reform's effective-labor change",
-        subtitle=f"Effective-labor change by age, lambda-weighted over income groups  ·  {yr_txt}",
+        fig, title="Where the reform changes worker productivity, by age",
+        subtitle=f"Worker-productivity change by age, averaged across income groups  ·  {yr_txt}",
         source=style.source_line(note), kicker="health: morbidity", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -245,8 +245,8 @@ def demographic_transition_by_age(base_params, reform_params, out_dir, *, note=N
     ax.set_ylabel("change in population share")
     yrs = ", ".join(str(start + t) if start else f"t={t}" for t in idx)
     style.title_block(
-        fig, title="Change in population share by age over the transition",
-        subtitle=f"Reform-minus-base population share by age  ·  years {yrs}  ·  peak |change| {peak_abs:.3f} pts",
+        fig, title="Change in population share by age, over time",
+        subtitle=f"Change (reform vs baseline) in population share by age  ·  years {yrs}  ·  peak |change| {peak_abs:.3f} pts",
         source=style.source_line(note), kicker="health: demography", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -282,7 +282,7 @@ def gdp_split(layered, out_dir, *, prev_step="+ carbon", health_step="+ health",
     ax.margins(y=0.22)
     ax.set_ylabel("marginal contribution to GDP (%)")
     style.title_block(
-        fig, title="Health channel: mortality vs morbidity contribution to GDP",
-        subtitle=f"GDP contribution of the health channel  ·  net {mort + morb:+.4f}%",
+        fig, title="Health policy's GDP contribution: fewer deaths vs less illness",
+        subtitle=f"GDP contribution from the health policy  ·  net {mort + morb:+.4f}%",
         source=style.source_line(note), kicker="health: GDP split", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

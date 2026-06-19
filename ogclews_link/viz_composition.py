@@ -125,7 +125,7 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
         parts.append(f"* marks the energy good (good {energy0 + 1})")
     sub = "  ·  ".join(parts)
     style.title_block(
-        fig, title="Steady-state consumption change by good",
+        fig, title="Long-run change in spending, by type of good",
         subtitle=sub, source=style.source_line(note),
         kicker="composition: by good", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -192,9 +192,9 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
     ax.set_xlabel("change vs baseline (%)")
     ax.legend(loc="upper left", frameon=False, fontsize=8.5)
     sub = (f"* marks the energy industry (sector {energy0 + 1})" if energy0 is not None
-           else "Output, capital, and labor markers, one cluster per sector")
+           else "Output, capital, and jobs, one cluster per industry")
     style.title_block(
-        fig, title="Steady-state output, capital, and labor by sector, change vs baseline",
+        fig, title="Long-run change by industry: output, capital, jobs",
         subtitle=sub, source=style.source_line(note),
         kicker="composition: by sector", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -265,11 +265,11 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
         ax.set_title(glab[j] if j < len(glab) else f"group {j + 1}")
         if ai == 0:
             ax.set_ylabel("consumption change vs baseline (%)")
-    sub = "Near-term (year 0) consumption-quantity change by good, poorest / mid (J//2) / richest group"
+    sub = "Year-0 change in spending by type of good, for the poorest / middle / richest group"
     if energy0 is not None:
         sub += f"  ·  * marks the energy good (good {energy0 + 1})"
     style.title_block(
-        fig, title="Consumption change by good and income group",
+        fig, title="Change in spending by type of good, across income groups",
         subtitle=sub, source=style.source_line(note),
         kicker="composition: good x group", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

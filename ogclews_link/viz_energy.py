@@ -120,15 +120,15 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
     ax.set_ylabel("reform / base energy-price ratio")
 
     # subtitle carries only COMPUTED numbers; direction/magnitude are derived, never asserted
-    sub = (f"CLEWS cost ratio range {rv.min():.2f} to {rv.max():.2f} (mean {rv.mean():.2f}), "
-           f"{years[0]}–{years[-1]}")
+    sub = (f"Energy-system price ratio (reform vs baseline) ranges {rv.min():.2f} to {rv.max():.2f} "
+           f"(average {rv.mean():.2f}), {years[0]}–{years[-1]}")
     if applied_mult is not None:
-        kind = "constant" if is_flat else "near-constant"
-        sub += f"  ·  applied wedge {kind} at {applied_mult:.2f}"
-    cap = "Applied wedge is the run's tau_c on the energy good; the headline run used an " \
-          "illustrative flat shock, not the CLEWS path"
+        kind = "a constant" if is_flat else "a near-constant"
+        sub += f"  ·  this run instead assumed {kind} energy price of {applied_mult:.2f}"
+    cap = "The assumed shock is the run's energy-good price multiplier; the headline run used an " \
+          "illustrative flat price shock, not the year-by-year energy-system path"
     style.title_block(
-        fig, title="CLEWS energy-price ratio vs the applied wedge",
+        fig, title="Energy-price signal: what the energy model produced vs what this run assumed",
         subtitle=sub,
         source=style.source_line(note, extra=cap),
         kicker=f"energy price · good {i_e + 1}", top=0.965)
@@ -189,11 +189,11 @@ def capex_by_technology(country, out_dir, *, note=None, name="capex_by_technolog
     ax.set_xlim(lo - margin, hi + margin)
     ax.set_xlabel("cumulative reform − base capital investment (model MUSD)")
     style.title_block(
-        fig, title="Reform-minus-base power-sector capital investment by technology, cumulative",
-        subtitle=f"{len(vals)} power technologies with a non-zero increment  ·  "
+        fig, title="Change in power-sector investment, by technology",
+        subtitle=f"Cumulative change (reform vs baseline) across {len(vals)} power technologies  ·  "
                  f"net {vals.sum():+,.0f} MUSD",
         source=style.source_line(
-            note, extra="Model MUSD, no deflator applied (CLEWS monetary units)"),
+            note, extra="Model MUSD, no inflation adjustment applied (energy-model monetary units)"),
         kicker="investment · power sector", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -216,7 +216,7 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
         if not r.empty:
             yrs = np.asarray(r.index, dtype=int)
             v = np.asarray(r.values, dtype=float)
-            panels.append(("Energy-price cost ratio, reform / base", yrs, v, 1.0,
+            panels.append(("Energy price, reform vs baseline", yrs, v, 1.0,
                            style.CATEGORICAL[0],
                            f"range {v.min():.2f}–{v.max():.2f}"))
     except Exception:  # noqa: BLE001
@@ -229,7 +229,7 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
         if not inc.empty and np.isfinite(gdp) and gdp > 0:
             yrs = np.asarray(inc.index, dtype=int)
             v = 100.0 * np.asarray(inc.values, dtype=float) / gdp
-            panels.append(("Power-capex increment, % of GDP", yrs, v, 0.0,
+            panels.append(("Change in power-sector investment, % of GDP", yrs, v, 0.0,
                            style.CATEGORICAL[3],
                            f"sum over {yrs[0]}–{yrs[-1]}: {v.sum():+.2f}% of GDP"))
     except Exception:  # noqa: BLE001
@@ -242,9 +242,9 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
         if not er.empty:
             yrs = np.asarray(er.index, dtype=int)
             v = np.asarray(er.values, dtype=float)
-            panels.append(("Emissions ratio, reform / base", yrs, v, 1.0,
+            panels.append(("Emissions, reform vs baseline", yrs, v, 1.0,
                            style.CATEGORICAL[2],
-                           f"mean {v.mean():.2f}"))
+                           f"average {v.mean():.2f}"))
     except Exception:  # noqa: BLE001
         pass
 
@@ -278,10 +278,10 @@ def channel_inputs_over_time(country, base_tpi, out_dir, *, note=None, name="cha
                     fontsize=8.5, color=style.SUB)
     axes[-1].set_xlabel("year")
     style.title_block(
-        fig, title="Time-varying CLEWS-to-OG energy signals",
-        subtitle="The sourced signals over calendar years, before each channel maps them into OG-Core",
+        fig, title="Energy-system signals fed into the economy, over time",
+        subtitle="The energy-system signals over calendar years, before each policy step enters the economic model",
         source=style.source_line(
-            note, extra="Channels may collapse a path to a scalar (e.g. a flat wedge or a "
-            "10-year mean) before feeding OG-Core"),
+            note, extra="A policy step may reduce a year-by-year path to a single number "
+            "(e.g. a flat price shock or a 10-year average) before it enters the economic model"),
         kicker="clews → og signals", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]

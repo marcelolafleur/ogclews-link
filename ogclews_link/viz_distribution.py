@@ -40,16 +40,23 @@ def _lam_weighted_avg(dev, lam):
 
 
 def _lifecycle_band(ax, ages, dev, lam, base_params, *, band_label="income-group range",
-                    line_label="population avg", color=None, right_pad=0.16):
+                    line_label="population avg", color=None, right_pad=0.16, min_halfrange=None):
     """Shared lifecycle band builder for consumption_by_age and asset_by_age: a λ-weighted
     average line over the income-group fill_between(lo, hi) band, sign-colored (unless ``color``
-    is forced), with the retirement marker and an end-of-line label. Returns (avg, color)."""
+    is forced), with the retirement marker and an end-of-line label. ``min_halfrange`` floors the
+    y-axis half-range (e.g. 1.0%) so a near-null effect frames as small instead of being magnified
+    into a dramatic wiggle. Returns (avg, color)."""
     avg = _lam_weighted_avg(dev, lam)
     lo, hi = np.nanmin(dev, axis=1), np.nanmax(dev, axis=1)
     c = color if color is not None else (style.LOSS if np.nanmean(avg) < 0 else style.GAIN)
     style.zero_line(ax)
     ax.fill_between(ages, lo, hi, color=c, alpha=0.10, zorder=1, label=band_label)
     ax.plot(ages, avg, color=c, lw=2.4, zorder=3)
+    if min_halfrange is not None:                        # frame a near-null effect honestly (not magnified)
+        ylo, yhi = ax.get_ylim()
+        mid = 0.5 * (ylo + yhi)
+        if 0.5 * (yhi - ylo) < min_halfrange:
+            ax.set_ylim(mid - min_halfrange, mid + min_halfrange)
     style.label_ends(ax, [(ages[-1], avg[-1], line_label, c)])
     style.mark_retirement(ax, base_params, label_top=True)
     ax.set_xlim(ages[0] - 1, ages[-1] + (ages[-1] - ages[0]) * right_pad)
@@ -85,8 +92,8 @@ def energy_demand_by_group(layered, out_dir, *, note=None, name="energy_by_incom
     ax.set_xlim(-0.2, J - 1 + 0.5)
     ax.set_ylabel("energy-good demand change (%)")
     style.title_block(
-        fig, title="Energy-demand change by income group, across channel steps",
-        subtitle="Energy-good demand change by income group, poorest to richest  ·  one line per channel step",
+        fig, title="Change in energy use, by income group",
+        subtitle="Energy-good demand change by income group, poorest to richest  ·  one line per policy step",
         source=style.source_line(note), kicker="distribution: energy demand", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -118,9 +125,9 @@ def consumption_by_age(base_ss, reform_ss, base_params, out_dir, *, note=None, m
     ax.set_ylabel("consumption change vs baseline (%)")
     ax.legend(loc="lower left", frameon=False, fontsize=8.5)
     style.title_block(
-        fig, title="Consumption change by age",
-        subtitle=f"Steady-state composite-consumption change by age, λ-weighted (mean {np.nanmean(avg):+.2f}%)"
-                 "  ·  band = income-group range",
+        fig, title="Household spending change, by age",
+        subtitle=f"Long-run change in spending over the life cycle, averaged across income groups "
+                 f"(mean {np.nanmean(avg):+.2f}%)  ·  shaded band = range across income groups",
         source=style.source_line(note), kicker="distribution: by age", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
@@ -151,15 +158,15 @@ def asset_by_age(base_ss, reform_ss, base_params, out_dir, *, note=None, max_age
     fig, ax = plt.subplots(figsize=(8.2, 5.0))
     fig.subplots_adjust(top=0.76, bottom=0.13, left=0.095, right=0.92)
     style.clean(ax, left=True)
-    avg, _ = _lifecycle_band(ax, ages, dev, lam, base_params, right_pad=0.08)
+    avg, _ = _lifecycle_band(ax, ages, dev, lam, base_params, right_pad=0.08, min_halfrange=1.0)
     ax.set_xlabel("age")
     ax.set_ylabel("asset change vs baseline (%)")
     ax.legend(loc="lower left", frameon=False, fontsize=8.5)
     style.title_block(
-        fig, title="Household assets by age, change vs baseline",
-        subtitle=f"Steady-state household assets by age, λ-weighted (mean {np.nanmean(avg):+.2f}%)"
-                 "  ·  band = income-group range",
-        source=style.source_line(note), kicker="distribution: assets by age", top=0.965)
+        fig, title="Household savings change, by age",
+        subtitle=f"Long-run change in savings over the life cycle, averaged across income groups "
+                 f"(mean {np.nanmean(avg):+.2f}%)  ·  shaded band = range across income groups",
+        source=style.source_line(note), kicker="distribution: savings by age", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
@@ -181,8 +188,9 @@ def income_composition_by_age(base_tpi, reform_tpi, base_params, out_dir, *, not
     for i, (key, lab) in enumerate(comps):
         if key not in base_tpi or key not in reform_tpi:
             continue
-        b0 = np.asarray(base_tpi[key], float)[0]                                  # (S, J)
-        r0 = np.asarray(reform_tpi[key], float)[0]
+        arr_b, arr_r = np.asarray(base_tpi[key], float), np.asarray(reform_tpi[key], float)
+        nyr = min(10, arr_b.shape[0])                    # first-decade average (period 0 is pre-phase-in)
+        b0, r0 = arr_b[:nyr].mean(axis=0), arr_r[:nyr].mean(axis=0)               # (S, J)
         if b0.shape != r0.shape or b0.ndim != 2:
             continue
         a = E + np.arange(b0.shape[0])
@@ -226,8 +234,8 @@ def income_composition_by_age(base_tpi, reform_tpi, base_params, out_dir, *, not
     ax.set_xlabel("age")
     ax.set_ylabel("income-component change vs baseline (%)")
     style.title_block(
-        fig, title="Income components by age, change vs baseline",
-        subtitle="First transition period (t=0), λ-weighted  ·  one line per income component",
-        source=style.source_line(note if note else "Transition snapshot: TPI-only, first period."),
-        kicker="distribution: income components", top=0.965)
+        fig, title="Change in income, by source and age",
+        subtitle="Labor, capital, and bequest income  ·  first-decade average, across income groups",
+        source=style.source_line(note),
+        kicker="distribution: income sources", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
