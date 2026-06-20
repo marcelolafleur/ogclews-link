@@ -26,6 +26,15 @@ EXPERIMENTS = {
         "(the transition is generation-side), so this contributes ~nothing here; private generation "
         "capex's macro effect lives in the energy channel, a capex subsidy in set_investment_incentive."),
 
+    # #2b private generation capital intensity -> energy gamma -> endogenous crowding-out
+    "capital_intensity": Experiment(
+        "capital_intensity", [("capital_intensity", {})],
+        "The capex-heavy renewables/CCS buildout as a PERMANENT rise in the energy industry's capital "
+        "share gamma (calibrated from the CLEWS reform/base power-fleet capital-cost-share ratio, "
+        "first-decade window). The crowding-out of other investment + the higher cost of capital "
+        "emerge endogenously from OG-Core's multi-industry capital market. The private-generation "
+        "counterpart to the (public-infra-only) investment channel."),
+
     # #3 carbon price -> OG fiscal revenue + CLEWS EmissionsPenalty (one price, both sides)
     "carbon": Experiment(
         "carbon", [("carbon", {"carbon_price": 50.0, "recycle": True})],

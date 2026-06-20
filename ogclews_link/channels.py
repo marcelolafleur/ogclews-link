@@ -21,7 +21,7 @@ import os
 
 import numpy as np
 
-from . import health_profile, signals
+from . import health_profile, policy_levers, signals
 from .framework import CLEWS_TO_OG, OG_TO_CLEWS, POLICY, Channel, register
 
 
@@ -228,6 +228,58 @@ class InvestmentChannel(Channel):
                 "here -- its macro effect is the energy cost-push, and a capex subsidy is "
                 "set_investment_incentive. CLEWS-money vs GDP uses units.deflator (=1.0, uncalibrated) -- "
                 "calibrate before any headline %-of-GDP."]
+
+
+# --- #2b energy generation-mix capital intensity -> energy industry capital share (gamma) -------
+
+class CapitalIntensityChannel(Channel):
+    id = "capital_intensity"
+    label = "CLEWS generation-mix capital intensity -> energy industry's capital share (gamma)"
+    direction = CLEWS_TO_OG
+    theory_status = "structural_core"
+
+    def apply(self, ctx, window=None, gamma_scale=None, gamma_target=None, labor_share_floor=0.05):
+        # PRIVATE-GENERATION capital intensity. OG-Core has no exogenous "inject private capital" dial
+        # (private K is endogenous: households save -> firms rent capital), but it DOES have a real
+        # multi-industry capital market. So we reflect the capex-heavy renewables/CCS buildout by
+        # raising the ENERGY industry's capital share gamma[m] -- a permanent, time-invariant
+        # STRUCTURAL lever -- and let the crowding-out of other investment and the rise in the cost of
+        # capital (r) emerge ENDOGENOUSLY. This is the private-side counterpart to the
+        # public-infrastructure investment channel (alpha_I -> K_g); the two are complementary.
+        c = ctx.country
+        p = ctx.og_reform
+        m = c.concordance.energy_industry_index
+        if gamma_target is None and gamma_scale is None:
+            # calibrate the multiplicative shift from CLEWS: reform/base ratio of the power fleet's
+            # capital cost share, over the first-decade window (ties to the scenario's OG start year).
+            win = window or (c.scenario.og_start_year, c.scenario.og_start_year + 9)
+            cal = signals.capital_intensity_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, window=win)
+            gamma_scale = cal["ratio"]
+            calibration = cal
+        else:
+            calibration = {"source": "explicit override (gamma_target/gamma_scale)"}
+        prov = policy_levers.set_capital_intensity(
+            p, m, gamma_target=gamma_target, gamma_scale=gamma_scale, labor_share_floor=labor_share_floor)
+        if abs(prov["gamma_new"] - prov["gamma_old"]) < 1e-6:
+            print("[guardrail] capital_intensity: calibrated gamma shift ~0 -- the reform generation "
+                  "mix is no more capital-intensive than baseline over this window, so the channel is "
+                  "inert. (Private generation capex's macro effect then rides the energy cost-push.)")
+        prov["calibration"] = calibration
+        return prov
+
+    def validate(self, ctx, active):
+        msgs = ["capital_intensity raises the ENERGY industry's capital share gamma[m] -- a PERMANENT, "
+                "steady-state STRUCTURAL lever for a more capital-intensive generation mix "
+                "(renewables/CCS). Labor's share is the residual 1-gamma-gamma_g, so this lowers it "
+                "automatically. Do NOT ALSO carry the SAME generation buildout as a per-industry energy "
+                "Z-haircut (the I-O cost-push route) or an energy ITC (set_investment_incentive) -- "
+                "those are three views of the same capex; pick ONE by the question (gamma = structural "
+                "capital intensity; Z = TFP/cost-push; ITC = a transition subsidy flow)."]
+        if "investment" in active:
+            msgs.append("capital_intensity (private generation capital share, gamma) and investment "
+                        "(PUBLIC grid/T&D capex -> K_g) are COMPLEMENTARY, not double-counting: "
+                        "different capital, different OG lever.")
+        return msgs
 
 
 # --- #3 carbon price -> fiscal revenue (OG) + EmissionsPenalty (CLEWS) -----------
@@ -453,7 +505,7 @@ class DemandChannel(Channel):
 
 
 def register_all():
-    for cls in (EnergyPriceChannel, InvestmentChannel, CarbonChannel,
+    for cls in (EnergyPriceChannel, InvestmentChannel, CapitalIntensityChannel, CarbonChannel,
                 DiscountRateChannel, HealthChannel, DemandChannel):
         try:
             register(cls())

@@ -22,6 +22,7 @@ from matplotlib import font_manager as fm
 
 # --- palette: editorial, colorblind-safe -----------------------------------------
 INK, SUB, MUTE, GRID = "#222222", "#555555", "#888888", "#E6E6E6"
+EDGE = "#333333"  # reference grey shared by the axes frame, the bottom spine, and the zero line
 # diverging gains vs losses, centered on a neutral zero (RdBu poles: CB-safe, not traffic-light)
 LOSS, GAIN, NEUTRAL = "#B2182B", "#2166AC", "#F7F7F7"
 TOTAL = "#33302E"
@@ -80,7 +81,7 @@ def apply():
         # spines: open frame (top/right off everywhere; left toggled per-chart)
         "axes.spines.top": False, "axes.spines.right": False,
         "axes.spines.left": True, "axes.spines.bottom": True,
-        "axes.edgecolor": "#333333", "axes.linewidth": 0.8,
+        "axes.edgecolor": EDGE, "axes.linewidth": 0.8,
         # grid: faint, horizontal, behind data
         "axes.grid": True, "axes.grid.axis": "y", "grid.color": GRID, "grid.linewidth": 0.7,
         "axes.axisbelow": True,
@@ -114,10 +115,13 @@ def title_block(fig, title, subtitle=None, source=None, kicker=None,
                  fontweight="bold", ha="left", va="top")
         y -= 0.050
     fig.text(x, y, title, fontsize=15, fontweight="bold", color=INK, ha="left", va="top")
+    # wrap=True wraps long deks/source notes to the figure width instead of overflowing the
+    # canvas -- with savefig.bbox="tight" an unwrapped line would stretch the saved image far
+    # wider than the plot, leaving the chart marooned in a thin, over-wide frame.
     if subtitle:
-        fig.text(x, y - 0.046, subtitle, fontsize=11, color=SUB, ha="left", va="top")
+        fig.text(x, y - 0.046, subtitle, fontsize=11, color=SUB, ha="left", va="top", wrap=True)
     if source:
-        fig.text(x, 0.008, source, fontsize=8, color=MUTE, ha="left", va="bottom")
+        fig.text(x, 0.008, source, fontsize=8, color=MUTE, ha="left", va="bottom", wrap=True)
 
 
 def clean(ax, left=False, grid="y"):
@@ -126,7 +130,7 @@ def clean(ax, left=False, grid="y"):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(left)
-    ax.spines["bottom"].set_color("#333333")
+    ax.spines["bottom"].set_color(EDGE)
     ax.tick_params(length=0)
     ax.set_axisbelow(True)
     if grid:
@@ -138,7 +142,7 @@ def clean(ax, left=False, grid="y"):
 
 def zero_line(ax, axis="y", value=0.0):
     """A considered zero reference for signed data."""
-    (ax.axhline if axis == "y" else ax.axvline)(value, color="#333333", lw=1.0, zorder=1.5)
+    (ax.axhline if axis == "y" else ax.axvline)(value, color=EDGE, lw=1.0, zorder=1.5)
 
 
 def label_ends(ax, points, dx=6, min_gap=None):
@@ -177,9 +181,12 @@ def signed(vals, gain=GAIN, loss=LOSS):
 SRC = "Source: OG-Core x CLEWS coupled model · author's calculations"
 
 
-def source_line(note=None):
-    """Grey credit line; appends an optional per-run caveat note."""
-    return f"{SRC}.  {note}" if note else SRC
+def source_line(note=None, *, base=SRC, extra=None):
+    """Grey credit line: `base`, an optional methodology caveat (`extra`, e.g. the CEV-felicity
+    note), then the per-run caveat (`note`), joined by '.  '. The one place the credit-line join
+    lives, so builders never hand-roll the `SRC + note` f-string. Pass base=<gbd source> to credit
+    a different dataset."""
+    return ".  ".join(p for p in (base, extra, note) if p)
 
 
 # OG-Core's default 7-group lifetime-income partition (lambdas [.25,.25,.2,.1,.1,.09,.01]);
@@ -192,6 +199,12 @@ def income_labels(J, lambdas=None):
     shares) when given, so they match the run's actual partition; else the OG-Core default-7
     labels for J==7, else generic 'group N'."""
     if lambdas is not None and len(lambdas) == J:
+        try:                                              # reuse OG-Core's own labeller (same text)
+            from ogcore.output_plots import lambda_labels as _ll
+            d = _ll(np.asarray(lambdas, dtype=float))
+            return [d[i] for i in range(J)]
+        except Exception:  # noqa: BLE001 -- ogcore absent/changed: fall back to the local derivation
+            pass
         edges = np.concatenate([[0.0], np.cumsum(np.asarray(lambdas, dtype=float))]) * 100
         out = []
         for a, b in zip(edges[:-1], edges[1:]):
@@ -221,6 +234,29 @@ def retire_age(params, default=None):
         except Exception:  # noqa: BLE001
             pass
     return default
+
+
+def pct_dev(reform, base):
+    """Signed %-deviation of reform vs base (element-wise), NaN where base is zero. The one place
+    the (reform-base)/base formula lives, so every builder reports deviations identically."""
+    base = np.asarray(base, dtype=float)
+    reform = np.asarray(reform, dtype=float)
+    return 100.0 * (reform - base) / np.where(base == 0, np.nan, base)
+
+
+def mark_retirement(ax, params, *, label_top=True, color=SUB):
+    """Dashed vertical marker + 'retirement' label at the model's retirement age (via retire_age),
+    drawn only if the run provides one (else a no-op returning None). Centralizes the marker the
+    lifecycle builders share. Returns the age, or None when absent."""
+    age = retire_age(params)
+    if age is None:
+        return None
+    ax.axvline(age, color=color, lw=0.9, ls=(0, (4, 3)), zorder=2)
+    y = ax.get_ylim()[1] if label_top else ax.get_ylim()[0]
+    ax.annotate("retirement", (age, y), xytext=(5, -4 if label_top else 6),
+                textcoords="offset points", fontsize=8.5, color=color,
+                va="top" if label_top else "bottom")
+    return age
 
 
 def save(fig, path):
