@@ -1,0 +1,229 @@
+<title>OG-Core × CLEWS — channel diagrams</title>
+<style>
+  :root{--ink:#222;--sub:#555;--mute:#888;--grid:#e6e6e6;--ogc:#0f5499;--clews:#0d7680;
+    --policy:#e3120b;--claret:#990f3d;--amber:#b07400;--model:#eef2f6}
+  *{box-sizing:border-box}
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0)}
+  body{margin:0;background:#f4f5f7;color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .page{max-width:900px;margin:0 auto;padding:34px 22px 70px}
+  .phead .rule{width:54px;height:3px;background:var(--claret);display:block;margin-bottom:14px}
+  .phead h1{font-size:27px;margin:0 0 6px}
+  .phead p{color:var(--sub);font-size:15.5px;margin:0;max-width:680px}
+  /* channel card */
+  .ch{background:#fff;border:1px solid var(--grid);border-radius:14px;padding:22px 26px 24px;margin:24px 0;
+    box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .ch.co{--accent:var(--clews)} .ch.oc{--accent:var(--ogc)} .ch.pol{--accent:var(--policy)}
+  .kick{display:flex;align-items:center;gap:10px;margin-bottom:5px;flex-wrap:wrap}
+  .kick .rule{width:40px;height:3px;background:var(--claret)}
+  .dir{font-size:11px;font-weight:700;letter-spacing:.03em;color:#fff;background:var(--accent);padding:3px 9px;border-radius:20px}
+  .reads{font-size:10.5px;font-weight:700;letter-spacing:.03em;color:var(--accent);border:1px solid var(--accent);
+    padding:2px 8px;border-radius:20px}
+  h2{font-size:21px;margin:2px 0}
+  .subt{color:var(--mute);font-style:italic;font-size:14.5px;margin:0 0 16px}
+  .scope{display:flex;gap:8px;align-items:flex-start;background:#fdf6ec;border:1px solid #eccfa0;
+    border-radius:9px;padding:9px 12px;margin:0 0 16px;font-size:13px;color:#7a5512}
+  .scope b{color:#5e4209}
+  .caps{display:grid;grid-template-columns:34px 1fr 1.05fr;gap:0 16px;margin:0 0 7px;padding:0 14px}
+  .caps .s{grid-column:2;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--claret)}
+  .caps .m{grid-column:3;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ogc)}
+  .step{display:grid;grid-template-columns:34px 1fr 1.05fr;gap:0 16px;align-items:center;
+    background:#fcfdfe;border:1px solid var(--grid);border-radius:11px;padding:12px 14px}
+  .mark{width:25px;height:25px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:12.5px;color:#fff;background:var(--ink)}
+  .mark.a{background:var(--accent)}
+  .story{font-size:15px;line-height:1.48}
+  .story b{font-weight:700}
+  .model{background:var(--model);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.5;color:#384450}
+  .model .lab{display:block;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ogc);margin-bottom:2px}
+  var,code{font-family:"SFMono-Regular",Consolas,monospace;font-style:normal;background:#dde6ee;color:var(--ogc);
+    padding:.5px 5px;border-radius:4px;font-size:.9em;white-space:nowrap}
+  .reg{color:var(--claret);font-weight:700}
+  .user{color:var(--ink);font-weight:700}
+  .down{display:flex;justify-content:center;color:var(--mute);font-size:14px;line-height:1;margin:4px 0}
+  .branchhead{display:flex;align-items:center;gap:6px;margin:13px 0 8px;color:var(--ink);font-weight:600;font-size:13px}
+  .branchhead .b{width:34px;text-align:center;color:var(--mute);font-size:15px}
+  .cons{margin-left:34px;border-left:3px solid var(--accent);border-radius:0 11px 11px 0}
+  .cons .step{border-radius:0 11px 11px 0;margin-bottom:8px}
+  .cons .step:last-child{margin-bottom:0}
+  .cons .mark{width:11px;height:11px;background:#fff;border:2px solid var(--accent)}
+  .step.hi{background:#fdf3f6;border-color:#e7c3cf}
+  .foot{color:var(--mute);font-size:12px;margin-top:15px;border-top:1px solid var(--grid);padding-top:12px}
+</style>
+
+<div class="page">
+<div class="phead">
+  <span class="rule"></span>
+  <h1>Channel diagrams — OG-Core ⇄ CLEWS</h1>
+  <p>Each channel as a plain story (left) paired with the model part it touches (right). CLEWS→OG and
+     policy channels <b>change</b> an OG input; OG→CLEWS channels <b>read</b> an OG output — their effect
+     returns only through the loop.</p>
+</div>
+
+<!-- ============ 1 ENERGY PRICE ============ -->
+<section class="ch co">
+  <div class="kick"><span class="rule"></span><span class="dir">CLEWS → OG</span></div>
+  <h2>Energy price</h2><p class="subt">the cost of energy reaches households</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">The energy system gets <b>more expensive to run</b>.</div>
+    <div class="model"><span class="lab">signal</span>the marginal price of electricity from CLEWS, vs. baseline.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story">That reaches households as a <b>higher energy bill</b>.</div>
+    <div class="model"><span class="lab">price</span>a price wedge on the energy good (<var>τ<sub>c</sub></var>) — the only door, since OG has no energy in production.</div></div>
+  <div class="branchhead"><span class="b">⌄</span><span>The wedge then does <b>three things</b>:</span></div>
+  <div class="cons">
+    <div class="step"><span class="mark"></span>
+      <div class="story"><b>Households use less energy.</b></div>
+      <div class="model"><span class="lab">demand</span>demand for energy falls (<var>c<sub>i</sub></var>); the cost of living edges up (<var>p̃</var>).</div></div>
+    <div class="step hi"><span class="mark"></span>
+      <div class="story"><b class="reg">Lower-income families are hit hardest</b> — energy is a necessity, a bigger budget share.</div>
+      <div class="model"><span class="lab">who bears it</span>the subsistence floor (<var>c<sub>min</sub></var>) makes it regressive; across <var>J</var> income × <var>S</var> age.</div></div>
+    <div class="step"><span class="mark"></span>
+      <div class="story">The money raised goes to government — <span class="user">kept or returned</span> (the user's choice).</div>
+      <div class="model"><span class="lab">revenue</span>books <code>cons_tax_revenue</code>; returned as transfers (<var>α<sub>T</sub></var>) it isolates the price effect.</div></div>
+  </div>
+  <div class="foot">A resource-cost passthrough; the same wedge (<var>τ<sub>c</sub></var>) priced as policy is the <b>carbon</b> channel.</div>
+</section>
+
+<!-- ============ 2 INVESTMENT ============ -->
+<section class="ch co">
+  <div class="kick"><span class="rule"></span><span class="dir">CLEWS → OG</span></div>
+  <h2>Investment</h2><p class="subt">paying for the public build-out</p>
+  <div class="scope"><span>⚠</span><span><b>Public infrastructure only.</b> The transition's private generation capex — most of the capital — has its own channel (<b>capital intensity</b>, next), or rides the cost-push / a capex incentive — not this (public) one.</span></div>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">Building the grid takes <b>a lot of money up front</b>.</div>
+    <div class="model"><span class="lab">capex</span>CLEWS public-infrastructure (grid / T&amp;D) capital cost, as a share of GDP.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story">It's added to the government's <b>public investment</b>.</div>
+    <div class="model"><span class="lab">public capital</span>raises <var>α<sub>I</sub></var> → the public capital stock <var>K<sub>g</sub></var>.</div></div>
+  <div class="branchhead"><span class="b">⌄</span><span>which <b>pulls two ways</b>:</span></div>
+  <div class="cons">
+    <div class="step"><span class="mark"></span>
+      <div class="story"><b>The new infrastructure makes the economy more productive.</b></div>
+      <div class="model"><span class="lab">output</span><var>K<sub>g</sub></var> lifts output across every industry (via <var>γ<sub>g</sub></var>).</div></div>
+    <div class="step"><span class="mark"></span>
+      <div class="story">But it's <b>paid for by debt or taxes</b>, crowding out other spending.</div>
+      <div class="model"><span class="lab">financing</span>the net sign depends on how the budget is closed.</div></div>
+  </div>
+  <div class="foot">Whether the economy comes out ahead depends on how the build-out is financed.</div>
+</section>
+
+<!-- ============ 2b CAPITAL INTENSITY ============ -->
+<section class="ch co">
+  <div class="kick"><span class="rule"></span><span class="dir">CLEWS → OG</span></div>
+  <h2>Capital intensity</h2><p class="subt">the clean buildout is capital-heavy</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">A clean-energy buildout (wind, solar, CCS) is <b>capital-heavy</b> — costly to build, cheap to run.</div>
+    <div class="model"><span class="lab">signal</span>CLEWS reform/base ratio of the power fleet's capital-cost share.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story">The energy sector becomes <b>structurally more capital-intensive</b>.</div>
+    <div class="model"><span class="lab">capital share</span>raises the energy industry's capital share (<var>γ<sub>m</sub></var>) in production.</div></div>
+  <div class="branchhead"><span class="b">⌄</span><span>the capital market then works it out, <b>endogenously</b>:</span></div>
+  <div class="cons">
+    <div class="step"><span class="mark"></span>
+      <div class="story"><b>Capital flows toward energy.</b></div>
+      <div class="model"><span class="lab">capital pull</span>higher <var>γ</var> lifts energy's marginal product of capital.</div></div>
+    <div class="step"><span class="mark"></span>
+      <div class="story">The <b>cost of borrowing rises</b>, and other industries get less.</div>
+      <div class="model"><span class="lab">crowding-out</span>economy-wide <var>r</var> ↑ and crowd-out emerge from the multi-industry capital market.</div></div>
+    <div class="step"><span class="mark"></span>
+      <div class="story">Energy leans <b>less on labour</b>.</div>
+      <div class="model"><span class="lab">factor split</span>labour share is the residual <var>1 − γ − γ<sub>g</sub></var> (hard-floored).</div></div>
+  </div>
+  <div class="foot">The private-sector twin of the public <b>investment</b> channel (<var>α<sub>I</sub></var>→<var>K<sub>g</sub></var>) — complementary. One of three views of generation capex (<var>γ</var> here / <var>Z</var> cost-push / ITC); use one.</div>
+</section>
+
+<!-- ============ 3 CARBON ============ -->
+<section class="ch pol">
+  <div class="kick"><span class="rule"></span><span class="dir">policy → both</span></div>
+  <h2>Carbon price</h2><p class="subt">one price, set once, applied both sides</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">A <b>carbon price</b> is set once.</div>
+    <div class="model"><span class="lab">one price</span>a single price (USD/tCO₂), fed to both models.</div></div>
+  <div class="branchhead"><span class="b">⌄</span><span>it <b>acts on both models</b>:</span></div>
+  <div class="cons">
+    <div class="step"><span class="mark"></span>
+      <div class="story">In the energy system, dirty options cost more — the mix shifts cleaner and <b>emissions fall</b>.</div>
+      <div class="model"><span class="lab">emissions · CLEWS</span>enters as an <code>EmissionsPenalty</code> on the least-cost plan.</div></div>
+    <div class="step"><span class="mark"></span>
+      <div class="story">For households it <b>raises the energy price</b> — they use less, and it raises revenue (<span class="user">kept or returned</span>).</div>
+      <div class="model"><span class="lab">households · OG</span>the same <var>τ<sub>c</sub></var> wedge as energy price; books <code>cons_tax_revenue</code> → <var>α<sub>T</sub></var>.</div></div>
+  </div>
+  <div class="foot">The OG side prices <b>household energy only</b> — economy-wide carbon is the CLEWS side.</div>
+</section>
+
+<!-- ============ 4 COST OF CAPITAL ============ -->
+<section class="ch oc">
+  <div class="kick"><span class="rule"></span><span class="dir">OG → CLEWS</span><span class="reads">reads an output</span></div>
+  <h2>Cost of capital</h2><p class="subt">the economy's interest rate guides the energy plan</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">The economy settles on an <b>interest rate</b> — how it values the future.</div>
+    <div class="model"><span class="lab">the rate</span>reads OG's equilibrium return on capital (<var>r<sub>p</sub></var>) — an output, not changed.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story">That rate is handed to the <b>energy planner</b> as its discount rate.</div>
+    <div class="model"><span class="lab">discount rate</span>sets CLEWS's <code>DiscountRate</code>.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">3</span>
+    <div class="story">It tilts <b>what gets built</b> — patient favours clean, capital-heavy; impatient favours cheap fossil.</div>
+    <div class="model"><span class="lab">build mix</span>changes the least-cost weighing of up-front vs long-run cost.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">4</span>
+    <div class="story">The effect on the economy <b>returns only when the two models loop</b>.</div>
+    <div class="model"><span class="lab">via the loop</span>one-way on its own; macro effect appears through iteration.</div></div>
+</section>
+
+<!-- ============ 5 HEALTH ============ -->
+<section class="ch co">
+  <div class="kick"><span class="rule"></span><span class="dir">CLEWS → OG</span></div>
+  <h2>Health</h2><p class="subt">cleaner air, through health, into the economy</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">Cleaner energy means <b>less air pollution</b>.</div>
+    <div class="model"><span class="lab">pollution</span>the change in fine particulates (PM2.5) from CLEWS — not CO₂.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story">Less pollution means <b>better health</b>.</div>
+    <div class="model"><span class="lab">dose–response</span>scaled by an external Global Burden of Disease (GBD) profile.</div></div>
+  <div class="branchhead"><span class="b">⌄</span><span>health reaches the economy <b>two ways</b>:</span></div>
+  <div class="cons">
+    <div class="step"><span class="mark"></span>
+      <div class="story"><b>Fewer early deaths</b> — but mostly elderly, so output barely moves.</div>
+      <div class="model"><span class="lab">demographics</span>shifts mortality (<var>ρ</var>) → population recomputed; deaths skew old.</div></div>
+    <div class="step hi"><span class="mark"></span>
+      <div class="story"><b class="reg">Less illness</b> — healthier workers are more productive: the main gain.</div>
+      <div class="model"><span class="lab">productivity</span>shifts effective labour by age (<var>e</var>).</div></div>
+  </div>
+  <div class="foot">Dose-response magnitudes are placeholders, pending the real Philippine PM2.5 data.</div>
+</section>
+
+<!-- ============ 6 DEMAND ============ -->
+<section class="ch oc">
+  <div class="kick"><span class="rule"></span><span class="dir">OG → CLEWS</span><span class="reads">reads an output</span></div>
+  <h2>Demand</h2><p class="subt">a growing economy needs more energy</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">A growing economy <b>does more</b> — homes, transport, industry.</div>
+    <div class="model"><span class="lab">activity</span>reads OG activity (<var>Y<sub>m</sub></var> / <var>C<sub>i</sub></var>) — an output.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story">More activity means <b>more demand for energy services</b>.</div>
+    <div class="model"><span class="lab">demand</span>scales CLEWS <code>SpecifiedAnnualDemand</code>.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">3</span>
+    <div class="story">The energy system <b>plans more capacity</b> — cost and emissions rise.</div>
+    <div class="model"><span class="lab">capacity</span>the least-cost model builds more.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">4</span>
+    <div class="story">It <b>only bites once the two models loop</b> — inert on a single pass.</div>
+    <div class="model"><span class="lab">via the loop</span>the ratio is ≈ 1 until the economy actually moves.</div></div>
+</section>
+</div>

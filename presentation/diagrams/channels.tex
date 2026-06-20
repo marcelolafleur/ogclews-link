@@ -1,0 +1,106 @@
+% Diagram 2 — the channel map: each of the seven channels as a wire between a named
+% OG-Core parameter and a named CLEWS variable, grouped by direction, with theory
+% status encoded by line style. This is the "how the variables interact" view.
+\documentclass[border=12pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  ogobj/.style={card, draw=ogc!55, fill=ogc!6, text width=3.7cm, anchor=west,
+                font=\scriptsize, align=left, minimum height=0.95cm},
+  clobj/.style={card, draw=clews!55, fill=clews!6, text width=3.7cm, anchor=west,
+                font=\scriptsize, align=left, minimum height=0.95cm},
+  chanpill/.style={rounded corners=3pt, fill=white, inner xsep=5pt, inner ysep=2.5pt,
+                   align=center, font=\scriptsize, line width=0.9pt},
+  cl2og/.style={clews, line width=1.4pt, {Stealth[length=2.8mm,width=2.3mm]}-},
+  og2cl/.style={ogc,   line width=1.4pt, -{Stealth[length=2.8mm,width=2.3mm]}},
+  both/.style={policy, line width=1.4pt,
+               {Stealth[length=2.5mm,width=2.1mm]}-{Stealth[length=2.5mm,width=2.1mm]}},
+  seclab/.style={font=\scriptsize\bfseries, anchor=west},
+}
+
+% one channel wire: #1=y #2=OGtext #3=chan-id #4=CLEWStext #5=edge style #6=pill border
+\newcommand{\chanrow}[6]{%
+  \node[ogobj] (L) at (0,#1) {#2};
+  \node[clobj] (R) at (10.7,#1) {#4};
+  \draw[#5] (L.east) -- (R.west);
+  \node[chanpill, draw=#6, text=ink] at ($(L.east)!0.5!(R.west)$) {\texttt{#3}};
+}
+
+\begin{document}
+\begin{tikzpicture}
+
+% ---- column headers ---------------------------------------------------------
+\node[font=\footnotesize\bfseries, color=ogc, anchor=west] at (0,1.15) {OG-Core parameter};
+\node[font=\footnotesize\bfseries, color=clews, anchor=west] at (10.7,1.15) {CLEWS / OSeMOSYS variable};
+
+% ============================================================ CLEWS -> OG ====
+\node[seclab, text=clews] at (0,0.35) {CLEWS $\rightarrow$ OG\, ·\, energy $\rightarrow$ macro};
+\draw[clews!40, line width=0.8pt] (4.7,0.35) -- (10.4,0.35);
+
+\chanrow{-0.55}
+  {{\bfseries\color{ink}$\tau_c$ · energy good}\\{\color{sub}household price wedge $\to$ demand FOC + incidence}}
+  {energy\_price}
+  {{\bfseries\color{ink}commodity-balance \emph{dual}}\\{\color{sub}marginal electricity price (ELC)}}
+  {cl2og}{clews}
+
+\chanrow{-1.95}
+  {{\bfseries\color{ink}$\alpha_I \to K_g$}\\{\color{sub}public investment $\to$ crowding-out, debt}}
+  {investment}
+  {{\bfseries\color{ink}CapitalInvestment}\\{\color{sub}power-sector capex (T\&D)}}
+  {cl2og}{clews}
+
+\chanrow{-3.35}
+  {{\bfseries\color{ink}$\gamma_m$ · energy industry}\\{\color{sub}capital share $\to$ capital pull, $\downarrow$ labour share}}
+  {capital\_intensity}
+  {{\bfseries\color{ink}power-fleet capital share}\\{\color{sub}capex-cost share of the clean build}}
+  {cl2og}{clews}
+
+\chanrow{-4.75}
+  {{\bfseries\color{ink}$\rho,\ e$}\\{\color{sub}mortality + effective labour}}
+  {health}
+  {{\bfseries\color{ink}emissions $\to$ dose–response}\\{\color{sub}external bridge (GBD)}}
+  {cl2og, dashed}{clews}
+
+% ============================================================ POLICY ==========
+\node[seclab, text=policy] at (0,-5.75) {policy\, ·\, one price, set on both sides};
+\draw[policy!40, line width=0.8pt] (5.4,-5.75) -- (10.4,-5.75);
+
+\chanrow{-6.65}
+  {{\bfseries\color{ink}$\tau_c$ on energy good}\\{\color{sub}+ optional $\alpha_T$ recycle · incidence}}
+  {carbon}
+  {{\bfseries\color{ink}EmissionsPenalty}\\{\color{sub}same price path, both models}}
+  {both}{policy}
+
+% ============================================================ OG -> CLEWS =====
+\node[seclab, text=ogc] at (0,-7.65) {OG $\rightarrow$ CLEWS\, ·\, macro $\rightarrow$ energy};
+\draw[ogc!40, line width=0.8pt] (4.9,-7.65) -- (10.4,-7.65);
+
+\chanrow{-8.55}
+  {{\bfseries\color{ink}$r_p$}\\{\color{sub}equilibrium cost of capital}}
+  {discount\_rate}
+  {{\bfseries\color{ink}DiscountRate}\\{\color{sub}harmonised intertemporal trade-off}}
+  {og2cl}{ogc}
+
+\chanrow{-9.95}
+  {{\bfseries\color{ink}$Y_m,\ C_i$}\\{\color{sub}sectoral activity + consumption}}
+  {demand}
+  {{\bfseries\color{ink}SpecifiedAnnualDemand (scaled)}\\{\color{sub}energy-service demand driver}}
+  {og2cl}{ogc}
+
+% ---- legend -----------------------------------------------------------------
+\begin{scope}[shift={(0,-11.25)}]
+  \draw[cl2og] (0,0.18) -- (0.8,0.18);
+  \node[font=\scriptsize, anchor=west, text=sub] at (0.95,0.18) {CLEWS $\rightarrow$ OG};
+  \draw[og2cl] (3.4,0.18) -- (4.2,0.18);
+  \node[font=\scriptsize, anchor=west, text=sub] at (4.35,0.18) {OG $\rightarrow$ CLEWS};
+  \draw[both] (6.9,0.18) -- (7.7,0.18);
+  \node[font=\scriptsize, anchor=west, text=sub] at (7.85,0.18) {policy (both)};
+  \draw[ink, line width=1.4pt] (10.3,0.18) -- (11.1,0.18);
+  \node[font=\scriptsize, anchor=west, text=sub] at (11.25,0.18) {structural};
+  \draw[ink, line width=1.4pt, dashed] (13.2,0.18) -- (14.0,0.18);
+  \node[font=\scriptsize, anchor=west, text=sub] at (14.15,0.18) {reduced-form};
+  \node[font=\scriptsize\itshape, anchor=west, text=mute] at (16.3,0.18) {line = theory · colour = direction};
+\end{scope}
+
+\end{tikzpicture}
+\end{document}

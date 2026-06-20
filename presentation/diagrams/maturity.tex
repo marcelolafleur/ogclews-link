@@ -1,0 +1,71 @@
+% Diagram 5 — the maturity roadmap: where each channel sits today on the rigor axis
+% (illustrative shock -> calibrated proxy -> structural object -> dual-consistent fixed
+% point) and where it is heading. The Thread-2 ladder of approximations to Thread-1.
+\documentclass[border=12pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  band/.style={font=\scriptsize\bfseries, text=ink, align=center},
+  bandsub/.style={font=\scriptsize, text=mute, align=center},
+  divider/.style={grid, line width=0.8pt},
+  track/.style={grid, line width=4pt, line cap=round},
+  chanlab/.style={font=\footnotesize, anchor=east},
+  now/.style={circle, minimum size=11pt, inner sep=0pt},      % filled = today
+  goal/.style={circle, draw, line width=1.2pt, minimum size=11pt, inner sep=0pt}, % open = target
+  movearrow/.style={-{Stealth[length=2.6mm,width=2.2mm]}, line width=1.1pt, dashed},
+  tag/.style={font=\scriptsize, anchor=west, text=sub},
+}
+
+% band x-centres + the row helper
+\def\bA{3.4} \def\bB{6.8} \def\bC{10.2} \def\bD{13.6}
+
+\begin{document}
+\begin{tikzpicture}
+
+% ---- band headers + vertical dividers ---------------------------------------
+\foreach \x/\t/\s in {%
+   \bA/{Illustrative}/{placeholder size},
+   \bB/{Calibrated proxy}/{a stand-in signal},
+   \bC/{Structural}/{the real model object},
+   \bD/{Dual-consistent}/{inside the full loop}}{
+  \node[band] at (\x,1.15) {\t};
+  \node[bandsub] at (\x,0.78) {\s};
+}
+\foreach \x in {5.1, 8.5, 11.9}{ \draw[divider] (\x,0.55) -- (\x,-5.15); }
+
+% rows: \chan{y}{name}{name color}{now x}{goal x}{marker color}{tag}
+\newcommand{\chan}[7]{%
+  \node[chanlab, text=#3] at (2.7,#1) {\texttt{#2}};
+  \draw[track] (2.95,#1) -- (14.05,#1);
+  \ifx\relax#5\relax\else \draw[movearrow, #6] (#4,#1) -- (#5,#1); \fi
+  \ifx\relax#5\relax\else \node[goal, draw=#6] at (#5,#1) {}; \fi
+  \node[now, fill=#6] at (#4,#1) {};
+  \node[tag] at (14.4,#1) {#7};
+}
+
+\chan{-0.2}{discount\_rate}{ogc}{\bC}{\bD}{gain}{one-way · conventions pending}
+\chan{-1.1}{demand}{ogc}{\bC}{\bD}{gain}{built · inert until the loop}
+\chan{-2.0}{energy\_price}{ogc}{\bB}{\bD}{gain}{dual wired · needs a real run}
+\chan{-2.9}{carbon}{policy}{\bB}{\bC}{gain}{needs deflator + recycle}
+\chan{-3.8}{investment}{ogc}{\bB}{\bC}{gain}{needs deflator bridge}
+\chan{-4.7}{health}{amber}{\bA}{\bC}{amber}{solves now · placeholder size}
+
+% ---- legend -----------------------------------------------------------------
+\begin{scope}[shift={(2.7,-5.75)}]
+  \node[now, fill=gain] at (0,0) {};
+  \node[tag] at (0.3,0) {today};
+  \node[goal, draw=gain] at (2.3,0) {};
+  \node[tag] at (2.6,0) {target};
+  \node[now, fill=gain, minimum size=9pt] at (4.5,0) {};
+  \node[tag] at (4.8,0) {structural};
+  \node[now, fill=amber, minimum size=9pt] at (7.0,0) {};
+  \node[tag] at (7.3,0) {reduced-form};
+\end{scope}
+
+% ---- strapline --------------------------------------------------------------
+\node[note, anchor=north, text width=15cm] at (8.2,-6.5)
+  {The practical frontier is a ladder of approximations to the dual-exchanging
+   theoretical best — each rung replaces a proxy with a structural object.};
+
+\end{tikzpicture}
+\end{document}

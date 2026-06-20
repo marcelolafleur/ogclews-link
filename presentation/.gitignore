@@ -1,0 +1,17 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.toc
+*.vrb
+
+# compiled outputs — regenerate with ./build.sh
+*.pdf
+
+# curated figure copies — regenerate with figures/curate.py
+figures/*.png

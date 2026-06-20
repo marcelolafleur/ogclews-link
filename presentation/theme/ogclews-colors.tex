@@ -1,0 +1,32 @@
+% OG-Core x CLEWS — shared color palette.
+% Single source of truth, mirrored from ogclews_link/style.py (the matplotlib figure
+% theme) so the TikZ diagrams, the Beamer deck, and the data figures all share one
+% editorial, colorblind-safe palette. \input this from any preamble; it only defines
+% colors (no package loads), so it is safe in both standalone and beamer documents.
+
+\definecolor{ink}{HTML}{222222}      % primary text / heavy rules
+\definecolor{sub}{HTML}{555555}      % secondary text
+\definecolor{mute}{HTML}{888888}     % tertiary / source lines
+\definecolor{grid}{HTML}{E6E6E6}     % faint rules, fills
+
+% the two models + policy — the load-bearing semantic colors
+\definecolor{ogc}{HTML}{0F5499}      % OG-Core      (FT oxford blue)
+\definecolor{clews}{HTML}{0D7680}    % CLEWS/OSeMOSYS (teal)
+\definecolor{policy}{HTML}{E3120B}   % policy lever (Economist red)
+
+% accents / signed values (match style.py)
+\definecolor{claret}{HTML}{990F3D}   % kicker rule
+\definecolor{gain}{HTML}{2166AC}     % positive change (blue)
+\definecolor{loss}{HTML}{B2182B}     % negative change (red)
+\definecolor{amber}{HTML}{E69F00}    % categorical 4
+\definecolor{purple}{HTML}{7A6FAC}   % categorical 5
+\definecolor{slate}{HTML}{7F8C8D}    % categorical 6 / neutral
+
+% sequential blue ramp (ordered income groups, poorest -> richest)
+\definecolor{seqA}{HTML}{C6DBEF}
+\definecolor{seqB}{HTML}{9ECAE1}
+\definecolor{seqC}{HTML}{6BAED6}
+\definecolor{seqD}{HTML}{4292C6}
+\definecolor{seqE}{HTML}{2171B5}
+\definecolor{seqF}{HTML}{08519C}
+\definecolor{seqG}{HTML}{08306B}

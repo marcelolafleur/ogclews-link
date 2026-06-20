@@ -1,0 +1,57 @@
+% Diagram 1 — the structural seam: what each model solves, what it takes as given,
+% and the asymmetric exchange that couples them.
+\documentclass[border=12pt]{standalone}
+\input{_preamble}
+\begin{document}
+\begin{tikzpicture}
+
+% ---- the two model panels (tops aligned at y=0) -----------------------------
+\node[ogpanel, text width=5.6cm, minimum height=4.7cm, anchor=north west] (og) at (0,0) {%
+  {\bfseries\large\color{ogc} OG-Core}\\[2pt]
+  {\footnotesize\color{sub} the whole economy: households, firms, government}\\[8pt]
+  {\scriptsize\bfseries\color{ink} SOLVES}\\[1.5pt]
+  {\scriptsize\color{sub} prices, wages \& interest rates\, ·\, investment, debt \& taxes\, ·\, who is richer or poorer}\\[8pt]
+  {\scriptsize\bfseries\color{ink} TAKES AS GIVEN}\\[1.5pt]
+  {\scriptsize\color{mute} energy demand · the interest rate · carbon policy\\\emph{(it doesn't model the energy system)}}%
+};
+
+\node[clewspanel, text width=5.6cm, minimum height=4.7cm, anchor=north west] (cl)
+  at ($(og.north east)+(5,0)$) {%
+  {\bfseries\large\color{clews} CLEWS / OSeMOSYS}\\[2pt]
+  {\footnotesize\color{sub} a least-cost model of the energy system (+ land \& water)}\\[8pt]
+  {\scriptsize\bfseries\color{ink} SOLVES}\\[1.5pt]
+  {\scriptsize\color{sub} what to build \& run\, ·\, emissions\, ·\, the price of energy}\\[8pt]
+  {\scriptsize\bfseries\color{ink} TAKES AS GIVEN}\\[1.5pt]
+  {\scriptsize\color{mute} energy demand · the interest rate · costs\\\emph{(no households, jobs, or budget)}}%
+};
+
+% reference x of the seam midpoint; all flow geometry hangs off the aligned tops (y=0)
+\coordinate (mx) at ($(og.north east)!0.5!(cl.north west)$);
+
+% ---- the asymmetric exchange (two horizontal flows, pinned below the tops) ---
+% top: the economy -> the energy system (what's needed)
+\draw[flow, ogc] ($(og.north east)+(0,-1.35)$) -- ($(cl.north west)+(0,-1.35)$);
+\node[note, text=mute, anchor=south] at ($(mx)+(0,-1.05)$) {\scriptsize the economy $\rightarrow$ the energy system};
+\node[fill=white, align=center, inner sep=2.5pt] at ($(mx)+(0,-1.35)$) {%
+  {\scriptsize\bfseries\color{ogc} WHAT'S NEEDED}\\[1pt]
+  {\scriptsize\color{sub} energy demand · interest rate}};
+
+% bottom: the energy system -> the economy (what it costs)
+\draw[flow, clews] ($(cl.north west)+(0,-3.15)$) -- ($(og.north east)+(0,-3.15)$);
+\node[fill=white, align=center, inner sep=2.5pt] at ($(mx)+(0,-3.15)$) {%
+  {\scriptsize\bfseries\color{clews} WHAT IT COSTS}\\[1pt]
+  {\scriptsize\color{sub} energy price · build cost · emissions}};
+\node[note, text=mute, anchor=north] at ($(mx)+(0,-3.45)$) {\scriptsize the energy system $\rightarrow$ the economy};
+
+% ---- the coupled fixed point ------------------------------------------------
+\node[card, draw=ink!25, text width=12.6cm, anchor=north, align=center] (fp)
+  at ($(og.south west)!0.5!(cl.south east)+(0,-0.55)$) {%
+  {\footnotesize\bfseries\color{ink} The coupled solution}\quad
+  {\footnotesize\color{sub} the energy the economy wants, at the system's price, matches what the system supplies}};
+
+% ---- strapline --------------------------------------------------------------
+\node[note, anchor=north] at ($(fp.south)+(0,-0.32)$)
+  {Each model is hollow exactly where the other is deep.};
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,255 @@
+<title>OG-Core × CLEWS — channel mechanisms</title>
+<style>
+  :root{
+    --ink:#222;--sub:#555;--mute:#888;--grid:#e6e6e6;--paper:#fafafa;
+    --ogc:#0f5499;--clews:#0d7680;--policy:#e3120b;--claret:#990f3d;--amber:#e69f00;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);line-height:1.62;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:48px 24px 80px}
+  header .kick{display:inline-block;width:54px;height:3px;background:var(--claret);margin-bottom:16px}
+  h1{font-size:30px;letter-spacing:-.01em;margin:0 0 8px}
+  .lede{color:var(--sub);font-size:16.5px;margin:0 0 6px;max-width:680px}
+  .lede b{color:var(--ink)}
+  /* summary table */
+  table{border-collapse:collapse;width:100%;margin:30px 0 8px;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+  th{color:var(--mute);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  td.c{text-align:center}
+  /* channel cards */
+  section.ch{background:#fff;border:1px solid var(--grid);border-radius:14px;
+    padding:24px 26px 8px;margin:26px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .ch-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .num{width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;
+    font-size:15px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .ch-head h2{font-size:21px;margin:0}
+  .dir{font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:20px;color:#fff;white-space:nowrap}
+  .d-co{background:var(--clews)} .d-oc{background:var(--ogc)} .d-pol{background:var(--policy)}
+  .subt{color:var(--mute);font-style:italic;font-size:14px;margin:4px 0 18px;padding-left:42px}
+  h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;margin:0 0 6px}
+  .plain h3{color:var(--claret)} .model h3{color:var(--ogc)}
+  .plain p{font-size:16px;margin:0 0 18px}
+  .model{background:#f6f8fa;border:1px solid var(--grid);border-left:3px solid var(--ogc);
+    border-radius:8px;padding:15px 18px;margin:0 0 20px}
+  .model p{font-size:14.5px;color:#333;margin:0 0 10px}
+  .model p:last-child{margin-bottom:0}
+  .model ul{margin:0 0 10px;padding-left:20px}
+  .model li{font-size:14.5px;color:#333;margin:0 0 6px}
+  .scope{color:var(--policy);font-weight:600}
+  var,code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-style:normal;
+    background:#eef1f4;color:var(--ogc);padding:.5px 5px;border-radius:4px;font-size:.9em;white-space:nowrap}
+  .user{color:var(--ink);font-weight:600}
+  footer{color:var(--mute);font-size:13px;margin-top:30px;border-top:1px solid var(--grid);padding-top:16px}
+  @media(max-width:600px){.subt{padding-left:0}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="kick"></span>
+  <h1>OG-Core ⇄ CLEWS — channel mechanisms</h1>
+  <p class="lede">Seven links connect an overlapping-generations economy (OG-Core) and a least-cost
+    energy-system model (CLEWS). Each is described twice: <b>what happens</b> in plain terms, and
+    <b>in the model</b> — naming the parts it touches.</p>
+  <p class="lede" style="font-size:14.5px;margin-top:10px">CLEWS→OG and policy channels <b>change</b>
+    an OG input; OG→CLEWS channels <b>read</b> an OG output and hand it to CLEWS, so their effect on
+    the economy only returns once the two models are run together in a loop.</p>
+</header>
+
+<table>
+  <tr><th>#</th><th>Channel</th><th>Direction</th><th>OG-Core object</th><th class="c">moves / reads</th><th>One-line effect</th></tr>
+  <tr><td>1</td><td>Energy price</td><td>CLEWS→OG</td><td><var>τ<sub>c</sub></var> price wedge on the energy good</td><td class="c">moves</td><td>demand ↓; incidence (regressive <i>if</i> energy is a necessity)</td></tr>
+  <tr><td>2</td><td>Investment</td><td>CLEWS→OG</td><td><var>α<sub>I</sub></var> → <var>K<sub>g</sub></var> public capital</td><td class="c">moves</td><td>productive capital (output↑) vs debt/tax financing. <b>Public infra only</b></td></tr>
+  <tr><td>2b</td><td>Capital intensity</td><td>CLEWS→OG</td><td><var>γ<sub>m</sub></var> energy industry's capital share</td><td class="c">moves</td><td>capex-heavy generation → pulls in capital, ↑<var>r</var>, crowds out, ↓labour share</td></tr>
+  <tr><td>3</td><td>Carbon price</td><td>policy→both</td><td><var>τ<sub>c</sub></var> on <b>household</b> energy; CLEWS <code>EmissionsPenalty</code></td><td class="c">moves</td><td>household demand ↓ + revenue; emissions ↓</td></tr>
+  <tr><td>4</td><td>Cost of capital</td><td>OG→CLEWS</td><td><var>r<sub>p</sub></var> equilibrium return</td><td class="c"><i>reads</i></td><td>shifts CLEWS build mix; effect via the loop</td></tr>
+  <tr><td>5</td><td>Health</td><td>CLEWS→OG</td><td><var>ρ</var> (mortality) and <var>e</var> (labour)</td><td class="c">moves</td><td>mortality→demographics (≈0); morbidity→productivity (main gain)</td></tr>
+  <tr><td>6</td><td>Demand</td><td>OG→CLEWS</td><td><var>Y<sub>m</sub></var> / <var>C<sub>i</sub></var> activity</td><td class="c"><i>reads</i></td><td>more CLEWS capacity; effect via the loop</td></tr>
+</table>
+
+<!-- 1 -->
+<section class="ch">
+  <div class="ch-head"><span class="num">1</span><h2>Energy price</h2><span class="dir d-co">CLEWS → OG</span></div>
+  <p class="subt">the cost of energy reaches households</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>When the energy system gets more expensive to run, that cost lands on household energy bills.
+    People respond to the higher price by using less. But the burden isn't shared evenly: energy is a
+    basic necessity, and lower-income families spend a bigger share of their budget on it, so the same
+    increase hits them hardest. So the channel does two things at once — it lowers energy use, and it
+    shows who carries the cost. A higher price here also works like a tax, so the extra money goes to
+    the government, and <span class="user">the user decides what happens to it</span> — by default it's
+    kept (leaving families poorer), or it can be returned to households, which offsets most of the loss.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>OG-Core doesn't treat energy as an input to production, so the price can only act through
+    households — it enters as a mark-up on the price of the energy good they buy (a consumption-tax
+    wedge, <var>τ<sub>c</sub></var>). From there it works through a few connected parts:</p>
+    <ul>
+      <li>energy becomes costlier relative to everything else, so households buy less of it — the demand response (their demand for the energy good, <var>c<sub>i</sub></var>);</li>
+      <li>their overall cost of living edges up too (the composite price, <var>p̃</var>), trimming all spending a little;</li>
+      <li>the model can treat energy as a necessity with a <i>subsistence floor</i> (<var>c<sub>min</sub></var>) — an amount families need whatever the price. That floor is what makes the burden regressive: poorer households can't cut below it, so the rise costs them a larger share. Without it, everyone cuts back in the same proportion.</li>
+    </ul>
+    <p>Because the model follows households separately by income and age (<var>J</var> income groups ×
+    <var>S</var> ages), this one price change yields a full map of who loses how much — the incidence.
+    The mark-up also raises consumption-tax revenue (<code>cons_tax_revenue</code>), and
+    <span class="user">the user decides what's done with it</span> — by default it stays in the
+    government budget; returned as transfers (<var>α<sub>T</sub></var>) it isolates the pure price
+    effect, otherwise the channel is a net tax whose effect depends on how the budget is balanced.</p></div>
+</section>
+
+<!-- 2 -->
+<section class="ch">
+  <div class="ch-head"><span class="num">2</span><h2>Investment</h2><span class="dir d-co">CLEWS → OG</span></div>
+  <p class="subt">paying for the public build-out</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>Building out the power system takes a lot of money up front. When that spending is <i>public</i>
+    — the transmission and distribution grid — it adds to the country's public infrastructure, which
+    makes the whole economy a little more productive. But it has to be paid for, by borrowing or taxes,
+    and that money competes with everything else, crowding out other spending. Whether the economy comes
+    out ahead depends on how the bill is financed. One thing to be clear about: this channel is only
+    about the <i>public</i> infrastructure. The far larger sum — private companies building power plants
+    — works through a different channel (the capital-intensity channel below, or the cost of energy),
+    not here.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>On the CLEWS side, the public-infrastructure (grid / T&amp;D) build appears as a stream of
+    capital spending, converted to a share of GDP. That feeds OG-Core's public-investment lever
+    (<var>α<sub>I</sub></var>), which adds to the stock of public capital (<var>K<sub>g</sub></var>).
+    Public capital is productive in the model — it lifts output across every industry (its strength set
+    by <var>γ<sub>g</sub></var>). At the same time the spending lands on the government's budget
+    (financed by debt or taxes) and competes for savings, which crowds out other investment. The net
+    sign isn't fixed — it depends on how the budget is closed. <span class="scope">Scope:</span> only
+    genuinely public infrastructure routes here. Private generation capex is a <i>separate</i> mechanism
+    with its own channel — <b>capital intensity</b> (#2b, the structural <var>γ</var> route), the energy
+    cost-push (<var>Z</var>), or a capex incentive (<code>set_investment_incentive</code>); three views of
+    the same capex, use one — none is this (public) channel. Magnitudes are illustrative until the
+    CLEWS-money↔GDP conversion (<code>units.deflator</code>) is calibrated.</p></div>
+</section>
+
+<!-- 2b -->
+<section class="ch">
+  <div class="ch-head"><span class="num">2b</span><h2>Capital intensity</h2><span class="dir d-co">CLEWS → OG</span></div>
+  <p class="subt">the clean buildout is capital-heavy</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>A clean-energy buildout — wind, solar, CCS — is capital-heavy: expensive to build, cheap to run, the
+    mirror image of fuel-burning plants. So the energy sector becomes structurally more about capital and
+    less about fuel and labour. That pulls the nation's investment toward energy, nudges up the cost of
+    borrowing for everyone, and leaves a little less capital for other industries. It's the private-sector
+    twin of the public grid build-out (the <b>investment</b> channel) — same story, but for the plants
+    companies own, not the public grid.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>OG-Core has no "inject private capital" dial — private capital is endogenous (households save, firms
+    rent it). So a capex-heavy mix is represented <i>structurally</i>: raise the energy industry's capital
+    share (<var>γ<sub>m</sub></var>) in production. A higher <var>γ</var> lifts energy's marginal product of
+    capital, pulling capital in; the rise in the economy-wide interest rate and the crowding-out of other
+    industries then emerge <b>endogenously</b> from OG's multi-industry capital market. Labour's share is
+    the residual <var>1 − γ − γ<sub>g</sub></var>, so raising <var>γ</var> automatically lowers energy's
+    labour share (hard-blocked below a floor). Calibrated from CLEWS as the reform/base ratio of the power
+    fleet's capital-cost share (<code>signals.capital_intensity_ratio</code>); permanent/structural.
+    <b>Complementary</b> to the public <b>investment</b> channel (<var>α<sub>I</sub></var> →
+    <var>K<sub>g</sub></var>) — different capital, different lever — and one of <b>three views</b> of
+    generation capex (<var>γ</var> here / <var>Z</var> cost-push / ITC); use only one.</p></div>
+</section>
+
+<!-- 3 -->
+<section class="ch">
+  <div class="ch-head"><span class="num">3</span><h2>Carbon price</h2><span class="dir d-pol">policy → both</span></div>
+  <p class="subt">one price, set once, applied both sides</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>A carbon price is a single policy lever, set once and applied to both models, and it does two
+    jobs. In the energy system it makes dirtier options more expensive, so the least-cost plan shifts
+    toward cleaner ones and emissions fall. For households it raises the price of the energy they buy —
+    so, exactly like the energy-price channel, they use less, and it raises revenue, with
+    <span class="user">the user deciding what happens to that revenue</span> (by default kept; it can be
+    returned to households). One limit worth stating plainly: on the economy side the price only reaches
+    the energy households buy directly. It can't price the carbon used by industry, because the economy
+    model has no energy in production — the economy-wide carbon price lives on the energy-system side.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>One carbon price (USD/tCO₂) is set once and fed both ways. On the energy-system side it enters as
+    an emissions penalty (<code>EmissionsPenalty</code>), shifting the least-cost mix. On the economy
+    side it enters exactly like the energy-price channel — a mark-up (<var>τ<sub>c</sub></var>) on the
+    household energy good — so the same demand response and incidence apply, and it books consumption-tax
+    revenue (<code>cons_tax_revenue</code>) that the user can recycle as transfers
+    (<var>α<sub>T</sub></var>). The scope limit is structural: OG-Core has no energy in production, so the
+    <var>τ<sub>c</sub></var> tax reaches only household energy (a small share of consumption); industrial
+    and economy-wide carbon is priced only on the CLEWS side.</p></div>
+</section>
+
+<!-- 4 -->
+<section class="ch">
+  <div class="ch-head"><span class="num">4</span><h2>Cost of capital</h2><span class="dir d-oc">OG → CLEWS</span></div>
+  <p class="subt">the economy's interest rate guides the energy plan</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>How much a country values the future — captured in its interest rate — ought to be the same
+    whether you're looking at the economy or planning the energy system. This channel carries the
+    economy's interest rate over to the energy planner. A patient economy (a low rate) makes options
+    that cost more now but pay off for decades — clean, capital-heavy plants — look worthwhile; an
+    impatient one (a high rate) favours whatever is cheapest today, often fossil. So the economy's
+    interest rate shapes what the energy system chooses to build. This runs one way: it changes the
+    energy plan, and that change only feeds back to the economy when the two models are run together in
+    a loop.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>This channel <i>reads</i> an output of the solved economy rather than changing an input. After the
+    reform solve, it takes OG-Core's equilibrium return on capital (<var>r<sub>p</sub></var>) and passes
+    it to the energy model as its discount rate (<code>DiscountRate</code>). That rate sets how the
+    least-cost optimiser weighs up-front cost against long-run savings, which tilts the chosen technology
+    mix. Nothing in the economy model changes here — the effect on output and welfare appears only once
+    the loop sends the energy system's new prices and costs back. (Confirm the rate is on a consistent
+    real, annual basis.)</p></div>
+</section>
+
+<!-- 5 -->
+<section class="ch">
+  <div class="ch-head"><span class="num">5</span><h2>Health</h2><span class="dir d-co">CLEWS → OG</span></div>
+  <p class="subt">cleaner air, through health, into the economy</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>Cleaner energy means less air pollution, and less pollution means better health — which reaches
+    the economy in two ways. First, fewer people die early. But the deaths air pollution causes fall
+    mostly on the elderly, who are largely retired, so saving those lives changes the population more
+    than the workforce — the effect on output is small. Second, and more important, people get sick
+    less; healthier working-age people are more productive, and that lifts output. So the economic gain
+    from cleaner air comes mainly from a healthier workforce, not from the lives saved. (The size of
+    both effects is still a placeholder until the health data is calibrated.)</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>The trigger is the change in fine-particulate (PM2.5) pollution from the energy system — not CO₂,
+    since cutting CO₂ and cutting PM2.5 aren't the same thing — scaled by an external dose-response from
+    the Global Burden of Disease (GBD). It moves two parts of the model, each using a by-age profile from
+    GBD. Mortality shifts age-specific death rates (<var>ρ</var>); the model then recomputes the
+    population, changing its size and age structure (demographics). Because pollution deaths skew old,
+    the extra survivors are mostly past working age, so output barely moves. Morbidity shifts effective
+    labour by age (<var>e</var>) — healthier workers supply more productive labour to production — and
+    this is where the output gain comes from. The dose-response magnitudes are placeholders pending the
+    real Philippine PM2.5 data.</p></div>
+</section>
+
+<!-- 6 -->
+<section class="ch">
+  <div class="ch-head"><span class="num">6</span><h2>Demand</h2><span class="dir d-oc">OG → CLEWS</span></div>
+  <p class="subt">a growing economy needs more energy</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>A bigger, richer economy needs more energy — for homes, transport, and industry. This channel
+    carries the economy's growth over to the energy system as higher demand for energy services, so the
+    system plans to build and supply more, raising its costs and emissions. Like the interest-rate
+    channel, it runs one way: it changes the energy plan, and that only matters for the economy once the
+    two models are run back and forth together. On a single pass, with the economy barely moved from its
+    baseline, this link does almost nothing — it comes alive inside the loop.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>This channel also <i>reads</i> a solved-economy output rather than changing an input. It takes the
+    economy's activity — industry output (<var>Y<sub>m</sub></var>) or household consumption of the good
+    (<var>C<sub>i</sub></var>) — as a reform-vs-baseline ratio and scales the energy model's demand
+    (<code>SpecifiedAnnualDemand</code>) by it. Higher demand forces the least-cost model to build more
+    capacity, raising cost and emissions. Because it is a ratio against baseline, a single pass where the
+    economy is essentially unchanged leaves it near 1 — inert — so it bites only once the loop iterates.</p></div>
+</section>
+
+<footer>
+  Energy price and carbon move the same lever (<var>τ<sub>c</sub></var> on the energy good) but mean
+  different things — a resource-cost passthrough vs a tax; don't apply both to the same cost.
+  The <b>resource cost-push</b> — a general, supply-side route by which a priced input raises every
+  industry's cost (an I-O Leontief pass-through + per-industry share <var>θ<sub>m</sub></var> from the PHL
+  SAM, delivered as a TFP haircut) — is a <i>prototype</i>, not a registered channel; it is one of three
+  views of generation capex (alongside the <b>capital intensity</b> channel's <var>γ</var> and an ITC). It is
+  commodity-agnostic: the SAM separates electricity (<code>celec</code>), fuels (<code>cmine</code>) and
+  <b>water</b> (<code>cwatr</code>), so it can price energy <i>or water</i> — "energy" is just the current
+  use case. Magnitudes are illustrative until <code>units.deflator</code> is calibrated.
+</footer>
+</div>
