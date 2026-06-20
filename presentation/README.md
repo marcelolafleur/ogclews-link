@@ -1,10 +1,11 @@
 # Presentation assets — OG-Core × CLEWS integration framework
 
 Programmatically generated, reusable assets for presenting the OG-Core ⇄ CLEWS/OSeMOSYS
-soft-link: five **TikZ diagrams** (vector PDF), six **curated example figures** (from the
-matplotlib suite), and a self-contained **Beamer deck** that uses them. Everything shares one
-editorial, colorblind-safe palette ([`theme/ogclews-colors.tex`](theme/ogclews-colors.tex),
-mirrored from `ogclews_link/style.py`), so diagrams, figures, and slides read as one family.
+soft-link: **channel-mechanism explainers** (`CHANNEL-MECHANISMS.md` + `mechanisms.html`), **de novo
+HTML channel diagrams** (`channel-diagrams.html`), **TikZ diagrams** (six per-channel flows + five
+framework diagrams, vector PDF), **curated example figures** (from the matplotlib suite), and a
+self-contained **Beamer deck** (`slides.tex`). Everything shares one editorial, colorblind-safe palette
+([`theme/ogclews-colors.tex`](theme/ogclews-colors.tex), mirrored from `ogclews_link/viz/style.py`).
 
 ## Build
 
@@ -14,15 +15,19 @@ bash build.sh        # diagrams -> PDFs, curate figures, compile slides.pdf
 
 Requires TeX Live (`pdflatex` + `latexmk`) and `python3`. The figures step copies from a
 completed run under `../ogclews_runs/` — regenerate those first with
-`../experiments/run_across_steps.py` (or `regen_figures.py`) in the OG-PHL venv if missing.
+`python -m ogclews_link.viz --run-dir ogclews_runs/across_steps` (in the OG-PHL venv) if missing.
 Build outputs (`*.pdf`, `figures/*.png`) are git-ignored; rerun `build.sh` to regenerate.
 
 ## What's here
 
 ```
 presentation/
+  CHANNEL-MECHANISMS.md the six channel mechanisms — the source text
+  mechanisms.html       the mechanism explainer, styled (web)
+  channel-diagrams.html the de novo per-channel diagrams (web; energy also standalone
+                        in diagram-energy-price.html)
   slides.tex            the demo Beamer deck (16:9) — narrative + diagrams + figures
-  build.sh              one-command build of every asset
+  build.sh              one-command build of every asset (TikZ + figures + deck)
   theme/
     ogclews-colors.tex  the shared palette (the single source of truth for colour)
   diagrams/             standalone TikZ — each compiles to its own tight-cropped PDF

@@ -51,8 +51,8 @@ OG→CLEWS channels *read* an OG output (nothing in OG changes — the macro eff
   `EmissionsPenalty`). Revenue is **optionally** recycled via `α_T` → roughly revenue-neutral *if recycled*.
 - **Investment** (`ch_investment`) — **public infrastructure only**: routes grid/T&D capex to `α_I` →
   public capital `K_g` (productive via `γ_g`, raises output) against debt/tax financing (crowds out
-  spending). The transition's **private generation capex is a separate mechanism** (the energy cost-push
-  / a capital-intensity shift), **not** this channel.
+  spending). The transition's **private generation capex is a separate mechanism** (the energy cost-push,
+  or a capex incentive — `set_investment_incentive`), **not** this channel.
 - **Cost of capital** (`ch_discount`) — *reads* `r_p` (equilibrium cost of capital) → CLEWS `DiscountRate`
   → which long-lived projects are least-cost. As an OG→CLEWS driver, its macro effect returns via the loop.
 - **Demand** (`ch_demand`) — *reads* `Y_m`/`C_i` (activity) → CLEWS `SpecifiedAnnualDemand` → more

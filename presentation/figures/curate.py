@@ -5,7 +5,7 @@ The matplotlib figures are already produced programmatically by ogclews_link's v
 modules (editorial style.py theme) into a run directory; this script copies a curated
 subset into presentation/figures/ so the deck is self-contained and portable, and so
 the "example figures" selection is documented in one place. Stdlib only — no solve,
-no matplotlib needed. Re-run after regenerating figures (experiments/regen_figures.py).
+no matplotlib needed. Re-run after regenerating figures (python -m ogclews_link.viz).
 
     python3 presentation/figures/curate.py [--run-dir DIR]
 """
@@ -40,7 +40,7 @@ def main() -> int:
 
     if not src_dir.is_dir():
         print(f"[curate] source dir not found: {src_dir}", file=sys.stderr)
-        print("[curate] run experiments/run_across_steps.py (or regen_figures.py) first.",
+        print("[curate] regenerate first: python -m ogclews_link.viz --run-dir ogclews_runs/across_steps",
               file=sys.stderr)
         return 1
 

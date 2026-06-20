@@ -3,8 +3,8 @@
 #   1. the standalone TikZ diagrams  (diagrams/*.tex  -> diagrams/*.pdf)
 #   2. the curated example figures   (copied from the run dir by figures/curate.py)
 #   3. the demo Beamer deck          (slides.tex      -> slides.pdf)
-# Requires: TeX Live (pdflatex + latexmk) and python3. The figures step needs a
-# completed run under ogclews_runs/ (see ../experiments/run_across_steps.py).
+# Requires: TeX Live (pdflatex + latexmk) and python3. The figures step needs a completed run under
+# ogclews_runs/ (regenerate with: python -m ogclews_link.viz --run-dir ogclews_runs/across_steps).
 set -euo pipefail
 cd "$(dirname "$0")"
 

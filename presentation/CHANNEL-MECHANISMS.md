@@ -68,9 +68,10 @@ stock of public capital (`K_g`). Public capital is productive in the model — i
 industry (its strength set by `γ_g`). At the same time the spending lands on the government's budget
 (financed by debt or taxes) and competes for savings, which crowds out other investment. The net sign
 isn't fixed — it depends on how the budget is closed. **Scope:** only genuinely public infrastructure
-routes here; private generation capex is a *separate* mechanism (the energy cost-push, or a
-capital-intensity shift on the energy industry), not this channel. Magnitudes are illustrative until the
-CLEWS-money↔GDP conversion (`units.deflator`) is calibrated.
+routes here; private generation capex is a *separate* mechanism — its macro effect is the **energy
+cost-push** (the I-O-calibrated route), or a **capex incentive** (`set_investment_incentive` — an ITC /
+firm-tax break), not this channel. Magnitudes are illustrative until the CLEWS-money↔GDP conversion
+(`units.deflator`) is calibrated.
 
 ---
 
@@ -171,6 +172,16 @@ only once the loop iterates.
 - **Energy price and carbon move the same lever** (`τ_c` on the energy good) but mean different things:
   energy price is a resource-cost passthrough; carbon is a tax (revenue is the point). Don't apply both
   to the same cost — they double-count.
+- **The resource cost-push is a general prototype, not a registered channel.** A rise in any *input
+  commodity's* price raises every industry's cost — directly, and via that input embodied in the
+  intermediates it buys — computed with an input-output (Leontief) model from the PHL SAM
+  (`io_energy_passthrough`), delivered as a per-industry TFP (`Z`) haircut (OG-Core has no inputs in
+  production to carry it natively); a companion calibration (`energy_calibration`, the per-industry cost
+  share `θ_m`) feeds the fuller energy-as-CES-input extension. It is **commodity-agnostic**: the SAM carries
+  electricity (`celec`), fuels (`cmine`), and **water** (`cwatr`) separately, so the *same code* can price
+  energy **or water** — a CLEWS water shadow price → costlier water → the agricultural-productivity channel.
+  "Energy" is only the current use case. Not one of the six channels above. (On `main`, `e429777` fixed a
+  SAM aggregate-row double-count, so its magnitudes are ~2× their pre-fix values.)
 - **Magnitudes are illustrative** until `units.deflator` (CLEWS-money ↔ GDP basis) is calibrated — this
   most affects carbon and investment levels.
 - **Direction families:** CLEWS→OG = energy price, investment, health; policy = carbon;

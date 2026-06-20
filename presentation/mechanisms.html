@@ -117,7 +117,8 @@
     (financed by debt or taxes) and competes for savings, which crowds out other investment. The net
     sign isn't fixed — it depends on how the budget is closed. <span class="scope">Scope:</span> only
     genuinely public infrastructure routes here; private generation capex is a <i>separate</i> mechanism
-    (the energy cost-push, or a capital-intensity shift on the energy industry), not this channel.
+    — the energy cost-push (the I-O-calibrated route), or a capex incentive
+    (<code>set_investment_incentive</code> — an ITC / firm-tax break), not this channel.
     Magnitudes are illustrative until the CLEWS-money↔GDP conversion (<code>units.deflator</code>) is
     calibrated.</p></div>
 </section>
@@ -216,6 +217,11 @@
 <footer>
   Energy price and carbon move the same lever (<var>τ<sub>c</sub></var> on the energy good) but mean
   different things — a resource-cost passthrough vs a tax; don't apply both to the same cost.
-  Magnitudes are illustrative until <code>units.deflator</code> is calibrated.
+  The <b>resource cost-push</b> — a general, supply-side route by which a priced input raises every
+  industry's cost (an I-O Leontief pass-through + per-industry share <var>θ<sub>m</sub></var> from the PHL
+  SAM, delivered as a TFP haircut) — is a <i>prototype</i>, not one of the six channels. It is
+  commodity-agnostic: the SAM separates electricity (<code>celec</code>), fuels (<code>cmine</code>) and
+  <b>water</b> (<code>cwatr</code>), so it can price energy <i>or water</i> — "energy" is just the current
+  use case. Magnitudes are illustrative until <code>units.deflator</code> is calibrated.
 </footer>
 </div>
