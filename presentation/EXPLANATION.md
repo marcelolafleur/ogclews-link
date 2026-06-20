@@ -16,7 +16,7 @@ emissions, and — through its constraint duals — the price of every commodity
 but has no behavioural demand, no labour, no fiscal sector, and an exogenous discount rate.
 Quantities flow macro→energy; prices and duals flow energy→macro. A correct coupled solution is the
 **fixed point** where the energy demand OG-Core chooses at the returned price equals the demand
-CLEWS was solved to meet. The link is realized as six small, guard-railed, unit-tested **channels**,
+CLEWS was solved to meet. The link is realized as seven small, guard-railed, unit-tested **channels**,
 assembled into reproducible **experiments** by a config-driven CLI (`ogclews-link`), with a scenario
 builder on top.
 
@@ -30,7 +30,7 @@ energy→macro. The card below states the fixed-point condition. **Takeaway:** a
 out (OG solves an OLG transition path; OSeMOSYS is a single perfect-foresight LP), so the link is a
 disciplined soft link that keeps both models independently runnable.
 
-## 2 · The six channels
+## 2 · The seven channels
 
 **Plain-language flows (`ch_*.pdf`) — the main channel explanation.** Each is a mechanism explainer:
 the trigger, the **specific OG-Core object it moves** (or reads), and the resulting effect — with the
@@ -51,14 +51,20 @@ OG→CLEWS channels *read* an OG output (nothing in OG changes — the macro eff
   `EmissionsPenalty`). Revenue is **optionally** recycled via `α_T` → roughly revenue-neutral *if recycled*.
 - **Investment** (`ch_investment`) — **public infrastructure only**: routes grid/T&D capex to `α_I` →
   public capital `K_g` (productive via `γ_g`, raises output) against debt/tax financing (crowds out
-  spending). The transition's **private generation capex is a separate mechanism** (the energy cost-push,
-  or a capex incentive — `set_investment_incentive`), **not** this channel.
+  spending). Private generation capex has its **own channel** (capital intensity, next), or rides the
+  cost-push / a capex incentive — **not** this public channel.
+- **Capital intensity** (`capital_intensity`) — the private-generation twin of investment: CLEWS→OG,
+  **moves** the energy industry's capital share `γ[m]`. A capex-heavy clean buildout (renewables/CCS)
+  makes energy structurally more capital-intensive → it pulls in capital, raises the cost of capital and
+  crowds out other industries (all endogenous), and lowers energy's labour share (the residual
+  `1 − γ − γ_g`). Calibrated from the CLEWS power-fleet capital-cost-share ratio. One of three views of
+  generation capex (`γ` / cost-push `Z` / ITC) — use one.
 - **Cost of capital** (`ch_discount`) — *reads* `r_p` (equilibrium cost of capital) → CLEWS `DiscountRate`
   → which long-lived projects are least-cost. As an OG→CLEWS driver, its macro effect returns via the loop.
 - **Demand** (`ch_demand`) — *reads* `Y_m`/`C_i` (activity) → CLEWS `SpecifiedAnnualDemand` → more
   capacity (cost & emissions). Like the discount rate, it bites only once the loop runs.
 
-**Technical reference (`channels.pdf`, appendix).** The same six at the variable level: each is a
+**Technical reference (`channels.pdf`, appendix).** The same seven at the variable level: each is a
 wire between a named OG-Core parameter and a named CLEWS variable. Direction = colour + arrowhead;
 theory status = line style (solid = structural, dashed = reduced-form).
 
@@ -66,10 +72,11 @@ theory status = line style (solid = structural, dashed = reduced-form).
 |---|---|---|---|---|
 | `energy_price` | `tau_c` on the energy good → demand FOC + incidence | commodity-balance **dual** (ELC shadow price) | CLEWS→OG | structural |
 | `investment` | `alpha_I` → `K_g` (public capital) → crowding-out, debt | `CapitalInvestment` (power-sector capex, T&D) | CLEWS→OG | structural |
+| `capital_intensity` | `gamma[m]` (energy industry capital share) → capital pull, crowding-out, ↓labour share | power-fleet capital-cost-share ratio | CLEWS→OG | structural |
 | `health` | `rho` (mortality), `e` (effective labour) | emissions → dose-response (external GBD bridge) | CLEWS→OG | reduced-form |
-| `carbon` | `tau_c` (recycled via `alpha_T`) | `EmissionsPenalty` | policy (both) | structural |
+| `carbon` | `tau_c` on household energy (optional `alpha_T` recycle) | `EmissionsPenalty` | policy (both) | structural |
 | `discount_rate` | `r_p` (equilibrium cost of capital) | `DiscountRate` | OG→CLEWS | structural |
-| `demand` | `Y_m`, `C_i` (activity, consumption) | Specified/AccumulatedAnnualDemand | OG→CLEWS | structural |
+| `demand` | `Y_m`, `C_i` (activity, consumption) | `SpecifiedAnnualDemand` (scaled) | OG→CLEWS | structural |
 
 `clews→og` and `policy` channels mutate the OG **reform** parameters *before* the reform solve;
 `og→clews` channels run *after* the solve and emit CLEWS input files. **Takeaway — the load-bearing

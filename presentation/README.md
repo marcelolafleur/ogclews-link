@@ -22,7 +22,7 @@ Build outputs (`*.pdf`, `figures/*.png`) are git-ignored; rerun `build.sh` to re
 
 ```
 presentation/
-  CHANNEL-MECHANISMS.md the six channel mechanisms — the source text
+  CHANNEL-MECHANISMS.md the seven channel mechanisms — the source text
   mechanisms.html       the mechanism explainer, styled (web)
   channel-diagrams.html the de novo per-channel diagrams (web; energy also standalone
                         in diagram-energy-price.html)

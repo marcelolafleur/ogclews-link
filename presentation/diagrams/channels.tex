@@ -1,4 +1,4 @@
-% Diagram 2 — the channel map: each of the six channels as a wire between a named
+% Diagram 2 — the channel map: each of the seven channels as a wire between a named
 % OG-Core parameter and a named CLEWS variable, grouped by direction, with theory
 % status encoded by line style. This is the "how the variables interact" view.
 \documentclass[border=12pt]{standalone}
@@ -50,39 +50,45 @@
   {cl2og}{clews}
 
 \chanrow{-3.35}
+  {{\bfseries\color{ink}$\gamma_m$ · energy industry}\\{\color{sub}capital share $\to$ capital pull, $\downarrow$ labour share}}
+  {capital\_intensity}
+  {{\bfseries\color{ink}power-fleet capital share}\\{\color{sub}capex-cost share of the clean build}}
+  {cl2og}{clews}
+
+\chanrow{-4.75}
   {{\bfseries\color{ink}$\rho,\ e$}\\{\color{sub}mortality + effective labour}}
   {health}
   {{\bfseries\color{ink}emissions $\to$ dose–response}\\{\color{sub}external bridge (GBD)}}
   {cl2og, dashed}{clews}
 
 % ============================================================ POLICY ==========
-\node[seclab, text=policy] at (0,-4.35) {policy\, ·\, one price, set on both sides};
-\draw[policy!40, line width=0.8pt] (5.4,-4.35) -- (10.4,-4.35);
+\node[seclab, text=policy] at (0,-5.75) {policy\, ·\, one price, set on both sides};
+\draw[policy!40, line width=0.8pt] (5.4,-5.75) -- (10.4,-5.75);
 
-\chanrow{-5.25}
+\chanrow{-6.65}
   {{\bfseries\color{ink}$\tau_c$ on energy good}\\{\color{sub}+ optional $\alpha_T$ recycle · incidence}}
   {carbon}
   {{\bfseries\color{ink}EmissionsPenalty}\\{\color{sub}same price path, both models}}
   {both}{policy}
 
 % ============================================================ OG -> CLEWS =====
-\node[seclab, text=ogc] at (0,-6.25) {OG $\rightarrow$ CLEWS\, ·\, macro $\rightarrow$ energy};
-\draw[ogc!40, line width=0.8pt] (4.9,-6.25) -- (10.4,-6.25);
+\node[seclab, text=ogc] at (0,-7.65) {OG $\rightarrow$ CLEWS\, ·\, macro $\rightarrow$ energy};
+\draw[ogc!40, line width=0.8pt] (4.9,-7.65) -- (10.4,-7.65);
 
-\chanrow{-7.15}
+\chanrow{-8.55}
   {{\bfseries\color{ink}$r_p$}\\{\color{sub}equilibrium cost of capital}}
   {discount\_rate}
   {{\bfseries\color{ink}DiscountRate}\\{\color{sub}harmonised intertemporal trade-off}}
   {og2cl}{ogc}
 
-\chanrow{-8.55}
+\chanrow{-9.95}
   {{\bfseries\color{ink}$Y_m,\ C_i$}\\{\color{sub}sectoral activity + consumption}}
   {demand}
   {{\bfseries\color{ink}SpecifiedAnnualDemand (scaled)}\\{\color{sub}energy-service demand driver}}
   {og2cl}{ogc}
 
 % ---- legend -----------------------------------------------------------------
-\begin{scope}[shift={(0,-9.85)}]
+\begin{scope}[shift={(0,-11.25)}]
   \draw[cl2og] (0,0.18) -- (0.8,0.18);
   \node[font=\scriptsize, anchor=west, text=sub] at (0.95,0.18) {CLEWS $\rightarrow$ OG};
   \draw[og2cl] (3.4,0.18) -- (4.2,0.18);

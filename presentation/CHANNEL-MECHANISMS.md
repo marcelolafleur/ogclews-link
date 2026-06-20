@@ -11,6 +11,7 @@ effect on the economy only returns once the two models are run together in a loo
 |---|---------|-----------|----------------|:---:|-----------------|
 | 1 | Energy price | CLEWS→OG | `τ_c` — price wedge on the energy good | **moves** | demand ↓; incidence (regressive *if* energy is a necessity, `c_min`>0) |
 | 2 | Investment | CLEWS→OG | `α_I` → `K_g` — public investment → public capital | **moves** | productive public capital (output↑) vs debt/tax financing (crowds out). **Public infrastructure only** |
+| 2b | Capital intensity | CLEWS→OG | `γ[m]` — energy industry's capital share | **moves** | capex-heavy generation → pulls in capital, ↑`r`, crowds out, ↓labour share (private twin of investment) |
 | 3 | Carbon price | policy → both | `τ_c` on **household** energy (+`α_T` recycle); CLEWS `EmissionsPenalty` | **moves** | household demand ↓ + revenue; CLEWS emissions ↓ |
 | 4 | Cost of capital | OG→CLEWS | `r_p` — equilibrium return | *reads* | shifts CLEWS build mix; effect via the loop |
 | 5 | Health | CLEWS→OG | `ρ` (mortality) **and** `e` (effective labour) | **moves** | mortality→demographics (≈0, elderly); morbidity→productivity (the main gain) |
@@ -68,10 +69,36 @@ stock of public capital (`K_g`). Public capital is productive in the model — i
 industry (its strength set by `γ_g`). At the same time the spending lands on the government's budget
 (financed by debt or taxes) and competes for savings, which crowds out other investment. The net sign
 isn't fixed — it depends on how the budget is closed. **Scope:** only genuinely public infrastructure
-routes here; private generation capex is a *separate* mechanism — its macro effect is the **energy
-cost-push** (the I-O-calibrated route), or a **capex incentive** (`set_investment_incentive` — an ITC /
-firm-tax break), not this channel. Magnitudes are illustrative until the CLEWS-money↔GDP conversion
+routes here. Private generation capex is a *separate* mechanism with its **own channel — capital
+intensity (#2b below)**, the structural `γ` route; or the **energy cost-push** (`Z`); or a **capex
+incentive** (`set_investment_incentive`, an ITC). Those are three views of the same capex — use one;
+none is this (public) channel. Magnitudes are illustrative until the CLEWS-money↔GDP conversion
 (`units.deflator`) is calibrated.
+
+---
+
+## 2b · Capital intensity
+*CLEWS → OG · the clean buildout is capital-heavy*
+
+**What happens**
+A clean-energy buildout — wind, solar, CCS — is capital-heavy: expensive to build, cheap to run, the
+mirror image of fuel-burning plants. So the energy sector becomes structurally more about capital and
+less about fuel and labour. That pulls the nation's investment toward energy, nudges up the cost of
+borrowing for everyone, and leaves a little less capital for other industries. It's the private-sector
+twin of the public grid build-out (the **investment** channel): same story — building the clean system
+soaks up capital — but for the plants companies own, not the public grid.
+
+**In the model**
+OG-Core has no "inject private capital" dial — private capital is endogenous (households save, firms rent
+it). So a capex-heavy mix is represented *structurally*: raise the energy industry's **capital share
+`γ[m]`** in its production function. A higher `γ` lifts energy's marginal product of capital, pulling
+capital in; the rise in the economy-wide interest rate and the crowding-out of other industries then
+emerge **endogenously** from OG's multi-industry capital market. Labour's share is the residual
+`1 − γ − γ_g`, so raising `γ` automatically lowers energy's labour share (hard-blocked below a floor).
+Calibrated from CLEWS as the reform/base ratio of the power fleet's capital-cost share
+(`signals.capital_intensity_ratio`); permanent/structural. **Complementary** to the public `investment`
+channel (`α_I → K_g`) — different capital, different lever — and **one of three views** of generation
+capex (`γ` here / `Z` cost-push / ITC); use only one.
 
 ---
 
@@ -180,9 +207,14 @@ only once the loop iterates.
   share `θ_m`) feeds the fuller energy-as-CES-input extension. It is **commodity-agnostic**: the SAM carries
   electricity (`celec`), fuels (`cmine`), and **water** (`cwatr`) separately, so the *same code* can price
   energy **or water** — a CLEWS water shadow price → costlier water → the agricultural-productivity channel.
-  "Energy" is only the current use case. Not one of the six channels above. (On `main`, `e429777` fixed a
-  SAM aggregate-row double-count, so its magnitudes are ~2× their pre-fix values.)
+  "Energy" is only the current use case. Not a registered channel of its own. (On `main`, `e429777` fixed
+  a SAM aggregate-row double-count, so its magnitudes are ~2× their pre-fix values.)
+- **Three views of generation capex — use one.** A capex-heavy generation buildout can enter OG three
+  ways: **capital intensity** (`γ`, the structural channel #2b), the **cost-push** (`Z`, the prototype),
+  or a **capex incentive** (an ITC via `set_investment_incentive`). They represent the *same* private
+  capital — applying more than one double-counts. The public `investment` channel (`α_I → K_g`) is a
+  *different* capital (the public grid) and is complementary, not a fourth view.
 - **Magnitudes are illustrative** until `units.deflator` (CLEWS-money ↔ GDP basis) is calibrated — this
   most affects carbon and investment levels.
-- **Direction families:** CLEWS→OG = energy price, investment, health; policy = carbon;
-  OG→CLEWS = cost of capital, demand.
+- **Direction families:** CLEWS→OG = energy price, investment, capital intensity, health;
+  policy = carbon; OG→CLEWS = cost of capital, demand.

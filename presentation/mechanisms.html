@@ -49,7 +49,7 @@
 <header>
   <span class="kick"></span>
   <h1>OG-Core ⇄ CLEWS — channel mechanisms</h1>
-  <p class="lede">Six links connect an overlapping-generations economy (OG-Core) and a least-cost
+  <p class="lede">Seven links connect an overlapping-generations economy (OG-Core) and a least-cost
     energy-system model (CLEWS). Each is described twice: <b>what happens</b> in plain terms, and
     <b>in the model</b> — naming the parts it touches.</p>
   <p class="lede" style="font-size:14.5px;margin-top:10px">CLEWS→OG and policy channels <b>change</b>
@@ -61,6 +61,7 @@
   <tr><th>#</th><th>Channel</th><th>Direction</th><th>OG-Core object</th><th class="c">moves / reads</th><th>One-line effect</th></tr>
   <tr><td>1</td><td>Energy price</td><td>CLEWS→OG</td><td><var>τ<sub>c</sub></var> price wedge on the energy good</td><td class="c">moves</td><td>demand ↓; incidence (regressive <i>if</i> energy is a necessity)</td></tr>
   <tr><td>2</td><td>Investment</td><td>CLEWS→OG</td><td><var>α<sub>I</sub></var> → <var>K<sub>g</sub></var> public capital</td><td class="c">moves</td><td>productive capital (output↑) vs debt/tax financing. <b>Public infra only</b></td></tr>
+  <tr><td>2b</td><td>Capital intensity</td><td>CLEWS→OG</td><td><var>γ<sub>m</sub></var> energy industry's capital share</td><td class="c">moves</td><td>capex-heavy generation → pulls in capital, ↑<var>r</var>, crowds out, ↓labour share</td></tr>
   <tr><td>3</td><td>Carbon price</td><td>policy→both</td><td><var>τ<sub>c</sub></var> on <b>household</b> energy; CLEWS <code>EmissionsPenalty</code></td><td class="c">moves</td><td>household demand ↓ + revenue; emissions ↓</td></tr>
   <tr><td>4</td><td>Cost of capital</td><td>OG→CLEWS</td><td><var>r<sub>p</sub></var> equilibrium return</td><td class="c"><i>reads</i></td><td>shifts CLEWS build mix; effect via the loop</td></tr>
   <tr><td>5</td><td>Health</td><td>CLEWS→OG</td><td><var>ρ</var> (mortality) and <var>e</var> (labour)</td><td class="c">moves</td><td>mortality→demographics (≈0); morbidity→productivity (main gain)</td></tr>
@@ -107,7 +108,8 @@
     and that money competes with everything else, crowding out other spending. Whether the economy comes
     out ahead depends on how the bill is financed. One thing to be clear about: this channel is only
     about the <i>public</i> infrastructure. The far larger sum — private companies building power plants
-    — works through a different channel (it shows up as the cost of energy), not here.</p></div>
+    — works through a different channel (the capital-intensity channel below, or the cost of energy),
+    not here.</p></div>
   <div class="layer model"><h3>In the model</h3>
     <p>On the CLEWS side, the public-infrastructure (grid / T&amp;D) build appears as a stream of
     capital spending, converted to a share of GDP. That feeds OG-Core's public-investment lever
@@ -116,11 +118,36 @@
     by <var>γ<sub>g</sub></var>). At the same time the spending lands on the government's budget
     (financed by debt or taxes) and competes for savings, which crowds out other investment. The net
     sign isn't fixed — it depends on how the budget is closed. <span class="scope">Scope:</span> only
-    genuinely public infrastructure routes here; private generation capex is a <i>separate</i> mechanism
-    — the energy cost-push (the I-O-calibrated route), or a capex incentive
-    (<code>set_investment_incentive</code> — an ITC / firm-tax break), not this channel.
-    Magnitudes are illustrative until the CLEWS-money↔GDP conversion (<code>units.deflator</code>) is
-    calibrated.</p></div>
+    genuinely public infrastructure routes here. Private generation capex is a <i>separate</i> mechanism
+    with its own channel — <b>capital intensity</b> (#2b, the structural <var>γ</var> route), the energy
+    cost-push (<var>Z</var>), or a capex incentive (<code>set_investment_incentive</code>); three views of
+    the same capex, use one — none is this (public) channel. Magnitudes are illustrative until the
+    CLEWS-money↔GDP conversion (<code>units.deflator</code>) is calibrated.</p></div>
+</section>
+
+<!-- 2b -->
+<section class="ch">
+  <div class="ch-head"><span class="num">2b</span><h2>Capital intensity</h2><span class="dir d-co">CLEWS → OG</span></div>
+  <p class="subt">the clean buildout is capital-heavy</p>
+  <div class="layer plain"><h3>What happens</h3>
+    <p>A clean-energy buildout — wind, solar, CCS — is capital-heavy: expensive to build, cheap to run, the
+    mirror image of fuel-burning plants. So the energy sector becomes structurally more about capital and
+    less about fuel and labour. That pulls the nation's investment toward energy, nudges up the cost of
+    borrowing for everyone, and leaves a little less capital for other industries. It's the private-sector
+    twin of the public grid build-out (the <b>investment</b> channel) — same story, but for the plants
+    companies own, not the public grid.</p></div>
+  <div class="layer model"><h3>In the model</h3>
+    <p>OG-Core has no "inject private capital" dial — private capital is endogenous (households save, firms
+    rent it). So a capex-heavy mix is represented <i>structurally</i>: raise the energy industry's capital
+    share (<var>γ<sub>m</sub></var>) in production. A higher <var>γ</var> lifts energy's marginal product of
+    capital, pulling capital in; the rise in the economy-wide interest rate and the crowding-out of other
+    industries then emerge <b>endogenously</b> from OG's multi-industry capital market. Labour's share is
+    the residual <var>1 − γ − γ<sub>g</sub></var>, so raising <var>γ</var> automatically lowers energy's
+    labour share (hard-blocked below a floor). Calibrated from CLEWS as the reform/base ratio of the power
+    fleet's capital-cost share (<code>signals.capital_intensity_ratio</code>); permanent/structural.
+    <b>Complementary</b> to the public <b>investment</b> channel (<var>α<sub>I</sub></var> →
+    <var>K<sub>g</sub></var>) — different capital, different lever — and one of <b>three views</b> of
+    generation capex (<var>γ</var> here / <var>Z</var> cost-push / ITC); use only one.</p></div>
 </section>
 
 <!-- 3 -->
@@ -219,7 +246,8 @@
   different things — a resource-cost passthrough vs a tax; don't apply both to the same cost.
   The <b>resource cost-push</b> — a general, supply-side route by which a priced input raises every
   industry's cost (an I-O Leontief pass-through + per-industry share <var>θ<sub>m</sub></var> from the PHL
-  SAM, delivered as a TFP haircut) — is a <i>prototype</i>, not one of the six channels. It is
+  SAM, delivered as a TFP haircut) — is a <i>prototype</i>, not a registered channel; it is one of three
+  views of generation capex (alongside the <b>capital intensity</b> channel's <var>γ</var> and an ITC). It is
   commodity-agnostic: the SAM separates electricity (<code>celec</code>), fuels (<code>cmine</code>) and
   <b>water</b> (<code>cwatr</code>), so it can price energy <i>or water</i> — "energy" is just the current
   use case. Magnitudes are illustrative until <code>units.deflator</code> is calibrated.
