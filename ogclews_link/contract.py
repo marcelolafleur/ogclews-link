@@ -31,6 +31,40 @@ class Concordance:
     energy_industry_index: int
     energy_good_index: int
 
+    @classmethod
+    def from_dicts(cls, prod_dict, cons_dict, carrier="electricity"):
+        """Discover the energy ports from a calibration's aggregation dicts, so the indices
+        track whatever aggregation the model is built with -- no hand-set literals. The industry
+        index is the PROD_DICT group holding ``carrier``; the good index is the CONS_DICT group
+        holding it (PROD_DICT/CONS_DICT order = the model's column order). ``carrier`` is an
+        ``aggregation.CARRIERS`` key (e.g. 'electricity'), a regex, or a list of SAM codes.
+        Raises if the carrier is absent or split across groups (an ambiguous single index)."""
+        from . import aggregation as ag
+
+        def one(d, axis):
+            hits = ag.locate(d, carrier)
+            if not hits:
+                raise ValueError(f"carrier {carrier!r} not found in the {axis} aggregation; "
+                                 f"groups: {list(d)}")
+            if len(hits) > 1:
+                raise ValueError(f"carrier {carrier!r} is split across {axis} groups "
+                                 f"{[h[1] for h in hits]}; pass an explicit code set/index")
+            return hits[0][0]
+
+        return cls(energy_industry_index=one(prod_dict, "production"),
+                   energy_good_index=one(cons_dict, "consumption"))
+
+    @classmethod
+    def from_package(cls, pkg, carrier="electricity"):
+        """Discover the energy ports from an installed OG country package's real PROD_DICT/
+        CONS_DICT. For a model run at a *different* aggregation (e.g. a bespoke M=4 build), use
+        ``from_dicts`` with that build's dicts so the index matches the model's columns."""
+        from . import aggregation as ag
+        _, prod, cons = ag.from_package(pkg)
+        if prod is None or cons is None:
+            raise ValueError(f"{pkg} does not expose PROD_DICT/CONS_DICT")
+        return cls.from_dicts(prod, cons, carrier=carrier)
+
 
 @dataclass
 class UnitMap:
@@ -45,9 +79,20 @@ class UnitMap:
     notes: str = ""
 
 
-# --- Philippines defaults (verify indices against calibration_values before use) ---
+# --- Philippines: energy ports DISCOVERED from the aggregation the runtime builds (M=4) -------
+# Same (1,1) as the old hand-set literal, but derived: industry index from the M=4 build dict
+# (energy_calibration.M4_PROD_DICT -> "Electricity" at 1), good index from the package CONS_DICT
+# ("Energy and water" at 1). NB: discover from the M=4 *build* dict, not the package's real
+# 7-sector PROD_DICT -- the model runs M=4, so electricity is column 1 here (it is column 2 in the
+# real calibration; use Concordance.from_package when running that). Falls back to the literal only
+# if the packages aren't importable, so `import ogclews_link.contract` still works standalone.
+def _discover_phl_concordance():
+    try:
+        from .energy_calibration import M4_PROD_DICT
+        from ogphl.constants import CONS_DICT
+        return Concordance.from_dicts(M4_PROD_DICT, CONS_DICT)
+    except Exception:
+        return Concordance(energy_industry_index=1, energy_good_index=1)
 
-PHL_CONCORDANCE = Concordance(
-    energy_industry_index=1,   # M=4 order [NaturalResources, Electricity, ConsTradeServices, Manufacturing]
-    energy_good_index=1,       # I=5 order [Food, "Energy and water", Non-durables, Durables, Services]
-)
+
+PHL_CONCORDANCE = _discover_phl_concordance()

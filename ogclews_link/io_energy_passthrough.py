@@ -50,9 +50,14 @@ def leontief_energy_intensity(energy_commodity, sam=None):
     return acts, e_direct, eps_total, float(sr)
 
 
-def cost_push_by_industry(g, energy_commodity=None, prod_dict=None, sam=None):
+def cost_push_by_industry(g, energy_commodity=None, prod_dict=None, sam=None, carrier="electricity"):
     """Per-M-industry cost-push from an energy price rise of fraction ``g``: gross-output-weighted
-    direct and total (Leontief) cost increases, plus the route-B Z haircut dZ/Z = -total."""
+    direct and total (Leontief) cost increases, plus the route-B Z haircut dZ/Z = -total.
+
+    The energy industry's column index is DISCOVERED from ``prod_dict`` (the group holding
+    ``carrier``) and returned under ``_energy_industry_index``, so the caller applies the haircut
+    to the right column without hardcoding it. ``prod_dict`` should be the SAME aggregation the
+    model is built with (its key order = the model's industry columns)."""
     energy_commodity = energy_commodity or ELECTRICITY_COMMODITY
     prod_dict = prod_dict or M4_PROD_DICT
     if sam is None:
@@ -61,7 +66,9 @@ def cost_push_by_industry(g, energy_commodity=None, prod_dict=None, sam=None):
     acts, e_direct, eps_total, sr = leontief_energy_intensity(energy_commodity, sam)
     gross = {a: float(g) for a, g in zip(acts, _gross_output(sam, acts))}
     idx = {a: i for i, a in enumerate(acts)}
-    out = {"_spectral_radius_A": sr}
+    from .aggregation import locate
+    _e = locate(prod_dict, carrier)
+    out = {"_spectral_radius_A": sr, "_energy_industry_index": (_e[0][0] if _e else None)}
     for ind, codes in prod_dict.items():
         codes = [a for a in dict.fromkeys(codes) if a in idx]
         w = np.array([gross[a] for a in codes])
@@ -84,5 +91,7 @@ if __name__ == "__main__":
               f"(spectral radius A={res.pop('_spectral_radius_A'):.3f}):")
         print(f"  {'industry':32s} {'direct':>8s} {'total':>8s} {'amplif':>7s} {'Z haircut':>10s}")
         for ind, r in res.items():
+            if str(ind).startswith("_"):   # skip meta keys (_spectral_radius_A, _energy_industry_index)
+                continue
             print(f"  {ind:32s} {r['direct_pct']:7.3f}% {r['total_pct']:7.3f}% "
                   f"{r['indirect_amplification']:6.2f}x {r['Z_haircut']:+9.4f}")
