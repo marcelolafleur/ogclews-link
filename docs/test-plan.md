@@ -9,8 +9,10 @@ are behind main and incomplete; not in this battery).
 scripts under `experiments/`. Use the `OG-PHL/.venv` interpreter.
 **Pass =** (a) solver converges (SS and/or TPI as tagged), (b) sign/direction correct, (c) magnitude
 plausible, (d) matches the golden record once captured.
-**Capture per run** (golden record, for regression): `Y, C, K, L, r, w`, the `Y_m` vector, `CEV`, plus
-the channel-specific output → a `results/` table.
+**Capture per run** (golden record, for regression): `ogclews_link.golden` flattens `Y, C, K, L, r, w`,
+the `Y_m` vector (+ pct-diffs) into `results/golden.json` — `golden.save(golden.from_context(name, ctx))`
+to establish, `golden.check(...)` to diff a later run. CEV/welfare comes from the viz layer. See
+`results/README.md`.
 
 ## Scope decisions (pinned)
 - **SS-vs-TPI:** SS-only sweep first for **every** part (cheap gate — catches non-convergence and
@@ -63,9 +65,9 @@ the channel-specific output → a `results/` table.
 - [ ] SS — **absurd-`tau_c` hard-block fires** (guard test); deflator correct
 - [ ] CLEWS penalty side applied correctly
 
-### 5. discount_rate (OG→CLEWS)  ⚠ no standalone experiment
-- [ ] via `run forward` — OG rate → CLEWS `DiscountRate` signal **emitted in CLEWS-consumable format**;
-      value sensible  *(consider adding a standalone experiment)*
+### 5. discount_rate (OG→CLEWS)
+- [ ] SS — `run discount_rate` (now standalone) — OG rate → CLEWS `DiscountRate` **emitted in
+      CLEWS-consumable format**; value sensible. (Reform delta still exercised in `forward`/`full`.)
 
 ### 6. health (CLEWS→OG)  ⚠ most likely to hit solver trouble (RC_SS Walras residual)
 - [ ] TPI — `run health` — `disease_pop`, **deaths-added** direction converges; mortality/productivity sign right
@@ -73,9 +75,9 @@ the channel-specific output → a `results/` table.
       — converges with the scoped RC_SS gate; realized SS |RC| within gate
 - [ ] GBD PM2.5 burden ingestion — deaths + YLD morbidity by age feed h(s)/g(s) — `validate_health.py`
 
-### 7. demand (OG→CLEWS)  ⚠ no standalone experiment
-- [ ] via `run forward` — OG `Y_m` → CLEWS demand scaling **emitted in CLEWS-consumable format**
-      (producer side of loop closure)  *(consider adding a standalone experiment)*
+### 7. demand (OG→CLEWS)
+- [ ] SS — `run demand` (now standalone) — OG `Y_m` → CLEWS demand scaling **emitted in
+      CLEWS-consumable format** (producer side of loop closure).
 
 ---
 

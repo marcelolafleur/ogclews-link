@@ -47,6 +47,18 @@ EXPERIMENTS = {
         "An energy-price reform that also emits CLEWS inputs: OG rate -> DiscountRate, "
         "OG activity -> demand scaling (the producer side of loop closure)."),
 
+    # #4 OG interest rate -> CLEWS DiscountRate, IN ISOLATION (forward emit plumbing)
+    "discount_rate": Experiment(
+        "discount_rate", [("discount_rate", {})],
+        "Forward (OG->CLEWS) in isolation: OG interest rate -> CLEWS DiscountRate input. Tests the "
+        "emit plumbing/format on the baseline solve; the reform delta is exercised in 'forward'/'full'."),
+
+    # #6 OG industry output -> CLEWS demand scaling, IN ISOLATION (forward emit plumbing)
+    "demand": Experiment(
+        "demand", [("demand", {"driver": "Y_m"})],
+        "Forward (OG->CLEWS) in isolation: OG industry output Y_m -> CLEWS demand scaling. Tests the "
+        "emit plumbing/format; the reform delta is exercised in 'forward'/'full'."),
+
     # #5 emissions -> health -> demographics
     "health": Experiment(
         "health", [("health", {})],
