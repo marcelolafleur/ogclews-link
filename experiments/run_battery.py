@@ -111,38 +111,64 @@ def _stamp():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def run_experiment(item) -> dict:
-    """Build the OG-PHL baseline the canonical way, solve baseline+reform (SS or TPI per item),
-    capture the golden record. Convergence = the solve returns without raising."""
+# --- shared baseline: solve ONCE per mode, reuse for every reform (it is identical across tests) ---
+_BASELINE: dict = {}   # mode -> (p_template, base_result, baseline_dir, runtime); per-invocation cache
+
+
+def ensure_baseline(mode):
+    """The OG-PHL baseline is IDENTICAL for every test (only the reform changes), so solve it ONCE
+    per mode into a canonical dir and reuse it. Persisted on disk: a later invocation rebuilds the
+    cheap param template but LOADS the already-solved baseline (no re-solve). Returns
+    (p_template, base_result, baseline_dir, runtime)."""
+    if mode in _BASELINE:
+        return _BASELINE[mode]
     from ogclews_link.runtime import Runtime
+    from ogclews_link.country import PHL
+    from ogcore.utils import safe_read_pickle
+
+    bdir = os.path.join(OUT_ROOT, "_baseline", mode)
+    rt = Runtime(show_progress=False)
+    p, _ = rt.build_baseline(PHL, bdir)                  # cheap template (demographics) the reforms deepcopy
+    sub = ("TPI", "TPI_vars.pkl") if mode == "TPI" else ("SS", "SS_vars.pkl")
+    pkl = os.path.join(bdir, *sub)
+    if os.path.exists(pkl):
+        base = safe_read_pickle(pkl)                     # already solved on a prior run -> reuse, NO re-solve
+    else:
+        base = rt.solve(p, time_path=(mode == "TPI"))     # solve EXACTLY once; persisted to bdir
+    _BASELINE[mode] = (p, base, bdir, rt)
+    return _BASELINE[mode]
+
+
+def run_experiment(item) -> dict:
+    """Apply the experiment's channels to a reform built on the SHARED baseline and solve ONLY the
+    reform (OG-Core reads the baseline from baseline_dir). Canonical path -- no baseline re-solve."""
     from ogclews_link.country import PHL
     from ogclews_link.framework import Runner
     from ogclews_link import experiments, golden
 
     mode = item.get("mode", "TPI")
-    rt = Runtime(show_progress=False)
-    solve = (lambda p: rt.solve(p, time_path=(mode == "TPI")))
+    p, base, bdir, rt = ensure_baseline(mode)
+    solve = (lambda pp: rt.solve(pp, time_path=(mode == "TPI")))
     runner = Runner(build_baseline=rt.build_baseline, solve=solve, apply_health=rt.apply_health_shock)
     exp = experiments.get(item["target"])
-    ctx = runner.run(exp, PHL, out_root=os.path.join(OUT_ROOT, item["id"]))
+    ctx = runner.run(exp, PHL, out_root=os.path.join(OUT_ROOT, item["id"]),
+                     prebuilt=(p, base, bdir))           # reuse the shared baseline; reform-only solve
     rec = golden.from_context(item["id"], ctx)
     golden.save(rec)
-    return {"status": "pass", "mode": mode, "pct_diff": rec.get("pct_diff", {}),
-            "provenance": [p.get("channel") for p in getattr(ctx, "provenance", [])]}
+    return {"status": "pass", "mode": mode, "reused_baseline": True,
+            "pct_diff": rec.get("pct_diff", {}),
+            "provenance": [pr.get("channel") for pr in getattr(ctx, "provenance", [])]}
 
 
 def run_baseline(item) -> dict:
-    """Build + solve ONLY the OG-PHL baseline (no channel), to prove the foundation solves."""
-    from ogclews_link.runtime import Runtime
-    from ogclews_link.country import PHL
+    """Establish (build + solve ONCE) the shared canonical baseline for this mode; capture its golden."""
     from ogclews_link import golden
 
     mode = item.get("mode", "SS")
-    rt = Runtime(show_progress=False)
-    p, _ = rt.build_baseline(PHL, os.path.join(OUT_ROOT, item["id"], "baseline"))
-    base = rt.solve(p, time_path=(mode == "TPI"))
+    _p, base, bdir, _rt = ensure_baseline(mode)
     golden.save(golden.capture(item["id"], base))
-    return {"status": "pass", "mode": mode, "base": golden.aggregates(base)}
+    return {"status": "pass", "mode": mode, "base": golden.aggregates(base),
+            "baseline_dir": os.path.relpath(bdir, REPO)}
 
 
 def run_script(item) -> dict:

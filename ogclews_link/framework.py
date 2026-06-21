@@ -104,7 +104,8 @@ class Runner:
     apply_health: Callable | None = None   # runtime hook: recompute population under a mortality shock
 
     def run(self, experiment: Experiment, country, out_root: str = "./ogclews_runs",
-            max_passes: int = 1, clews_runner=None, tol: float = 1e-2, damp: float = 0.5) -> ExperimentContext:
+            max_passes: int = 1, clews_runner=None, tol: float = 1e-2, damp: float = 0.5,
+            prebuilt=None) -> ExperimentContext:
         """Run an experiment. max_passes=1 is ONE-WAY (take CLEWS as given, solve the economy
         once -- correct for evaluating a fixed scenario). max_passes>1 is MULTI-PASS: iterate
         OG<->CLEWS to a fixed point, which needs ``clews_runner(clews_inputs, country, pass)``
@@ -120,9 +121,15 @@ class Runner:
         for w in self.preflight(experiment, country):
             print(f"[guardrail] {w}")
 
-        # baseline solved ONCE; only the reform is recomputed across passes
-        p, _aux = self.build_baseline(country, base_dir)
-        ctx.base_tpi = self.solve(p)
+        # baseline solved ONCE; only the reform is recomputed across passes. A ``prebuilt`` tuple
+        # (p, base_tpi, base_dir) lets a BATTERY of reforms reuse one already-solved baseline instead
+        # of re-solving the IDENTICAL baseline each time -- OG-Core reads it from baseline_dir; the
+        # reform run never re-solves the baseline (cf. experiments/run_io_calibrated_energy_shock.py).
+        if prebuilt is not None:
+            p, ctx.base_tpi, base_dir = prebuilt
+        else:
+            p, _aux = self.build_baseline(country, base_dir)
+            ctx.base_tpi = self.solve(p)
 
         exchanged_prev = None
         for pass_idx in range(max(1, max_passes)):

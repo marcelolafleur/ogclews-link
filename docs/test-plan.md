@@ -45,7 +45,11 @@ so it is **fully resumable** — stop after any group and re-run `--next` to con
 
 Groups (small): `foundation → ss_smoke → energy → supply → forward → health → combined`. The hard gate
 is **convergence** (solve returns / exit 0); signs & magnitudes are recorded to the golden baseline for
-review. TPI groups (`health`, `tpi_path`, `combined`) are the slow ones — confirm before launching.
+review. The OG-PHL **baseline is identical across all tests** (only the reform changes), so it is solved
+**once per mode** (SS, TPI) into a canonical dir (`_baseline/`) and reused by every reform — no baseline
+re-solve (OG-Core reads it from `baseline_dir`), roughly halving the compute. `foundation` establishes
+both baselines; later items reuse them (persisted on disk, so reuse survives across invocations). The
+TPI groups (energy, supply, forward, health, combined) are the slow ones — confirm before launching.
 
 ---
 
