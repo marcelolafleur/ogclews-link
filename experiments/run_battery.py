@@ -48,9 +48,8 @@ OUT_ROOT = os.path.join(REPO, "ogclews_runs", "battery")
 #   * carbon (recycle reads the base), health (demographic re-solve), full (contains forward)
 GROUPS = [
     ("foundation", [
-        {"id": "unit_suite",   "kind": "pytest",   "target": "tests/", "note": "expect 77 pass / 1 skip"},
-        {"id": "baseline_ss",  "kind": "baseline", "mode": "SS",       "note": "baseline SS solves clean (fast)"},
-        {"id": "baseline_tpi", "kind": "baseline", "mode": "TPI",      "note": "baseline TPI solves clean"},
+        {"id": "unit_suite", "kind": "pytest",   "target": "tests/", "note": "expect 77 pass / 1 skip"},
+        {"id": "baseline",   "kind": "baseline",                     "note": "solve the shared baseline ONCE (TPI -> gives SS + TPI)"},
     ]),
     ("ss_smoke", [   # fast SS convergence/sign gate -- ONLY param-setting channels (no OG-result reads)
         {"id": "energy_price_ss",      "kind": "experiment", "target": "energy_price",     "mode": "SS", "sign": "converges"},
@@ -111,48 +110,54 @@ def _stamp():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
-# --- shared baseline: solve ONCE per mode, reuse for every reform (it is identical across tests) ---
-_BASELINE: dict = {}   # mode -> (p_template, base_result, baseline_dir, runtime); per-invocation cache
+# --- shared baseline: ONE baseline, solved ONCE, read from where OG saves it -----------------------
+# The OG-PHL baseline is identical for every test (only the reform changes). Solve it ONCE at TPI into
+# the standard baseline dir -- a TPI solve produces BOTH solutions, and OG-Core writes them as
+# baseline/SS/SS_vars.pkl and baseline/TPI/TPI_vars.pkl. Every reform points baseline_dir at it and
+# reads the baseline from disk (exactly how a user runs a reform); only the reform is solved. Already
+# solved on disk -> skip the solve. No per-mode duplication, no parallel directory scheme.
+_BASELINE: dict = {}   # in-process: holds {p, dir, rt}, built once per invocation
 
 
-def ensure_baseline(mode):
-    """The OG-PHL baseline is IDENTICAL for every test (only the reform changes), so solve it ONCE
-    per mode into a canonical dir and reuse it. Persisted on disk: a later invocation rebuilds the
-    cheap param template but LOADS the already-solved baseline (no re-solve). Returns
-    (p_template, base_result, baseline_dir, runtime)."""
-    if mode in _BASELINE:
-        return _BASELINE[mode]
+def _baseline_result(base_dir, mode):
+    """Read the baseline solution OG saved on disk -- the SS slice for an SS reform, TPI for a TPI one."""
+    from ogcore.utils import safe_read_pickle
+    sub = ("TPI", "TPI_vars.pkl") if mode == "TPI" else ("SS", "SS_vars.pkl")
+    return safe_read_pickle(os.path.join(base_dir, *sub))
+
+
+def ensure_baseline():
+    """Solve the OG-PHL baseline ONCE at TPI into the standard baseline dir (giving both the SS and the
+    TPI solution), or skip the solve if it is already there. Returns (p_template, base_dir, runtime)."""
+    if _BASELINE:
+        return _BASELINE["p"], _BASELINE["dir"], _BASELINE["rt"]
     from ogclews_link.runtime import Runtime
     from ogclews_link.country import PHL
-    from ogcore.utils import safe_read_pickle
 
-    bdir = os.path.join(OUT_ROOT, "_baseline", mode)
+    base_dir = os.path.join(OUT_ROOT, "baseline")        # the standard OG baseline_dir; OG fills SS/ + TPI/
     rt = Runtime(show_progress=False)
-    p, _ = rt.build_baseline(PHL, bdir)                  # cheap template (demographics) the reforms deepcopy
-    sub = ("TPI", "TPI_vars.pkl") if mode == "TPI" else ("SS", "SS_vars.pkl")
-    pkl = os.path.join(bdir, *sub)
-    if os.path.exists(pkl):
-        base = safe_read_pickle(pkl)                     # already solved on a prior run -> reuse, NO re-solve
-    else:
-        base = rt.solve(p, time_path=(mode == "TPI"))     # solve EXACTLY once; persisted to bdir
-    _BASELINE[mode] = (p, base, bdir, rt)
-    return _BASELINE[mode]
+    p, _ = rt.build_baseline(PHL, base_dir)              # the spec template the reforms deepcopy
+    if not os.path.exists(os.path.join(base_dir, "TPI", "TPI_vars.pkl")):
+        rt.solve(p, time_path=True)                      # solve ONCE at TPI -> writes SS_vars + TPI_vars
+    _BASELINE.update(p=p, dir=base_dir, rt=rt)
+    return p, base_dir, rt
 
 
 def run_experiment(item) -> dict:
-    """Apply the experiment's channels to a reform built on the SHARED baseline and solve ONLY the
-    reform (OG-Core reads the baseline from baseline_dir). Canonical path -- no baseline re-solve."""
+    """Apply the experiment's channels to a reform on the shared baseline and solve ONLY the reform;
+    OG-Core reads the baseline from baseline_dir on disk -- exactly how a user runs a reform."""
     from ogclews_link.country import PHL
     from ogclews_link.framework import Runner
     from ogclews_link import experiments, golden
 
     mode = item.get("mode", "TPI")
-    p, base, bdir, rt = ensure_baseline(mode)
+    p, base_dir, rt = ensure_baseline()
+    base = _baseline_result(base_dir, mode)              # the matching baseline solution, read from disk
     solve = (lambda pp: rt.solve(pp, time_path=(mode == "TPI")))
     runner = Runner(build_baseline=rt.build_baseline, solve=solve, apply_health=rt.apply_health_shock)
     exp = experiments.get(item["target"])
     ctx = runner.run(exp, PHL, out_root=os.path.join(OUT_ROOT, item["id"]),
-                     prebuilt=(p, base, bdir))           # reuse the shared baseline; reform-only solve
+                     prebuilt=(p, base, base_dir))       # reform points baseline_dir at the shared baseline
     rec = golden.from_context(item["id"], ctx)
     golden.save(rec)
     return {"status": "pass", "mode": mode, "reused_baseline": True,
@@ -161,14 +166,14 @@ def run_experiment(item) -> dict:
 
 
 def run_baseline(item) -> dict:
-    """Establish (build + solve ONCE) the shared canonical baseline for this mode; capture its golden."""
+    """Establish the shared baseline (solve ONCE at TPI into the standard dir); capture its golden."""
     from ogclews_link import golden
 
-    mode = item.get("mode", "SS")
-    _p, base, bdir, _rt = ensure_baseline(mode)
+    _p, base_dir, _rt = ensure_baseline()
+    base = _baseline_result(base_dir, "TPI")
     golden.save(golden.capture(item["id"], base))
-    return {"status": "pass", "mode": mode, "base": golden.aggregates(base),
-            "baseline_dir": os.path.relpath(bdir, REPO)}
+    return {"status": "pass", "base": golden.aggregates(base),
+            "baseline_dir": os.path.relpath(base_dir, REPO)}
 
 
 def run_script(item) -> dict:
