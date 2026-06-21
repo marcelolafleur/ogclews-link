@@ -39,41 +39,47 @@ OUT_ROOT = os.path.join(REPO, "ogclews_runs", "battery")
 #   baseline   -> build + solve the OG-PHL baseline only (no channel), SS or TPI
 # `sign` is an INFORMATIONAL expectation (recorded for review), never a hard fail; the hard gate
 # is convergence (no exception / exit 0). Magnitudes are reviewed against the golden record.
+# TPI is the canonical mode (how a user runs these). SS is used ONLY where it is safe: the baseline,
+# and the pure PARAM-SETTING channels (energy_price/investment/capital_intensity set p.tau_c/alpha_I/
+# gamma pre-solve and read NO OG result arrays). Channels that READ the OG result dict assume TPI
+# shapes and MUST run TPI, or they crash on the SS scalar/1-D dicts:
+#   * forward (discount_rate, demand): og_sector_output -> Y_m[:, m]; og_interest_rate -> r[:10]
+#   * clean_incidence: the c_min guard reads base_tpi["c_i"][:, i_e]
+#   * carbon (recycle reads the base), health (demographic re-solve), full (contains forward)
 GROUPS = [
     ("foundation", [
-        {"id": "unit_suite",   "kind": "pytest",   "target": "tests/",        "note": "expect 77 pass / 1 skip"},
-        {"id": "baseline_ss",  "kind": "baseline", "mode": "SS",              "note": "baseline SS solves clean"},
-        {"id": "baseline_tpi", "kind": "baseline", "mode": "TPI",             "note": "baseline TPI solves clean"},
+        {"id": "unit_suite",   "kind": "pytest",   "target": "tests/", "note": "expect 77 pass / 1 skip"},
+        {"id": "baseline_ss",  "kind": "baseline", "mode": "SS",       "note": "baseline SS solves clean (fast)"},
+        {"id": "baseline_tpi", "kind": "baseline", "mode": "TPI",      "note": "baseline TPI solves clean"},
+    ]),
+    ("ss_smoke", [   # fast SS convergence/sign gate -- ONLY param-setting channels (no OG-result reads)
+        {"id": "energy_price_ss",      "kind": "experiment", "target": "energy_price",     "mode": "SS", "sign": "converges"},
+        {"id": "investment_ss",        "kind": "experiment", "target": "investment",       "mode": "SS", "sign": "converges"},
+        {"id": "capital_intensity_ss", "kind": "experiment", "target": "capital_intensity","mode": "SS", "sign": "crowding-out"},
     ]),
     ("energy", [
-        {"id": "energy_price_ss",   "kind": "experiment", "target": "energy_price",   "mode": "SS",  "sign": "demand falls"},
-        {"id": "clean_incidence_ss","kind": "experiment", "target": "clean_incidence","mode": "SS",  "sign": "regressive incidence"},
-        {"id": "routeB_costpush",   "kind": "script", "target": "experiments/run_io_calibrated_energy_shock.py",
+        {"id": "energy_price",    "kind": "experiment", "target": "energy_price",    "mode": "TPI", "sign": "demand falls"},
+        {"id": "clean_incidence", "kind": "experiment", "target": "clean_incidence", "mode": "TPI", "sign": "regressive incidence"},
+        {"id": "routeB_costpush", "kind": "script", "target": "experiments/run_io_calibrated_energy_shock.py",
          "expect_stdout": "LOWERS GDP", "sign": "Route B lowers GDP"},
     ]),
     ("supply", [
-        {"id": "investment_ss",      "kind": "experiment", "target": "investment",       "mode": "SS"},
-        {"id": "capital_intensity_ss","kind": "experiment","target": "capital_intensity","mode": "SS", "sign": "crowding-out"},
-        {"id": "crowding_out_solve", "kind": "script", "target": "experiments/run_capital_intensity.py", "sign": "energy K up, other K down"},
-        {"id": "energy_itc",         "kind": "script", "target": "experiments/run_energy_itc.py"},
-        {"id": "carbon_ss",          "kind": "experiment", "target": "carbon",           "mode": "SS"},
+        {"id": "investment",        "kind": "experiment", "target": "investment",       "mode": "TPI"},
+        {"id": "capital_intensity", "kind": "experiment", "target": "capital_intensity","mode": "TPI", "sign": "crowding-out"},
+        {"id": "carbon",            "kind": "experiment", "target": "carbon",           "mode": "TPI"},
+        {"id": "crowding_out_solve","kind": "script", "target": "experiments/run_capital_intensity.py", "sign": "energy K up, other K down"},
+        {"id": "energy_itc",        "kind": "script", "target": "experiments/run_energy_itc.py"},
     ]),
-    ("forward", [
-        {"id": "discount_rate_ss", "kind": "experiment", "target": "discount_rate", "mode": "SS", "sign": "emits DiscountRate"},
-        {"id": "demand_ss",        "kind": "experiment", "target": "demand",        "mode": "SS", "sign": "emits demand scaling"},
+    ("forward", [   # OG->CLEWS emit; MUST be TPI (they read the result time series)
+        {"id": "discount_rate", "kind": "experiment", "target": "discount_rate", "mode": "TPI", "sign": "emits DiscountRate path"},
+        {"id": "demand",        "kind": "experiment", "target": "demand",        "mode": "TPI", "sign": "emits demand path (inert standalone)"},
     ]),
     ("health", [
-        {"id": "health_tpi",           "kind": "experiment", "target": "health", "mode": "TPI", "sign": "deaths-added converges"},
+        {"id": "health",               "kind": "experiment", "target": "health", "mode": "TPI", "sign": "deaths-added converges"},
         {"id": "health_bidirectional", "kind": "script", "target": "experiments/test_health_bidirectional.py", "sign": "both directions converge"},
     ]),
-    ("tpi_path", [
-        {"id": "investment_tpi",     "kind": "experiment", "target": "investment",      "mode": "TPI"},
-        {"id": "clean_incidence_tpi","kind": "experiment", "target": "clean_incidence", "mode": "TPI"},
-        {"id": "demand_tpi",         "kind": "experiment", "target": "demand",          "mode": "TPI"},
-    ]),
     ("combined", [
-        {"id": "full_ss",     "kind": "experiment", "target": "full", "mode": "SS",  "sign": "full stack converges at SS"},
-        {"id": "full_tpi",    "kind": "experiment", "target": "full", "mode": "TPI", "sign": "full coupled run"},
+        {"id": "full",        "kind": "experiment", "target": "full", "mode": "TPI", "sign": "full coupled run"},
         {"id": "across_steps","kind": "script", "target": "experiments/run_across_steps.py", "sign": "layered marginal contributions"},
     ]),
 ]

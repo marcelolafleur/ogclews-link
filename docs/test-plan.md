@@ -15,9 +15,11 @@ to establish, `golden.check(...)` to diff a later run. CEV/welfare comes from th
 `results/README.md`.
 
 ## Scope decisions (pinned)
-- **SS-vs-TPI:** SS-only sweep first for **every** part (cheap gate — catches non-convergence and
-  sign errors), then **TPI** only on the path-dependent parts (tagged `TPI` below). SS ≈ seconds–1 min;
-  TPI ≈ minutes each — the TPI batch is the real compute cost (confirm before launching it).
+- **SS-vs-TPI:** SS is used ONLY where safe — the baseline + the param-setting channels
+  (`energy_price`/`investment`/`capital_intensity`, which read no OG result arrays), as a fast
+  convergence gate. Everything that reads the OG result dict (`discount_rate`, `demand`,
+  `clean_incidence`, `carbon`, `health`, `full`) runs **TPI** (canonical; SS crashes on the TPI-shaped
+  reads — `Y_m[:, m]`, `r[:10]`, `c_i[:, i_e]`). SS ≈ seconds–1 min; TPI ≈ minutes each — confirm before TPI groups.
 - **Golden records:** YES — capture aggregates per run so the battery is repeatable and future changes
   diff against a baseline.
 - **Multi-country:** unit-level only for now (**only `ogphl` is installed**); a real multi-country solve
@@ -41,7 +43,7 @@ so it is **fully resumable** — stop after any group and re-run `--next` to con
                                                 ...        --item ID     # run one item
                                                 ...        --next --dry-run   # show; no solves
 
-Groups (small): `foundation → energy → supply → forward → health → tpi_path → combined`. The hard gate
+Groups (small): `foundation → ss_smoke → energy → supply → forward → health → combined`. The hard gate
 is **convergence** (solve returns / exit 0); signs & magnitudes are recorded to the golden baseline for
 review. TPI groups (`health`, `tpi_path`, `combined`) are the slow ones — confirm before launching.
 
@@ -82,13 +84,13 @@ review. TPI groups (`health`, `tpi_path`, `combined`) are the slow ones — conf
       (the "three views of generation capex: γ / cost-push Z / ITC — pick one")
 
 ### 4. carbon (both directions)
-- [ ] SS — `tau_c` recycled & not — `run carbon` — converges; revenue/recycling consistent
+- [ ] TPI — `tau_c` recycled & not — `run carbon` — converges; revenue/recycling consistent (recycle reads the base → TPI)
 - [ ] SS — **absurd-`tau_c` hard-block fires** (guard test); deflator correct
 - [ ] CLEWS penalty side applied correctly
 
 ### 5. discount_rate (OG→CLEWS)
-- [ ] SS — `run discount_rate` (now standalone) — OG rate → CLEWS `DiscountRate` **emitted in
-      CLEWS-consumable format**; value sensible. (Reform delta still exercised in `forward`/`full`.)
+- [ ] TPI — `run discount_rate` (standalone) — OG rate → CLEWS `DiscountRate` **emitted in
+      CLEWS-consumable format**; value sensible. **Must be TPI** (reads the rate path). Reform delta in `forward`/`full`.
 
 ### 6. health (CLEWS→OG)  ⚠ most likely to hit solver trouble (RC_SS Walras residual)
 - [ ] TPI — `run health` — `disease_pop`, **deaths-added** direction converges; mortality/productivity sign right
@@ -97,8 +99,8 @@ review. TPI groups (`health`, `tpi_path`, `combined`) are the slow ones — conf
 - [ ] GBD PM2.5 burden ingestion — deaths + YLD morbidity by age feed h(s)/g(s) — `validate_health.py`
 
 ### 7. demand (OG→CLEWS)
-- [ ] SS — `run demand` (now standalone) — OG `Y_m` → CLEWS demand scaling **emitted in
-      CLEWS-consumable format** (producer side of loop closure).
+- [ ] TPI — `run demand` (standalone) — OG `Y_m` → CLEWS demand scaling **emitted in
+      CLEWS-consumable format** (producer side). **Must be TPI** (reads the `Y_m` path); inert ≈1 standalone.
 
 ---
 
