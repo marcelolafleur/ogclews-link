@@ -9,3 +9,6 @@ __pycache__/
 # Local-only data export + scratch — never commit
 IHME-GBD_2023_DATA/
 .review_tmp/
+
+# Test-battery per-run progress (the golden baseline results/golden.json IS committed; this is not)
+results/battery-state.json

@@ -1,0 +1,269 @@
+"""Continuable, grouped test battery for the OG-Core <-> CLEWS coupling.
+
+Runs the model THE CANONICAL WAY -- `ogclews_link.runtime.build_baseline` -> `ogcore.execute.runner`,
+the same Specifications + ogphl-SAM + runner flow as `OG-PHL/examples/run_og_phl_multi_industry.py`,
+under the OG-PHL venv. Nothing hackish: the battery only orchestrates; the solve path is the user path.
+
+Designed to run in SMALL GROUPS so you never leave it running long, and to be fully CONTINUABLE:
+state is persisted after every item, so you can stop after any group and re-run to pick up where you
+left off. SS items are fast; TPI items are minutes each (the real cost).
+
+Usage (with the OG-PHL venv, from the repo root):
+    .../OG-PHL/.venv/bin/python experiments/run_battery.py --status      # progress; runs nothing
+    ...                                            run_battery.py --list                # show the plan
+    ...                                            run_battery.py --next                # run next pending group
+    ...                                            run_battery.py --group energy        # run one named group
+    ...                                            run_battery.py --item energy_price_ss
+    ...                                            run_battery.py --next --dry-run       # show, don't solve
+    ...                                            run_battery.py --item X --rerun       # force re-run
+
+State:  results/battery-state.json     Golden records:  results/golden.json
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+STATE_PATH = os.path.join(REPO, "results", "battery-state.json")
+OUT_ROOT = os.path.join(REPO, "ogclews_runs", "battery")
+
+# --- the battery: ordered GROUPS of small item sets (matches docs/test-plan.md) ---------------
+# item kinds:
+#   experiment -> ogclews_link experiment name, solved SS or TPI via the canonical runtime
+#   script     -> a standalone experiments/run_*.py (a user-facing run), checked by exit code
+#   pytest     -> the unit/transform suite gate
+#   baseline   -> build + solve the OG-PHL baseline only (no channel), SS or TPI
+# `sign` is an INFORMATIONAL expectation (recorded for review), never a hard fail; the hard gate
+# is convergence (no exception / exit 0). Magnitudes are reviewed against the golden record.
+GROUPS = [
+    ("foundation", [
+        {"id": "unit_suite",   "kind": "pytest",   "target": "tests/",        "note": "expect 77 pass / 1 skip"},
+        {"id": "baseline_ss",  "kind": "baseline", "mode": "SS",              "note": "baseline SS solves clean"},
+        {"id": "baseline_tpi", "kind": "baseline", "mode": "TPI",             "note": "baseline TPI solves clean"},
+    ]),
+    ("energy", [
+        {"id": "energy_price_ss",   "kind": "experiment", "target": "energy_price",   "mode": "SS",  "sign": "demand falls"},
+        {"id": "clean_incidence_ss","kind": "experiment", "target": "clean_incidence","mode": "SS",  "sign": "regressive incidence"},
+        {"id": "routeB_costpush",   "kind": "script", "target": "experiments/run_io_calibrated_energy_shock.py",
+         "expect_stdout": "LOWERS GDP", "sign": "Route B lowers GDP"},
+    ]),
+    ("supply", [
+        {"id": "investment_ss",      "kind": "experiment", "target": "investment",       "mode": "SS"},
+        {"id": "capital_intensity_ss","kind": "experiment","target": "capital_intensity","mode": "SS", "sign": "crowding-out"},
+        {"id": "crowding_out_solve", "kind": "script", "target": "experiments/run_capital_intensity.py", "sign": "energy K up, other K down"},
+        {"id": "energy_itc",         "kind": "script", "target": "experiments/run_energy_itc.py"},
+        {"id": "carbon_ss",          "kind": "experiment", "target": "carbon",           "mode": "SS"},
+    ]),
+    ("forward", [
+        {"id": "discount_rate_ss", "kind": "experiment", "target": "discount_rate", "mode": "SS", "sign": "emits DiscountRate"},
+        {"id": "demand_ss",        "kind": "experiment", "target": "demand",        "mode": "SS", "sign": "emits demand scaling"},
+    ]),
+    ("health", [
+        {"id": "health_tpi",           "kind": "experiment", "target": "health", "mode": "TPI", "sign": "deaths-added converges"},
+        {"id": "health_bidirectional", "kind": "script", "target": "experiments/test_health_bidirectional.py", "sign": "both directions converge"},
+    ]),
+    ("tpi_path", [
+        {"id": "investment_tpi",     "kind": "experiment", "target": "investment",      "mode": "TPI"},
+        {"id": "clean_incidence_tpi","kind": "experiment", "target": "clean_incidence", "mode": "TPI"},
+        {"id": "demand_tpi",         "kind": "experiment", "target": "demand",          "mode": "TPI"},
+    ]),
+    ("combined", [
+        {"id": "full_ss",     "kind": "experiment", "target": "full", "mode": "SS",  "sign": "full stack converges at SS"},
+        {"id": "full_tpi",    "kind": "experiment", "target": "full", "mode": "TPI", "sign": "full coupled run"},
+        {"id": "across_steps","kind": "script", "target": "experiments/run_across_steps.py", "sign": "layered marginal contributions"},
+    ]),
+]
+
+
+def _all_items():
+    return [(g, it) for g, items in GROUPS for it in items]
+
+
+def load_state() -> dict:
+    if os.path.exists(STATE_PATH):
+        with open(STATE_PATH) as f:
+            return json.load(f)
+    return {}
+
+
+def save_state(state: dict):
+    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    with open(STATE_PATH, "w") as f:
+        json.dump(state, f, indent=2, sort_keys=True)
+
+
+# --- runners for each item kind --------------------------------------------------------------
+
+def _stamp():
+    # Date.now is unavailable in workflow scripts but this is a plain script; still avoid importing
+    # time at module load. Use a coarse marker from the OS.
+    import time
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def run_experiment(item) -> dict:
+    """Build the OG-PHL baseline the canonical way, solve baseline+reform (SS or TPI per item),
+    capture the golden record. Convergence = the solve returns without raising."""
+    from ogclews_link.runtime import Runtime
+    from ogclews_link.country import PHL
+    from ogclews_link.framework import Runner
+    from ogclews_link import experiments, golden
+
+    mode = item.get("mode", "TPI")
+    rt = Runtime(show_progress=False)
+    solve = (lambda p: rt.solve(p, time_path=(mode == "TPI")))
+    runner = Runner(build_baseline=rt.build_baseline, solve=solve, apply_health=rt.apply_health_shock)
+    exp = experiments.get(item["target"])
+    ctx = runner.run(exp, PHL, out_root=os.path.join(OUT_ROOT, item["id"]))
+    rec = golden.from_context(item["id"], ctx)
+    golden.save(rec)
+    return {"status": "pass", "mode": mode, "pct_diff": rec.get("pct_diff", {}),
+            "provenance": [p.get("channel") for p in getattr(ctx, "provenance", [])]}
+
+
+def run_baseline(item) -> dict:
+    """Build + solve ONLY the OG-PHL baseline (no channel), to prove the foundation solves."""
+    from ogclews_link.runtime import Runtime
+    from ogclews_link.country import PHL
+    from ogclews_link import golden
+
+    mode = item.get("mode", "SS")
+    rt = Runtime(show_progress=False)
+    p, _ = rt.build_baseline(PHL, os.path.join(OUT_ROOT, item["id"], "baseline"))
+    base = rt.solve(p, time_path=(mode == "TPI"))
+    golden.save(golden.capture(item["id"], base))
+    return {"status": "pass", "mode": mode, "base": golden.aggregates(base)}
+
+
+def run_script(item) -> dict:
+    """Run a user-facing experiments/run_*.py with this interpreter; pass = exit 0 (and, if given,
+    `expect_stdout` present)."""
+    path = os.path.join(REPO, item["target"])
+    proc = subprocess.run([sys.executable, path], cwd=REPO, capture_output=True, text=True)
+    tail = "\n".join(proc.stdout.strip().splitlines()[-8:])
+    ok = proc.returncode == 0
+    exp = item.get("expect_stdout")
+    if ok and exp and exp.lower() not in proc.stdout.lower():
+        ok = False
+    return {"status": "pass" if ok else "fail", "returncode": proc.returncode,
+            "stdout_tail": tail, "stderr_tail": "\n".join(proc.stderr.strip().splitlines()[-5:])}
+
+
+def run_pytest(item) -> dict:
+    proc = subprocess.run([sys.executable, "-m", "pytest", item["target"], "-q"],
+                          cwd=REPO, capture_output=True, text=True)
+    return {"status": "pass" if proc.returncode == 0 else "fail", "returncode": proc.returncode,
+            "stdout_tail": "\n".join(proc.stdout.strip().splitlines()[-3:])}
+
+
+_DISPATCH = {"experiment": run_experiment, "baseline": run_baseline, "script": run_script, "pytest": run_pytest}
+
+
+def run_item(item, dry=False) -> dict:
+    if dry:
+        return {"status": "would-run", "kind": item["kind"], "target": item.get("target"), "mode": item.get("mode")}
+    try:
+        res = _DISPATCH[item["kind"]](item)
+    except Exception as exc:  # noqa: BLE001 -- record, never crash the battery
+        import traceback
+        res = {"status": "error", "error": f"{type(exc).__name__}: {exc}",
+               "trace": traceback.format_exc().splitlines()[-4:]}
+    return res
+
+
+# --- selection + CLI -------------------------------------------------------------------------
+
+def _pending(group_name, state):
+    items = dict(GROUPS)[group_name]
+    return [it for it in items if state.get(it["id"], {}).get("status") not in ("pass",)]
+
+
+def next_group(state):
+    for gname, _ in GROUPS:
+        if _pending(gname, state):
+            return gname
+    return None
+
+
+def cmd_status(state):
+    print(f"Battery status  (state: {os.path.relpath(STATE_PATH, REPO)})")
+    for gname, items in GROUPS:
+        line = []
+        for it in items:
+            st = state.get(it["id"], {}).get("status", "·")
+            mark = {"pass": "x", "fail": "!", "error": "E", "·": " "}.get(st, "?")
+            line.append(f"[{mark}] {it['id']}")
+        print(f"  {gname:11s}: " + "  ".join(line))
+    nxt = next_group(state)
+    print(f"\nnext pending group: {nxt or '(none — battery complete)'}")
+
+
+def cmd_list():
+    for gname, items in GROUPS:
+        print(f"\n## {gname}")
+        for it in items:
+            extra = f" [{it.get('mode','')}]" if it.get("mode") else ""
+            print(f"  {it['id']:24s} {it['kind']:10s} {it.get('target',''):46s}{extra}  {it.get('note', it.get('sign',''))}")
+
+
+def run_items(items, state, dry):
+    for it in items:
+        print(f"\n>>> {it['id']}  ({it['kind']}{' '+it.get('mode','') if it.get('mode') else ''})"
+              + ("  [DRY]" if dry else ""))
+        res = run_item(it, dry=dry)
+        print(f"    -> {res.get('status')}" + (f"  {res.get('error','')}" if res.get("status") == "error" else ""))
+        if not dry:
+            state[it["id"]] = {**res, "group": next(g for g, items2 in GROUPS if it in items2),
+                               "kind": it["kind"], "finished": _stamp()}
+            save_state(state)   # persist after EVERY item -> resumable
+    return state
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Continuable grouped test battery for the OG<->CLEWS coupling")
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument("--status", action="store_true", help="show progress, run nothing")
+    g.add_argument("--list", action="store_true", help="list the full plan")
+    g.add_argument("--next", action="store_true", help="run the next group with pending items")
+    g.add_argument("--group", help="run a named group")
+    g.add_argument("--item", help="run a single item by id")
+    ap.add_argument("--dry-run", action="store_true", help="show what would run; no solves, no state change")
+    ap.add_argument("--rerun", action="store_true", help="re-run even items already marked pass")
+    args = ap.parse_args()
+
+    state = load_state()
+    if args.list:
+        cmd_list(); return
+    if args.status or not (args.next or args.group or args.item):
+        cmd_status(state); return
+
+    if args.item:
+        it = next((it for _, items in GROUPS for it in items if it["id"] == args.item), None)
+        if not it:
+            print(f"unknown item '{args.item}'"); sys.exit(2)
+        items = [it]
+    elif args.group:
+        if args.group not in dict(GROUPS):
+            print(f"unknown group '{args.group}'; groups: {[g for g,_ in GROUPS]}"); sys.exit(2)
+        items = dict(GROUPS)[args.group] if args.rerun else _pending(args.group, state)
+    else:  # --next
+        gname = next_group(state)
+        if not gname:
+            print("battery complete — nothing pending."); return
+        print(f"running next pending group: {gname}")
+        items = dict(GROUPS)[gname] if args.rerun else _pending(gname, state)
+
+    if not items:
+        print("nothing to run (all selected items already pass; use --rerun to force)."); return
+    state = run_items(items, state, args.dry_run)
+    if not args.dry_run:
+        print()
+        cmd_status(state)
+
+
+if __name__ == "__main__":
+    main()

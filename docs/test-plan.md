@@ -24,6 +24,23 @@ to establish, `golden.check(...)` to diff a later run. CEV/welfare comes from th
   is deferred until the IDN/ETH/ZAF OG packages are installed.
 - **Reproducibility:** baseline solved twice must be identical.
 
+## Running the battery (continuable, small groups)
+Driven by `experiments/run_battery.py` — runs the model the **canonical way** (`runtime.build_baseline`
+→ `ogcore.execute.runner`, the same flow as `OG-PHL/examples/run_og_phl_multi_industry.py`), under the
+**OG-PHL venv**, **one small group per invocation**, persisting `results/battery-state.json` after every
+item so it is **fully resumable** — stop after any group and re-run `--next` to continue.
+
+    .../OG-PHL/.venv/bin/python experiments/run_battery.py --status      # progress; runs nothing
+                                                ...        --list        # the plan, as items
+                                                ...        --next        # run the next pending group
+                                                ...        --group NAME  # run one named group
+                                                ...        --item ID     # run one item
+                                                ...        --next --dry-run   # show; no solves
+
+Groups (small): `foundation → energy → supply → forward → health → tpi_path → combined`. The hard gate
+is **convergence** (solve returns / exit 0); signs & magnitudes are recorded to the golden baseline for
+review. TPI groups (`health`, `tpi_path`, `combined`) are the slow ones — confirm before launching.
+
 ---
 
 ## Part 0 — Foundation (run first; everything compares to it)
