@@ -4,6 +4,7 @@ channels and framework stay country-agnostic. PHL is the worked instance.
 from __future__ import annotations
 
 import glob
+import json
 import os
 from dataclasses import dataclass, field
 
@@ -41,6 +42,13 @@ class CountryConfig:
     # mortality h(s) + excess_deaths and morbidity g(s) + YLD-rate magnitude. None -> placeholders.
     gbd_burden_csv: str | None = None
     gbd_year: int = 2023
+    # Emissions->deaths dose-response multiplier M = (energy sector's share of ambient PM2.5 MASS) x
+    # (CRF elasticity at the country's exposure). The health channel maps a power-sector PM2.5 emissions
+    # change to an ambient-PM2.5 deaths change by total_deaths x M x emissions_change, NOT 1:1 (M=1) --
+    # power is only ~10% of ambient PM2.5 and the CRF is concave. Per-country, from McDuffie 2021; see
+    # data/pm25_health.json + docs/design/emissions-to-health-dose-response.md. None -> channel warns and
+    # falls back to M=1.0 (naive 1:1).
+    pm25_dose_response: float | None = None
 
     def is_power(self, tech: str) -> bool:
         return tech.startswith(self.power_prefix)
@@ -60,6 +68,17 @@ def _resolve_gbd_csv():
     return sorted(hits)[0] if hits else None
 
 
+def _resolve_dose_response(name: str):
+    """Per-country emissions->deaths multiplier M from data/pm25_health.json, or None if absent."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pm25_health.json")
+    try:
+        with open(path) as f:
+            row = json.load(f).get("countries", {}).get(name)
+        return float(row["multiplier_M"]) if row and row.get("multiplier_M") is not None else None
+    except (OSError, ValueError, KeyError):
+        return None
+
+
 PHL = CountryConfig(
     name="Philippines",
     un_code="608",
@@ -75,4 +94,5 @@ PHL = CountryConfig(
         og_start_year=2026,
     ),
     gbd_burden_csv=_resolve_gbd_csv(),  # IHME-GBD_2023_DATA/*.csv if present, else None (placeholders)
+    pm25_dose_response=_resolve_dose_response("Philippines"),  # M ~= 0.082 (energy 9.8% x CRF elast 0.84)
 )

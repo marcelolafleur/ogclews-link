@@ -424,7 +424,8 @@ class HealthChannel(Channel):
 
     def apply(self, ctx, excess_deaths=None, total_pollution_deaths=None, morbidity_response=0.01,
               affects=("mortality", "e"), profile_path=None, morbidity_profile=None,
-              phase_years=5, prod_J=7, gbd_csv=None, gbd_location=None, gbd_year=None):
+              phase_years=5, prod_J=7, gbd_csv=None, gbd_location=None, gbd_year=None,
+              dose_response=None):
         c = ctx.country
         p = ctx.og_reform
         # The GBD burden is PM2.5-attributable, so scale the dose-response by the PM2.5 emission
@@ -443,8 +444,19 @@ class HealthChannel(Channel):
         gbd = gbd_csv or getattr(c, "gbd_burden_csv", None)
         gloc = gbd_location or getattr(c, "name", None)
         gyr = int(gbd_year or getattr(c, "gbd_year", 2023))
+        # Dose-response multiplier M = energy mass share x CRF elasticity (data/pm25_health.json): maps a
+        # POWER-sector PM2.5 emissions change to an AMBIENT-PM2.5 deaths/morbidity change. Power is only
+        # ~10% of ambient PM2.5 and the CRF is concave, so M << 1 (PHL ~0.08); without it the channel
+        # overstates the health effect ~12x. None -> M=1.0 (naive 1:1) with a loud guardrail.
+        M = dose_response if dose_response is not None else getattr(c, "pm25_dose_response", None)
+        if M is None:
+            M = 1.0
+            print(f"[guardrail] health: no calibrated emissions->deaths dose-response (M) for "
+                  f"{gloc}; using M=1.0 (naive 1:1, overstates the effect). Add a row to "
+                  "ogclews_link/data/pm25_health.json (see docs/design/emissions-to-health-dose-response.md).")
+        M = float(M)
         prov = {"emissions_change": demis, "emissions_species": species or c.co2_emission,
-                "affects": list(affects), "gbd_source": bool(gbd)}
+                "dose_response_M": M, "affects": list(affects), "gbd_source": bool(gbd)}
         if "mortality" in affects:
             # disease_pop method: stash a SIGNED excess-deaths target + age shape; the runtime's
             # health_pop.disease_pop solves rho += shock_scale*g_t*h(s) (clipped) to hit it, then
@@ -464,11 +476,11 @@ class HealthChannel(Channel):
             if excess_deaths is not None:
                 target_src = "explicit excess_deaths"
             elif total_pollution_deaths is not None:
-                excess_deaths = float(total_pollution_deaths) * demis    # total x emissions fraction
-                target_src = ("GBD total x emissions change" if gbd else "explicit total x emissions change")
+                excess_deaths = float(total_pollution_deaths) * M * demis    # total x dose-response x emissions
+                target_src = ("GBD total x M x emissions change" if gbd else "explicit total x M x emissions change")
             else:
-                excess_deaths = _PLACEHOLDER_PM25_DEATHS * demis         # demis<0 -> lives saved
-                target_src = "PLACEHOLDER total x emissions change (see DATA.md)"
+                excess_deaths = _PLACEHOLDER_PM25_DEATHS * M * demis         # demis<0 -> lives saved
+                target_src = "PLACEHOLDER total x M x emissions change (see DATA.md)"
                 print(f"[guardrail] health: using PLACEHOLDER total PM2.5 deaths "
                       f"({_PLACEHOLDER_PM25_DEATHS:,.0f}); supply a GBD export before reporting calibrated numbers.")
             ctx.extras["health_shock"] = {"excess_deaths": float(excess_deaths), "profile": profile,
@@ -485,7 +497,8 @@ class HealthChannel(Channel):
                 msrc = "GBD YLD-by-age (working-age causes)"
             else:
                 msrc = ("custom age shape" if morbidity_profile is not None else "uniform (all active ages)")
-            benefit = -morbidity_response * demis         # cleaner (demis<0) -> higher productivity
+            benefit = -morbidity_response * M * demis     # cleaner (demis<0) -> higher productivity; M scales
+                                                          # the power-sector emissions change to the ambient effect
             e = np.array(p.e, dtype=float)
             S = e.shape[1]
             # Age distribution of the morbidity gain, mirroring the mortality channel's h(s): a peak-1
@@ -509,10 +522,12 @@ class HealthChannel(Channel):
                 "rho += shock_scale*g_t*h(s) (shock_scale solved to a signed excess-deaths target; "
                 "negative = lives saved), phased in, then the population is recomputed via get_pop_objs. "
                 "The age profile h(s) MUST come from GBD ambient-PM2.5 deaths-by-age (DATA.md) -- the "
-                "placeholder is an illustrative elderly-skewed shape only. The dose-response "
-                "(emissions->kappa) and the morbidity productivity response are PLACEHOLDERS pending "
-                "data. Pollution deaths skew elderly, so expect a weaker mortality->GDP channel than "
-                "the working-age HIV case."]
+                "placeholder is an illustrative elderly-skewed shape only. The emissions->deaths "
+                "dose-response M = energy mass share x CRF elasticity (data/pm25_health.json; PHL ~0.08, "
+                "from McDuffie 2021) -- power is ~10% of ambient PM2.5 and the CRF is concave, so M<<1; "
+                "M=1.0 with a guardrail if a country lacks a row. The morbidity productivity elasticity "
+                "reuses M as a proxy. Pollution deaths skew elderly, so expect a weaker mortality->GDP "
+                "channel than the working-age HIV case."]
 
 
 # --- #6 OG activity -> CLEWS demand (the forward driver) ------------------------

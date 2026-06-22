@@ -71,7 +71,8 @@ EXPERIMENTS = {
     # #5 emissions -> health -> demographics
     "health": Experiment(
         "health", [("health", {})],
-        "CLEWS emissions change -> illustrative dose-response -> OG mortality/productivity."),
+        "CLEWS PM2.5 emissions change -> calibrated per-country dose-response (M = energy mass share x "
+        "CRF elasticity, data/pm25_health.json; PHL ~0.08, NOT 1:1) -> OG mortality/productivity."),
 
     # composed: a full single-pass soft link
     "full": Experiment(

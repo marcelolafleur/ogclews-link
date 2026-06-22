@@ -270,6 +270,19 @@ def test_health_reads_clews():
     assert not np.allclose(np.asarray(ctx.og_reform.e), e0)       # morbidity productivity path moved
 
 
+def test_health_dose_response_multiplier():
+    if not HAVE_CLEWS:
+        print("  (skip: CLEWS dirs absent)"); return
+    # M = energy mass share x CRF elasticity scales the power-emissions change to the ambient effect.
+    p1 = get("health").apply(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0, dose_response=1.0)
+    pm = get("health").apply(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0, dose_response=0.082)
+    assert pm["dose_response_M"] == 0.082
+    assert abs(pm["mortality_excess_deaths"] / p1["mortality_excess_deaths"] - 0.082) < 1e-9  # linear in M
+    # default (no arg) uses the calibrated PHL value from the data file, not the naive 1:1
+    dflt = get("health").apply(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0)
+    assert dflt["dose_response_M"] == PHL.pm25_dose_response and PHL.pm25_dose_response < 0.2
+
+
 def test_health_profile_shape():
     from ogclews_link import health_profile
     h = health_profile.placeholder_profile()
