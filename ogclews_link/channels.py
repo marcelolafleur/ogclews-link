@@ -239,13 +239,15 @@ class CapitalIntensityChannel(Channel):
     theory_status = "structural_core"
 
     def apply(self, ctx, window=None, gamma_scale=None, gamma_target=None, labor_share_floor=0.05):
-        # PRIVATE-GENERATION capital intensity. OG-Core has no exogenous "inject private capital" dial
-        # (private K is endogenous: households save -> firms rent capital), but it DOES have a real
-        # multi-industry capital market. So we reflect the capex-heavy renewables/CCS buildout by
-        # raising the ENERGY industry's capital share gamma[m] -- a permanent, time-invariant
-        # STRUCTURAL lever -- and let the crowding-out of other investment and the rise in the cost of
-        # capital (r) emerge ENDOGENOUSLY. This is the private-side counterpart to the
-        # public-infrastructure investment channel (alpha_I -> K_g); the two are complementary.
+        # ENERGY factor-share / production-technology lever: raise the energy industry's capital
+        # exponent gamma[m] (a permanent, time-invariant structural shift; labor's share is the residual
+        # 1-gamma-gamma_g, which falls). VERIFIED (PHL M=4 SS) -- this is NOT a crowding-out / "pull
+        # capital into energy" lever: because gamma is a Cobb-Douglas exponent and the energy good is
+        # small + demand-inelastic, raising it makes energy CHEAPER (output price ~-24%, output ~flat),
+        # so energy CAPITAL FALLS (~-14%) with r flat (K_m = gamma_m*p_m*Y_m/rho). Its real effects are
+        # the energy PRICE and the capital/labor income split. The capex-heavy-generation capital-draw-in
+        # / crowding-out story belongs to the ITC lever (set_investment_incentive, which lowers the cost
+        # of capital rho -- gamma is absent from it); gamma and the ITC give OPPOSITE signs on energy K.
         c = ctx.country
         p = ctx.og_reform
         m = c.concordance.energy_industry_index
@@ -268,13 +270,16 @@ class CapitalIntensityChannel(Channel):
         return prov
 
     def validate(self, ctx, active):
-        msgs = ["capital_intensity raises the ENERGY industry's capital share gamma[m] -- a PERMANENT, "
-                "steady-state STRUCTURAL lever for a more capital-intensive generation mix "
-                "(renewables/CCS). Labor's share is the residual 1-gamma-gamma_g, so this lowers it "
-                "automatically. Do NOT ALSO carry the SAME generation buildout as a per-industry energy "
-                "Z-haircut (the I-O cost-push route) or an energy ITC (set_investment_incentive) -- "
-                "those are three views of the same capex; pick ONE by the question (gamma = structural "
-                "capital intensity; Z = TFP/cost-push; ITC = a transition subsidy flow)."]
+        msgs = ["capital_intensity raises the ENERGY industry's capital exponent gamma[m] -- a factor-"
+                "SHARE / production-technology lever (labor's share is the residual 1-gamma-gamma_g, so "
+                "this lowers it). VERIFIED it is NOT a crowding-out lever: raising gamma makes the small, "
+                "inelastic energy good CHEAPER (energy price ~-24%, output ~flat), so energy CAPITAL "
+                "FALLS (~-14%) with r flat -- the real effects are the energy price and the capital/labor "
+                "income split. The capex-heavy-generation capital-draw-in story belongs to the ITC "
+                "(set_investment_incentive, lowers the cost of capital). gamma, Z (TFP/cost-push) and the "
+                "ITC are NOT 'three views of the same capex' -- they act on different objects (exponent "
+                "vs TFP vs cost-of-capital) and gamma vs ITC give OPPOSITE signs on energy K; still don't "
+                "stack them for the same buildout."]
         if "investment" in active:
             msgs.append("capital_intensity (private generation capital share, gamma) and investment "
                         "(PUBLIC grid/T&D capex -> K_g) are COMPLEMENTARY, not double-counting: "

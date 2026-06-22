@@ -112,13 +112,17 @@ def set_capital_intensity(p, industry_index, *, gamma_target=None, gamma_scale=N
     """Raise (or set) industry ``industry_index``'s capital share ``gamma[m]`` -- a PERMANENT,
     time-invariant STRUCTURAL shift (OG-Core's ``gamma`` is a length-M vector, NOT time-varying).
 
-    Use this to reflect a structurally more capital-intensive industry -- e.g. an energy sector
-    rebuilt around capex-heavy, fuel-free generation (renewables/CCS). Higher ``gamma[m]`` raises
-    that industry's marginal product of capital (``firm.get_r`` -> ``get_MPx(Y, K, gamma[m])``), so
-    it pulls capital in; the rise in the economy-wide cost of capital and the crowding-out of other
-    industries' investment then emerge ENDOGENOUSLY from OG-Core's multi-industry capital market.
-    This is the PRIVATE-generation counterpart to the public-infrastructure investment channel
-    (alpha_I -> K_g): it changes how capital-hungry energy is and lets the model do the rest.
+    This is a factor-SHARE / production-technology shock -- it raises the share of industry m's value
+    added paid to capital and lowers labor's residual share. It is NOT an "inject/attract capital" dial.
+    VERIFIED against a PHL M=4 steady-state solve (energy gamma 0.538->0.604): because gamma is a
+    Cobb-Douglas exponent (epsilon=1) and the energy good is small and demand-inelastic, raising it makes
+    energy CHEAPER to produce -- the energy output price falls sharply (~-24%), real output stays ~flat
+    (+0.8%), and via the firm identity K_m = gamma_m * p_m * Y_m / rho (capital's revenue share = gamma)
+    the energy CAPITAL stock FALLS (~-14%) with the economy-wide cost of capital rho essentially
+    unchanged. So this lever does NOT pull capital into energy and does NOT raise r; its real effects are
+    on the energy PRICE and the capital/labor income split. To draw capital INTO energy (the capex-heavy-
+    generation "crowding-out" story), use ``set_investment_incentive``: an ITC lowers the cost of capital
+    rho (gamma is ABSENT from ``firm.get_cost_of_capital``), shifting capital demand out at the going r.
 
     Pass exactly one of:
       * ``gamma_target`` -- the new absolute capital share for industry m;

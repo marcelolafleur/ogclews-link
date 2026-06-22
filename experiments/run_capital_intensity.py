@@ -1,12 +1,18 @@
-"""Actual OG-PHL (M=4) model run of the gamma_energy capital-intensity lever -- the PRIVATE-generation
-side of the energy transition. Validates `set_capital_intensity` end to end: a PERMANENT rise in the
-energy industry's capital share gamma[m] (calibrated from the CLEWS reform/base power-fleet
-capital-cost-share ratio) should pull capital INTO energy, raise the economy-wide cost of capital r,
-and CROWD OUT capital/output in the other industries -- all emerging endogenously from OG-Core's
-multi-industry capital market (no new OG-Core mechanism). Reuses the standalone M=4 build; SS-only;
-isolated /tmp output, read-only on ogcore/ogphl/CLEWS. Guarded for dask spawn.
+"""Actual OG-PHL (M=4) model run of the gamma_energy capital-intensity lever -- a factor-SHARE /
+production-technology shock on the energy industry. Solves baseline vs a reform that raises the energy
+industry's capital exponent gamma[m] (calibrated from the CLEWS reform/base power-fleet capital-cost-
+share ratio) and reports the mechanism.
 
-    PYTHONPATH=/Users/mlafleur/Projects/ogclews-link-private-investment \
+VERIFIED RESULT (correct GE, not a bug): raising gamma does NOT pull capital into energy. Because gamma
+is a Cobb-Douglas exponent (epsilon=1) and the energy good is small + demand-inelastic, the energy
+output price COLLAPSES (~-24%), real output stays ~flat (+0.8%), and via K_m = gamma_m*p_m*Y_m/rho the
+energy CAPITAL stock FALLS (~-14%) with r flat. So this lever's real effects are the energy PRICE and
+the capital/labor income split -- NOT crowding-out. The capex-heavy-generation capital-draw-in /
+crowding-out story belongs to the ITC lever (experiments/run_energy_itc.py: energy K +5%, via a lower
+cost of capital). Reuses the standalone M=4 build; SS-only; isolated /tmp output, read-only on
+ogcore/ogphl/CLEWS. Guarded for dask spawn.
+
+    PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
       /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/run_capital_intensity.py
 """
 import copy
@@ -81,7 +87,7 @@ def main():
     try:
         base = solve_ss(p, client)
         Yb, Kb, rb = float(base["Y"]), float(base["K"]), _r(base)
-        Kmb, Ymb = np.atleast_1d(base["K_m"]), np.atleast_1d(base["Y_m"])
+        Kmb, Ymb, pmb = np.atleast_1d(base["K_m"]), np.atleast_1d(base["Y_m"]), np.atleast_1d(base["p_m"])
         pr = copy.deepcopy(p); pr.baseline = False
         pr.baseline_dir = os.path.join(OUT, "baseline"); pr.output_base = os.path.join(OUT, "reform")
         os.makedirs(pr.output_base, exist_ok=True)
@@ -89,24 +95,27 @@ def main():
         print(f"\napplied: {prov}")
         ref = solve_ss(pr, client)
         Yr, Kr, rr = float(ref["Y"]), float(ref["K"]), _r(ref)
-        Kmr, Ymr = np.atleast_1d(ref["K_m"]), np.atleast_1d(ref["Y_m"])
+        Kmr, Ymr, pmr = np.atleast_1d(ref["K_m"]), np.atleast_1d(ref["Y_m"]), np.atleast_1d(ref["p_m"])
         print(f"\ngamma_energy {g0:.3f}->{g0*scale:.3f} -> SS effects:")
         print(f"  cost of capital r: {rb:.5f} -> {rr:.5f}  ({1e4*(rr-rb):+.1f} bps)")
         print(f"  GDP (Y):           {100*(Yr-Yb)/Yb:+.4f}%")
         print(f"  aggregate K:       {100*(Kr-Kb)/Kb:+.4f}%")
-        print(f"  {'industry':32s} {'K_m %':>10s} {'Y_m %':>10s}")
+        print(f"  {'industry':32s} {'K_m %':>10s} {'Y_m %':>10s} {'p_m %':>10s}")
         for i, c in enumerate(cols):
-            print(f"  {c:32s} {100*(Kmr[i]-Kmb[i])/Kmb[i]:+9.3f}% {100*(Ymr[i]-Ymb[i])/Ymb[i]:+9.3f}%")
+            print(f"  {c:32s} {100*(Kmr[i]-Kmb[i])/Kmb[i]:+9.3f}% {100*(Ymr[i]-Ymb[i])/Ymb[i]:+9.3f}% "
+                  f"{100*(pmr[i]-pmb[i])/pmb[i]:+9.3f}%")
+        # MECHANISM CHECK (NOT a crowding-out check -- gamma is a factor-share/PRICE lever). The firm
+        # identity K = gamma*p*Y/rho means a higher capital share against a COLLAPSING energy price and
+        # ~flat output yields LESS energy capital. Confirm the identity closes and r stays flat.
         em = cols.index("Electricity")
-        non_e = [i for i in range(len(cols)) if i != em]
-        e_up = Kmr[em] > Kmb[em]
-        others_down = all(Kmr[i] < Kmb[i] for i in non_e)
-        r_up = rr > rb
-        print(f"\nCROWDING-OUT CHECK: energy K {'ROSE' if e_up else 'did NOT rise'}; "
-              f"every other industry's K {'FELL' if others_down else 'did NOT all fall'}; "
-              f"r {'ROSE' if r_up else 'did NOT rise'}.")
-        print("  -> expected signature: energy K up, other K down, r up "
-              f"({'CONFIRMED' if (e_up and others_down and r_up) else 'NOT fully confirmed -- inspect above'}).")
+        gK, gp, gY = Kmr[em] / Kmb[em], pmr[em] / pmb[em], Ymr[em] / Ymb[em]
+        print(f"\nMECHANISM (Electricity): K {100*(gK-1):+.2f}%  =  gamma x{scale:.3f} * price {100*(gp-1):+.2f}%"
+              f" * output {100*(gY-1):+.2f}%")
+        print(f"  identity K = gamma*p*Y/rho:  gamma*p*Y = {scale*gp*gY:.4f}  vs observed K ratio {gK:.4f}"
+              f"  (implied rho ratio {scale*gp*gY/gK:.4f}; ~1 => cost of capital flat)")
+        print(f"  -> factor-share/PRICE lever: energy price {'FELL' if gp < 0.98 else 'did NOT fall'}, "
+              f"r {'flat' if abs(rr-rb) < 1e-4 else 'moved'}, energy K {'fell' if gK < 1 else 'rose'}. "
+              f"NOT crowding-out (that is the ITC lever's signature -- see run_energy_itc.py).")
     except Exception as e:  # noqa: BLE001
         print(f"SOLVE FAILED {type(e).__name__}: {str(e)[:160]}")
     finally:

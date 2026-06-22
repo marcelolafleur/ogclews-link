@@ -220,7 +220,7 @@ def test_capital_intensity_channel_explicit():
 def test_capital_intensity_validate():
     ctx = _ctx()
     msgs = get("capital_intensity").validate(ctx, ["capital_intensity"])
-    assert msgs and any("STRUCTURAL" in m for m in msgs)             # double-count discipline message
+    assert msgs and any("factor-SHARE" in m for m in msgs)          # reframed: factor-share/price lever, NOT crowding-out
     msgs2 = get("capital_intensity").validate(ctx, ["capital_intensity", "investment"])
     assert any("COMPLEMENTARY" in m for m in msgs2)                  # vs the public-investment channel
 

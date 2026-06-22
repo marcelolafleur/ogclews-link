@@ -23,17 +23,46 @@ buildout by making the **energy industry more capital-intensive** and let everyt
   structural change, not a transition-flow knob.
 - **Labor's share is the pure residual `1 − γ − γ_g`** (`firm.get_w`, line 257) — there is *no*
   separate labor-share parameter. Raising `γ_m` lowers labor's share automatically; nothing else to set.
-- Higher `γ_energy` raises energy's marginal product of capital (`firm.get_r → get_MPx(Y,K,γ[m])`,
-  line 220), so energy demands more capital. The economy-wide `r` is pinned by the **last** industry's
-  FOC (`SS.py:493`, `firm.get_r(..., -1)`); capital is mobile across industries. The result — capital
-  flows into energy, the cost of capital rises, and the other industries' investment/output are
-  **crowded out** — is endogenous.
+- Higher `γ_energy` raises capital's *marginal product per unit output* (`get_MPx`), so per unit of
+  output energy uses more capital. **But the LEVEL of energy capital is `K = γ·p·Y/ρ` (capital's
+  revenue share = γ), and in GE the industry's scale and price are not free.** The economy-wide `r`
+  (hence the cost of capital `ρ`) is pinned by the **last** industry's FOC (`SS.py:493`,
+  `firm.get_r(..., -1)`), and the energy good is small and demand-inelastic. The naive "capital flows
+  in, `r` rises, others crowded out" intuition does **not** survive GE — see the verified result below.
 
 **The one guard OG-Core does not provide.** The `gamma` validator only checks `0 ≤ γ ≤ 1` *per
 element*; it does **not** enforce `γ + γ_g ≤ 1`. Set `γ_energy` too high and the labor exponent
 `1 − γ − γ_g` goes ≤ 0 — a broken production function — silently. The lever therefore hard-blocks any
 shift that leaves the residual labor share below a floor (default 0.05). This is a real model-invariant
 guard, not analyst-nannying.
+
+## Verified result — γ is a factor-share/price lever, NOT crowding-out
+
+A PHL M=4 SS solve (`experiments/run_capital_intensity.py`, both sides converged, RC error ~1e-14; raw
+`SS_vars.pkl` inspected directly) for the calibrated shift γ_energy 0.538 → 0.604 (×1.122):
+
+| Electricity | base | reform | Δ |
+|---|---|---|---|
+| output price `p_m` | 0.7217 | 0.5484 | **−24.0%** |
+| capital `K_m` | 0.0274 | 0.0235 | **−14.0%** |
+| output `Y_m` | 0.00729 | 0.00735 | +0.8% |
+
+with `r`, `w`, and aggregate `K`/`L`/`Y` all flat (≤0.02%) and the other industries' `K` +0.03–0.07%.
+
+**Energy capital FALLS — the opposite of the naive expectation — and it is correct GE behavior.** The
+firm identity closes to 0.02%: `K̂ = γ̂·p̂·Ŷ = 1.122 × 0.760 × 1.008 = 0.860` (observed 0.860; implied
+cost-of-capital ratio 0.9998). The driver is a **price collapse**: raising the capital exponent (ε=1,
+`Z` fixed) re-weights the sector toward its abundant factor, cutting unit cost; under zero profit the
+energy price falls ~24%; demand is inelastic so output barely moves (+0.8%); and capital — γ's share of
+a *shrunken* revenue `p·Y` — falls. So `capital_intensity` is a **factor-income / energy-price /
+distributional** lever, not an investment surge.
+
+**The crowding-out / capital-draw-in story belongs to the ITC, not γ.** `set_investment_incentive`
+lowers the energy industry's *cost of capital* `ρ` (γ is absent from `firm.get_cost_of_capital`;
+`inv_tax_credit` enters it directly), shifting capital demand out at the going `r`: energy `K` **+5%**,
+financed through the government budget (a small debt cost). γ, a per-industry `Z` haircut, and the ITC
+act on **different objects** (factor exponent vs TFP vs cost of capital) — γ and the ITC give **opposite
+signs** on energy `K`, so they are not interchangeable.
 
 ## The lever — `policy_levers.set_capital_intensity`
 
@@ -89,11 +118,12 @@ sensitivity checks.
 
 ## Double-counting discipline
 
-`γ` (structural capital intensity), a per-industry `Z` haircut (the I-O cost-push route,
-`io_energy_passthrough`), and an energy ITC (`set_investment_incentive`) are **three views of the same
-buildout**. The channel's `validate()` warns against stacking them — pick one by the question. It also
-notes that `capital_intensity` (private) and `investment` (public grid → `K_g`) are *complementary*,
-not double-counting.
+`γ` (factor-share/price), a per-industry `Z` haircut (the I-O cost-push route, `io_energy_passthrough`),
+and an energy ITC (`set_investment_incentive`, cost of capital) act on **different objects** and are
+**not** interchangeable "views of the same capex" — γ and the ITC even move energy `K` in *opposite*
+directions (see the verified result). Don't stack them for the same buildout (double-count), and don't
+substitute one for another's question. Separately, `capital_intensity` and `investment` (public grid →
+`K_g`) are *complementary* (different capital, different lever), not double-counting.
 
 ## Verification
 
@@ -101,6 +131,7 @@ not double-counting.
   `γ+γ_g+labor≡1` identity, the labor-floor hard-block, the exactly-one guard; the CLEWS calibration
   readers against real files; the channel explicit + CLEWS-calibrated paths and its guardrail messages.
   All green.
-- **Crowding-out (needs an SS solve; `experiments/run_capital_intensity.py`):** expected signature —
-  energy `K_m` ↑, every other industry's `K_m` ↓, economy-wide `r` ↑. SS-only (fast), isolated `/tmp`
-  output. Run with the OG venv (see the script header).
+- **SS solve (`experiments/run_capital_intensity.py`):** done and verified (see "Verified result"
+  above) — energy `K` −14% via the −24% price collapse, `r` flat, the `K = γ·p·Y/ρ` identity closes to
+  0.02%. The script prints the price and the identity decomposition; it does **not** assert a
+  crowding-out signature (that is the ITC lever's — `run_energy_itc.py`, energy `K` +5%).
