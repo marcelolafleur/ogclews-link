@@ -19,28 +19,45 @@ CLEWS outputs Δ(energy/power-sector PM2.5 emissions). The real link is two step
                     × emissions_change_fraction              # CLEWS: the sector's Δ (e.g. PHL -7.7%)
     M[country] = sector_share[country] × CRF_elasticity(exposure[country])
 
-- **sector_share** — the emitting sector's share of ambient-PM2.5 **mortality** for that country.
+- **sector_share** — the energy/power sector's share of ambient-PM2.5 **mass** for that country
+  (= McDuffie "Energy Coal" + "Energy NonCoal"). A proportional emissions cut moves the concentration;
+  the elasticity then maps that to deaths — so the **mass** share is the correct input, not the
+  attributed death share (which is an average, not the marginal response).
 - **CRF_elasticity** = ∂ln(Deaths)/∂ln(Concentration) at the country's baseline exposure (`< 1`, concave).
 
 Both are **per-country lookups from GLOBAL datasets**, so the channel is country-agnostic: each repo
-reads its own row. (For PHL: M ≈ 0.10 × 0.80 ≈ **0.08**, so −7.7% power emissions → ≈ −0.6% of 43,951 ≈
+reads its own row. (For PHL: M ≈ 0.098 × 0.84 ≈ **0.082**, so −7.7% power emissions → ≈ −0.63% of 43,951 ≈
 **−270 deaths**, vs the 1:1's −3,406.)
 
 ## Data sources (all global, country-resolved)
 | input | source | values |
 |---|---|---|
-| sector share of PM2.5 mortality | **McDuffie et al. 2021**, *Nature Comms* `s41467-021-23853-y` (+ GBD MAPS/HEI); country tables in the supplementary | global 2017: residential **19.2%**, windblown dust **16.1%**, industry **11.7%**, **energy/power 10.2%**, agriculture ~8%, transport ~7.6% |
-| CRF (concentration → mortality) | GBD MR-BRT/IER + **GEMM** (Burnett et al. 2018, *PNAS*) | concave/supralinear; elasticity **~0.78–0.86** over 15–40 µg/m³. The *share* is CRF-robust; the absolute death *total* is not (GEMM ≈ +60% vs MR-BRT) |
-| baseline exposure (µg/m³) | GBD 2021/23, World Bank WDI `EN.ATM.PM25.MC.M3`, HEI State of Global Air | PHL ~23, IDN ~17, ZAF ~36, ETH ~17–50 |
+| energy sector share of PM2.5 mass | **McDuffie et al. 2021**, *Nature Comms* `s41467-021-23853-y`, **Supplementary Data 1** (per-country, 2017; energy = "Energy Coal" + "Energy NonCoal") | extracted in full to the CSV below; global energy **10.2%** (residential 19.0, dust 16.1, industry 11.7, transport 7.8, agri 5.1) |
+| CRF (concentration → mortality) | GBD MR-BRT/IER + **GEMM** (Burnett et al. 2018, *PNAS*) | concave/supralinear; elasticity **~0.78–0.86** over 15–40 µg/m³ (declining with exposure). The *share* is CRF-robust; the absolute death *total* is not (GEMM ≈ +60% vs MR-BRT) |
+| baseline exposure (µg/m³) | McDuffie Supp Data 1 (2017, population-weighted) | PHL 18.4, IDN 18.0, ZAF 28.8, ETH 32.6 |
+| total ambient-PM2.5 deaths | the country's own **GBD export** (not McDuffie) | PHL 43,951 (2023) |
 
-Machine-readable per-country table: [`ogclews_link/data/pm25_health.json`](../../ogclews_link/data/pm25_health.json).
+Data files:
+- [`ogclews_link/data/pm25_health.json`](../../ogclews_link/data/pm25_health.json) — curated, with computed `M` for the active countries.
+- [`ogclews_link/data/mcduffie2021_pm25_source_shares.csv`](../../ogclews_link/data/mcduffie2021_pm25_source_shares.csv)
+  — **verbatim mirror of McDuffie Supp Data 1** (regions + 204 countries + sub-national; all sectors +
+  death totals). To add a future country: read its row, `energy_total_pct = energy_coal + energy_noncoal`,
+  `M = energy_total_pct/100 × elasticity(exposure)`.
 
-## Status of the per-country numbers
-- **South Africa** — energy-coal share **is** published (20.5%, the largest single source) → M ≈ 0.15.
-- **Philippines / Indonesia / Ethiopia** — energy share not in McDuffie's *main text*; the table uses the
-  **global 10.2% anchor** (M ≈ 0.08) **PENDING** extraction of each country's value from McDuffie's
-  supplementary tables. CRF elasticities are approximated from the concave curve at each exposure and
-  should be recomputed from GEMM/IER when precision matters.
+## Per-country values (firm — extracted from McDuffie Supp Data 1)
+| country | exposure µg/m³ | energy share (coal + non-coal) | CRF elasticity* | **M** |
+|---|---|---|---|---|
+| Philippines | 18.4 | **9.8%** (5.8 + 4.0) | 0.84 | **0.082** |
+| Indonesia | 18.0 | **9.8%** (8.3 + 1.5) | 0.84 | **0.082** |
+| Ethiopia | 32.6 | **10.1%** (0.8 + 9.3) | 0.76 | **0.077** |
+| South Africa | 28.8 | **22.5%** (20.5 + 2.0) | 0.78 | **0.176** |
+
+The energy **share** is now firm and country-specific (the global-anchor placeholder is retired; validated:
+the file's "Global" row reproduces the literature's 10.2% energy / 11.7% industry exactly). South Africa's
+M is ~2× the others — its power fleet is coal-heavy, so the health channel matters most there.
+
+*CRF elasticities remain approximated from the concave curve at each exposure (the one soft term left);
+recompute from GEMM/IER parameters when precision matters.
 
 ## Future expansions (kept deliberately)
 - **Other ambient sectors — same method, different `sector_share`.** A transport-electrification channel
