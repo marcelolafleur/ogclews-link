@@ -26,14 +26,23 @@ EXPERIMENTS = {
         "(the transition is generation-side), so this contributes ~nothing here; private generation "
         "capex's macro effect lives in the energy channel, a capex subsidy in set_investment_incentive."),
 
-    # #2b private generation capital intensity -> energy gamma -> endogenous crowding-out
+    # #2b energy gamma (capital share) -> a factor-mix / energy-PRICE lever (NOT crowding-out)
     "capital_intensity": Experiment(
         "capital_intensity", [("capital_intensity", {})],
-        "The capex-heavy renewables/CCS buildout as a PERMANENT rise in the energy industry's capital "
-        "share gamma (calibrated from the CLEWS reform/base power-fleet capital-cost-share ratio, "
-        "first-decade window). The crowding-out of other investment + the higher cost of capital "
-        "emerge endogenously from OG-Core's multi-industry capital market. The private-generation "
-        "counterpart to the (public-infra-only) investment channel."),
+        "A factor-SHARE / energy-PRICE lever: a PERMANENT rise in the energy industry's capital exponent "
+        "gamma (calibrated from the CLEWS reform/base power-fleet capital-cost-share ratio, first-decade "
+        "window). VERIFIED (PHL M=4) this is NOT crowding-out: with eps=1 and a small, demand-inelastic "
+        "energy good, raising gamma makes electricity CHEAPER (price ~-24%) so energy CAPITAL FALLS "
+        "(~-14%) with r flat -- a lens on the energy price and the capital/labor income split. The "
+        "capital-DEMAND ('energy needs capital') story is the energy_capex channel."),
+
+    # #2c energy capex incentive (ITC) -> draws capital INTO energy (the capital-DEMAND lever)
+    "energy_capex": Experiment(
+        "energy_capex", [("energy_capex", {"inv_tax_credit": 0.20})],
+        "The capex-heavy generation buildout financed by an investment tax credit: it lowers the energy "
+        "industry's cost of capital, drawing private capital INTO energy (verified +5% energy K, paid via "
+        "the public budget). The capital-DEMAND counterpart to capital_intensity (gamma); at PHL's small "
+        "electricity scale it reallocates capital into energy without crowding other industries out."),
 
     # #3 carbon price -> OG fiscal revenue + CLEWS EmissionsPenalty (one price, both sides)
     "carbon": Experiment(

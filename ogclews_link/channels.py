@@ -287,6 +287,47 @@ class CapitalIntensityChannel(Channel):
         return msgs
 
 
+# --- #2c energy capex incentive (ITC): cost-of-capital subsidy -> energy capital DEMAND ----------
+
+class CapitalDemandChannel(Channel):
+    id = "energy_capex"
+    label = "Energy capex incentive (ITC) -> energy capital demand"
+    direction = POLICY
+    theory_status = "structural_core"
+
+    def apply(self, ctx, inv_tax_credit=0.20, delta_tau=None, tau_b_mult=None, phase_years=None):
+        # The capital-DEMAND counterpart to capital_intensity (gamma). The capex-heavy generation
+        # buildout financed by an investment tax credit: it lowers the energy industry's COST OF CAPITAL
+        # (inv_tax_credit enters firm.get_cost_of_capital directly; gamma does NOT), so capital is drawn
+        # INTO energy. VERIFIED (PHL M=4 SS): energy K +5.0% via the cost-of-capital wedge, paid through
+        # the public budget (govt debt ~+0.001%). NB at PHL's small electricity scale this draws capital
+        # IN but does NOT crowd others OUT (r flat, the other industries' K edge UP) -- describe it as
+        # "capital reallocates into energy", not economy-wide crowding-out. gamma and the ITC give
+        # OPPOSITE signs on energy K; do not stack them for the same buildout.
+        c = ctx.country
+        p = ctx.og_reform
+        m = c.concordance.energy_industry_index
+        prov = policy_levers.set_investment_incentive(
+            p, m, inv_tax_credit=inv_tax_credit, delta_tau=delta_tau,
+            tau_b_mult=tau_b_mult, phase_years=phase_years)
+        prov["lever"] = "investment_tax_credit (cost-of-capital subsidy)"
+        return prov
+
+    def validate(self, ctx, active):
+        msgs = ["energy_capex is the CAPITAL-DEMAND lever for the capex-heavy generation buildout: an ITC "
+                "lowers the energy industry's cost of capital (inv_tax_credit enters firm.get_cost_of_"
+                "capital), drawing capital INTO energy (verified +5% energy K, funded by the budget). It is "
+                "the COUNTERPART to capital_intensity (gamma, a factor-share/price lever): they act on "
+                "different objects (cost-of-capital vs the production exponent) and give OPPOSITE signs on "
+                "energy K. At PHL's small electricity scale it does NOT crowd other industries out (r ~flat) "
+                "-- it is capital REALLOCATION into energy, not economy-wide crowding-out."]
+        if "capital_intensity" in active:
+            msgs.append("energy_capex (ITC, cost-of-capital) and capital_intensity (gamma, factor share) "
+                        "are TWO DIFFERENT mechanisms for the same buildout -- pick the one matching the "
+                        "question (capital demand vs price/income-split); do NOT apply both.")
+        return msgs
+
+
 # --- #3 carbon price -> fiscal revenue (OG) + EmissionsPenalty (CLEWS) -----------
 
 class CarbonChannel(Channel):
@@ -510,8 +551,8 @@ class DemandChannel(Channel):
 
 
 def register_all():
-    for cls in (EnergyPriceChannel, InvestmentChannel, CapitalIntensityChannel, CarbonChannel,
-                DiscountRateChannel, HealthChannel, DemandChannel):
+    for cls in (EnergyPriceChannel, InvestmentChannel, CapitalIntensityChannel, CapitalDemandChannel,
+                CarbonChannel, DiscountRateChannel, HealthChannel, DemandChannel):
         try:
             register(cls())
         except ValueError:

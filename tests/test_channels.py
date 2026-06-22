@@ -32,7 +32,8 @@ def _params():
         tau_c=np.full((TS, I), 0.12), Z=np.ones((TS, M)),
         gamma=np.full(M, 0.53785), gamma_g=np.full(M, 0.05),   # per-industry, time-invariant (1-D, M)
         alpha_I=np.full(TS, 0.02), alpha_T=np.full(TS, 0.05), alpha_bs_I=np.ones(TS),
-        c_min=np.zeros(I), e=np.ones((T, S, J)), chi_n=np.ones((TS, S)), io_matrix=io)
+        c_min=np.zeros(I), e=np.ones((T, S, J)), chi_n=np.ones((TS, S)), io_matrix=io,
+        inv_tax_credit=np.zeros((TS, M)), delta_tau=np.zeros((TS, M)), tau_b=np.full((TS, M), 0.25))
 
 
 def _tpi(scale=1.0):
@@ -54,8 +55,17 @@ def _ctx(with_reform=False):
 
 def test_registry():
     ids = set(all_channels())
-    assert ids == {"energy_price", "investment", "capital_intensity", "carbon", "discount_rate",
-                   "health", "demand"}, ids
+    assert ids == {"energy_price", "investment", "capital_intensity", "energy_capex", "carbon",
+                   "discount_rate", "health", "demand"}, ids
+
+
+def test_energy_capex_itc():
+    # the ITC (capital-demand) channel applies an investment tax credit to the ENERGY industry only
+    ctx = _ctx()
+    get("energy_capex").apply(ctx, inv_tax_credit=0.20)
+    itc = ctx.og_reform.inv_tax_credit
+    assert itc[0, M_E] == 0.20
+    assert all(itc[0, m] == 0.0 for m in range(M) if m != M_E)
 
 
 def test_energy_price_controlled():

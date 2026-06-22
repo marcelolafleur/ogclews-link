@@ -57,7 +57,7 @@ energy price falls ~24%; demand is inelastic so output barely moves (+0.8%); and
 a *shrunken* revenue `p·Y` — falls. So `capital_intensity` is a **factor-income / energy-price /
 distributional** lever, not an investment surge.
 
-**The crowding-out / capital-draw-in story belongs to the ITC, not γ.** `set_investment_incentive`
+**The capital-DEMAND story (energy draws in capital) belongs to the ITC, not γ** — and even there it is capital *reallocating into* energy, not economy-wide crowding-out (at PHL's small electricity scale `r` stays flat and the other industries' `K` edge up). `set_investment_incentive`
 lowers the energy industry's *cost of capital* `ρ` (γ is absent from `firm.get_cost_of_capital`;
 `inv_tax_credit` enters it directly), shifting capital demand out at the going `r`: energy `K` **+5%**,
 financed through the government budget (a small debt cost). γ, a per-industry `Z` haircut, and the ITC
@@ -134,4 +134,4 @@ substitute one for another's question. Separately, `capital_intensity` and `inve
 - **SS solve (`experiments/run_capital_intensity.py`):** done and verified (see "Verified result"
   above) — energy `K` −14% via the −24% price collapse, `r` flat, the `K = γ·p·Y/ρ` identity closes to
   0.02%. The script prints the price and the identity decomposition; it does **not** assert a
-  crowding-out signature (that is the ITC lever's — `run_energy_itc.py`, energy `K` +5%).
+  capital-draw-in signature (that is the ITC lever's — `run_energy_itc.py`, energy `K` +5%, capital reallocating into energy with no macro crowd-out at this scale).
