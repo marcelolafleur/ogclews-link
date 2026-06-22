@@ -31,10 +31,12 @@ class CountryConfig:
     # leaves an intrinsic ~5e-7 Walras residual on the production good that is INVARIANT to a fresh
     # re-solve and to a 100-10000x tighter fixed-point tolerance (verified: mindist_SS 1e-11/1e-13 both
     # give 5.089e-7) -- a structural identity gap of the converged demographic equilibrium, not solver
-    # slop, so only the post-solve RC_SS assertion can clear it. 1e-6 keeps ~6x headroom over the
-    # realistic cumulative residual (~1.7e-7) while staying ~100x tighter than ogcore's RC_TPI=1e-4
-    # default (and COD runs RC_TPI=0.0075). The realized |RC| is logged on each loosened solve.
-    rc_ss: float = 1e-6
+    # slop, so only the post-solve RC_SS assertion can clear it. Battery (2026-06-22) found the residual
+    # SCALES with the lives-saved target: the real emissions-derived target (-3,406) leaves |RC|~4.3e-6 on
+    # Manufacturing, which the prior 1e-6 gate (calibrated for a ~1.7e-7 residual) wrongly tripped. Set to
+    # 1e-5: clears ~4.3e-6 with headroom, still ~10x tighter than ogcore's RC_TPI=1e-4 default (COD runs
+    # RC_TPI=0.0075) and economically negligible (~1e-6 relative to sector output). Realized |RC| is logged.
+    rc_ss: float = 1e-5
     # GBD ambient-PM2.5 burden export (Deaths + YLDs by age/cause). Feeds the health channel's real
     # mortality h(s) + excess_deaths and morbidity g(s) + YLD-rate magnitude. None -> placeholders.
     gbd_burden_csv: str | None = None
