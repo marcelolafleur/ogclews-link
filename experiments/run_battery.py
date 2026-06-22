@@ -146,6 +146,7 @@ def ensure_baseline():
 def run_experiment(item) -> dict:
     """Apply the experiment's channels to a reform on the shared baseline and solve ONLY the reform;
     OG-Core reads the baseline from baseline_dir on disk -- exactly how a user runs a reform."""
+    import ogclews_link.channels  # noqa: F401 -- registers the 7 channels into the framework registry
     from ogclews_link.country import PHL
     from ogclews_link.framework import Runner
     from ogclews_link import experiments, golden
