@@ -54,7 +54,7 @@ GROUPS = [
     ("ss_smoke", [   # fast SS convergence/sign gate -- ONLY param-setting channels (no OG-result reads)
         {"id": "energy_price_ss",      "kind": "experiment", "target": "energy_price",     "mode": "SS", "sign": "converges"},
         {"id": "investment_ss",        "kind": "experiment", "target": "investment",       "mode": "SS", "sign": "converges"},
-        {"id": "capital_intensity_ss", "kind": "experiment", "target": "capital_intensity","mode": "SS", "sign": "crowding-out"},
+        {"id": "capital_intensity_ss", "kind": "experiment", "target": "capital_intensity","mode": "SS", "sign": "factor-share: energy price down, energy K down"},
     ]),
     ("energy", [
         {"id": "energy_price",    "kind": "experiment", "target": "energy_price",    "mode": "TPI", "sign": "demand falls"},
@@ -64,9 +64,9 @@ GROUPS = [
     ]),
     ("supply", [
         {"id": "investment",        "kind": "experiment", "target": "investment",       "mode": "TPI"},
-        {"id": "capital_intensity", "kind": "experiment", "target": "capital_intensity","mode": "TPI", "sign": "crowding-out"},
+        {"id": "capital_intensity", "kind": "experiment", "target": "capital_intensity","mode": "TPI", "sign": "factor-share: energy price down, energy K down"},
         {"id": "carbon",            "kind": "experiment", "target": "carbon",           "mode": "TPI"},
-        {"id": "crowding_out_solve","kind": "script", "target": "experiments/run_capital_intensity.py", "sign": "energy K up, other K down"},
+        {"id": "crowding_out_solve","kind": "script", "target": "experiments/run_capital_intensity.py", "sign": "energy price -24%, energy K -14% (factor-share, NOT crowding-out)"},
         {"id": "energy_itc",        "kind": "script", "target": "experiments/run_energy_itc.py"},
     ]),
     ("forward", [   # OG->CLEWS emit; MUST be TPI (they read the result time series)
@@ -80,6 +80,10 @@ GROUPS = [
     ("combined", [
         {"id": "full",        "kind": "experiment", "target": "full", "mode": "TPI", "sign": "full coupled run"},
         {"id": "across_steps","kind": "script", "target": "experiments/run_across_steps.py", "sign": "layered marginal contributions"},
+    ]),
+    ("real", [   # REAL-data coupled run: CLEWS cost-of-electricity index energy price + GBD ambient-PM2.5 health
+        {"id": "full_real", "kind": "experiment", "target": "full_real", "mode": "TPI",
+         "sign": "realistic coupled run: cheaper power (-3.8%) + real PM2.5 deaths (~44k)"},
     ]),
 ]
 

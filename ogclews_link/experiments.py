@@ -84,6 +84,20 @@ EXPERIMENTS = {
          ("demand", {"driver": "Y_m"})],
         "All channels in one pass: CLEWS->OG (price, investment, health) + OG->CLEWS "
         "(discount rate, demand) + carbon to CLEWS. The full disciplined soft-link step."),
+
+    # composed with REAL data: CLEWS cost-of-electricity index for the energy price + GBD health
+    "full_real": Experiment(
+        "full_real",
+        [("energy_price", {"price_source": "clews_cost_index", "recycle": True}),
+         ("investment", {"target": "alpha_I"}),
+         ("carbon", {"carbon_price": 50.0, "apply_to_og": False}),
+         ("health", {}),
+         ("discount_rate", {}),
+         ("demand", {"driver": "Y_m"})],
+        "REAL-data full soft-link: energy price from the CLEWS cost-of-electricity index (PEP vs Base, "
+        "~-3.8% -- cheaper power), health from the GBD ambient-PM2.5 export (PHL ~44k deaths, real age "
+        "profile), plus investment/carbon/discount_rate/demand. The realistic coupled run -- vs 'full', "
+        "which uses the +20% stand-in and placeholder health."),
 }
 
 
