@@ -17,7 +17,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .clews_signal import cost_of_electricity_ratio  # re-exported
+# cost_of_electricity_ratio + _ratio_over_common are defined below (moved from clews_signal.py)
 
 SENTINEL = 999999.0
 __all__ = ["cost_of_electricity_ratio", "read_clews_matrix", "read_clews_long",
@@ -154,6 +154,34 @@ def capital_intensity_ratio(base_dir, reform_dir, country, window=(2026, 2035)) 
                     "frozen into the permanent shift; this share is window-sensitive (verify)."}
 
 
+def _ratio_over_common(base: pd.Series, reform: pd.Series) -> pd.Series:
+    """Reform/base ratio over the years both series share; a 0 baseline -> NaN (no inf /
+    0-division), sorted by year. The shared shape of every reform/base ratio signal here."""
+    years = sorted(set(base.index) & set(reform.index))
+    denom = base.loc[years].replace(0.0, np.nan)
+    return (reform.loc[years] / denom).sort_index()
+
+
+def cost_of_electricity_ratio(base_xlsx: str, reform_xlsx: str, *, sheet=0,
+                              row_match="average electricity cost") -> pd.Series:
+    """Reform/base ratio of the electricity cost index, by year (the cost-index PROXY price
+    signal). The CLEWS 'Cost of electricity generation' workbook is a metrics x years grid; the
+    cost lives in a labeled ROW with calendar years as integer column headers, e.g. 1.10 ==
+    reform electricity is 10% costlier that year. (Moved here from the former clews_signal.py.)"""
+    def _read(path):
+        df = pd.read_excel(path, sheet_name=sheet)
+        label_col = df.columns[0]
+        mask = df[label_col].astype(str).str.lower().str.contains(row_match)
+        if not mask.any():
+            raise ValueError(f"no row matching {row_match!r} in {path}")
+        row = df[mask].iloc[0]
+        year_cols = [c for c in df.columns if str(c).strip().isdigit()]
+        years = [int(str(c)) for c in year_cols]
+        vals = pd.to_numeric(pd.Series(row[year_cols].values), errors="coerce")
+        return pd.Series(vals.values, index=years, dtype=float).dropna()
+    return _ratio_over_common(_read(base_xlsx), _read(reform_xlsx))
+
+
 def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
     """Total emissions of `species` (default ``country.co2_emission``, e.g. CO2e; the health channel
     passes ``country.health_emission`` = PM2.5) by year. Prefers the *ByMode variant, which is present
@@ -174,11 +202,8 @@ def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
 
 
 def emissions_ratio(base_dir, reform_dir, country, species=None) -> pd.Series:
-    base, reform = (emissions_by_year(base_dir, country, species),
-                    emissions_by_year(reform_dir, country, species))
-    years = sorted(set(base.index) & set(reform.index))
-    b = base.loc[years].replace(0.0, np.nan)
-    return (reform.loc[years] / b).sort_index()
+    return _ratio_over_common(emissions_by_year(base_dir, country, species),
+                              emissions_by_year(reform_dir, country, species))
 
 
 # --- OG-Core output extractors (for og->clews and recycling channels) -----------
@@ -249,6 +274,4 @@ def commodity_shadow_price_ratio(base_source, reform_source, *, fuel=None,
     instead of the cost-index proxy. Ratio by year (reform shadow price / baseline)."""
     b = commodity_shadow_price(base_source, fuel=fuel, undiscount=undiscount, start_year=start_year)
     r = commodity_shadow_price(reform_source, fuel=fuel, undiscount=undiscount, start_year=start_year)
-    years = sorted(set(b.index) & set(r.index))
-    bb = b.loc[years].replace(0.0, np.nan)
-    return (r.loc[years] / bb).sort_index()
+    return _ratio_over_common(b, r)

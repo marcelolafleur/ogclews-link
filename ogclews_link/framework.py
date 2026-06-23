@@ -28,7 +28,7 @@ class ExperimentContext:
     """Everything a channel reads or writes during a run."""
     country: Any                              # CountryConfig
     og_reform: Any = None                     # Specifications the pre-solve channels mutate
-    base_tpi: dict | None = None              # baseline OG outputs (for requires_og_baseline)
+    base_tpi: dict | None = None              # baseline OG outputs (always solved before any channel)
     reform_tpi: dict | None = None            # reform OG outputs (for post-solve channels)
     clews: dict = field(default_factory=dict)         # cached CLEWS signals
     clews_inputs: dict = field(default_factory=dict)  # OG->CLEWS artifacts to write
@@ -46,7 +46,6 @@ class Channel(ABC):
     label: str = ""
     direction: str = CLEWS_TO_OG
     theory_status: str = "reduced_form"   # structural_core | reduced_form | research
-    requires_og_baseline: bool = False    # needs baseline OG outputs before apply
     post_solve: bool = False              # apply AFTER the reform solve (og->clews producers)
 
     @abstractmethod
