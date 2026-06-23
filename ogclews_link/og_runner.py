@@ -68,9 +68,17 @@ def _read_solution(output_base, ss):
     return safe_read_pickle(os.path.join(output_base, *sub))
 
 
-def _build_baseline_specs(og_package, params_resource, un_code, M, I, og_start_year, num_workers,
-                          out_dir, prod_dict_path):
-    """Port of the former Runtime.build_baseline, made country-generic (import via og_package)."""
+def _build_baseline_specs(og_package, params_resource, un_code, og_start_year, num_workers,
+                          out_dir, prod_dict_path=None, M=None, I=None):
+    """Port of the former Runtime.build_baseline, made country-generic (import via og_package).
+
+    Dimensions are DISCOVERED from the coupling calibration, not hardcoded: M = the number of OG
+    industries in the coupling PROD_DICT (the aggregation that isolates electricity as its own column
+    -- see contract.Concordance, which discovers the energy index from the same dict and refuses to run
+    if electricity is split, e.g. ogphl's native 'Utilities' = electricity+water); I = the number of
+    consumption goods in alpha_c. For PHL this is M=4, I=5 -- but it falls out of the aggregation, so a
+    new country supplies its own electricity-isolating PROD_DICT and M/I follow. M/I args override only
+    for diagnostics."""
     from ogcore.parameters import Specifications
 
     io = importlib.import_module(f"{og_package}.input_output")
@@ -78,9 +86,11 @@ def _build_baseline_specs(og_package, params_resource, un_code, M, I, og_start_y
     p = Specifications(baseline=True, num_workers=num_workers, baseline_dir=out_dir, output_base=out_dir)
     with importlib.resources.open_text(og_package, params_resource) as f:
         p.update_specifications(json.load(f))
-    p.M, p.I = M, I
+    prod_dict = _resolve_prod_dict(og_package, un_code, prod_dict_path)
     alpha_c = io.get_alpha_c()
-    io_df = io.get_io_matrix(prod_dict=_resolve_prod_dict(og_package, un_code, prod_dict_path))
+    io_df = io.get_io_matrix(prod_dict=prod_dict)
+    p.M = M if M is not None else len(prod_dict)         # OG industries = coupling PROD_DICT groups
+    p.I = I if I is not None else len(alpha_c)            # consumption goods = alpha_c entries
     p.update_specifications({
         "gamma_g": [p.gamma_g] * p.M,
         "epsilon": [p.epsilon] * p.M,
@@ -151,12 +161,12 @@ def _apply_health(p, health):
 # (e.g. run_across_steps' full deck). framework.run works with either pair injected.
 
 def inprocess_callables(og_package, params_resource, un_code, og_start_year, *,
-                        num_workers=7, show_progress=False, ss=False, M=4, I=5):
+                        num_workers=7, show_progress=False, ss=False, M=None, I=None):
     """Return (export_baseline, solve_reform) closures that build/solve in-process via ogcore."""
     def export_baseline(country, out_root):
         base_dir = os.path.join(out_root, "baseline")
-        p = _build_baseline_specs(og_package, params_resource, un_code, M, I, og_start_year,
-                                  num_workers, base_dir, None)
+        p = _build_baseline_specs(og_package, params_resource, un_code, og_start_year,
+                                  num_workers, base_dir, None, M=M, I=I)
         base = _solve(p, num_workers, ss, show_progress, "baseline")
         return p, base, base_dir, {}        # template = real Specifications; baseline_arrays unused here
 
@@ -176,8 +186,8 @@ def inprocess_callables(og_package, params_resource, un_code, og_start_year, *,
 # --- subprocess modes (invoked by the link via the CLI) --------------------------
 
 def export_baseline(a):
-    p = _build_baseline_specs(a.og_package, a.params_resource, a.un_code, a.m, a.i, a.og_start_year,
-                              a.num_workers, a.out_dir, a.prod_dict)
+    p = _build_baseline_specs(a.og_package, a.params_resource, a.un_code, a.og_start_year,
+                              a.num_workers, a.out_dir, a.prod_dict, M=a.m, I=a.i)
     sol = _solve(p, a.num_workers, a.ss, not a.no_progress, "baseline")
     serde.save_params_npz(os.path.join(a.out_dir, "baseline_params.npz"), p)
     serde.save_solution_npz(os.path.join(a.out_dir, "baseline_solution.npz"), sol)
@@ -222,8 +232,8 @@ def main(argv=None):
     e.add_argument("--og-package", required=True)
     e.add_argument("--params-resource", required=True)
     e.add_argument("--un-code", required=True)
-    e.add_argument("--m", type=int, default=4)
-    e.add_argument("--i", type=int, default=5)
+    e.add_argument("--m", type=int, default=None, help="override OG industry count (default: len(PROD_DICT))")
+    e.add_argument("--i", type=int, default=None, help="override consumption-good count (default: len(alpha_c))")
     e.add_argument("--og-start-year", type=int, required=True)
     e.add_argument("--num-workers", type=int, default=1)
     e.add_argument("--out-dir", required=True)

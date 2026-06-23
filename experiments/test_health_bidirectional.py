@@ -27,7 +27,7 @@ BASE = os.path.join(OUT, "health", "baseline")
 def main():
     entry = registry.lookup(PHL)
     p0 = og_runner._build_baseline_specs(entry.og_package, entry.params_resource_name, PHL.un_code,
-                                         4, 5, PHL.scenario.og_start_year, 7, BASE, None)
+                                         PHL.scenario.og_start_year, 7, BASE)
     og_runner._solve(p0, 7, ss=True, show_progress=False, label="baseline")   # solve baseline SS into BASE
     aux = {k: np.asarray(v) for k, v in p0._pop_aux.items()}
     h = health_profile.placeholder_profile(aux["mort_rates"].shape[1])
