@@ -174,6 +174,22 @@ def test_clews_io_roundtrip():
     assert set(written) == {"Demand", "DiscountRate", "EmissionsPenalty"}
 
 
+def test_experiments_run_through_with_fake_solve():
+    # the experiment FUNCTIONS aren't otherwise unit-tested; run each with a no-op solve so the recipe
+    # (pre-solve channels, the signals sourcing, the emit_* post-solve calls) executes without a real OG
+    # solve -- catches NameErrors / arg mismatches in the recipe layer (e.g. a broken _activity helper).
+    if not HAVE_CLEWS:
+        print("  (skip: CLEWS dirs absent)"); return
+    from ogclews_link import experiments
+
+    def fake_solve(ctx):
+        ctx.reform_tpi = ctx.base_tpi          # no OG solve; just satisfy the post-solve emit channels
+        return ctx.reform_tpi
+    for name in experiments.names():
+        ctx = _ctx(with_reform=True)
+        experiments.get(name)(ctx, fake_solve)  # must not raise
+
+
 def test_guardrails_present():
     assert preflight(["carbon_tax", "emit_carbon_penalty"])       # one-price discipline message
     assert preflight(["energy_price", "carbon_tax"])              # double-count warning

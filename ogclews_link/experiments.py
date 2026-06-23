@@ -19,7 +19,7 @@ def _energy_share(ctx) -> float:
                                           c.concordance.energy_industry_index])
 
 
-def _activity(ctx, og_activity="sector_output"):
+def _activity(ctx, driver="Y_m"):
     c = ctx.country
     idx = (c.concordance.energy_industry_index if driver == "Y_m" else c.concordance.energy_good_index)
     return signals.activity_ratio(ctx.base_tpi, ctx.reform_tpi, driver=driver, og_index=idx)
