@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import argparse
 
-from . import channels, clews_io, experiments  # noqa: F401 (channels import registers them)
-from .framework import all_channels
+from . import clews_io, experiments  # noqa: F401
 from .report import print_report
 
 
@@ -36,14 +35,25 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     if args.cmd == "list":
+        import inspect
         for n in experiments.names():
-            print(f"{n:16} {experiments.get(n).description}")
+            doc = (inspect.getdoc(experiments.get(n)) or "").splitlines()
+            print(f"{n:16} {doc[0] if doc else ''}")
         return
     if args.cmd == "channels":
-        for cid, ch in all_channels().items():
-            print(f"{cid:14} {ch.direction:10} {ch.theory_status:16} {ch.label}")
+        import inspect
+
+        from . import channels
+        for name in (n for n in dir(channels) if not n.startswith("_")):
+            fn = getattr(channels, name)
+            if not (callable(fn) and getattr(fn, "__module__", "") == channels.__name__):
+                continue
+            direction = "og->clews" if name.startswith("emit_") else "clews->og / policy"
+            doc = (inspect.getdoc(fn) or "").splitlines()
+            print(f"{name:20} {direction:18} {doc[0] if doc else ''}")
         return
     if args.cmd == "run":
+        from . import framework
         from .country import PHL
         from .manifest import write_run_manifest
         from .runtime import Runtime
@@ -52,12 +62,13 @@ def main(argv=None):
         rt = Runtime(show_progress=not args.no_progress)
         if args.workers is not None:
             rt.num_workers = args.workers
-        ctx = rt.runner_for(PHL).run(exp, PHL, out_root=args.out, max_passes=args.passes)
+        ctx = framework.run(exp, PHL, build_baseline=rt.build_baseline, solve=rt.solve,
+                            apply_health=rt.apply_health_shock, out_root=args.out)
         print_report(ctx)
         if ctx.clews_inputs:
-            written = clews_io.write_all(ctx, f"{args.out}/{exp.name}/clews_inputs")
+            written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")
             print("Wrote CLEWS inputs:", written)
-        manifest = write_run_manifest(f"{args.out}/{exp.name}", exp, PHL, ctx,
+        manifest = write_run_manifest(f"{args.out}/{args.experiment}", exp, PHL, ctx,
                                       clews_run=args.clews_run)
         print("Wrote run manifest:", manifest)
         return

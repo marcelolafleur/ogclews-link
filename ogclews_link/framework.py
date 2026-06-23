@@ -1,22 +1,17 @@
-"""The channel framework: the architecture for composing, running, and testing the
-OG-Core <-> CLEWS integration channels.
+"""The coupling orchestrator. A channel is a plain function (see channels.py) that reads/mutates the
+coupling state and records provenance. An EXPERIMENT is a function ``exp(ctx, solve)`` that calls
+channels in order and calls ``solve(ctx)`` at the point the reform is solved -- pre-solve channels
+(clews->og, policy) before it, og->clews ``emit_`` channels after. ``run`` builds the OG baseline (or
+reuses a prebuilt one), threads a fresh reform through the experiment, and returns the context.
 
-A Channel is a small, economically-grounded transform in ONE direction:
-  * clews->og : reads a CLEWS signal, mutates the OG reform Specifications.
-  * og->clews : reads OG output, writes a CLEWS input artifact (the forward direction).
-  * policy    : a shared exogenous lever applied to both sides.
-
-An Experiment names a country, a scenario pair, and a list of channels (with options).
-The Runner builds the OG baseline, applies the pre-solve channels to the reform, solves,
-then applies the post-solve (og->clews) channels using the results. Heavy bits (build a
-country baseline, invoke OG-Core / CLEWS) are INJECTED so the channel transforms stay
-unit-testable without ogcore.
+The ogcore-touching callables (build_baseline, solve, apply_health) are INJECTED so this module and the
+channels import only numpy and stay unit-testable without ogcore.
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+import os
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 CLEWS_TO_OG = "clews->og"
 OG_TO_CLEWS = "og->clews"
@@ -25,196 +20,101 @@ POLICY = "policy"
 
 @dataclass
 class ExperimentContext:
-    """Everything a channel reads or writes during a run."""
+    """Everything a channel reads or writes during a run (the mutable analogue of OG-Core's ``p``)."""
     country: Any                              # CountryConfig
     og_reform: Any = None                     # Specifications the pre-solve channels mutate
     base_tpi: dict | None = None              # baseline OG outputs (always solved before any channel)
-    reform_tpi: dict | None = None            # reform OG outputs (for post-solve channels)
-    clews: dict = field(default_factory=dict)         # cached CLEWS signals
+    reform_tpi: dict | None = None            # reform OG outputs (for og->clews channels)
+    clews: dict = field(default_factory=dict)
     clews_inputs: dict = field(default_factory=dict)  # OG->CLEWS artifacts to write
-    extras: dict = field(default_factory=dict)        # e.g. mortality effect for the runtime
+    extras: dict = field(default_factory=dict)        # e.g. the mortality shock for the runtime
     provenance: list = field(default_factory=list)
 
-    def log(self, channel_id: str, **info) -> dict:
-        rec = {"channel": channel_id, **info}
+    def log(self, channel: str, **info) -> dict:
+        rec = {"channel": channel, **info}
         self.provenance.append(rec)
         return rec
 
 
-class Channel(ABC):
-    id: str = ""
-    label: str = ""
-    direction: str = CLEWS_TO_OG
-    theory_status: str = "reduced_form"   # structural_core | reduced_form | research
-    post_solve: bool = False              # apply AFTER the reform solve (og->clews producers)
+# --- orchestration --------------------------------------------------------------
 
-    @abstractmethod
-    def apply(self, ctx: ExperimentContext, **opts) -> dict:
-        """Mutate ctx.og_reform and/or ctx.clews_inputs; return a provenance dict."""
-
-    def validate(self, ctx: ExperimentContext, active_ids: list[str]) -> list[str]:
-        """Guardrail messages given the other active channels (double-counting, etc.)."""
-        return []
+def _fresh_reform(p, base_dir, reform_dir):
+    import copy
+    r = copy.deepcopy(p)
+    r.baseline = False
+    r.baseline_dir = base_dir
+    r.output_base = reform_dir
+    r.__dict__.pop("_e_long_cache", None)     # ogcore memoizes e; reform edits must take
+    return r
 
 
-# --- registry -------------------------------------------------------------------
-
-_REGISTRY: dict[str, Channel] = {}
-
-
-def register(channel: Channel) -> Channel:
-    if channel.id in _REGISTRY:
-        raise ValueError(f"duplicate channel id: {channel.id}")
-    _REGISTRY[channel.id] = channel
-    return channel
-
-
-def get(channel_id: str) -> Channel:
-    return _REGISTRY[channel_id]
+def _solve_step(solve, apply_health):
+    """Build the solve callable an experiment invokes as ``solve(ctx)``: fire the mortality
+    re-solve hook if a health channel staged one, then solve the reform into ctx.reform_tpi."""
+    def solve_step(ctx):
+        if apply_health and ctx.extras.get("health_shock") is not None:
+            ctx.og_reform = apply_health(ctx.og_reform, ctx.extras["health_shock"])
+        ctx.reform_tpi = solve(ctx.og_reform)
+        return ctx.reform_tpi
+    return solve_step
 
 
-def all_channels() -> dict[str, Channel]:
-    return dict(_REGISTRY)
+def run(experiment_fn, country, *, build_baseline, solve, apply_health=None,
+        out_root="./ogclews_runs", prebuilt=None) -> ExperimentContext:
+    """Run one experiment. ``experiment_fn(ctx, solve)`` calls channels and calls solve(ctx) once.
+    A ``prebuilt`` tuple (p, base_tpi, base_dir) reuses an already-solved baseline (the battery reuses
+    one across reforms instead of re-solving the identical baseline)."""
+    name = getattr(experiment_fn, "__name__", "experiment")
+    ctx = ExperimentContext(country=country)
+    base_dir = os.path.join(out_root, name, "baseline")
+    reform_dir = os.path.join(out_root, name, "reform")
+    if prebuilt is not None:
+        p, ctx.base_tpi, base_dir = prebuilt
+    else:
+        p, _aux = build_baseline(country, base_dir)
+        ctx.base_tpi = solve(p)
+    ctx.og_reform = _fresh_reform(p, base_dir, reform_dir)
+    experiment_fn(ctx, _solve_step(solve, apply_health))
+    return ctx
 
 
-# --- experiment + runner --------------------------------------------------------
+def run_across_steps(step_fns, country, *, build_baseline, solve, apply_health=None,
+                     out_root="./ogclews_runs") -> list:
+    """Solve the baseline ONCE, then one reform per CUMULATIVE step. ``step_fns`` is a list of
+    (label, step_fn(ctx, solve)); each shares the baseline -- the layered 'what does each added channel
+    do' view. A non-converging step is recorded and skipped, not fatal to the batch."""
+    base_dir = os.path.join(out_root, "across_steps", "baseline")
+    p, _aux = build_baseline(country, base_dir)
+    base_tpi = solve(p)
+    solve_step = _solve_step(solve, apply_health)
+    results = []
+    for label, step_fn in step_fns:
+        ctx = ExperimentContext(country=country, base_tpi=base_tpi)
+        ctx.og_reform = _fresh_reform(p, base_dir, os.path.join(out_root, "across_steps", label))
+        try:
+            step_fn(ctx, solve_step)
+        except Exception as e:  # one non-converging step must not kill the whole batch
+            print(f"[across_steps] step '{label}' did NOT solve: {type(e).__name__}: {e}")
+            ctx.extras["error"] = f"{type(e).__name__}: {e}"
+        results.append((label, ctx))
+    return results
 
-@dataclass
-class Experiment:
-    """A named, reproducible configuration: which channels (by id) with which options."""
-    name: str
-    channels: list[tuple[str, dict]]          # [(channel_id, opts), ...]
-    description: str = ""
 
-    def channel_ids(self) -> list[str]:
-        return [cid for cid, _ in self.channels]
-
-
-@dataclass
-class Runner:
-    """Orchestrates a coupled run. The ogcore-touching callables are injected:
-        build_baseline(country) -> (Specifications, aux)
-        solve(p) -> tpi_dict
-        apply_mortality(p, effect) -> p     (optional; health channel, needs get_pop_data)
-    so the framework + channels import only numpy/pandas and stay testable.
-    """
-    build_baseline: Callable
-    solve: Callable
-    apply_health: Callable | None = None   # runtime hook: recompute population under a mortality shock
-
-    def run(self, experiment: Experiment, country, out_root: str = "./ogclews_runs",
-            max_passes: int = 1, clews_runner=None, tol: float = 1e-2, damp: float = 0.5,
-            prebuilt=None) -> ExperimentContext:
-        """Run an experiment. max_passes=1 is ONE-WAY (take CLEWS as given, solve the economy
-        once -- correct for evaluating a fixed scenario). max_passes>1 is MULTI-PASS: iterate
-        OG<->CLEWS to a fixed point, which needs ``clews_runner(clews_inputs, country, pass)``
-        to re-solve CLEWS each pass (the unbuilt OSeMOSYS-invocation seam). Without it,
-        multi-pass honestly degrades to one pass.
-        """
-        import copy
-        import os
-
-        ctx = ExperimentContext(country=country)
-        base_dir = os.path.join(out_root, experiment.name, "baseline")
-        reform_dir = os.path.join(out_root, experiment.name, "reform")
-        for w in self.preflight(experiment, country):
-            print(f"[guardrail] {w}")
-
-        # baseline solved ONCE; only the reform is recomputed across passes. A ``prebuilt`` tuple
-        # (p, base_tpi, base_dir) lets a BATTERY of reforms reuse one already-solved baseline instead
-        # of re-solving the IDENTICAL baseline each time -- OG-Core reads it from baseline_dir; the
-        # reform run never re-solves the baseline (cf. experiments/run_io_calibrated_energy_shock.py).
-        if prebuilt is not None:
-            p, ctx.base_tpi, base_dir = prebuilt
-        else:
-            p, _aux = self.build_baseline(country, base_dir)
-            ctx.base_tpi = self.solve(p)
-
-        exchanged_prev = None
-        for pass_idx in range(max(1, max_passes)):
-            ctx.clews_inputs, ctx.extras = {}, {}
-            ctx.og_reform = self._fresh_reform(p, base_dir, reform_dir)
-            self._apply_pre_solve(ctx, experiment.channels, pass_idx)
-            ctx.reform_tpi = self.solve(ctx.og_reform)
-            self._apply_post_solve(ctx, experiment.channels, pass_idx)
-
-            if max_passes <= 1:
-                break
-            if clews_runner is None:
-                print("[iterate] multi-pass requested but no CLEWS runner wired -> one pass only "
-                      "(the CLEWS re-solve + dual extraction is the seam still to build).")
-                break
-            country.scenario.reform_dir = clews_runner(ctx.clews_inputs, country, pass_idx)
-            exch = self._exchanged_quantity(ctx, country)
-            if exchanged_prev is not None and abs(exch - exchanged_prev) <= tol * abs(exchanged_prev):
-                print(f"[iterate] converged at pass {pass_idx} (relative change < {tol})")
-                break
-            exchanged_prev = damp * exch + (1 - damp) * (exchanged_prev or exch)
-        return ctx
-
-    def run_across_steps(self, steps, country, out_root: str = "./ogclews_runs"):
-        """Solve the baseline ONCE, then one reform per CUMULATIVE channel set. ``steps`` is a
-        list of (label, channels). Returns [(label, ExperimentContext), ...] sharing the baseline
-        -- the layered 'what does each added channel do' view. Each step is one-way."""
-        import os
-
-        base_dir = os.path.join(out_root, "across_steps", "baseline")
-        p, _aux = self.build_baseline(country, base_dir)
-        base_tpi = self.solve(p)
-        results = []
-        for label, channels_list in steps:
-            ctx = ExperimentContext(country=country, base_tpi=base_tpi)
-            ctx.og_reform = self._fresh_reform(p, base_dir, os.path.join(out_root, "across_steps", label))
-            try:
-                self._apply_pre_solve(ctx, channels_list, 0, step=label)
-                ctx.reform_tpi = self.solve(ctx.og_reform)
-                self._apply_post_solve(ctx, channels_list, 0, step=label)
-            except Exception as e:  # one non-converging step must not kill the whole batch
-                print(f"[across_steps] step '{label}' did NOT solve: {type(e).__name__}: {e}")
-                ctx.extras["error"] = f"{type(e).__name__}: {e}"
-            results.append((label, ctx))
-        return results
-
-    # --- shared reform helpers ---------------------------------------------------
-
-    def _fresh_reform(self, p, base_dir, reform_dir):
-        import copy
-
-        r = copy.deepcopy(p)
-        r.baseline = False
-        r.baseline_dir = base_dir
-        r.output_base = reform_dir
-        r.__dict__.pop("_e_long_cache", None)  # ogcore memoizes e; reform edits must take
-        return r
-
-    def _apply_pre_solve(self, ctx, channels, pass_idx, step=None):
-        for cid, opts in channels:
-            ch = get(cid)
-            if ch.post_solve:
-                continue
-            ctx.log(cid, pass_idx=pass_idx, step=step, **ch.apply(ctx, **opts))
-        if ctx.extras.get("health_shock") is not None and self.apply_health:
-            ctx.og_reform = self.apply_health(ctx.og_reform, ctx.extras["health_shock"])
-
-    def _apply_post_solve(self, ctx, channels, pass_idx, step=None):
-        for cid, opts in channels:
-            ch = get(cid)
-            if not ch.post_solve:
-                continue
-            ctx.log(cid, pass_idx=pass_idx, step=step, **ch.apply(ctx, **opts))
-
-    def _exchanged_quantity(self, ctx, country):
-        """The quantity convergence is judged on (mean near-term energy-good demand)."""
-        import numpy as np
-
-        ie = country.concordance.energy_good_index
-        return float(np.asarray(ctx.reform_tpi["C_i"])[:10, ie].mean())
-
-    def preflight(self, experiment: Experiment, country) -> list[str]:
-        """Run every channel's validate() against the active set (no solving)."""
-        ctx = ExperimentContext(country=country)
-        active = experiment.channel_ids()
-        msgs: list[str] = []
-        for cid, _ in experiment.channels:
-            msgs.extend(get(cid).validate(ctx, active))
-        return msgs
+def preflight(active: list[str]) -> list[str]:
+    """Advisory cross-channel guardrails for a set of active channel names (no solving). Surfaces
+    double-counting and 'don't stack these' cautions; the orchestrator/CLI can print them before a run."""
+    a = set(active)
+    msgs: list[str] = []
+    if "energy_price" in a and "carbon_tax" in a:
+        msgs.append("energy_price + carbon_tax both wedge the energy good's tau_c -- a resource cost and "
+                    "a tax are different objects; ensure the increase is not counted twice.")
+    if {"carbon_tax", "emit_carbon_penalty"} & a:
+        msgs.append("carbon price must appear ONCE: set it as policy feeding both sides (carbon_tax on OG, "
+                    "emit_carbon_penalty on CLEWS); do not also infer a carbon price from a CLEWS dual into OG.")
+    if "capital_intensity" in a and "investment" in a:
+        msgs.append("capital_intensity (private generation capital share, gamma) and investment (PUBLIC "
+                    "grid/T&D capex -> K_g) are COMPLEMENTARY, not double-counting: different capital, lever.")
+    if "capital_intensity" in a and "energy_capex" in a:
+        msgs.append("capital_intensity (gamma, factor share) and energy_capex (ITC, cost-of-capital) are TWO "
+                    "mechanisms for the same buildout, OPPOSITE sign on energy K -- pick one, do NOT stack.")
+    return msgs

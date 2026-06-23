@@ -138,9 +138,3 @@ class Runtime:
         print(f"[health] disease_pop: excess_deaths target {target:+,.0f} -> shock_scale {scale:+.5g}")
         p.update_specifications(pop_dict)
         return p
-
-    def runner_for(self, country):
-        """A framework.Runner bound to this runtime."""
-        from .framework import Runner
-        return Runner(build_baseline=self.build_baseline, solve=self.solve,
-                      apply_health=self.apply_health_shock)

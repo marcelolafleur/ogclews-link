@@ -11,9 +11,9 @@ import types
 
 import numpy as np
 
-from ogclews_link import channels, report, signals  # noqa: F401 (registers channels)
+from ogclews_link import channels, report, signals  # noqa: F401
 from ogclews_link.country import PHL
-from ogclews_link.framework import ExperimentContext, all_channels, get
+from ogclews_link.framework import ExperimentContext, preflight
 
 T, S, J, M, I = 20, 8, 7, 4, 5
 TS = T + S
@@ -54,15 +54,15 @@ def _ctx(with_reform=False):
 # --- tests ----------------------------------------------------------------------
 
 def test_registry():
-    ids = set(all_channels())
-    assert ids == {"energy_price", "investment", "capital_intensity", "energy_capex", "carbon",
-                   "discount_rate", "health", "demand"}, ids
+    for name in ["energy_price", "investment", "capital_intensity", "energy_capex", "carbon_tax",
+                 "emit_carbon_penalty", "emit_discount_rate", "health", "emit_energy_demand"]:
+        assert callable(getattr(channels, name)), name
 
 
 def test_energy_capex_itc():
     # the ITC (capital-demand) channel applies an investment tax credit to the ENERGY industry only
     ctx = _ctx()
-    get("energy_capex").apply(ctx, inv_tax_credit=0.20)
+    channels.energy_capex(ctx, inv_tax_credit=0.20)
     itc = ctx.og_reform.inv_tax_credit
     assert itc[0, M_E] == 0.20
     assert all(itc[0, m] == 0.0 for m in range(M) if m != M_E)
@@ -70,7 +70,7 @@ def test_energy_capex_itc():
 
 def test_energy_price_controlled():
     ctx = _ctx()
-    prov = get("energy_price").apply(ctx, shock=0.20)
+    prov = channels.energy_price(ctx, price_ratio=1.20)
     tau = np.asarray(ctx.og_reform.tau_c)[0, I_E]
     assert abs((1 + tau) - 1.20 * 1.12) < 1e-9, (tau, prov)  # (1+tau_new) = ratio*(1+tau_base)
 
@@ -78,14 +78,14 @@ def test_energy_price_controlled():
 def test_energy_price_recycle_bumps_transfers():
     ctx = _ctx()
     a0 = np.asarray(ctx.og_reform.alpha_T).copy()
-    prov = get("energy_price").apply(ctx, shock=0.20, recycle=True)
+    prov = channels.energy_price(ctx, price_ratio=1.20, recycle=True)
     assert prov["recycled_pct_gdp"] is not None and prov["recycled_pct_gdp"] > 0
     assert np.asarray(ctx.og_reform.alpha_T)[0] > a0[0]
 
 
 def test_energy_price_cmin():
     ctx = _ctx()
-    get("energy_price").apply(ctx, shock=0.10, energy_cmin=0.005)
+    channels.energy_price(ctx, price_ratio=1.10, energy_cmin=0.005)
     assert np.asarray(ctx.og_reform.c_min)[I_E] == 0.005
 
 
@@ -93,10 +93,10 @@ def test_ss_tail_persistence(monkeypatch):
     # permanent policy (carbon tax, recycled transfers) must reach the SS tail T:T+S;
     # temporary transition capex (investment) must taper to baseline there.
     ctx = _ctx()
-    get("carbon").apply(ctx, carbon_price=50.0, carbon_intensity=0.01, recycle=False)
+    channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.01, recycle=False)
     assert np.asarray(ctx.og_reform.tau_c)[-1, I_E] > 0.12, "carbon tau_c must persist into SS tail"
     ctx2 = _ctx()
-    get("energy_price").apply(ctx2, shock=0.20, recycle=True)
+    channels.energy_price(ctx2, price_ratio=1.20, recycle=True)
     assert np.asarray(ctx2.og_reform.alpha_T)[-1] > 0.05, "recycled alpha_T must persist into SS tail"
     # investment is public-infra-only and PHL/PEP has ~0 grid capex, so inject a synthetic non-zero
     # public-infra increment to actually exercise the finite-flow taper.
@@ -106,7 +106,9 @@ def test_ss_tail_persistence(monkeypatch):
     monkeypatch.setattr(_sig, "power_capex_increment", lambda *a, **k: pd.Series([5000.0] * len(yrs), index=yrs))
     ctx3 = _ctx()
     a0 = np.asarray(ctx3.og_reform.alpha_I).copy()
-    get("investment").apply(ctx3, persist=False)
+    capex = _sig.public_capex_pct_gdp(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL,
+                                      og_start_year=PHL.scenario.og_start_year, T=ctx3.og_reform.T)
+    channels.investment(ctx3, capex, persist=False)
     assert np.asarray(ctx3.og_reform.alpha_I)[-1] == a0[-1], "temporary investment must taper in SS tail"
     assert not np.allclose(np.asarray(ctx3.og_reform.alpha_I)[:5], a0[:5]), "transition years must move"
 
@@ -114,7 +116,7 @@ def test_ss_tail_persistence(monkeypatch):
 def test_empty_signal_no_crash():
     import pandas as pd
 
-    from ogclews_link.channels import _align_to_start, _fit
+    from ogclews_link.signals import _align_to_start, _fit
     assert _fit(np.array([]), 5).shape == (5,)                 # empty -> zeros, no IndexError
     s = pd.Series([1.0, 1.1], index=[2020, 2021])
     assert _align_to_start(s, 2026, 8).shape == (8,)           # start_year past the series -> zeros
@@ -123,10 +125,10 @@ def test_empty_signal_no_crash():
 def test_carbon_both_sides():
     ctx = _ctx()
     # units-sane illustrative intensity (50 USD/tCO2 * 0.005 = 25% add-on, < the 100% hard-block)
-    prov = get("carbon").apply(ctx, carbon_price=50.0, carbon_intensity=0.005, recycle=True)
+    channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.005, recycle=True)
+    channels.emit_carbon_penalty(ctx, carbon_price=50.0)
     assert np.asarray(ctx.og_reform.tau_c)[0, I_E] > 0.12          # OG carbon tax raised energy tau_c
     assert "EmissionsPenalty" in ctx.clews_inputs                  # CLEWS side written
-    assert set(prov["applied_to"]) == {"og_tau_c", "clews_emissions_penalty"}
 
 
 def test_carbon_blocks_absurd_tax():
@@ -134,31 +136,31 @@ def test_carbon_blocks_absurd_tax():
     # carbon_intensity=0.5 with the uncalibrated deflator implies a ~2500% tau_c -> must hard-raise,
     # not silently apply a meaningless tax.
     with pytest.raises(ValueError):
-        get("carbon").apply(_ctx(), carbon_price=50.0, carbon_intensity=0.5)
+        channels.carbon_tax(_ctx(), carbon_price=50.0, carbon_intensity=0.5)
     # ...but an explicit illustrative override is allowed:
-    prov = get("carbon").apply(_ctx(), carbon_price=50.0, carbon_intensity=0.5, allow_illustrative=True)
-    assert "og_tau_c" in prov["applied_to"]
+    ctx = _ctx()
+    channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.5, allow_illustrative=True)
+    assert np.asarray(ctx.og_reform.tau_c)[0, I_E] > 0.12
 
 
 def test_discount_rate_postsolve():
-    ctx = _ctx(with_reform=True)  # post_solve channel forwards the REFORM equilibrium rate
-    assert get("discount_rate").post_solve is True
-    prov = get("discount_rate").apply(ctx, rate_key="r_p")
+    ctx = _ctx(with_reform=True)  # the emit_ channel forwards the REFORM equilibrium rate
+    prov = channels.emit_discount_rate(ctx, rate_key="r_p")
     assert ctx.clews_inputs["DiscountRate"]["rate"] == 0.05
     assert prov["clews_discount_rate"] == 0.05
 
 
 def test_demand_postsolve():
     ctx = _ctx(with_reform=True)
-    prov = get("demand").apply(ctx, driver="Y_m", elasticity=1.0)
+    ar = signals.activity_ratio(ctx.base_tpi, ctx.reform_tpi, driver="Y_m", og_index=M_E)
+    prov = channels.emit_energy_demand(ctx, ar, driver="Y_m")
     assert abs(prov["mean_ratio"] - 1.05) < 1e-9                   # +5% activity -> +5% demand
     assert "Demand" in ctx.clews_inputs
 
 
 def test_guardrails_present():
-    ctx = _ctx()
-    assert get("carbon").validate(ctx, ["carbon"])                # one-price discipline message
-    assert get("energy_price").validate(ctx, ["energy_price", "carbon"])  # double-count warning
+    assert preflight(["carbon_tax", "emit_carbon_penalty"])       # one-price discipline message
+    assert preflight(["energy_price", "carbon_tax"])              # double-count warning
 
 
 def test_investment_public_infra_only():
@@ -168,7 +170,9 @@ def test_investment_public_infra_only():
         print("  (skip: CLEWS dirs absent)"); return
     ctx = _ctx()
     a0 = np.asarray(ctx.og_reform.alpha_I).copy()
-    prov = get("investment").apply(ctx, target="alpha_I")
+    capex = signals.public_capex_pct_gdp(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL,
+                                         og_start_year=PHL.scenario.og_start_year, T=ctx.og_reform.T)
+    prov = channels.investment(ctx, capex, target="alpha_I")
     assert "cumulative_pct_gdp" in prov
     assert abs(prov["cumulative_pct_gdp"]) < 1e-9                  # no public-infra capex delta
     assert np.allclose(np.asarray(ctx.og_reform.alpha_I), a0)      # alpha_I unchanged (honest ~0)
@@ -222,16 +226,15 @@ def test_capital_intensity_lever_requires_exactly_one():
 def test_capital_intensity_channel_explicit():
     ctx = _ctx()
     g0 = float(np.asarray(ctx.og_reform.gamma)[M_E])
-    prov = get("capital_intensity").apply(ctx, gamma_scale=1.122)    # explicit -> no CLEWS read
+    prov = channels.capital_intensity(ctx, gamma_scale=1.122)       # caller-sourced scale
     assert float(np.asarray(ctx.og_reform.gamma)[M_E]) > g0
-    assert prov["calibration"]["source"].startswith("explicit")
+    assert prov["gamma_new"] > prov["gamma_old"]
 
 
 def test_capital_intensity_validate():
-    ctx = _ctx()
-    msgs = get("capital_intensity").validate(ctx, ["capital_intensity"])
-    assert msgs and any("factor-SHARE" in m for m in msgs)          # reframed: factor-share/price lever, NOT crowding-out
-    msgs2 = get("capital_intensity").validate(ctx, ["capital_intensity", "investment"])
+    # single-channel framing now lives in the docstring; cross-channel cautions in preflight()
+    assert "factor-SHARE" in (channels.capital_intensity.__doc__ or "")
+    msgs2 = preflight(["capital_intensity", "investment"])
     assert any("COMPLEMENTARY" in m for m in msgs2)                  # vs the public-investment channel
 
 
@@ -251,8 +254,10 @@ def test_capital_intensity_channel_calibrates_from_clews():
         print("  (skip: CLEWS dirs absent)"); return
     ctx = _ctx()
     g0 = float(np.asarray(ctx.og_reform.gamma)[M_E])
-    prov = get("capital_intensity").apply(ctx)                       # no scale -> calibrate from CLEWS
-    assert prov["calibration"]["ratio"] > 1.0
+    cal = signals.capital_intensity_ratio(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL,
+                                          window=(PHL.scenario.og_start_year, PHL.scenario.og_start_year + 9))
+    prov = channels.capital_intensity(ctx, gamma_scale=cal["ratio"])  # caller sources from CLEWS
+    assert cal["ratio"] > 1.0
     assert float(np.asarray(ctx.og_reform.gamma)[M_E]) > g0 and prov["labor_share_new"] > 0
 
 
@@ -261,7 +266,7 @@ def test_health_reads_clews():
         print("  (skip: CLEWS dirs absent)"); return
     ctx = _ctx()
     e0 = np.asarray(ctx.og_reform.e).copy()
-    prov = get("health").apply(ctx, affects=("mortality", "e"))
+    prov = channels.health(ctx, affects=("mortality", "e"))
     assert "emissions_change" in prov
     shock = ctx.extras.get("health_shock")                        # disease_pop spec for the runtime
     assert shock is not None and "excess_deaths" in shock and len(shock["profile"]) == 100
@@ -274,12 +279,12 @@ def test_health_dose_response_multiplier():
     if not HAVE_CLEWS:
         print("  (skip: CLEWS dirs absent)"); return
     # M = energy mass share x CRF elasticity scales the power-emissions change to the ambient effect.
-    p1 = get("health").apply(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0, dose_response=1.0)
-    pm = get("health").apply(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0, dose_response=0.082)
+    p1 = channels.health(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0, dose_response=1.0)
+    pm = channels.health(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0, dose_response=0.082)
     assert pm["dose_response_M"] == 0.082
     assert abs(pm["mortality_excess_deaths"] / p1["mortality_excess_deaths"] - 0.082) < 1e-9  # linear in M
     # default (no arg) uses the calibrated PHL value from the data file, not the naive 1:1
-    dflt = get("health").apply(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0)
+    dflt = channels.health(_ctx(), affects=("mortality",), total_pollution_deaths=43951.0)
     assert dflt["dose_response_M"] == PHL.pm25_dose_response and PHL.pm25_dose_response < 0.2
 
 
@@ -465,17 +470,22 @@ def test_energy_price_dual_source():
 
     ctx = _ctx()
     sy = PHL.scenario.og_start_year
+    share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])      # electricity's share of the energy good
+    n = np.asarray(ctx.og_reform.tau_c).shape[0]
     orig = signals.commodity_shadow_price_ratio
     signals.commodity_shadow_price_ratio = lambda b, r, **k: pd.Series([1.20, 1.20], index=[sy, sy + 1])
     try:
-        prov = get("energy_price").apply(ctx, price_source="dual")
+        # sourcing (dispatch + dilution + align) now lives in signals.energy_price_ratio; the channel
+        # just applies the ready good-level ratio.
+        ratio = signals.energy_price_ratio("dual", base_dir=PHL.scenario.base_dir,
+                                           reform_dir=PHL.scenario.reform_dir, share=share,
+                                           og_start_year=sy, n=n)
+        channels.energy_price(ctx, price_ratio=ratio)
     finally:
         signals.commodity_shadow_price_ratio = orig
-    assert prov["source"] == "dual_shadow_price"
-    share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])      # electricity's share of the energy good
     tau = np.asarray(ctx.og_reform.tau_c)[0, I_E]
     # electricity dual ratio is diluted by `share` into the broader energy good, then folded into (1+tau)
-    assert abs((1 + tau) - (1 + share * 0.20) * 1.12) < 1e-9, (tau, prov)
+    assert abs((1 + tau) - (1 + share * 0.20) * 1.12) < 1e-9, tau
 
 
 def test_muiogo_run_reader():

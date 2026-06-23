@@ -34,16 +34,20 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None,
                        filename="ogclews_manifest.json") -> str:
     """Write ``<out_dir>/<filename>`` describing this run; return its path.
 
-    Duck-typed: ``experiment`` needs .name/.description/.channels, ``country`` needs
-    .name/.scenario (with .name/.base_dir/.reform_dir), ``ctx`` needs .provenance.
+    ``experiment`` is the experiment FUNCTION (or its name); its description is the docstring's
+    first line, and the channels that ran are read from ``ctx.provenance`` (each record carries
+    its own 'channel' id). ``country`` needs .name/.scenario; ``ctx`` needs .provenance.
     """
+    import inspect
     os.makedirs(out_dir, exist_ok=True)
     sc = country.scenario
+    name = getattr(experiment, "__name__", str(experiment))
+    desc = (inspect.getdoc(experiment) or "").splitlines()[0] if callable(experiment) else ""
     manifest = {
-        "experiment": {"name": experiment.name, "description": experiment.description},
+        "experiment": {"name": name, "description": desc},
         "country": country.name,
         "scenario": {"name": sc.name, "base_dir": sc.base_dir, "reform_dir": sc.reform_dir},
-        "channels": [{"id": cid, "options": opts} for cid, opts in experiment.channels],
+        "channels": [{"id": pr.get("channel")} for pr in ctx.provenance],
         "clews_run": clews_run,
         "ogcore_version": _ogcore_version(),
         "timestamp": datetime.now(timezone.utc).isoformat(),

@@ -13,7 +13,7 @@ import numpy as np  # noqa: E402
 from scipy.optimize import brentq  # noqa: E402
 
 from ogclews_link import health_profile, signals  # noqa: E402
-from ogclews_link.channels import _cost_xlsx  # noqa: E402
+from ogclews_link.signals import _cost_xlsx  # noqa: E402
 
 from . import style  # noqa: E402
 
