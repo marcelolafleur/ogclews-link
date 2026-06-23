@@ -28,19 +28,21 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-# What the package's own modules import. The OG-Core SOLVER and a country calibration (e.g. ogphl) are
-# needed only to DRIVE a solve -- loaded lazily by the runtime -- so the channel transforms stay
-# importable and unit-testable without them. Install the [run] extra (or onboard a country via MUIOGO).
+# ogclews-link is a STANDALONE, modular component: its own uv venv + uv.lock, isolated from the
+# MUIOGO / OG-model environments. The coupling is file-based (CLEWS scenario dirs + GBD exports read by
+# PATH) and the country calibration is vendored, so the only heavy code dependency is ogcore -- this env
+# owns its own copy. ogcore is imported LAZILY by the runtime, so the channel transforms still import +
+# unit-test fast without touching the solver.
 dependencies = [
     "numpy",
     "pandas>=1.2.5",
     "scipy>=1.7.1",
     "openpyxl>=3.1.2",   # read the CLEWS cost-of-electricity workbooks
     "matplotlib",        # the figure/deck subpackage (python -m ogclews_link.viz)
+    "ogcore>=0.14.5",    # the OLG-CGE solver (the standalone env's own copy)
 ]
 
 [project.optional-dependencies]
-run = ["ogcore>=0.14.5"]                 # the OG-Core solver; the country calibration is onboarded separately
 dev = ["pytest>=6.0", "pytest-xdist"]
 
 [project.scripts]

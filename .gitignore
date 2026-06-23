@@ -11,6 +11,9 @@ build/
 dist/
 *.egg-info/
 
+# uv standalone environment (uv.lock IS committed; the venv is not)
+.venv/
+
 # Local-only data export + scratch — never commit
 IHME-GBD_2023_DATA/
 .review_tmp/
