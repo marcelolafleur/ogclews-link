@@ -47,24 +47,18 @@ def _client(num_workers):
 
 
 def _resolve_prod_dict(og_package, un_code, prod_dict_path):
-    """PROD_DICT (sector -> SAM activity codes) for the I-O matrix. Preference: (1) the country package's
-    own PROD_DICT (the right long-term home -- travels with the model), (2) a --prod-dict JSON file, (3)
-    the vendored PHL fallback keyed by un_code (bootstrap only)."""
-    pkg = importlib.import_module(og_package)
-    for attr in ("PROD_DICT",):
-        if hasattr(pkg, attr):
-            return getattr(pkg, attr)
-    with contextlib.suppress(Exception):
-        cal = importlib.import_module(f"{og_package}.calibration_values")
-        if hasattr(cal, "PROD_DICT"):
-            return cal.PROD_DICT
+    """The COUPLING's M-industry aggregation (sector -> SAM activity codes) used to build the I-O matrix.
+    This is a LINK decision -- which OG industries the channels map to (M=4 for PHL, with Electricity
+    isolated for the energy channel) -- NOT the country OG package's own PROD_DICT (e.g. ogphl ships a
+    finer 7-group disaggregation; using it would give the wrong io_matrix shape and break the solve).
+    Preference: (1) an explicit --prod-dict JSON override, (2) the vendored per-country coupling dict."""
     if prod_dict_path:
         with open(prod_dict_path) as f:
             return json.load(f)
-    from ._calibration import PROD_DICT as VENDORED   # PHL bootstrap fallback
+    from ._calibration import PROD_DICT as VENDORED   # the PHL coupling aggregation (matches golden)
     if str(un_code) != "608":
-        print(f"[og_runner] WARNING: no PROD_DICT in {og_package}; using the vendored PHL fallback for "
-              f"un_code {un_code} -- expose PROD_DICT in the country package.", file=sys.stderr)
+        print(f"[og_runner] WARNING: using the vendored PHL coupling PROD_DICT for un_code {un_code}; "
+              "pass --prod-dict with this country's coupling aggregation.", file=sys.stderr)
     return VENDORED
 
 
