@@ -23,7 +23,6 @@ import importlib
 import importlib.resources
 import json
 import os
-import pickle
 import sys
 
 import numpy as np
@@ -195,8 +194,12 @@ def export_baseline(a):
         with contextlib.suppress(Exception):
             serde.save_solution_npz(os.path.join(a.out_dir, "baseline_solution_ss.npz"),
                                     _read_solution(a.out_dir, ss=True))
+    # cloudpickle, not pickle: a Specifications carries a dynamically-built abc.DefaultsSchema that plain
+    # pickle can't serialize. This file is OG-env-internal (the reform subprocess reloads it); it never
+    # crosses to the link, so it stays within the cross-env boundary discipline.
+    import cloudpickle
     with open(os.path.join(a.out_dir, "baseline_p.pkl"), "wb") as f:
-        pickle.dump(p, f)
+        cloudpickle.dump(p, f)
     import ogcore
     meta = {"og_package": a.og_package, "un_code": str(a.un_code), "M": int(p.M), "I": int(p.I),
             "S": int(p.S), "start_year": int(getattr(p, "start_year", a.og_start_year)),
@@ -208,8 +211,10 @@ def export_baseline(a):
 
 def solve_reform(a):
     import copy
+
+    import cloudpickle
     with open(os.path.join(a.baseline_dir, "baseline_p.pkl"), "rb") as f:
-        base_p = pickle.load(f)
+        base_p = cloudpickle.load(f)
     r = copy.deepcopy(base_p)
     r.baseline = False
     r.baseline_dir = a.baseline_dir
