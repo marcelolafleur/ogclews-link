@@ -61,8 +61,8 @@ def main():
             channels.investment(ctx, signals.public_capex_pct_gdp(
                 c.scenario.base_dir, c.scenario.reform_dir, c, og_start_year=c.scenario.og_start_year,
                 T=p.T, scale=0.3, smooth_years=5))
-            channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.002)
-            channels.health(ctx, affects=("mortality",))
+            channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.002)
+            channels.health(ctx, enable_mortality=True, enable_morbidity=False)
             solve(ctx)
         try:
             mres = framework.run_across_steps([("+ health (mortality only)", _mortonly)], PHL,

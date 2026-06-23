@@ -19,7 +19,7 @@ def _energy_share(ctx) -> float:
                                           c.concordance.energy_industry_index])
 
 
-def _activity(ctx, driver="Y_m"):
+def _activity(ctx, og_activity="sector_output"):
     c = ctx.country
     idx = (c.concordance.energy_industry_index if driver == "Y_m" else c.concordance.energy_good_index)
     return signals.activity_ratio(ctx.base_tpi, ctx.reform_tpi, driver=driver, og_index=idx)
@@ -43,7 +43,8 @@ def energy_price(ctx, solve):
 def clean_incidence(ctx, solve):
     """Energy price with revenue recycled + energy a necessity (c_min>0): the textbook regressive
     incidence. NB energy_cmin must be below every group's baseline energy consumption."""
-    channels.energy_price(ctx, price_ratio=1.20, recycle=True, energy_cmin=0.005)
+    channels.energy_price(ctx, price_ratio=1.20, recycle_revenue_to_transfers=True,
+                          energy_subsistence_floor=0.005)
     solve(ctx)
 
 
@@ -60,21 +61,21 @@ def capital_intensity(ctx, solve):
     c = ctx.country
     win = (c.scenario.og_start_year, c.scenario.og_start_year + 9)
     cal = signals.capital_intensity_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, window=win)
-    channels.capital_intensity(ctx, gamma_scale=cal["ratio"])
+    channels.capital_intensity(ctx, energy_capital_share_multiplier=cal["ratio"])
     solve(ctx)
 
 
 def energy_capex(ctx, solve):
     """The capex-heavy generation buildout financed by an investment tax credit: lowers the energy
     industry's cost of capital, drawing private capital INTO energy (the capital-DEMAND lever)."""
-    channels.energy_capex(ctx, inv_tax_credit=0.20)
+    channels.energy_capex(ctx, investment_tax_credit_rate=0.20)
     solve(ctx)
 
 
 def carbon(ctx, solve):
     """Carbon price as a shared lever: OG consumption-side tax (recycled) + CLEWS EmissionsPenalty."""
-    channels.carbon_tax(ctx, carbon_price=50.0, recycle=True)
-    channels.emit_carbon_penalty(ctx, carbon_price=50.0)
+    channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, recycle_revenue_to_transfers=True)
+    channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
     solve(ctx)
 
 
@@ -98,7 +99,7 @@ def demand(ctx, solve):
     """Forward (OG->CLEWS) in isolation: OG industry output Y_m -> CLEWS demand scaling. Tests the emit
     plumbing/format; the reform delta is exercised in 'forward'/'coupled'."""
     solve(ctx)
-    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), driver="Y_m")
+    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), og_activity="sector_output")
 
 
 # --- composed -------------------------------------------------------------------
@@ -109,7 +110,7 @@ def forward(ctx, solve):
     channels.energy_price(ctx, price_ratio=1.20)
     solve(ctx)
     channels.emit_discount_rate(ctx)
-    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), driver="Y_m")
+    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), og_activity="sector_output")
 
 
 def coupled(ctx, solve):
@@ -119,13 +120,13 @@ def coupled(ctx, solve):
     pr = signals.energy_price_ratio("cost_index", base_dir=c.scenario.base_dir,
                                     reform_dir=c.scenario.reform_dir, share=_energy_share(ctx),
                                     og_start_year=c.scenario.og_start_year, n=np.asarray(p.tau_c).shape[0])
-    channels.energy_price(ctx, price_ratio=pr, recycle=True)
+    channels.energy_price(ctx, price_ratio=pr, recycle_revenue_to_transfers=True)
     channels.investment(ctx, _public_capex(ctx))
-    channels.emit_carbon_penalty(ctx, carbon_price=50.0)    # carbon priced on the CLEWS side only here
+    channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)    # carbon priced on the CLEWS side only here
     channels.health(ctx)
     solve(ctx)
     channels.emit_discount_rate(ctx)
-    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), driver="Y_m")
+    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), og_activity="sector_output")
 
 
 # --- cumulative "across steps": each step adds one channel on top of the last ----
@@ -146,16 +147,16 @@ def _across_investment(ctx, solve):
 def _across_carbon(ctx, solve):
     channels.energy_price(ctx, price_ratio=1.20)
     channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
-    channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.002)
-    channels.emit_carbon_penalty(ctx, carbon_price=50.0)
+    channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.002)
+    channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
     solve(ctx)
 
 
 def _across_health(ctx, solve):
     channels.energy_price(ctx, price_ratio=1.20)
     channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
-    channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.002)
-    channels.emit_carbon_penalty(ctx, carbon_price=50.0)
+    channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.002)
+    channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
     channels.health(ctx)
     solve(ctx)
 

@@ -37,7 +37,7 @@ def main():
         pr.output_base = rdir
         pr.__dict__.pop("_e_long_cache", None)
         ctx = ExperimentContext(country=PHL, og_reform=pr, base_tpi=base_tpi)
-        prov = channels.health(ctx, affects=aff)
+        prov = channels.health(ctx, enable_mortality=("mortality" in aff), enable_morbidity=("e" in aff))
         if ctx.extras.get("health_shock") is not None:
             ctx.og_reform = rt.apply_health_shock(ctx.og_reform, ctx.extras["health_shock"])
         print(f"\n=== SOLVING {tag}  affects={aff} ===")
