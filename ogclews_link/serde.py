@@ -18,7 +18,7 @@ import numpy as np
 # baseline Specifications, the link loads them into the duck-typed og_reform.
 BASELINE_INT_KEYS = ("T", "S", "E", "M", "I")
 BASELINE_ARRAY_KEYS = ("tau_c", "c_min", "alpha_T", "alpha_I", "alpha_bs_I", "gamma", "gamma_g",
-                       "epsilon", "e", "inv_tax_credit", "delta_tau", "tau_b", "Z")
+                       "epsilon", "e", "inv_tax_credit", "delta_tau", "tau_b", "Z", "io_matrix")
 
 # The params a channel may MUTATE (everything the link diffs back as overrides). Subset of the arrays
 # above; the read-only ones (gamma_g, epsilon, Z) are shape/guard inputs, never written by a channel.

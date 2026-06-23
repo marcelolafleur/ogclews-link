@@ -6,14 +6,15 @@ repo but is EXECUTED BY the OG model's own interpreter --
 
 -- with PYTHONPATH pointing at the link source so this module (and the pure-python serde/_demog/health_pop/
 _calibration/progress it uses) import here, while ogcore + the country package come from the OG env. The
-link never imports any of this. Boundary I/O is via serde (JSON in, .npz out); the baseline Specifications
-is pickled only WITHIN this env (never sent to the link).
+link never imports any of this. Boundary I/O is via serde (JSON in, .npz out); no ogcore object is ever
+serialized (cloudpickle can pickle a Specifications but corrupts its paramtools validation schema on
+reload), so the reform REBUILDS the baseline fresh instead of reloading one.
 
 Two modes:
   export-baseline -- build the country baseline (generic via --og-package), solve it, and write the param
-                     arrays + solution the link needs (+ the pickled Specifications for the reform step).
-  solve-reform    -- reload the baseline, apply the link's parameter overrides (+ a health mortality
-                     re-solve if present), solve the reform, write the reform solution.
+                     arrays + solution the link needs.
+  solve-reform    -- rebuild the same baseline fresh, apply the link's parameter overrides (+ a health
+                     mortality re-solve if present), solve the reform, write the reform solution.
 """
 from __future__ import annotations
 
@@ -194,12 +195,10 @@ def export_baseline(a):
         with contextlib.suppress(Exception):
             serde.save_solution_npz(os.path.join(a.out_dir, "baseline_solution_ss.npz"),
                                     _read_solution(a.out_dir, ss=True))
-    # cloudpickle, not pickle: a Specifications carries a dynamically-built abc.DefaultsSchema that plain
-    # pickle can't serialize. This file is OG-env-internal (the reform subprocess reloads it); it never
-    # crosses to the link, so it stays within the cross-env boundary discipline.
-    import cloudpickle
-    with open(os.path.join(a.out_dir, "baseline_p.pkl"), "wb") as f:
-        cloudpickle.dump(p, f)
+    # NB: we do NOT pickle the baseline Specifications. cloudpickle can serialize it but CORRUPTS
+    # paramtools' validation schema on reload (update_specifications then fails), which the reform's
+    # health re-solve needs. solve-reform rebuilds a FRESH baseline instead (deterministic, clean
+    # paramtools state) and points baseline_dir at the solved solution written here.
     import ogcore
     meta = {"og_package": a.og_package, "un_code": str(a.un_code), "M": int(p.M), "I": int(p.I),
             "S": int(p.S), "start_year": int(getattr(p, "start_year", a.og_start_year)),
@@ -210,18 +209,23 @@ def export_baseline(a):
 
 
 def solve_reform(a):
-    import copy
-
-    import cloudpickle
-    with open(os.path.join(a.baseline_dir, "baseline_p.pkl"), "rb") as f:
-        base_p = cloudpickle.load(f)
-    r = copy.deepcopy(base_p)
+    # Rebuild the baseline Specifications FRESH (deterministic; same calibration the export solved) rather
+    # than reloading a pickle -- a fresh object has clean paramtools state, so the health re-solve's
+    # update_specifications works (a cloudpickled one's doesn't). baseline_dir points at the solved
+    # baseline solution on disk, which OG-Core reads for the reform.
+    r = _build_baseline_specs(a.og_package, a.params_resource, a.un_code, a.og_start_year,
+                              a.num_workers, a.reform_dir, a.prod_dict, M=a.m, I=a.i)
     r.baseline = False
     r.baseline_dir = a.baseline_dir
     r.output_base = a.reform_dir
-    r.__dict__.pop("_e_long_cache", None)
-    os.makedirs(a.reform_dir, exist_ok=True)
-    r.update_specifications(serde.read_overrides_json(a.overrides))
+    # Apply the channel overrides by DIRECT attribute assignment -- exactly what the channels do
+    # in-process (p.tau_c = ..., p.alpha_I = ..., p.e = ...). Routing them through update_specifications
+    # re-runs paramtools validation that direct assignment never triggers (it rejects the full morbidity
+    # e array); OG-Core's solver reads these numpy attributes directly, so setattr reproduces the old
+    # in-process semantics exactly.
+    for name, value in serde.read_overrides_json(a.overrides).items():
+        setattr(r, name, value)
+    r.__dict__.pop("_e_long_cache", None)        # e may have been replaced; drop ogcore's memoized long-e
     if a.health_shock and os.path.exists(a.health_shock):
         r = _apply_health(r, serde.read_health_json(a.health_shock))
     sol = _solve(r, a.num_workers, a.ss, not a.no_progress, "reform")
@@ -253,6 +257,14 @@ def main(argv=None):
     s.add_argument("--overrides", required=True)
     s.add_argument("--health-shock", default=None)
     s.add_argument("--num-workers", type=int, default=1)
+    # the reform rebuilds the baseline fresh (clean paramtools state), so it needs the same build inputs:
+    s.add_argument("--og-package", required=True)
+    s.add_argument("--params-resource", required=True)
+    s.add_argument("--un-code", required=True)
+    s.add_argument("--og-start-year", type=int, required=True)
+    s.add_argument("--prod-dict", default=None)
+    s.add_argument("--m", type=int, default=None)
+    s.add_argument("--i", type=int, default=None)
     s.add_argument("--ss", action="store_true")
     s.add_argument("--no-progress", action="store_true")
     s.set_defaults(func=solve_reform)

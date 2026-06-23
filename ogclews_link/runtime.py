@@ -83,7 +83,10 @@ def solve_reform(og_reform, baseline_arrays, health_shock, base_dir, reform_dir,
     overrides = os.path.join(reform_dir, "reform_overrides.json")
     serde.write_overrides_json(serde.diff_against_baseline(og_reform, baseline_arrays), overrides)
     args = ["solve-reform", "--baseline-dir", base_dir, "--reform-dir", reform_dir,
-            "--overrides", overrides, "--num-workers", str(cfg.num_workers)]
+            "--overrides", overrides, "--num-workers", str(cfg.num_workers),
+            # the reform rebuilds the baseline fresh, so pass the same build inputs as export-baseline:
+            "--og-package", entry.og_package, "--params-resource", entry.params_resource_name,
+            "--un-code", str(country.un_code), "--og-start-year", str(country.scenario.og_start_year)]
     if health_shock is not None:
         hpath = os.path.join(reform_dir, "health.json")
         serde.write_health_json(health_shock, hpath)
