@@ -24,7 +24,8 @@ __all__ = ["cost_of_electricity_ratio", "read_clews_matrix", "read_clews_long",
            "power_capex_increment", "capital_cost_share", "capital_intensity_ratio",
            "emissions_by_year", "emissions_ratio",
            "og_sector_output", "og_consumption_good", "og_interest_rate",
-           "commodity_shadow_price", "commodity_shadow_price_ratio"]
+           "commodity_shadow_price", "commodity_shadow_price_ratio",
+           "energy_price_ratio", "activity_ratio", "public_capex_pct_gdp", "pm25_dose_response"]
 
 
 def _find(scenario_dir: str, metric: str, exclude: str = "") -> str:
@@ -218,6 +219,108 @@ def og_consumption_good(tpi: dict, i: int) -> np.ndarray:
 
 def og_interest_rate(tpi: dict, key: str = "r_p") -> np.ndarray:
     return np.asarray(tpi[key])
+
+
+# --- path primitives (moved here from channels.py; the sourcing helpers below use them) ---
+
+def _fit(value, n: int) -> np.ndarray:
+    """Broadcast/forward-fill to length n; an empty input yields zeros (no crash)."""
+    arr = np.atleast_1d(np.asarray(value, dtype=float))
+    if arr.size == 0:
+        return np.zeros(n)
+    if arr.shape[0] == 1:
+        return np.full(n, arr[0])
+    if arr.shape[0] >= n:
+        return arr[:n]
+    out = np.empty(n)
+    out[: arr.shape[0]] = arr
+    out[arr.shape[0]:] = arr[-1]
+    return out
+
+
+def _align_to_start(series, start_year: int, n: int) -> np.ndarray:
+    """Align a PERMANENT signal (a standing price level): real values during the data horizon,
+    then the last value carried forward (it persists). Period 0 == start_year."""
+    hi = int(series.index.max())
+    if start_year > hi:
+        return np.zeros(n)
+    s = series.reindex(range(start_year, hi + 1)).ffill().bfill()
+    return _fit(s.values, n)
+
+
+def _align_finite(series, start_year: int, n: int) -> np.ndarray:
+    """Align a FINITE flow (e.g. transition capex): real values during the data horizon, then ZERO
+    -- the flow ends, not carried forward (forward-filling would break TPI's terminal condition)."""
+    hi = int(series.index.max())
+    if start_year > hi:
+        return np.zeros(n)
+    vals = series.reindex(range(start_year, hi + 1)).fillna(0.0).values
+    out = np.zeros(n)
+    out[: min(len(vals), n)] = vals[:n]
+    return out
+
+
+def _cost_xlsx(scenario_dir: str) -> str:
+    hits = [h for h in glob.glob(os.path.join(scenario_dir, "*Cost of electricity*.xlsx"))
+            if not os.path.basename(h).startswith("~$")]
+    return sorted(hits)[0]
+
+
+# --- channel sourcing helpers: turn a CLEWS source choice into the ready value a channel applies ---
+
+def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, fuel=None) -> np.ndarray:
+    """The energy GOOD's reform/base price-ratio path from CLEWS, diluted by electricity's value-share
+    of the OG energy good and aligned to og_start_year (length n). kind='cost_index' uses the
+    cost-of-electricity index PROXY; kind='dual' uses the rigorous OSeMOSYS commodity-balance shadow
+    price. The controlled +20% case does NOT go through here -- a caller passes that scalar straight to
+    energy_price(), undiluted."""
+    if kind == "dual":
+        ratio = commodity_shadow_price_ratio(base_dir, reform_dir, fuel=fuel)
+        if ratio.dropna().empty:
+            raise ValueError(
+                "energy_price_ratio kind='dual': commodity-balance dual ratio is empty / all-NaN -- no "
+                "overlapping base/reform years, or a zero baseline shadow price for the matched fuel. "
+                "Check the EBb4 export, the fuel code, and the run years.")
+    elif kind == "cost_index":
+        ratio = cost_of_electricity_ratio(_cost_xlsx(base_dir), _cost_xlsx(reform_dir))
+    else:
+        raise ValueError(f"energy_price_ratio: unknown kind {kind!r} (use 'cost_index' or 'dual')")
+    return _align_to_start(1.0 + share * (ratio - 1.0), og_start_year, n)
+
+
+def activity_ratio(base_tpi, reform_tpi, *, driver="Y_m", og_index, elasticity=1.0) -> np.ndarray:
+    """Reform/base ratio of OG activity (Y_m sector output, or C_i consumption good) at og_index,
+    raised to elasticity -- the forward demand-scaling signal for emit_energy_demand."""
+    get = og_sector_output if driver == "Y_m" else og_consumption_good
+    yb, yr = get(base_tpi, og_index), get(reform_tpi, og_index)
+    T = min(len(yb), len(yr))
+    return (yr[:T] / np.maximum(yb[:T], 1e-12)) ** elasticity
+
+
+def public_capex_pct_gdp(base_dir, reform_dir, country, *, og_start_year, T, scale=1.0,
+                         smooth_years=1) -> np.ndarray:
+    """Reform-minus-base PUBLIC-infrastructure (grid/T&D) capex as a finite %-of-GDP flow path
+    (length T, zero after the CLEWS horizon -- a transition flow, not a permanent shift). The
+    public-investment channel's input. units.deflator (=1.0, uncalibrated) is the CLEWS-money<->GDP
+    bridge, made explicit."""
+    inc = power_capex_increment(base_dir, reform_dir, country, public_only=True)
+    pct_gdp = scale * inc * float(getattr(country.units, "deflator", 1.0)) / country.gdp_musd
+    if smooth_years > 1:
+        pct_gdp = pct_gdp.rolling(smooth_years, center=True, min_periods=1).mean()
+    return _align_finite(pct_gdp, og_start_year, T)
+
+
+def pm25_dose_response(country, *, override=None) -> float:
+    """The emissions->deaths multiplier M (energy mass share x CRF elasticity; PHL ~0.082). Precedence:
+    override > country.pm25_dose_response > 1.0 (the naive 1:1, with a loud guardrail -- power is only
+    ~10% of ambient PM2.5, so 1.0 overstates the health effect ~12x)."""
+    M = override if override is not None else getattr(country, "pm25_dose_response", None)
+    if M is None:
+        print(f"[guardrail] health: no calibrated emissions->deaths dose-response (M) for "
+              f"{getattr(country, 'name', 'country')}; using M=1.0 (naive 1:1, overstates the effect). "
+              "Add a row to ogclews_link/data/pm25_health.json.")
+        return 1.0
+    return float(M)
 
 
 _DUAL_CONSTRAINT = "EBb4_EnergyBalanceEachYear4_ICR"  # OSeMOSYS annual commodity balance
