@@ -25,9 +25,12 @@ BASELINE_ARRAY_KEYS = ("tau_c", "c_min", "alpha_T", "alpha_I", "alpha_bs_I", "ga
 MUTABLE_PARAM_KEYS = ("tau_c", "c_min", "alpha_T", "alpha_I", "alpha_bs_I", "gamma",
                       "inv_tax_credit", "delta_tau", "tau_b", "e")
 
-# The solution variables read by channels + report + golden -- the consumed subset of an OG SS/TPI dict.
+# The solution variables read downstream -- the consumed subset of an OG SS/TPI dict. The first row is
+# read by channels + report + golden (the battery's correctness gate); the second is read only by the viz
+# lifecycle/savings plots (carried so a deck can be built straight off the cross-env solution npz).
 SOLUTION_KEYS = ("C_i", "c_i", "c", "p_i", "Y_m", "Y", "C", "K", "L", "r", "r_p", "r_gov", "w",
-                 "cons_tax_revenue", "resource_constraint_error")
+                 "cons_tax_revenue", "resource_constraint_error",
+                 "n", "b_s", "factor")
 
 
 class OGParams(types.SimpleNamespace):

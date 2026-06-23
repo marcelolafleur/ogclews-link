@@ -6,6 +6,9 @@ SS-only (the failure is an SS check, so no transition path needed).
     PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
       /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/test_health_bidirectional.py
 """
+Runs UNDER the OG model's interpreter (it pokes the disease_pop demographic re-solve directly), using
+og_runner's in-process build/solve helpers.
+"""
 from __future__ import annotations
 
 import copy
@@ -13,17 +16,19 @@ import os
 
 import numpy as np
 
-from ogclews_link import channels, health_pop, health_profile, report  # noqa: F401 (registers channels)
+from ogclews_link import (channels, health_pop, health_profile,  # noqa: F401 (registers channels)
+                          og_runner, registry, report)
 from ogclews_link.country import PHL
-from ogclews_link.runtime import Runtime
 
 OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/validate_health"
 BASE = os.path.join(OUT, "health", "baseline")
 
 
 def main():
-    rt = Runtime(num_workers=7, show_progress=False)
-    p0, _ = rt.build_baseline(PHL, BASE)
+    entry = registry.lookup(PHL)
+    p0 = og_runner._build_baseline_specs(entry.og_package, entry.params_resource_name, PHL.un_code,
+                                         4, 5, PHL.scenario.og_start_year, 7, BASE, None)
+    og_runner._solve(p0, 7, ss=True, show_progress=False, label="baseline")   # solve baseline SS into BASE
     aux = {k: np.asarray(v) for k, v in p0._pop_aux.items()}
     h = health_profile.placeholder_profile(aux["mort_rates"].shape[1])
 
@@ -39,7 +44,7 @@ def main():
         pr.update_specifications(pd)
         tag = f"target={target:+,.0f} (shock_scale {scale:+.4g})  RC_SS={rc_ss:.0e}"
         try:
-            rt.solve(pr, time_path=False)
+            og_runner._solve(pr, 7, ss=True, show_progress=False, label=f"bidir {target:+.0f}")
             print(f"[CONVERGED] {tag}")
         except Exception as e:  # noqa: BLE001
             print(f"[FAILED]    {tag}  {type(e).__name__}: {str(e)[:90]}")

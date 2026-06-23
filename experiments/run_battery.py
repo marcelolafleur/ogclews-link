@@ -1,15 +1,16 @@
 """Continuable, grouped test battery for the OG-Core <-> CLEWS coupling.
 
-Runs the model THE CANONICAL WAY -- `ogclews_link.runtime.build_baseline` -> `ogcore.execute.runner`,
-the same Specifications + ogphl-SAM + runner flow as `OG-PHL/examples/run_og_phl_multi_industry.py`,
-under the OG-PHL venv. Nothing hackish: the battery only orchestrates; the solve path is the user path.
+Runs the model THE CANONICAL (cross-env) WAY -- `ogclews_link.runtime.export_baseline` /
+`solve_reform`, which subprocess the country's OG model in ITS OWN environment (per the model registry)
+and exchange data files. This is exactly the path `ogclews-link run <exp>` uses, so the battery runs in
+the LINK env and the OG solve runs in the OG-PHL env -- no shared interpreter, nothing hackish.
 
 Designed to run in SMALL GROUPS so you never leave it running long, and to be fully CONTINUABLE:
 state is persisted after every item, so you can stop after any group and re-run to pick up where you
 left off. SS items are fast; TPI items are minutes each (the real cost).
 
-Usage (with the OG-PHL venv, from the repo root):
-    .../OG-PHL/.venv/bin/python experiments/run_battery.py --status      # progress; runs nothing
+Usage (with the LINK venv, from the repo root):
+    .../ogclews-link/.venv/bin/python experiments/run_battery.py --status      # progress; runs nothing
     ...                                            run_battery.py --list                # show the plan
     ...                                            run_battery.py --next                # run next pending group
     ...                                            run_battery.py --group energy        # run one named group
@@ -59,15 +60,15 @@ GROUPS = [
     ("energy", [
         {"id": "energy_price",    "kind": "experiment", "target": "energy_price",    "mode": "TPI", "sign": "demand falls"},
         {"id": "clean_incidence", "kind": "experiment", "target": "clean_incidence", "mode": "TPI", "sign": "regressive incidence"},
-        {"id": "routeB_costpush", "kind": "script", "target": "experiments/run_io_calibrated_energy_shock.py",
+        {"id": "routeB_costpush", "kind": "script", "env": "og", "target": "experiments/run_io_calibrated_energy_shock.py",
          "expect_stdout": "LOWERS GDP", "sign": "Route B lowers GDP"},
     ]),
     ("supply", [
         {"id": "investment",        "kind": "experiment", "target": "investment",       "mode": "TPI"},
         {"id": "capital_intensity", "kind": "experiment", "target": "capital_intensity","mode": "TPI", "sign": "factor-share: energy price down, energy K down"},
         {"id": "carbon",            "kind": "experiment", "target": "carbon",           "mode": "TPI"},
-        {"id": "crowding_out_solve","kind": "script", "target": "experiments/run_capital_intensity.py", "sign": "energy price -24%, energy K -14% (factor-share, NOT crowding-out)"},
-        {"id": "energy_itc",        "kind": "script", "target": "experiments/run_energy_itc.py"},
+        {"id": "crowding_out_solve","kind": "script", "env": "og", "target": "experiments/run_capital_intensity.py", "sign": "energy price -24%, energy K -14% (factor-share, NOT crowding-out)"},
+        {"id": "energy_itc",        "kind": "script", "env": "og", "target": "experiments/run_energy_itc.py"},
     ]),
     ("forward", [   # OG->CLEWS emit; MUST be TPI (they read the result time series)
         {"id": "discount_rate", "kind": "experiment", "target": "discount_rate", "mode": "TPI", "sign": "emits DiscountRate path"},
@@ -75,10 +76,10 @@ GROUPS = [
     ]),
     ("health", [
         {"id": "health",               "kind": "experiment", "target": "health", "mode": "TPI", "sign": "deaths-added converges"},
-        {"id": "health_bidirectional", "kind": "script", "target": "experiments/test_health_bidirectional.py", "sign": "both directions converge"},
+        {"id": "health_bidirectional", "kind": "script", "env": "og", "target": "experiments/test_health_bidirectional.py", "sign": "both directions converge"},
     ]),
     ("combined", [
-        {"id": "across_steps","kind": "script", "target": "experiments/run_across_steps.py", "sign": "layered marginal contributions"},
+        {"id": "across_steps","kind": "script", "env": "og", "target": "experiments/run_across_steps.py", "sign": "layered marginal contributions"},
     ]),
     ("real", [   # the full coupled run: CLEWS cost-of-electricity index energy price + GBD ambient-PM2.5 health
         {"id": "coupled", "kind": "experiment", "target": "coupled", "mode": "TPI",
@@ -113,53 +114,57 @@ def _stamp():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
-# --- shared baseline: ONE baseline, solved ONCE, read from where OG saves it -----------------------
-# The OG-PHL baseline is identical for every test (only the reform changes). Solve it ONCE at TPI into
-# the standard baseline dir -- a TPI solve produces BOTH solutions, and OG-Core writes them as
-# baseline/SS/SS_vars.pkl and baseline/TPI/TPI_vars.pkl. Every reform points baseline_dir at it and
-# reads the baseline from disk (exactly how a user runs a reform); only the reform is solved. Already
-# solved on disk -> skip the solve. No per-mode duplication, no parallel directory scheme.
-_BASELINE: dict = {}   # in-process: holds {p, dir, rt}, built once per invocation
+# --- shared baseline: ONE baseline, exported ONCE, reused across every reform ----------------------
+# The OG-PHL baseline is identical for every test (only the reform changes). Export it ONCE at TPI via
+# the cross-env runner (which solves it in the OG env -- a TPI solve produces BOTH the SS and TPI
+# solution, written to the content-addressed cache as baseline_solution.npz / baseline_solution_ss.npz
+# plus the OG-side baseline_p.pkl + SS/ + TPI/ dirs the reform subprocess reads). Every reform reuses
+# the cache (prebuilt) and only the reform is solved. Already exported -> skip. SS-mode items compare
+# against the SS baseline slice; TPI items against the TPI baseline.
+_BASELINE: dict = {}   # in-process: holds {template, base_tpi, dir, arrays}, built once per invocation
 
 
-def _baseline_result(base_dir, mode):
-    """Read the baseline solution OG saved on disk -- the SS slice for an SS reform, TPI for a TPI one."""
-    from ogcore.utils import safe_read_pickle
-    sub = ("TPI", "TPI_vars.pkl") if mode == "TPI" else ("SS", "SS_vars.pkl")
-    return safe_read_pickle(os.path.join(base_dir, *sub))
+def _runner_cfg(ss=False):
+    from ogclews_link import runtime
+    return runtime.RunnerConfig(num_workers=7, show_progress=False, ss=ss)
 
 
 def ensure_baseline():
-    """Solve the OG-PHL baseline ONCE at TPI into the standard baseline dir (giving both the SS and the
-    TPI solution), or skip the solve if it is already there. Returns (p_template, base_dir, runtime)."""
+    """Export the OG-PHL baseline ONCE at TPI (giving both the SS and the TPI baseline solution) via the
+    cross-env runner, or reuse the cache if already exported. Returns the _BASELINE bundle dict."""
     if _BASELINE:
-        return _BASELINE["p"], _BASELINE["dir"], _BASELINE["rt"]
-    from ogclews_link.runtime import Runtime
+        return _BASELINE
+    from ogclews_link import runtime
     from ogclews_link.country import PHL
 
-    base_dir = os.path.join(OUT_ROOT, "baseline")        # the standard OG baseline_dir; OG fills SS/ + TPI/
-    rt = Runtime(show_progress=False)
-    p, _ = rt.build_baseline(PHL, base_dir)              # the spec template the reforms deepcopy
-    if not os.path.exists(os.path.join(base_dir, "TPI", "TPI_vars.pkl")):
-        rt.solve(p, time_path=True)                      # solve ONCE at TPI -> writes SS_vars + TPI_vars
-    _BASELINE.update(p=p, dir=base_dir, rt=rt)
-    return p, base_dir, rt
+    template, base_tpi, base_dir, arrays = runtime.export_baseline(PHL, OUT_ROOT, cfg=_runner_cfg(ss=False))
+    _BASELINE.update(template=template, base_tpi=base_tpi, dir=base_dir, arrays=arrays)
+    return _BASELINE
+
+
+def _baseline_solution(base_dir, mode):
+    """The matching baseline solution npz -- the SS slice for an SS reform, TPI for a TPI one."""
+    from ogclews_link import serde
+    name = "baseline_solution.npz" if mode == "TPI" else "baseline_solution_ss.npz"
+    return serde.load_solution(os.path.join(base_dir, name))
 
 
 def run_experiment(item) -> dict:
-    """Apply the experiment's channels to a reform on the shared baseline and solve ONLY the reform;
-    OG-Core reads the baseline from baseline_dir on disk -- exactly how a user runs a reform."""
+    """Apply the experiment's channels to a fresh reform on the shared baseline and solve ONLY the reform
+    -- the OG runner reads the baseline from the cache dir, exactly how `ogclews-link run` works."""
+    from functools import partial
+
+    from ogclews_link import experiments, framework, golden, runtime
     from ogclews_link.country import PHL
-    from ogclews_link import experiments, framework, golden
 
     mode = item.get("mode", "TPI")
-    p, base_dir, rt = ensure_baseline()
-    base = _baseline_result(base_dir, mode)              # the matching baseline solution, read from disk
-    solve = (lambda pp: rt.solve(pp, time_path=(mode == "TPI")))
+    bl = ensure_baseline()
+    base = _baseline_solution(bl["dir"], mode)
+    cfg = _runner_cfg(ss=(mode == "SS"))
     exp = experiments.get(item["target"])
-    ctx = framework.run(exp, PHL, build_baseline=rt.build_baseline, solve=solve,
-                        apply_health=rt.apply_health_shock, out_root=os.path.join(OUT_ROOT, item["id"]),
-                        prebuilt=(p, base, base_dir))     # reform points baseline_dir at the shared baseline
+    ctx = framework.run(exp, PHL, solve_reform=partial(runtime.solve_reform, cfg=cfg),
+                        out_root=os.path.join(OUT_ROOT, item["id"]),
+                        prebuilt=(bl["template"], base, bl["dir"], bl["arrays"]))
     rec = golden.from_context(item["id"], ctx)
     golden.save(rec)
     return {"status": "pass", "mode": mode, "reused_baseline": True,
@@ -168,21 +173,33 @@ def run_experiment(item) -> dict:
 
 
 def run_baseline(item) -> dict:
-    """Establish the shared baseline (solve ONCE at TPI into the standard dir); capture its golden."""
+    """Establish the shared baseline (export ONCE at TPI via the cross-env runner); capture its golden."""
     from ogclews_link import golden
 
-    _p, base_dir, _rt = ensure_baseline()
-    base = _baseline_result(base_dir, "TPI")
-    golden.save(golden.capture(item["id"], base))
-    return {"status": "pass", "base": golden.aggregates(base),
-            "baseline_dir": os.path.relpath(base_dir, REPO)}
+    bl = ensure_baseline()
+    golden.save(golden.capture(item["id"], bl["base_tpi"]))
+    return {"status": "pass", "base": golden.aggregates(bl["base_tpi"]),
+            "baseline_dir": os.path.relpath(bl["dir"], REPO)}
+
+
+def _og_env_python():
+    from ogclews_link import registry
+    from ogclews_link.country import PHL
+    return registry.lookup(PHL).env_python
 
 
 def run_script(item) -> dict:
-    """Run a user-facing experiments/run_*.py with this interpreter; pass = exit 0 (and, if given,
-    `expect_stdout` present)."""
+    """Run a user-facing experiments/run_*.py; pass = exit 0 (and, if given, `expect_stdout` present).
+    `env: "og"` items import ogcore directly, so they run under the OG model's interpreter with the link
+    source on PYTHONPATH (ogcore from the OG env, ogclews_link pure-py from here) -- exactly the runner's
+    own invocation contract. Other items run under this (link) interpreter."""
     path = os.path.join(REPO, item["target"])
-    proc = subprocess.run([sys.executable, path], cwd=REPO, capture_output=True, text=True)
+    if item.get("env") == "og":
+        sub_env = dict(os.environ)
+        sub_env["PYTHONPATH"] = REPO + (os.pathsep + sub_env["PYTHONPATH"] if sub_env.get("PYTHONPATH") else "")
+        proc = subprocess.run([_og_env_python(), path], cwd=REPO, capture_output=True, text=True, env=sub_env)
+    else:
+        proc = subprocess.run([sys.executable, path], cwd=REPO, capture_output=True, text=True)
     tail = "\n".join(proc.stdout.strip().splitlines()[-8:])
     ok = proc.returncode == 0
     exp = item.get("expect_stdout")

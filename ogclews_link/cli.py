@@ -50,17 +50,19 @@ def main(argv=None):
             print(f"{name:20} {direction:18} {doc[0] if doc else ''}")
         return
     if args.cmd == "run":
-        from . import framework
+        from functools import partial
+
+        from . import framework, runtime
         from .country import PHL
         from .manifest import write_run_manifest
-        from .runtime import Runtime
 
         exp = experiments.get(args.experiment)
-        rt = Runtime(show_progress=not args.no_progress)
-        if args.workers is not None:
-            rt.num_workers = args.workers
-        ctx = framework.run(exp, PHL, build_baseline=rt.build_baseline, solve=rt.solve,
-                            apply_health=rt.apply_health_shock, out_root=args.out)
+        cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress)
+        ctx = framework.run(
+            exp, PHL,
+            export_baseline=partial(runtime.export_baseline, cfg=cfg),
+            solve_reform=partial(runtime.solve_reform, cfg=cfg),
+            out_root=args.out)
         print_report(ctx)
         if ctx.clews_inputs:
             written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")

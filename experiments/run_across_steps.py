@@ -4,6 +4,10 @@ layered_results.json the visual consumes. One-way (each step takes CLEWS as give
 
     PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
       /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/run_across_steps.py
+
+Runs UNDER the OG model's interpreter (it builds the full deck, which needs OG-Core's native plotting
+and the SS income factor). It injects og_runner's IN-PROCESS solve callables into the same generic
+framework the link drives cross-env -- only the injected callables differ between the two environments.
 """
 from __future__ import annotations
 
@@ -12,18 +16,20 @@ import os
 
 import numpy as np
 
-from ogclews_link import channels, framework, report, signals  # noqa: F401
+from ogclews_link import channels, framework, og_runner, registry, report, signals  # noqa: F401
 from ogclews_link.country import PHL
 from ogclews_link.experiments import ACROSS_STEPS
-from ogclews_link.runtime import Runtime
 
 OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs"
 
 
 def main():
-    rt = Runtime(num_workers=7, show_progress=True)  # multiprocess; never --workers 1 (threaded trap)
-    results = framework.run_across_steps(ACROSS_STEPS, PHL, build_baseline=rt.build_baseline,
-                                         solve=rt.solve, apply_health=rt.apply_health_shock, out_root=OUT)
+    entry = registry.lookup(PHL)
+    export_baseline, solve_reform = og_runner.inprocess_callables(
+        entry.og_package, entry.params_resource_name, PHL.un_code, PHL.scenario.og_start_year,
+        num_workers=7, show_progress=True)  # multiprocess; never 1 worker (threaded trap)
+    results = framework.run_across_steps(ACROSS_STEPS, PHL, export_baseline=export_baseline,
+                                         solve_reform=solve_reform, out_root=OUT)
 
     ie = PHL.concordance.energy_good_index
     layered = []
@@ -66,8 +72,8 @@ def main():
             solve(ctx)
         try:
             mres = framework.run_across_steps([("+ health (mortality only)", _mortonly)], PHL,
-                                              build_baseline=rt.build_baseline, solve=rt.solve,
-                                              apply_health=rt.apply_health_shock, out_root=OUT)
+                                              export_baseline=export_baseline,
+                                              solve_reform=solve_reform, out_root=OUT)
             ctx_m = mres[0][1]
             if ctx_m.reform_tpi is not None:
                 y_mort = round(float(np.nanmean(report.macro_pct_diff(base_tpi, ctx_m.reform_tpi)["Y"])), 4)

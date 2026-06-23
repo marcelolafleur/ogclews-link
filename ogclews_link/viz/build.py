@@ -32,11 +32,16 @@ import glob
 import json
 import os
 
-from ogcore.utils import safe_read_pickle
-
 from ogclews_link.viz import plots, report, tables  # noqa: F401
 from ogclews_link import country as _country_mod
 from ogclews_link.country import CountryConfig
+
+
+def safe_read_pickle(path):
+    """Read an OG-Core output pickle. Lazy ogcore import: building a deck off OG's native pkl outputs
+    runs under the OG model's interpreter (where ogcore lives); the link env imports viz without it."""
+    from ogcore.utils import safe_read_pickle as _srp
+    return _srp(path)
 
 # The shared, solved across-steps tree (health lane). Read-only for the viz lane.
 SHARED_RUN = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/across_steps"

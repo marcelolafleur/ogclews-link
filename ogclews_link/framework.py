@@ -4,8 +4,10 @@ channels in order and calls ``solve(ctx)`` at the point the reform is solved -- 
 (clews->og, policy) before it, og->clews ``emit_`` channels after. ``run`` builds the OG baseline (or
 reuses a prebuilt one), threads a fresh reform through the experiment, and returns the context.
 
-The ogcore-touching callables (build_baseline, solve, apply_health) are INJECTED so this module and the
-channels import only numpy and stay unit-testable without ogcore.
+The solve callables (export_baseline, solve_reform) are INJECTED from runtime.py so this module and the
+channels import only numpy and stay unit-testable without ogcore. Those callables drive the country's OG
+model in its OWN environment as a subprocess -- this module only ever sees the OGParams template + the
+returned solution dicts, never ogcore itself.
 """
 from __future__ import annotations
 
@@ -38,61 +40,57 @@ class ExperimentContext:
 
 # --- orchestration --------------------------------------------------------------
 
-def _fresh_reform(p, base_dir, reform_dir):
+def _fresh_reform(template):
+    """A clean reform copy of the OGParams template for the next experiment's pre-solve channels to
+    mutate. (baseline/baseline_dir/output_base + the e-cache are set runner-side on the real
+    Specifications; the template the link holds carries only the parameter arrays.)"""
     import copy
-    r = copy.deepcopy(p)
-    r.baseline = False
-    r.baseline_dir = base_dir
-    r.output_base = reform_dir
-    r.__dict__.pop("_e_long_cache", None)     # ogcore memoizes e; reform edits must take
-    return r
+    return copy.deepcopy(template)
 
 
-def _solve_step(solve, apply_health):
-    """Build the solve callable an experiment invokes as ``solve(ctx)``: fire the mortality
-    re-solve hook if a health channel staged one, then solve the reform into ctx.reform_tpi."""
+def _solve_step(solve_reform, baseline_arrays, base_dir, reform_dir, country):
+    """Build the solve callable an experiment invokes as ``solve(ctx)``: ship the channels' parameter
+    overrides (+ any staged mortality shock) to the OG runner and capture the reform solution."""
     def solve_step(ctx):
-        if apply_health and ctx.extras.get("health_shock") is not None:
-            ctx.og_reform = apply_health(ctx.og_reform, ctx.extras["health_shock"])
-        ctx.reform_tpi = solve(ctx.og_reform)
+        ctx.reform_tpi = solve_reform(ctx.og_reform, baseline_arrays, ctx.extras.get("health_shock"),
+                                      base_dir, reform_dir, country)
         return ctx.reform_tpi
     return solve_step
 
 
-def run(experiment_fn, country, *, build_baseline, solve, apply_health=None,
+def run(experiment_fn, country, *, solve_reform, export_baseline=None,
         out_root="./ogclews_runs", prebuilt=None) -> ExperimentContext:
     """Run one experiment. ``experiment_fn(ctx, solve)`` calls channels and calls solve(ctx) once.
-    A ``prebuilt`` tuple (p, base_tpi, base_dir) reuses an already-solved baseline (the battery reuses
-    one across reforms instead of re-solving the identical baseline)."""
+    A ``prebuilt`` tuple (og_template, base_tpi, base_dir, baseline_arrays) reuses an already-exported
+    baseline (the battery reuses one across reforms instead of re-exporting the identical baseline);
+    otherwise ``export_baseline`` is required."""
     name = getattr(experiment_fn, "__name__", "experiment")
     ctx = ExperimentContext(country=country)
-    base_dir = os.path.join(out_root, name, "baseline")
     reform_dir = os.path.join(out_root, name, "reform")
     if prebuilt is not None:
-        p, ctx.base_tpi, base_dir = prebuilt
+        template, ctx.base_tpi, base_dir, baseline_arrays = prebuilt
+    elif export_baseline is not None:
+        template, ctx.base_tpi, base_dir, baseline_arrays = export_baseline(country, out_root)
     else:
-        p, _aux = build_baseline(country, base_dir)
-        ctx.base_tpi = solve(p)
-    ctx.og_reform = _fresh_reform(p, base_dir, reform_dir)
-    experiment_fn(ctx, _solve_step(solve, apply_health))
+        raise ValueError("run() needs either prebuilt=(...) or export_baseline=callable")
+    ctx.og_reform = _fresh_reform(template)
+    experiment_fn(ctx, _solve_step(solve_reform, baseline_arrays, base_dir, reform_dir, country))
     return ctx
 
 
-def run_across_steps(step_fns, country, *, build_baseline, solve, apply_health=None,
+def run_across_steps(step_fns, country, *, export_baseline, solve_reform,
                      out_root="./ogclews_runs") -> list:
-    """Solve the baseline ONCE, then one reform per CUMULATIVE step. ``step_fns`` is a list of
+    """Export the baseline ONCE, then one reform per CUMULATIVE step. ``step_fns`` is a list of
     (label, step_fn(ctx, solve)); each shares the baseline -- the layered 'what does each added channel
     do' view. A non-converging step is recorded and skipped, not fatal to the batch."""
-    base_dir = os.path.join(out_root, "across_steps", "baseline")
-    p, _aux = build_baseline(country, base_dir)
-    base_tpi = solve(p)
-    solve_step = _solve_step(solve, apply_health)
+    template, base_tpi, base_dir, baseline_arrays = export_baseline(country, out_root)
     results = []
     for label, step_fn in step_fns:
         ctx = ExperimentContext(country=country, base_tpi=base_tpi)
-        ctx.og_reform = _fresh_reform(p, base_dir, os.path.join(out_root, "across_steps", label))
+        ctx.og_reform = _fresh_reform(template)
+        reform_dir = os.path.join(out_root, "across_steps", label)
         try:
-            step_fn(ctx, solve_step)
+            step_fn(ctx, _solve_step(solve_reform, baseline_arrays, base_dir, reform_dir, country))
         except Exception as e:  # one non-converging step must not kill the whole batch
             print(f"[across_steps] step '{label}' did NOT solve: {type(e).__name__}: {e}")
             ctx.extras["error"] = f"{type(e).__name__}: {e}"
