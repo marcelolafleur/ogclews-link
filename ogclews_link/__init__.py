@@ -5,10 +5,9 @@ Design principle (de novo analysis): keep both models independently runnable; th
 coupling is a separate layer that exchanges quantities forward and prices/duals back,
 iterated to a fixed point.
 
-Import-light by design: submodules are NOT imported here, so the pure-numpy wedge math
-(``og_wedge``) and the dataclass contract (``contract``) stay usable without pandas or
-ogcore. Import what you need, e.g. ``from ogclews_link import og_wedge``. The
-``clews_signal`` (pandas) and ``iterate`` (ogcore) modules pull heavier deps on demand.
+Import-light by design: submodules are NOT imported here, so the pure-numpy channel
+transforms (``channels``) and the dataclass contract (``contract``) stay usable without
+pandas or ogcore. Import what you need, e.g. ``from ogclews_link import channels``.
 """
-__all__ = ["channels", "framework", "signals", "report", "contract", "clews_signal", "og_wedge"]
+__all__ = ["channels", "framework", "signals", "report", "contract", "og_wedge"]
 __version__ = "0.0.1"

@@ -25,7 +25,7 @@ import sys
 
 import numpy as np
 
-from ogclews_link import clews_signal, og_wedge
+from ogclews_link import og_wedge, signals
 from ogclews_link.contract import PHL_CONCORDANCE, ScenarioPair
 
 
@@ -77,7 +77,7 @@ COST_PEP = os.path.join(PHL.reform_dir, "260108_Cost of electricity generation_P
 
 
 def build_signal():
-    ratio = clews_signal.cost_of_electricity_ratio(COST_BASE, COST_PEP)
+    ratio = signals.cost_of_electricity_ratio(COST_BASE, COST_PEP)
     print("CLEWS electricity cost ratio (PEP / Base), by year:")
     print(ratio.round(4).to_string())
     print(f"  range: {ratio.min():.4f} .. {ratio.max():.4f}  (1.0 = no change)")
