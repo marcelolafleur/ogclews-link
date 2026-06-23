@@ -79,20 +79,17 @@ class UnitMap:
     notes: str = ""
 
 
-# --- Philippines: energy ports DISCOVERED from the aggregation the runtime builds (M=4) -------
-# Same (1,1) as the old hand-set literal, but derived: industry index from the M=4 build dict
-# (energy_calibration.M4_PROD_DICT -> "Electricity" at 1), good index from the package CONS_DICT
-# ("Energy and water" at 1). NB: discover from the M=4 *build* dict, not the package's real
-# 7-sector PROD_DICT -- the model runs M=4, so electricity is column 1 here (it is column 2 in the
-# real calibration; use Concordance.from_package when running that). Falls back to the literal only
-# if the packages aren't importable, so `import ogclews_link.contract` still works standalone.
+# --- Philippines: energy ports DISCOVERED from the M=4 coupling aggregation -------
+# Industry index from the coupling PROD_DICT ("Electricity" -> column 1), good index from CONS_DICT
+# ("Energy and water" -> column 1). Both dicts are VENDORED in _calibration, so discovery runs in the
+# link env with no ogphl import -- and NO silent literal fallback: if the carrier can't be located (or
+# is split across groups), from_dicts raises and we fail loud rather than guessing a (possibly wrong)
+# index. NB: this is the M=4 *coupling* aggregation (electricity isolated at column 1), not the
+# country package's native grouping (where electricity is fused with water); use Concordance.from_dicts
+# with a different build's dicts to run at another aggregation.
 def _discover_phl_concordance():
-    try:
-        from .energy_calibration import M4_PROD_DICT
-        from ogphl.constants import CONS_DICT
-        return Concordance.from_dicts(M4_PROD_DICT, CONS_DICT)
-    except Exception:
-        return Concordance(energy_industry_index=1, energy_good_index=1)
+    from ._calibration import CONS_DICT, PROD_DICT
+    return Concordance.from_dicts(PROD_DICT, CONS_DICT)
 
 
 PHL_CONCORDANCE = _discover_phl_concordance()

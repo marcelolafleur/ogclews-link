@@ -52,12 +52,15 @@ def main(argv=None):
     if args.cmd == "run":
         from functools import partial
 
-        from . import framework, runtime
+        from . import framework, registry, runtime
         from .country import PHL
         from .manifest import write_run_manifest
 
         exp = experiments.get(args.experiment)
         cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress)
+        entry = registry.lookup(PHL)        # OG-model provenance for the manifest (and fail-fast)
+        og_model = {"package": entry.og_package, "og_version": entry.og_version,
+                    "ogcore_version": entry.ogcore_version, "env_python": entry.env_python}
         ctx = framework.run(
             exp, PHL,
             export_baseline=partial(runtime.export_baseline, cfg=cfg),
@@ -68,7 +71,7 @@ def main(argv=None):
             written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")
             print("Wrote CLEWS inputs:", written)
         manifest = write_run_manifest(f"{args.out}/{args.experiment}", exp, PHL, ctx,
-                                      clews_run=args.clews_run)
+                                      clews_run=args.clews_run, og_model=og_model)
         print("Wrote run manifest:", manifest)
         return
 

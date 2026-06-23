@@ -13,18 +13,18 @@ from __future__ import annotations
 
 import numpy as np
 
-# M=4 CLEWS production aggregation (the vendored PROD_DICT): industry -> SAM activity codes.
-# "Electricity" = ["aelec"] (electricity ONLY -> clean match to the per-fuel CLEWS dual); water and
-# mining sit in "Natural Resources". This is the proven-runnable platform (see the design spec).
-M4_PROD_DICT = {
-    "Natural Resources": ["amaiz", "arice", "aocer", "aoils", "aroot", "avege", "asugr", "atoba",
-                          "acoff", "afrui", "aocrp", "acatt", "apoul", "aoliv", "afore", "afish",
-                          "amine", "awatr"],
-    "Electricity": ["aelec"],
-    "Construction, Trade, Services": ["acons", "atrad", "atran", "ahotl", "acomm", "afsrv", "areal",
-                                      "absrv", "apadm", "aeduc", "aheal", "aosrv"],
-    "Manufacturing": ["afood", "abeve", "atext", "awood", "achem", "anmet", "ametl", "amach", "aoman"],
-}
+# M=4 CLEWS production aggregation: industry -> SAM activity codes. "Electricity" = ["aelec"]
+# (electricity ONLY -> clean match to the per-fuel CLEWS dual); water and mining sit in "Natural
+# Resources". This is the proven-runnable platform (see the design spec).
+#
+# SINGLE SOURCE: derived from _calibration.PROD_DICT (the dict the SOLVE feeds to get_io_matrix, verbatim
+# from CLEWS-OG, golden-defining). Here we expose a within-group DE-DUPLICATED view: the packaged dict
+# lists 'acoff' twice in Natural Resources, which would double-count in code paths that don't de-dup --
+# the concordance discovery and the standalone diagnostic scripts use this view. (The solve itself uses
+# the verbatim _calibration.PROD_DICT, acoff duplicate and all, because golden is calibrated with it.)
+from ._calibration import PROD_DICT as _COUPLING_PROD_DICT
+
+M4_PROD_DICT = {k: list(dict.fromkeys(v)) for k, v in _COUPLING_PROD_DICT.items()}
 
 # Energy carriers in the SAM. CRITICAL calibration point: electricity (celec) is a SMALL input share
 # in PHL (~0.4-0.7% of most industries' costs); the economically material energy cost is FUELS
