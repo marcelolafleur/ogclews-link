@@ -6,6 +6,11 @@ __pycache__/
 *.pkl
 *.png
 
+# Python build artifacts (uv build / pip wheel)
+build/
+dist/
+*.egg-info/
+
 # Local-only data export + scratch — never commit
 IHME-GBD_2023_DATA/
 .review_tmp/

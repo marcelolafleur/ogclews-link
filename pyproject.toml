@@ -1,25 +1,60 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ogclews-link"
 version = "0.0.1"
-description = "Orchestration layer coupling OG-Core (OLG macro) and CLEWS/OSeMOSYS (energy-land-water LP)"
-requires-python = ">=3.9"
+authors = [
+    {name = "Marcelo LaFleur"},
+]
+description = "Coupling layer linking OG-Core (OLG-CGE macro) and CLEWS/OSeMOSYS (least-cost energy-land-water)"
+readme = "README.md"
+requires-python = ">=3.11, <3.14"
+keywords = [
+    "OG-Core",
+    "CLEWS",
+    "OSeMOSYS",
+    "energy-economy coupling",
+    "overlapping generations",
+    "soft link",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+# What the package's own modules import. The OG-Core SOLVER and a country calibration (e.g. ogphl) are
+# needed only to DRIVE a solve -- loaded lazily by the runtime -- so the channel transforms stay
+# importable and unit-testable without them. Install the [run] extra (or onboard a country via MUIOGO).
 dependencies = [
     "numpy",
-    "pandas",
-    "openpyxl",   # read the CLEWS cost-of-electricity workbooks
+    "pandas>=1.2.5",
+    "scipy>=1.7.1",
+    "openpyxl>=3.1.2",   # read the CLEWS cost-of-electricity workbooks
+    "matplotlib",        # the figure/deck subpackage (python -m ogclews_link.viz)
 ]
 
-# ogcore (and a country calibration such as ogphl) are needed only to drive a solve,
-# not to import the wedge/contract logic. Install them in the same env to run experiments.
 [project.optional-dependencies]
-run = ["ogcore"]
+run = ["ogcore>=0.14.5"]                 # the OG-Core solver; the country calibration is onboarded separately
+dev = ["pytest>=6.0", "pytest-xdist"]
 
 [project.scripts]
 ogclews-link = "ogclews_link.cli:main"
 
-[tool.setuptools]
-packages = ["ogclews_link"]
+[project.urls]
+Homepage = "https://github.com/SeaCelo/ogclews-link"
+
+[tool.setuptools.packages.find]
+include = ["ogclews_link*"]              # catches ogclews_link AND ogclews_link.viz
+
+[tool.setuptools.package-data]
+ogclews_link = ["data/*.json", "data/*.csv", "demographic_data/*.csv"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
