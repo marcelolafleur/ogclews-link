@@ -158,8 +158,8 @@ economy in two ways. First, fewer people die early. But the deaths air pollution
 the elderly, who are largely retired, so saving those lives changes the population more than the
 workforce — the effect on output is small. Second, and more important, people get sick less; healthier
 working-age people are more productive, and that lifts output. So the economic gain from cleaner air comes
-mainly from a healthier workforce, not from the lives saved. (The size of both effects is still a
-placeholder until the health data is calibrated.)
+mainly from a healthier workforce, not from the lives saved. Both effects are now sized from real data
+(below) and are modest — because the power sector is only about a tenth of the air pollution people breathe.
 
 **In the model**
 The trigger is the change in fine-particulate (PM2.5) pollution from the energy system — not CO₂, since
@@ -168,8 +168,11 @@ Burden of Disease (GBD). It moves two parts of the model, each using a by-age pr
 shifts age-specific death rates (`ρ`); the model then recomputes the population, changing its size and age
 structure (demographics). Because pollution deaths skew old, the extra survivors are mostly past working
 age, so output barely moves. Morbidity shifts effective labour by age (`e`) — healthier workers supply
-more productive labour to production — and this is where the output gain comes from. The dose-response
-magnitudes are placeholders pending the real Philippine PM2.5 data.
+more productive labour to production — and this is where the output gain comes from. The dose-response is
+calibrated, not assumed: a 1% cut in the power sector's PM2.5 emissions lowers ambient-pollution deaths by
+only about 0.08% (Philippines), because the power sector is ~10% of ambient PM2.5 (McDuffie et al. 2021)
+and the exposure-response curve is concave (GBD/GEMM). That multiplier is per-country — full mechanism,
+data, and sources in `docs/design/emissions-to-health-dose-response.md`.
 
 ---
 

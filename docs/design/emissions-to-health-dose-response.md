@@ -59,6 +59,31 @@ M is ~2× the others — its power fleet is coal-heavy, so the health channel ma
 *CRF elasticities remain approximated from the concave curve at each exposure (the one soft term left);
 recompute from GEMM/IER parameters when precision matters.
 
+## In the OG model (the channel)
+`channels.HealthChannel` (id `health`, CLEWS→OG) turns the dose-response into a demographic + labour shock:
+
+1. **Trigger — PM2.5, not CO₂.** `signals.emissions_ratio(...)` reads the reform/base ratio of the
+   country's *health* species (`CountryConfig.health_emission`, default `PM2_5`) over the first decade →
+   `demis` (< 0 = cleaner). A decarbonization reform moves CO₂e and PM2.5 by *different* ratios (CCS cuts
+   CO₂ not PM2.5; coal→gas cuts PM2.5 sharply), so the health channel must use PM2.5.
+2. **Dose-response.** `M = CountryConfig.pm25_dose_response` (resolved from `data/pm25_health.json`;
+   PHL 0.082). `M = 1.0` + a loud guardrail if a country has no row.
+3. **Mortality → demographics.** Target `excess_deaths = total_ambient_PM2.5_deaths × M × demis` (signed;
+   cleaner reform → negative → lives saved). The runtime's `health_pop.disease_pop` solves a scale on the
+   age-specific mortality bump `ρ += shock_scale · g_t · h(s)` (clipped) to hit that target, then recomputes
+   the population (`get_pop_objs`). The age shape `h(s)` is **GBD ambient-PM2.5 deaths-by-age** (elderly-
+   skewed), so the extra survivors are mostly past working age → small GDP effect. Lives-saved (negative
+   target) solves leave an intrinsic ~Walras residual that scales with the target; `CountryConfig.rc_ss`
+   (1e-5) is the post-solve SS gate, ~10× tighter than ogcore's `RC_TPI` default.
+4. **Morbidity → productivity.** Effective labour by age `e` is scaled by `benefit = −morbidity_response ·
+   M · demis`: a cleaner reform raises productivity. `morbidity_response` (peak per-person YLD rate) and the
+   age shape `g(s)` come from **GBD YLD-by-age** (working-age chronic causes). This is the *main* output
+   gain. `M` is reused here as the morbidity elasticity proxy (the morbidity CRF differs slightly from
+   mortality's but is the same order).
+
+Totals (`total_ambient_PM2.5_deaths`, YLD rate) come from the country's **own GBD export**
+(`IHME-GBD_2023_DATA/`), never McDuffie — McDuffie supplies only the sector *share*.
+
 ## Future expansions (kept deliberately)
 - **Other ambient sectors — same method, different `sector_share`.** A transport-electrification channel
   uses the transport share (~7.6% global); an industry channel uses ~11.7%. The data file keeps **all**

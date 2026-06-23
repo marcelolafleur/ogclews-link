@@ -40,7 +40,9 @@ OG→CLEWS channels *read* an OG output (nothing in OG changes — the macro eff
 - **Health** (`ch_health`) — PM2.5 emissions ratio × external GBD dose-response. **Mortality** moves
   `ρ` (mortality by age) → population recompute → **demographics** (saved lives skew elderly → few extra
   workers, ~0 output); **morbidity** moves `e` (effective labour by age) → **productivity** (a fitter
-  working-age population → output per worker — the main effect). Dose-response magnitudes are placeholders.
+  working-age population → output per worker — the main effect). The emissions→deaths dose-response is
+  calibrated per-country (energy mass share × CRF elasticity, McDuffie 2021 × GBD/GEMM; PHL ~0.08); the
+  morbidity→productivity translation remains reduced-form.
 - **Energy prices** (`ch_energy`) — moves `τ_c`, a **consumption-tax / price wedge** on the energy good,
   into the household demand FOC. Demand falls; the incidence is **regressive only when energy is a
   necessity (`c_min`>0)** — the bare wedge is ~homothetic. It is a tax wedge, so the revenue accrues to
@@ -117,7 +119,7 @@ carries the caveats).
   +20% cost-index proxy, not the dual; uncalibrated units; carbon revenue not recycled).
 - **`energy_by_income`** — the distributional incidence only OG-Core can produce: energy-good demand
   change by lifetime-income group, one line per step.
-- **`health_gdp_split`** — the +health GDP gain is dominated by the (placeholder) *morbidity*
+- **`health_gdp_split`** — the +health GDP gain is dominated by the (reduced-form) *morbidity*
   multiplier, **not** lives saved: PHL PM2.5 deaths skew elderly, so saved lives add retirees, not
   workers. Do not report the gain as a lives-saved effect.
 - `welfare_cev_by_group`, `macro_transition`, `headline_dashboard` — welfare incidence, transition
@@ -130,7 +132,8 @@ object → dual-consistent fixed point) and where it is heading. Filled marker =
 target. **Takeaway:** the practical frontier is a *ladder of approximations* to the dual-exchanging
 theoretical best — each rung replaces a proxy with a structural object. `discount_rate` is essentially
 ready (one-way); `energy_price` has the dual wired and needs a real run + the loop; `carbon`/
-`investment` need the unit/deflator bridge; `health` needs the real GBD dose-response.
+`investment` need the unit/deflator bridge; `health` has the calibrated emissions→deaths dose-response
+(McDuffie 2021 × GBD/GEMM), with the morbidity→productivity elasticity the remaining reduced-form rung.
 
 ## 7 · Honest status
 
@@ -139,5 +142,6 @@ OG; macro + distributional + fiscal read-outs); reproduced −16.6% energy deman
 incidence on OG-PHL; producer side emits CLEWS inputs; the commodity dual reader is built and
 verified; `health` solves end-to-end; 24/24 transform tests pass (numpy-only, no solve).
 **Stubbed / placeholder:** loop closure (the external CLEWS re-solve); the unit/deflator bridge
-(so carbon/investment magnitudes are illustrative); the health dose-response and morbidity response
-(pending the real GBD PHL ambient-PM2.5 export); energy `c_min` must be calibrated before use.
+(so carbon/investment magnitudes are illustrative); the health morbidity→productivity response (the
+emissions→deaths dose-response is now calibrated from McDuffie 2021 × GBD/GEMM); energy `c_min` must be
+calibrated before use.
