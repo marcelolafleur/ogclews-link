@@ -48,7 +48,7 @@ OUT_ROOT = os.path.join(REPO, "ogclews_runs", "battery")
 #   * carbon (recycle reads the base), health (demographic re-solve), full (contains forward)
 GROUPS = [
     ("foundation", [
-        {"id": "unit_suite", "kind": "pytest",   "target": "tests/", "note": "expect 77 pass / 1 skip"},
+        {"id": "unit_suite", "kind": "pytest",   "target": "tests/", "note": "expect 79 pass / 1 skip"},
         {"id": "baseline",   "kind": "baseline",                     "note": "solve the shared baseline ONCE (TPI -> gives SS + TPI)"},
     ]),
     ("ss_smoke", [   # fast SS convergence/sign gate -- ONLY param-setting channels (no OG-result reads)

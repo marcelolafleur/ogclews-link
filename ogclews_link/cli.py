@@ -1,9 +1,9 @@
 """Command-line runner: the management surface for the channel framework.
 
   python -m ogclews_link list                 # named experiments
-  python -m ogclews_link channels             # registered channels + direction/theory status
+  python -m ogclews_link channels             # the channel functions + direction
   python -m ogclews_link run clean_incidence  # build baseline, apply channels, solve, report
-  python -m ogclews_link run full --workers 1 --out ./runs
+  python -m ogclews_link run coupled --out ./runs
 """
 from __future__ import annotations
 
@@ -20,9 +20,6 @@ def main(argv=None):
     rp = sub.add_parser("run", help="run a named experiment")
     rp.add_argument("experiment")
     rp.add_argument("--workers", type=int, default=7, help="OG-Core J-loop worker processes (use multiprocess; avoid 1)")
-    rp.add_argument("--passes", type=int, default=1,
-                    help="1 = one-way, take CLEWS as given (default); >1 = multi-pass iterate to a fixed point "
-                         "(needs the CLEWS-runner hook; degrades to one pass without it)")
     rp.add_argument("--out", default="./ogclews_runs")
     rp.add_argument("--no-progress", action="store_true")
     rp.add_argument("--clews-run", default=None,

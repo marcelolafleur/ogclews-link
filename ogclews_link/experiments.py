@@ -147,6 +147,7 @@ def _across_carbon(ctx, solve):
     channels.energy_price(ctx, price_ratio=1.20)
     channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
     channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.002)
+    channels.emit_carbon_penalty(ctx, carbon_price=50.0)
     solve(ctx)
 
 
@@ -154,6 +155,7 @@ def _across_health(ctx, solve):
     channels.energy_price(ctx, price_ratio=1.20)
     channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
     channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.002)
+    channels.emit_carbon_penalty(ctx, carbon_price=50.0)
     channels.health(ctx)
     solve(ctx)
 

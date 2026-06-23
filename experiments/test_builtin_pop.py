@@ -16,10 +16,11 @@ import sys
 import numpy as np
 from ogcore.utils import safe_read_pickle
 
-from ogclews_link import channels, health_profile, report  # noqa: F401 (registers channels)
+from ogclews_link import channels, health_profile, report  # noqa: F401
 from ogclews_link.country import PHL
-from ogclews_link.runtime import CLEWS_OG_SIM, Runtime
+from ogclews_link.runtime import Runtime
 
+CLEWS_OG_SIM = "/Users/mlafleur/Projects/CLEWS-OG/OG_simulations"  # PHL get_pop_data lives here
 OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/validate_health"
 BASE = os.path.join(OUT, "health", "baseline")
 

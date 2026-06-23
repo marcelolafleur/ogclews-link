@@ -1,6 +1,7 @@
 """The ogcore-touching layer: build an OG-PHL baseline, solve, apply the mortality effect.
 All heavy imports are lazy so importing ogclews_link (and unit-testing the channels) needs
-only numpy/pandas. The framework Runner is given this object's bound methods.
+only numpy/pandas. These bound methods are injected into framework.run as build_baseline/solve/
+apply_health, so the framework + channels stay importable without ogcore.
 """
 from __future__ import annotations
 

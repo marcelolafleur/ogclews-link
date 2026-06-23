@@ -21,7 +21,7 @@ from . import health_profile, policy_levers, signals
 from .signals import _fit
 
 
-def recycle_via_transfers(ctx, i_good: int, dtau_path) -> float | None:
+def _recycle_via_transfers(ctx, i_good: int, dtau_path) -> float | None:
     """Return the energy-tax revenue to households as a lump-sum transfer (TR=alpha_T*Y), isolating
     the price/substitution effect from the fiscal effect. FIRST-ORDER: revenue is estimated on BASELINE
     quantities (dtau * p_i * C_i), slightly overstating reform revenue. Fills the SS tail (permanent
@@ -38,7 +38,7 @@ def recycle_via_transfers(ctx, i_good: int, dtau_path) -> float | None:
     aT = np.asarray(p.alpha_T, dtype=float)
     new_aT = aT + _fit(bump, aT.shape[0])
     if np.any(new_aT < 0):
-        print("[guardrail] recycle_via_transfers: bump would push alpha_T < 0 (a lump-sum tax on "
+        print("[guardrail] _recycle_via_transfers: bump would push alpha_T < 0 (a lump-sum tax on "
               "households); floored at 0. A negative recycle implies the closure instrument should change.")
         new_aT = np.maximum(new_aT, 0.0)
     p.alpha_T = new_aT
@@ -75,7 +75,7 @@ def energy_price(ctx, price_ratio, *, energy_cmin=0.0, recycle=False):
         cm = np.array(p.c_min, dtype=float)
         cm[i_e] = energy_cmin
         p.c_min = cm
-    recycled = recycle_via_transfers(ctx, i_e, dtau[:p.T]) if recycle else None
+    recycled = _recycle_via_transfers(ctx, i_e, dtau[:p.T]) if recycle else None
     return ctx.log("energy_price", tau_c_energy_0=float(tau[0, i_e]),
                    dtau_mean=float(dtau[:10].mean()), energy_cmin=energy_cmin,
                    recycled_pct_gdp=recycled)
@@ -184,7 +184,7 @@ def carbon_tax(ctx, *, carbon_price=50.0, carbon_intensity=0.002, recycle=False,
     prov = {"carbon_price_mean": float(cp.mean()),
             "og_base_note": "OG taxes household energy only (~1.4% of consumption); industrial carbon unpriced"}
     if recycle:
-        prov["recycled_pct_gdp"] = recycle_via_transfers(ctx, i_e, dtau)
+        prov["recycled_pct_gdp"] = _recycle_via_transfers(ctx, i_e, dtau)
     return ctx.log("carbon_tax", **prov)
 
 
