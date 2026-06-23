@@ -158,6 +158,22 @@ def test_demand_postsolve():
     assert "Demand" in ctx.clews_inputs
 
 
+def test_clews_io_roundtrip():
+    # guards the channel-artifact <-> clews_io key coupling (clews_io has no other coverage): every
+    # og->clews / policy artifact the channels emit must serialize with the keys clews_io reads.
+    import tempfile
+
+    from ogclews_link import clews_io
+    ctx = _ctx(with_reform=True)
+    ar = signals.activity_ratio(ctx.base_tpi, ctx.reform_tpi, driver="Y_m", og_index=M_E)
+    channels.emit_energy_demand(ctx, ar, og_activity="sector_output")
+    channels.emit_discount_rate(ctx)
+    channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
+    with tempfile.TemporaryDirectory() as d:
+        written = clews_io.write_all(ctx, d)
+    assert set(written) == {"Demand", "DiscountRate", "EmissionsPenalty"}
+
+
 def test_guardrails_present():
     assert preflight(["carbon_tax", "emit_carbon_penalty"])       # one-price discipline message
     assert preflight(["energy_price", "carbon_tax"])              # double-count warning

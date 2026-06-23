@@ -23,9 +23,9 @@ def write_demand(spec: dict, out_dir: str, region="RE1") -> str:
     years = _years(spec["start_year"], len(ratio))
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["REGION", "OG_DRIVER", "OG_INDEX", "CLEWS_FUEL", "YEAR", "DEMAND_RATIO"])
+        w.writerow(["REGION", "OG_ACTIVITY", "OG_INDEX", "CLEWS_FUEL", "YEAR", "DEMAND_RATIO"])
         for y, x in zip(years, ratio):
-            w.writerow([region, spec["driver"], spec["og_index"], spec.get("clews_fuel", ""), y, f"{x:.6f}"])
+            w.writerow([region, spec["og_activity"], spec["og_index"], spec.get("clews_fuel", ""), y, f"{x:.6f}"])
     return path
 
 
