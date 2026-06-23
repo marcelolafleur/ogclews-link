@@ -6,7 +6,7 @@ explicit, reviewable data -- not buried in a run script. See the de novo analysi
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -23,36 +23,45 @@ class ScenarioPair:
 class Concordance:
     """Maps CLEWS objects to OG-Core indices, and pins the energy ports.
 
-    ``energy_industry_index`` is the OG industry m whose output price carries the
-    energy cost (route B). ``energy_good_index`` is the OG consumption good i that
-    households buy and react to (route A). Both must be verified against the country
-    calibration (e.g. OG-PHL ``calibration_values.PROD_DICT`` / ``CONS_DICT``).
+    ``energy_industry_index`` is the OG industry m whose output price carries the energy cost (route B).
+    ``energy_good_index`` is the OG consumption good i that households buy and react to (route A). Either
+    is ``None`` when the country's OG aggregation cannot isolate the carrier (e.g. electricity is fused
+    with water in a single group) -- ``unavailable`` records why. Channels that need an unavailable port
+    SKIP themselves (recording the reason); channels that don't (health off CLEWS emissions, public
+    investment, the discount-rate emit) still run.
     """
-    energy_industry_index: int
-    energy_good_index: int
+    energy_industry_index: int | None
+    energy_good_index: int | None
+    unavailable: dict = field(default_factory=dict)   # port name -> why it couldn't be resolved
 
     @classmethod
     def from_dicts(cls, prod_dict, cons_dict, carrier="electricity"):
-        """Discover the energy ports from a calibration's aggregation dicts, so the indices
-        track whatever aggregation the model is built with -- no hand-set literals. The industry
-        index is the PROD_DICT group holding ``carrier``; the good index is the CONS_DICT group
-        holding it (PROD_DICT/CONS_DICT order = the model's column order). ``carrier`` is an
-        ``aggregation.CARRIERS`` key (e.g. 'electricity'), a regex, or a list of SAM codes.
-        Raises if the carrier is absent or split across groups (an ambiguous single index)."""
+        """Discover the energy ports from a calibration's aggregation dicts, so the indices track
+        whatever aggregation the model is built with -- no hand-set literals. The industry index is the
+        PROD_DICT group holding ``carrier``; the good index is the CONS_DICT group holding it
+        (PROD_DICT/CONS_DICT order = the model's column order). ``carrier`` is an ``aggregation.CARRIERS``
+        key (e.g. 'electricity'), a regex, or a list of SAM codes. A port the carrier can't be resolved to
+        -- absent, or SPLIT across groups (can't isolate one index) -- comes back ``None`` with a recorded
+        reason (NOT a raise and NOT a silent guess), so the dependent channels can be skipped per country."""
         from . import aggregation as ag
 
-        def one(d, axis):
+        def resolve(d, axis):
             hits = ag.locate(d, carrier)
             if not hits:
-                raise ValueError(f"carrier {carrier!r} not found in the {axis} aggregation; "
-                                 f"groups: {list(d)}")
+                return None, f"carrier {carrier!r} not found in the {axis} aggregation (groups: {list(d)})"
             if len(hits) > 1:
-                raise ValueError(f"carrier {carrier!r} is split across {axis} groups "
-                                 f"{[h[1] for h in hits]}; pass an explicit code set/index")
-            return hits[0][0]
+                return None, (f"carrier {carrier!r} is split across {axis} groups {[h[1] for h in hits]} "
+                              "-- cannot isolate a single index")
+            return hits[0][0], None
 
-        return cls(energy_industry_index=one(prod_dict, "production"),
-                   energy_good_index=one(cons_dict, "consumption"))
+        ind, ind_why = resolve(prod_dict, "production")
+        good, good_why = resolve(cons_dict, "consumption")
+        unavailable = {}
+        if ind_why:
+            unavailable["energy_industry_index"] = ind_why
+        if good_why:
+            unavailable["energy_good_index"] = good_why
+        return cls(energy_industry_index=ind, energy_good_index=good, unavailable=unavailable)
 
     @classmethod
     def from_package(cls, pkg, carrier="electricity"):

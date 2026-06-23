@@ -52,6 +52,22 @@ def _recycle_via_transfers(ctx, i_good: int, dtau_path) -> float | None:
     return float(np.mean((new_aT - aT)[:10]))
 
 
+def _skip_if_unavailable(ctx, channel: str, *required_ports):
+    """Guard for channels that need an energy port (electricity's OG industry/good index). If the
+    country's OG aggregation can't isolate the carrier (the concordance left a required port ``None`` --
+    e.g. electricity fused with water in one group), record a SKIP in provenance and return that record;
+    the caller returns it immediately and mutates nothing. Returns None when all required ports resolve
+    (the channel proceeds normally). For the Philippines every port resolves, so this never fires."""
+    con = ctx.country.concordance
+    missing = {p: con.unavailable.get(p, "unresolved") for p in required_ports
+               if getattr(con, p, None) is None}
+    if missing:
+        reason = "; ".join(f"{p}: {why}" for p, why in missing.items())
+        print(f"[skip] {channel}: {reason}")
+        return ctx.log(channel, skipped=True, reason=reason)
+    return None
+
+
 # --- #1 energy price -> household demand (+ incidence) · clews->og ---------------
 
 def energy_price(ctx, price_ratio, *, energy_subsistence_floor=0.0, recycle_revenue_to_transfers=False):
@@ -77,6 +93,8 @@ def energy_price(ctx, price_ratio, *, energy_subsistence_floor=0.0, recycle_reve
     Returns:
         dict: provenance -- tau_c_energy_0, dtau_mean, energy_subsistence_floor, recycled_pct_gdp.
     """
+    if (skip := _skip_if_unavailable(ctx, "energy_price", "energy_good_index")) is not None:
+        return skip
     c = ctx.country
     i_e = c.concordance.energy_good_index
     p = ctx.og_reform
@@ -171,6 +189,8 @@ def capital_intensity(ctx, energy_capital_share_multiplier=None, *, energy_capit
     Returns:
         dict: provenance from ``policy_levers.set_capital_intensity`` (gamma_old, gamma_new, labor_share_new).
     """
+    if (skip := _skip_if_unavailable(ctx, "capital_intensity", "energy_industry_index")) is not None:
+        return skip
     c = ctx.country
     p = ctx.og_reform
     m = c.concordance.energy_industry_index
@@ -203,6 +223,8 @@ def energy_capex(ctx, *, investment_tax_credit_rate=0.20, accelerated_depreciati
     Returns:
         dict: provenance from ``policy_levers.set_investment_incentive`` plus the lever label.
     """
+    if (skip := _skip_if_unavailable(ctx, "energy_capex", "energy_industry_index")) is not None:
+        return skip
     c = ctx.country
     p = ctx.og_reform
     m = c.concordance.energy_industry_index
@@ -235,6 +257,8 @@ def carbon_tax(ctx, *, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.
     Returns:
         dict: provenance -- carbon_price_mean, og_base_note, recycled_pct_gdp (if recycled).
     """
+    if (skip := _skip_if_unavailable(ctx, "carbon_tax", "energy_good_index")) is not None:
+        return skip
     c = ctx.country
     i_e = c.concordance.energy_good_index
     p = ctx.og_reform
@@ -435,6 +459,11 @@ def emit_energy_demand(ctx, activity_ratio, *, og_activity="sector_output", og_i
     """
     c = ctx.country
     driver = "Y_m" if og_activity == "sector_output" else "C_i"
+    # only the discovered (non-override) path needs the port; an explicit override bypasses discovery
+    if og_index_override is None:
+        port = "energy_industry_index" if driver == "Y_m" else "energy_good_index"
+        if (skip := _skip_if_unavailable(ctx, "emit_energy_demand", port)) is not None:
+            return skip
     default_idx = (c.concordance.energy_industry_index if driver == "Y_m"
                    else c.concordance.energy_good_index)
     idx = og_index_override if og_index_override is not None else default_idx

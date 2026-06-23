@@ -273,7 +273,10 @@ def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, f
     of the OG energy good and aligned to og_start_year (length n). kind='cost_index' uses the
     cost-of-electricity index PROXY; kind='dual' uses the rigorous OSeMOSYS commodity-balance shadow
     price. The controlled +20% case does NOT go through here -- a caller passes that scalar straight to
-    energy_price(), undiluted."""
+    energy_price(), undiluted. ``share is None`` (the country can't isolate electricity's value-share)
+    returns None -- the dependent energy_price channel then skips, so this path is never consumed."""
+    if share is None:
+        return None
     if kind == "dual":
         ratio = commodity_shadow_price_ratio(base_dir, reform_dir, fuel=fuel)
         if ratio.dropna().empty:

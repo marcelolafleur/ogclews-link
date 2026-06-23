@@ -12,16 +12,22 @@ import numpy as np
 from . import channels, signals
 
 
-def _energy_share(ctx) -> float:
-    """Electricity's value-share of the OG energy good (io_matrix[energy_good, energy_industry])."""
+def _energy_share(ctx):
+    """Electricity's value-share of the OG energy good (io_matrix[energy_good, energy_industry]).
+    None if the country can't isolate electricity (a required port is unresolved) -- the dependent
+    energy_price channel will then skip, so the None is never consumed."""
     c, p = ctx.country, ctx.og_reform
-    return float(np.asarray(p.io_matrix)[c.concordance.energy_good_index,
-                                          c.concordance.energy_industry_index])
+    con = c.concordance
+    if con.energy_good_index is None or con.energy_industry_index is None:
+        return None
+    return float(np.asarray(p.io_matrix)[con.energy_good_index, con.energy_industry_index])
 
 
 def _activity(ctx, driver="Y_m"):
     c = ctx.country
     idx = (c.concordance.energy_industry_index if driver == "Y_m" else c.concordance.energy_good_index)
+    if idx is None:                      # electricity not isolable -> emit_energy_demand will skip
+        return None
     return signals.activity_ratio(ctx.base_tpi, ctx.reform_tpi, driver=driver, og_index=idx)
 
 
