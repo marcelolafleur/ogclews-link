@@ -5,7 +5,7 @@ SS-only (the failure is an SS check, so no transition path needed).
 
     PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
       /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/test_health_bidirectional.py
-"""
+
 Runs UNDER the OG model's interpreter (it pokes the disease_pop demographic re-solve directly), using
 og_runner's in-process build/solve helpers.
 """
