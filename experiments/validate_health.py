@@ -15,9 +15,8 @@ import os
 import numpy as np
 from ogcore.utils import safe_read_pickle
 
-from ogclews_link import channels, report  # noqa: F401 (registers channels)
+from ogclews_link import channels, experiments, framework, report  # noqa: F401
 from ogclews_link.country import PHL
-from ogclews_link.experiments import EXPERIMENTS
 from ogclews_link.runtime import Runtime
 
 OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/validate_health"
@@ -41,7 +40,8 @@ def _age_axis_mean(arr, lo, hi):
 
 def main():
     rt = Runtime(num_workers=7, show_progress=True)
-    ctx = rt.runner_for(PHL).run(EXPERIMENTS["health"], PHL, out_root=OUT, max_passes=1)
+    ctx = framework.run(experiments.health, PHL, build_baseline=rt.build_baseline, solve=rt.solve,
+                        apply_health=rt.apply_health_shock, out_root=OUT)
 
     print("\n" + "=" * 72 + "\nHEALTH CHANNEL VALIDATION (standalone, +health only)\n" + "=" * 72)
     checks = []  # (name, ok, detail)

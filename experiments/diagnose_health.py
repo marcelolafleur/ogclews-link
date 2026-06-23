@@ -14,9 +14,9 @@ import json
 
 import numpy as np
 
-from ogclews_link import channels  # noqa: F401 (registers channels)
+from ogclews_link import channels
 from ogclews_link.country import PHL
-from ogclews_link.framework import ExperimentContext, get
+from ogclews_link.framework import ExperimentContext
 from ogclews_link.runtime import Runtime
 
 BASE = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/validate_health/health/baseline"
@@ -52,7 +52,7 @@ def main():
         pr.baseline = False
         pr.__dict__.pop("_e_long_cache", None)
         ctx = ExperimentContext(country=PHL, og_reform=pr, base_tpi=None)
-        prov = get("health").apply(ctx, affects=aff)
+        prov = channels.health(ctx, affects=aff)
         if ctx.extras.get("health_shock") is not None:
             ctx.og_reform = rt.apply_health_shock(ctx.og_reform, ctx.extras["health_shock"])
         print(f"\n=== {tag}  affects={aff} ===")

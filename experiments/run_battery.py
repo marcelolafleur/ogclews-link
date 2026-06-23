@@ -78,12 +78,11 @@ GROUPS = [
         {"id": "health_bidirectional", "kind": "script", "target": "experiments/test_health_bidirectional.py", "sign": "both directions converge"},
     ]),
     ("combined", [
-        {"id": "full",        "kind": "experiment", "target": "full", "mode": "TPI", "sign": "full coupled run"},
         {"id": "across_steps","kind": "script", "target": "experiments/run_across_steps.py", "sign": "layered marginal contributions"},
     ]),
-    ("real", [   # REAL-data coupled run: CLEWS cost-of-electricity index energy price + GBD ambient-PM2.5 health
-        {"id": "full_real", "kind": "experiment", "target": "full_real", "mode": "TPI",
-         "sign": "realistic coupled run: cheaper power (-3.8%) + real PM2.5 deaths (~44k)"},
+    ("real", [   # the full coupled run: CLEWS cost-of-electricity index energy price + GBD ambient-PM2.5 health
+        {"id": "coupled", "kind": "experiment", "target": "coupled", "mode": "TPI",
+         "sign": "coupled run: cheaper power (-3.8%) + real PM2.5 deaths (~44k)"},
     ]),
 ]
 
@@ -150,19 +149,17 @@ def ensure_baseline():
 def run_experiment(item) -> dict:
     """Apply the experiment's channels to a reform on the shared baseline and solve ONLY the reform;
     OG-Core reads the baseline from baseline_dir on disk -- exactly how a user runs a reform."""
-    import ogclews_link.channels  # noqa: F401 -- registers the 7 channels into the framework registry
     from ogclews_link.country import PHL
-    from ogclews_link.framework import Runner
-    from ogclews_link import experiments, golden
+    from ogclews_link import experiments, framework, golden
 
     mode = item.get("mode", "TPI")
     p, base_dir, rt = ensure_baseline()
     base = _baseline_result(base_dir, mode)              # the matching baseline solution, read from disk
     solve = (lambda pp: rt.solve(pp, time_path=(mode == "TPI")))
-    runner = Runner(build_baseline=rt.build_baseline, solve=solve, apply_health=rt.apply_health_shock)
     exp = experiments.get(item["target"])
-    ctx = runner.run(exp, PHL, out_root=os.path.join(OUT_ROOT, item["id"]),
-                     prebuilt=(p, base, base_dir))       # reform points baseline_dir at the shared baseline
+    ctx = framework.run(exp, PHL, build_baseline=rt.build_baseline, solve=solve,
+                        apply_health=rt.apply_health_shock, out_root=os.path.join(OUT_ROOT, item["id"]),
+                        prebuilt=(p, base, base_dir))     # reform points baseline_dir at the shared baseline
     rec = golden.from_context(item["id"], ctx)
     golden.save(rec)
     return {"status": "pass", "mode": mode, "reused_baseline": True,

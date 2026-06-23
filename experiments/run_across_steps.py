@@ -12,10 +12,9 @@ import os
 
 import numpy as np
 
-from ogclews_link import channels, report  # noqa: F401 (channels import registers them)
+from ogclews_link import channels, framework, report, signals  # noqa: F401
 from ogclews_link.country import PHL
 from ogclews_link.experiments import ACROSS_STEPS
-from ogclews_link.framework import ExperimentContext
 from ogclews_link.runtime import Runtime
 
 OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs"
@@ -23,8 +22,8 @@ OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs"
 
 def main():
     rt = Runtime(num_workers=7, show_progress=True)  # multiprocess; never --workers 1 (threaded trap)
-    runner = rt.runner_for(PHL)
-    results = runner.run_across_steps(ACROSS_STEPS, PHL, out_root=OUT)
+    results = framework.run_across_steps(ACROSS_STEPS, PHL, build_baseline=rt.build_baseline,
+                                         solve=rt.solve, apply_health=rt.apply_health_shock, out_root=OUT)
 
     ie = PHL.concordance.energy_good_index
     layered = []
@@ -50,30 +49,32 @@ def main():
         print(f"\n>>> {label}: energy {row['energy_demand_pct']}% | "
               f"GDP {row['macro'].get('Y')}% | consumption_by_J {row['consumption_by_J']}")
 
-    # Decompose the health step's GDP bar into mortality + morbidity for the stacked waterfall:
-    # re-solve the SAME cumulative reform with health = mortality-only (1 extra solve); the figure
-    # takes morbidity as the remainder. Reuses the framework's own pre-solve chain so the
-    # mortality-only reform is built identically to the combined one.
-    health = next(((lbl, ch) for lbl, ch in ACROSS_STEPS if any(c[0] == "health" for c in ch)), None)
+    # Decompose the +health step's GDP bar into mortality + morbidity for the stacked waterfall: re-solve
+    # the SAME cumulative reform with health = mortality-only (1 extra solve); the figure takes morbidity
+    # as the remainder. The mortality-only step mirrors the combined +health step (experiments._across_health).
     base_tpi = next((ctx.base_tpi for _, ctx in results if ctx.base_tpi is not None), None)
-    if health is not None and base_tpi is not None:
-        lbl, chans = health
-        base_dir = os.path.join(OUT, "across_steps", "baseline")
-        p, _ = rt.build_baseline(PHL, base_dir)
-        mort_only = [(cid, {**opts, "affects": ("mortality",)}) if cid == "health" else (cid, opts)
-                     for cid, opts in chans]
-        ctx_m = ExperimentContext(country=PHL, base_tpi=base_tpi)
-        ctx_m.og_reform = runner._fresh_reform(p, base_dir, os.path.join(OUT, "across_steps", lbl + "__mortonly"))
+    health_row = next((r for r in layered if r.get("step") == "+ health" and "macro" in r), None)
+    if health_row is not None and base_tpi is not None:
+        def _mortonly(ctx, solve):
+            c, p = ctx.country, ctx.og_reform
+            channels.energy_price(ctx, price_ratio=1.20)
+            channels.investment(ctx, signals.public_capex_pct_gdp(
+                c.scenario.base_dir, c.scenario.reform_dir, c, og_start_year=c.scenario.og_start_year,
+                T=p.T, scale=0.3, smooth_years=5))
+            channels.carbon_tax(ctx, carbon_price=50.0, carbon_intensity=0.002)
+            channels.health(ctx, affects=("mortality",))
+            solve(ctx)
         try:
-            runner._apply_pre_solve(ctx_m, mort_only, 0, step=lbl)
-            tpi_m = rt.solve(ctx_m.og_reform)
-            y_mort = round(float(np.nanmean(report.macro_pct_diff(base_tpi, tpi_m)["Y"])), 4)
-            for row in layered:
-                if row.get("step") == lbl and "macro" in row:
-                    row["health_split"] = {"mortality": y_mort, "combined": row["macro"]["Y"]}
-                    print(f"\n>>> {lbl} decomposition: mortality-only GDP {y_mort:+.4f}% | "
-                          f"combined {row['macro']['Y']:+.4f}% | morbidity (rest) "
-                          f"{row['macro']['Y'] - y_mort:+.4f}%")
+            mres = framework.run_across_steps([("+ health (mortality only)", _mortonly)], PHL,
+                                              build_baseline=rt.build_baseline, solve=rt.solve,
+                                              apply_health=rt.apply_health_shock, out_root=OUT)
+            ctx_m = mres[0][1]
+            if ctx_m.reform_tpi is not None:
+                y_mort = round(float(np.nanmean(report.macro_pct_diff(base_tpi, ctx_m.reform_tpi)["Y"])), 4)
+                health_row["health_split"] = {"mortality": y_mort, "combined": health_row["macro"]["Y"]}
+                print(f"\n>>> +health decomposition: mortality-only GDP {y_mort:+.4f}% | "
+                      f"combined {health_row['macro']['Y']:+.4f}% | morbidity (rest) "
+                      f"{health_row['macro']['Y'] - y_mort:+.4f}%")
         except Exception as e:  # noqa: BLE001  (decomposition is a nicety; never kill the main run)
             print(f"[decompose] mortality-only solve failed: {type(e).__name__}: {e}")
 
