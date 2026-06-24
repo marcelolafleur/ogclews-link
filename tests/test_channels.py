@@ -12,12 +12,17 @@ import types
 import numpy as np
 
 from ogclews_link import channels, report, signals  # noqa: F401
+from ogclews_link.contract import Concordance
 from ogclews_link.country import PHL
 from ogclews_link.framework import ExperimentContext, preflight
 
 T, S, J, M, I = 20, 8, 7, 4, 5
 TS = T + S
-I_E, M_E = PHL.concordance.energy_good_index, PHL.concordance.energy_industry_index
+# The energy good/industry indices the fixtures below are built around. The real concordance is now
+# DISCOVERED PER RUN (ctx.concordance, exported from the OG env), not a country-config literal; these
+# transform tests pin one so the channel math runs against a known, isolated energy port.
+I_E, M_E = 1, 1
+CONCORDANCE = Concordance(energy_industry_index=M_E, energy_good_index=I_E)
 HAVE_CLEWS = os.path.isdir(PHL.scenario.base_dir) and os.path.isdir(PHL.scenario.reform_dir)
 _MUIOGO_RUN = "/Users/mlafleur/Projects/MUIOGO/WebAPP/DataStorage/CLEWs Demo/res/REF"
 _GBD_HIV_CSV = ("/Users/mlafleur/Projects/CostOfDisease/source/JDE/hiv-data/"
@@ -45,7 +50,7 @@ def _tpi(scale=1.0):
 
 
 def _ctx(with_reform=False):
-    ctx = ExperimentContext(country=PHL, og_reform=_params(), base_tpi=_tpi(1.0))
+    ctx = ExperimentContext(country=PHL, concordance=CONCORDANCE, og_reform=_params(), base_tpi=_tpi(1.0))
     if with_reform:
         ctx.reform_tpi = _tpi(1.05)  # +5% activity
     return ctx

@@ -195,11 +195,14 @@ def across_steps_waterfall(layered, out_dir, note=None):
                         "Contribution as each scenario is layered on  ·  first 10 years (2026-2035)",
                         "GDP change vs baseline (%)", os.path.join(out_dir, "waterfall_gdp.png"), note,
                         segments=segments)]
-    saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
-                            "What each scenario adds for the poorest group, vs baseline",
-                            "Welfare effect for the poorest 25%  ·  first 10 years (2026-2035)",
-                            "consumption change vs baseline (%)",
-                            os.path.join(out_dir, "waterfall_poorest.png"), note))
+    # the poorest-group panel needs the per-group consumption split, which is dropped when the run has
+    # no isolated energy good (the energy channels skipped) -- emit it only when every step carries it.
+    if all("consumption_by_J" in r for r in solved):
+        saved.append(_waterfall([r["consumption_by_J"][0] for r in solved], labels,
+                                "What each scenario adds for the poorest group, vs baseline",
+                                "Welfare effect for the poorest 25%  ·  first 10 years (2026-2035)",
+                                "consumption change vs baseline (%)",
+                                os.path.join(out_dir, "waterfall_poorest.png"), note))
     return saved
 
 
@@ -599,10 +602,16 @@ def _plain_tech_label(token: str) -> str:
     return _POWER_TECH_NAMES.get(core.upper(), cleaned.replace("_", " "))
 
 
-def _energy_good_index(country) -> int:
-    """The OG consumption good households buy as energy -- read from the concordance, never
-    hardcoded. The good is labeled by its 1-based index, energy highlighted by that index."""
-    return int(country.concordance.energy_good_index)
+def _energy_good_index(concordance):
+    """The OG consumption good households buy as energy -- read from the PER-RUN concordance (the one
+    the OG runner discovered + exported; the viz driver loads it from the run's baseline_meta.json),
+    never hardcoded. Returns None when the country has no isolated energy good (so the caller degrades
+    to no energy overlay rather than guessing an index)."""
+    try:
+        idx = getattr(concordance, "energy_good_index", None)
+        return int(idx) if idx is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _applied_energy_wedge(base_params, reform_params, i_e: int):
@@ -632,7 +641,7 @@ def _gdp_musd(country):
 
 
 def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, note=None,
-                            illustrative=True, name="clews_signal_vs_applied"):
+                            concordance=None, illustrative=True, name="clews_signal_vs_applied"):
     """The real CLEWS energy-price cost ratio (reform/base electricity cost) over calendar years,
     with the flat proxy wedge the coupled run actually applied to the OG energy good overlaid.
 
@@ -654,8 +663,8 @@ def clews_signal_vs_applied(country, base_params, reform_params, out_dir, *, not
     years = np.asarray(ratio.index, dtype=int)
     rv = np.asarray(ratio.values, dtype=float)
 
-    i_e = _energy_good_index(country)
-    wedge, is_flat = _applied_energy_wedge(base_params, reform_params, i_e)
+    i_e = _energy_good_index(concordance)
+    wedge, is_flat = _applied_energy_wedge(base_params, reform_params, i_e) if i_e is not None else (None, None)
     applied_mult = (1.0 + float(np.nanmean(wedge))) if wedge is not None else None
 
     os.makedirs(out_dir, exist_ok=True)
@@ -1596,27 +1605,18 @@ def _energy_index(attr, n, concordance=None):
     array index in range [0, n). The concordance value is already a 0-based position (see module
     note).
 
-    Resolution order, both degrading gracefully:
-      1. the `concordance` passed by the caller (the driver passes country.concordance), then
-      2. the package PHL_CONCORDANCE, kept only as a portable fallback.
-    Returns None when neither yields a valid in-range index, so callers can degrade to no marker
-    rather than guessing one."""
-    candidates = []
-    if concordance is not None:
-        candidates.append(concordance)
+    The `concordance` is the PER-RUN one the viz driver loads from the run's baseline_meta.json (what
+    the OG runner discovered). Returns None when it is absent or its port is unset/out of range, so
+    callers degrade to no energy marker rather than guessing one (a country with no isolated energy
+    industry/good simply has no asterisk)."""
+    if concordance is None:
+        return None
     try:
-        from .contract import PHL_CONCORDANCE as _con  # read-only fallback import
-        candidates.append(_con)
-    except Exception:  # noqa: BLE001 -- absent/garbled package concordance must not break plotting
-        pass
-    for con in candidates:
-        try:
-            idx0 = int(getattr(con, attr))
-        except Exception:  # noqa: BLE001 -- a garbled/partial concordance falls through
-            continue
-        if 0 <= idx0 < n:
-            return idx0
-    return None
+        idx0 = getattr(concordance, attr, None)
+        idx0 = int(idx0) if idx0 is not None else None
+    except (TypeError, ValueError):  # a garbled/partial concordance -> no marker
+        return None
+    return idx0 if idx0 is not None and 0 <= idx0 < n else None
 
 
 def _good_labels(I, energy0=None):
@@ -1634,8 +1634,8 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     """Steady-state %-change of each composite consumption good (C_i reform vs base), bars from
     zero, sign-colored, the computed % stamped on every bar. The energy good (concordance route A)
     is marked with an asterisk so the basket re-mix reads against its energy port -- by index, so
-    it is portable across country models. `concordance` (the driver passes country.concordance)
-    pins the energy port; PHL_CONCORDANCE is only a fallback."""
+    it is portable across country models. `concordance` (the driver loads the per-run one from the run's
+    baseline_meta.json) pins the energy port; None -> no asterisk."""
     cb_raw, cr_raw = base_ss.get("C_i"), reform_ss.get("C_i")
     cb = np.asarray(cb_raw, float).ravel() if cb_raw is not None else None
     cr = np.asarray(cr_raw, float).ravel() if cr_raw is not None else None
@@ -1683,8 +1683,8 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
     """Steady-state %-change by industry of output (Y_m), capital (K_m), and labor (L_m) -- a
     three-series dot plot, one cluster per sector, the computed values labeled. The energy industry
     (concordance route B) is marked with an asterisk. Dots (position/length encodings) keep the
-    three series legible on one honest, zero-anchored scale. `concordance` (the driver passes
-    country.concordance) pins the energy port; PHL_CONCORDANCE is only a fallback."""
+    three series legible on one honest, zero-anchored scale. `concordance` (the driver loads the per-run
+    one from the run's baseline_meta.json) pins the energy port; None -> no asterisk."""
     series = []
     for key, lbl, col in (("Y_m", "output", style.CATEGORICAL[0]),
                           ("K_m", "capital", style.CATEGORICAL[2]),

@@ -14,6 +14,12 @@ import types
 
 import numpy as np
 
+# baseline_meta.json schema version. BUMP THIS when the meta's contract changes so a stale cached
+# baseline (written by an older link) is treated as a cache MISS and re-exported, instead of being
+# silently reused. v2 added the discovered "concordance" -- a v1 cache has none, so reusing it would
+# make every energy channel skip on a baseline that was actually energy-capable.
+BASELINE_META_SCHEMA = 2
+
 # Scalar ints + read-only arrays the channels/levers consult; the runner exports these from the solved
 # baseline Specifications, the link loads them into the duck-typed og_reform.
 BASELINE_INT_KEYS = ("T", "S", "E", "M", "I")

@@ -57,8 +57,15 @@ def _skip_if_unavailable(ctx, channel: str, *required_ports):
     country's OG aggregation can't isolate the carrier (the concordance left a required port ``None`` --
     e.g. electricity fused with water in one group), record a SKIP in provenance and return that record;
     the caller returns it immediately and mutates nothing. Returns None when all required ports resolve
-    (the channel proceeds normally). For the Philippines every port resolves, so this never fires."""
-    con = ctx.country.concordance
+    (the channel proceeds normally). The concordance is the PER-RUN one discovered in the OG env and
+    exported via baseline_meta.json (ctx.concordance) -- it is unavailable whenever the country's solved
+    baseline can't isolate electricity as its own industry (e.g. a single-industry calibration, or
+    electricity fused with water), so those channels skip."""
+    con = ctx.concordance
+    if con is None:                          # no baseline exported a concordance -> nothing to couple to
+        reason = "no concordance for this run (baseline did not export one)"
+        print(f"[skip] {channel}: {reason}")
+        return ctx.log(channel, skipped=True, reason=reason)
     missing = {p: con.unavailable.get(p, "unresolved") for p in required_ports
                if getattr(con, p, None) is None}
     if missing:
@@ -95,8 +102,7 @@ def energy_price(ctx, price_ratio, *, energy_subsistence_floor=0.0, recycle_reve
     """
     if (skip := _skip_if_unavailable(ctx, "energy_price", "energy_good_index")) is not None:
         return skip
-    c = ctx.country
-    i_e = c.concordance.energy_good_index
+    i_e = ctx.concordance.energy_good_index
     p = ctx.og_reform
     tau = np.array(p.tau_c, dtype=float)
     before = tau[:, i_e].copy()
@@ -191,9 +197,8 @@ def capital_intensity(ctx, energy_capital_share_multiplier=None, *, energy_capit
     """
     if (skip := _skip_if_unavailable(ctx, "capital_intensity", "energy_industry_index")) is not None:
         return skip
-    c = ctx.country
     p = ctx.og_reform
-    m = c.concordance.energy_industry_index
+    m = ctx.concordance.energy_industry_index
     prov = policy_levers.set_capital_intensity(
         p, m, gamma_target=energy_capital_share_target, gamma_scale=energy_capital_share_multiplier,
         labor_share_floor=min_labor_share)
@@ -225,9 +230,8 @@ def energy_capex(ctx, *, investment_tax_credit_rate=0.20, accelerated_depreciati
     """
     if (skip := _skip_if_unavailable(ctx, "energy_capex", "energy_industry_index")) is not None:
         return skip
-    c = ctx.country
     p = ctx.og_reform
-    m = c.concordance.energy_industry_index
+    m = ctx.concordance.energy_industry_index
     prov = policy_levers.set_investment_incentive(
         p, m, inv_tax_credit=investment_tax_credit_rate, delta_tau=accelerated_depreciation,
         tau_b_mult=cit_rate_multiplier, phase_years=phase_in_periods)
@@ -260,7 +264,7 @@ def carbon_tax(ctx, *, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.
     if (skip := _skip_if_unavailable(ctx, "carbon_tax", "energy_good_index")) is not None:
         return skip
     c = ctx.country
-    i_e = c.concordance.energy_good_index
+    i_e = ctx.concordance.energy_good_index
     p = ctx.og_reform
     cp = _fit(carbon_price_usd_per_tco2, p.T)
     base_pi = (np.asarray(ctx.base_tpi["p_i"])[:p.T, i_e] if ctx.base_tpi is not None
@@ -464,8 +468,8 @@ def emit_energy_demand(ctx, activity_ratio, *, og_activity="sector_output", og_i
         port = "energy_industry_index" if driver == "Y_m" else "energy_good_index"
         if (skip := _skip_if_unavailable(ctx, "emit_energy_demand", port)) is not None:
             return skip
-    default_idx = (c.concordance.energy_industry_index if driver == "Y_m"
-                   else c.concordance.energy_good_index)
+    default_idx = (ctx.concordance.energy_industry_index if driver == "Y_m"
+                   else ctx.concordance.energy_good_index)
     idx = og_index_override if og_index_override is not None else default_idx
     ratio = np.asarray(activity_ratio, dtype=float)
     mr = float(ratio[:10].mean())

@@ -28,6 +28,7 @@ from ogcore.parameters import Specifications
 from ogcore.utils import safe_read_pickle
 from ogphl import input_output as io
 
+from ogclews_link.aggregation import locate
 from ogclews_link.country import PHL
 from ogclews_link.energy_calibration import M4_PROD_DICT
 from ogclews_link.policy_levers import set_capital_intensity
@@ -75,7 +76,9 @@ def main():
     cal = capital_intensity_ratio(PHL.scenario.base_dir, PHL.scenario.reform_dir, PHL, window=WINDOW)
     scale = cal["ratio"]
     p, cols = build_baseline(os.path.join(OUT, "baseline"))
-    m_e = PHL.concordance.energy_industry_index
+    # discover the electricity industry column from the M=4 build dict this script builds with (the
+    # engine no longer carries a vendored country concordance; ports are discovered from the dicts)
+    m_e = locate(M4_PROD_DICT, "electricity")[0][0]
     assert cols[m_e] == "Electricity", (m_e, cols)
     g0 = float(np.asarray(p.gamma)[m_e])
     print(f"industries={cols}")

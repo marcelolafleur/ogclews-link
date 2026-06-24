@@ -168,8 +168,8 @@ def _load_real(repo):
 
 
 @pytest.mark.parametrize("repo,exp_index,exp_share", [
-    ("OG-PHL", 2, 0.79),    # electricity in joined "Utilities"
-    ("OG-IDN", 2, 0.90),    # electricity in joined "Utilities"
+    ("OG-PHL", 2, 1.00),    # electricity now ISOLATED as its own group "Electricity" (aelec); was joined w/ water
+    ("OG-IDN", 2, 0.90),    # electricity in joined "Utilities" (aelec + awatr)
     ("OG-ZAF", 1, 1.00),    # electricity isolated as "Energy" (aelcg)
     ("OG-ETH", 1, 1.00),    # electricity isolated as "Energy" (aelec)
 ])
@@ -206,12 +206,13 @@ def test_real_apply_on_ogcore_specifications():
     io = pytest.importorskip("ogphl.input_output")
     PROD_DICT = pytest.importorskip("ogphl.constants").PROD_DICT
     p = Specifications()
-    p.M = len(PROD_DICT)                              # 7, straight from the dict -- no hand-picked M
+    p.M = len(PROD_DICT)                              # straight from the dict (no hand-picked M)
     p.Z = np.ones((p.T + p.S, p.M)) * 1.5             # a real (T+S, M) Z to haircut
     plan = ag.weighted_shock(io.read_SAM(), PROD_DICT, "electricity", 0.20,
                              axis="production", model_m=p.M)
     t = plan.targets[0]
-    assert t.index == 2 and t.share == pytest.approx(0.79, abs=0.02)
+    # electricity is now its OWN group "Electricity" (index 2, share 1.0); it used to be joined w/ water (0.79)
+    assert t.index == 2 and t.share == pytest.approx(1.00, abs=0.02)
     z0 = np.asarray(p.Z, float).copy()
     ag.apply_productivity_haircut(p, plan)
     ratio = np.asarray(p.Z, float)[0] / z0[0]

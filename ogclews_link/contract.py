@@ -36,31 +36,53 @@ class Concordance:
 
     @classmethod
     def from_dicts(cls, prod_dict, cons_dict, carrier="electricity"):
-        """Discover the energy ports from a calibration's aggregation dicts, so the indices track
-        whatever aggregation the model is built with -- no hand-set literals. The industry index is the
-        PROD_DICT group holding ``carrier``; the good index is the CONS_DICT group holding it
-        (PROD_DICT/CONS_DICT order = the model's column order). ``carrier`` is an ``aggregation.CARRIERS``
-        key (e.g. 'electricity'), a regex, or a list of SAM codes. A port the carrier can't be resolved to
-        -- absent, or SPLIT across groups (can't isolate one index) -- comes back ``None`` with a recorded
-        reason (NOT a raise and NOT a silent guess), so the dependent channels can be skipped per country."""
+        """Discover the energy ports from a calibration's aggregation dicts -- the indices track whatever
+        aggregation the model is built with, no hand-set literals. The COUPLING-CAPABILITY GATE is the
+        PRODUCTION side: electricity must be ISOLATED as its own industry -- in exactly one PROD_DICT
+        group, and that group PURE electricity (no other carriers like water). A standalone ``aelcg``
+        passes; a fused ``Utilities: [aelec, awatr]`` does not. If electricity is not isolated in
+        production, BOTH ports come back ``None`` with a reason (the country can't be coupled on energy --
+        every energy channel skips). When it is isolated, the good index is the CONS_DICT group that holds
+        electricity (the household energy good, which may be broader). ``carrier`` is an
+        ``aggregation.CARRIERS`` key (e.g. 'electricity'), a regex, or a list of SAM codes."""
         from . import aggregation as ag
 
-        def resolve(d, axis):
-            hits = ag.locate(d, carrier)
-            if not hits:
-                return None, f"carrier {carrier!r} not found in the {axis} aggregation (groups: {list(d)})"
-            if len(hits) > 1:
-                return None, (f"carrier {carrier!r} is split across {axis} groups {[h[1] for h in hits]} "
-                              "-- cannot isolate a single index")
-            return hits[0][0], None
-
-        ind, ind_why = resolve(prod_dict, "production")
-        good, good_why = resolve(cons_dict, "consumption")
-        unavailable = {}
-        if ind_why:
-            unavailable["energy_industry_index"] = ind_why
-        if good_why:
-            unavailable["energy_good_index"] = good_why
+        prod_hits = ag.locate(prod_dict, carrier)
+        if not prod_hits:
+            why = f"carrier {carrier!r} not found in the production aggregation (groups: {list(prod_dict)})"
+            return cls(None, None, {"energy_industry_index": why, "energy_good_index": why})
+        if len(prod_hits) > 1:
+            why = (f"carrier {carrier!r} is split across production groups {[h[1] for h in prod_hits]} "
+                   "-- cannot isolate a single electricity industry")
+            return cls(None, None, {"energy_industry_index": why, "energy_good_index": why})
+        ind, name, matched = prod_hits[0]
+        others = [c for c in prod_dict[name] if c not in matched]
+        if others:                                  # the group also holds other (non-carrier) sectors
+            why = (f"{carrier!r} is not isolated: production group {name!r} also contains {others} -- not a "
+                   "standalone industry, so the energy coupling can't attach cleanly")
+            return cls(None, None, {"energy_industry_index": why, "energy_good_index": why})
+        # production isolates electricity -> coupling-capable. The household energy good is the CONS group
+        # holding electricity (broader is fine: it is the consumption composite, not the industry).
+        cons_hits = ag.locate(cons_dict, carrier)
+        if len(cons_hits) == 1:
+            good, good_why = cons_hits[0][0], None
+        else:
+            # the broad carrier pattern can match electricity embodied in OTHER goods across several
+            # consumption groups (e.g. ZAF's 'celcm' electrical machinery in Durables and 'celcd'
+            # distribution in Services, alongside the actual household energy code 'celcg'). Disambiguate
+            # to the energy good via the COMMODITY ANALOGUE of the resolved production carrier code (the
+            # SAM activity a<x> <-> commodity c<x> convention), which points at the one true energy good.
+            analogues = {c for c in matched}
+            analogues |= {"c" + c[1:] for c in matched if isinstance(c, str) and c[:1] == "a"}
+            anchor_hits = ag.locate(cons_dict, list(analogues)) if analogues else []
+            if len(anchor_hits) == 1:
+                good, good_why = anchor_hits[0][0], None
+            else:
+                good, good_why = None, (
+                    f"carrier {carrier!r} not isolable to one consumption good (carrier matched groups "
+                    f"{[h[1] for h in cons_hits]}; commodity analogue {sorted(analogues)} matched "
+                    f"{[h[1] for h in anchor_hits]})")
+        unavailable = {"energy_good_index": good_why} if good_why else {}
         return cls(energy_industry_index=ind, energy_good_index=good, unavailable=unavailable)
 
     @classmethod
@@ -75,6 +97,12 @@ class Concordance:
         return cls.from_dicts(prod, cons, carrier=carrier)
 
 
+# The energy-port concordance is DISCOVERED PER RUN in the OG env (it needs the country package's real
+# PROD_DICT/CONS_DICT, which the link env can't import) and exported via baseline_meta.json -- see
+# og_runner._discover_concordance + framework._load_concordance. There is no link-vendored country
+# concordance: a single-industry baseline reports the ports unavailable, so the energy channels skip.
+
+
 @dataclass
 class UnitMap:
     """The unit/currency bridge. CLEWS stores bare numbers; OG is real, numeraire =
@@ -86,19 +114,3 @@ class UnitMap:
     base_year: int = 2020
     deflator: float = 1.0               # to OG numeraire / base year
     notes: str = ""
-
-
-# --- Philippines: energy ports DISCOVERED from the M=4 coupling aggregation -------
-# Industry index from the coupling PROD_DICT ("Electricity" -> column 1), good index from CONS_DICT
-# ("Energy and water" -> column 1). Both dicts are VENDORED in _calibration, so discovery runs in the
-# link env with no ogphl import -- and NO silent literal fallback: if the carrier can't be located (or
-# is split across groups), from_dicts raises and we fail loud rather than guessing a (possibly wrong)
-# index. NB: this is the M=4 *coupling* aggregation (electricity isolated at column 1), not the
-# country package's native grouping (where electricity is fused with water); use Concordance.from_dicts
-# with a different build's dicts to run at another aggregation.
-def _discover_phl_concordance():
-    from ._calibration import CONS_DICT, PROD_DICT
-    return Concordance.from_dicts(PROD_DICT, CONS_DICT)
-
-
-PHL_CONCORDANCE = _discover_phl_concordance()

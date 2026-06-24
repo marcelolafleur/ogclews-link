@@ -64,16 +64,18 @@ def test_duck_type_contract_real_channel():
     # with NO ogcore present. If a channel ever calls a Specifications method, this fails fast here
     # (in the fast link suite) rather than only in a cross-env solve.
     from ogclews_link import channels
+    from ogclews_link.contract import Concordance
     from ogclews_link.country import PHL
     from ogclews_link.framework import ExperimentContext
 
     T, S, J, M, I = 20, 8, 7, 4, 5
     TS = T + S
-    i_e = PHL.concordance.energy_good_index
+    i_e = 1                                  # energy good index; the concordance is per-run, so pin one
     base = {"tau_c": np.full((TS, I), 0.12), "c_min": np.zeros(I), "alpha_T": np.full(TS, 0.05),
             "e": np.ones((T, S, J))}
     og = serde.OGParams(T=T, M=M, I=I, E=0, S=S, **{k: v.copy() for k, v in base.items()})
-    ctx = ExperimentContext(country=PHL, og_reform=og, base_tpi=None)
+    ctx = ExperimentContext(country=PHL, concordance=Concordance(energy_industry_index=1, energy_good_index=i_e),
+                            og_reform=og, base_tpi=None)
     channels.energy_price(ctx, price_ratio=1.20)                # plain attribute writes -> mutates og.tau_c
     assert abs((1 + og.tau_c[0, i_e]) - 1.20 * 1.12) < 1e-9
     diff = serde.diff_against_baseline(og, base)

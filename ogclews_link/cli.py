@@ -34,7 +34,15 @@ def main(argv=None):
     mr = msub.add_parser("register", help="record an installed OG model by its checkout dir")
     mr.add_argument("--path", required=True, help="the OG model's checkout dir (must contain .venv/)")
     mr.add_argument("--key", default=None, help="repo key (default: the dir name, e.g. OG-PHL -> og-phl)")
+    mr.add_argument("--calibration", default=None,
+                    help="multisector param file to use (default: auto-pick the lone couplable one, "
+                         "else single-industry)")
+    mr.add_argument("--no-discovery", action="store_true",
+                    help="skip calibration discovery (record single-industry unless --calibration given)")
     mr.add_argument("--registry", default=None, help="register file to write (default: $OGCLEWS_MODEL_REGISTRY or ./og_model_registry.json)")
+    mc = msub.add_parser("calibrations", help="show a registered model's calibration choices (no solve)")
+    mc.add_argument("model", help="repo key / package / country (e.g. og-phl)")
+    mc.add_argument("--registry", default=None)
     ml = msub.add_parser("list", help="list registered OG models")
     ml.add_argument("--registry", default=None)
 
@@ -59,18 +67,29 @@ def main(argv=None):
             print(f"{name:20} {direction:18} {doc[0] if doc else ''}")
         return
     if args.cmd == "models":
-        from . import models
+        from . import discovery, models
         if args.models_cmd == "register":
-            rec = models.register(args.path, key=args.key, registry_file=args.registry)
+            rec = models.register(args.path, key=args.key, registry_file=args.registry,
+                                  calibration=args.calibration, run_discovery=not args.no_discovery)
             print(f"registered {rec['key']} ({rec['package']} {rec['version'] or '?'}) -> {rec['env_python']}")
+            cal = rec.get("calibration")
+            print(f"  calibration: {cal if cal else '(single-industry -- energy channels skip)'}")
+            if rec.get("findings"):
+                discovery.print_calibrations(rec["findings"], print)
             print(f"  written to {rec['registry']}")
+        elif args.models_cmd == "calibrations":
+            findings = models.calibrations(args.model, args.registry)
+            if findings is None:
+                print(f"no package source found for {args.model} (cannot read calibrations)")
+            else:
+                discovery.print_calibrations(findings, print)
         elif args.models_cmd == "list":
             rows = models.list_models(args.registry)
             if not rows:
                 print("no OG models registered (run: ogclews-link models register --path <dir>)")
-            for key, pkg, ver, ok in rows:
-                print(f"  [{'x' if ok else ' '}] {key:10} {pkg:12} {ver or '?':8}"
-                      + ("" if ok else "  (interpreter missing)"))
+            for key, pkg, ver, cal, ok in rows:
+                print(f"  [{'x' if ok else ' '}] {key:10} {pkg:12} {ver or '?':8} "
+                      f"calib={cal or 'single-industry'}" + ("" if ok else "  (interpreter missing)"))
         else:
             mp.print_help()
         return

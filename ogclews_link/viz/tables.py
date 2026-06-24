@@ -205,13 +205,18 @@ def across_steps_table(layered, path):
     solved = [r for r in layered if "macro" in r]
     if not solved:
         return None
-    J = len(solved[0]["consumption_by_J"])
-    lab = style.income_labels(J)
+    # the energy-good columns (demand response + per-group consumption) are dropped when the run has no
+    # isolated energy good (energy channels skipped); write the macro/fiscal-only table in that case.
+    has_energy = all("consumption_by_J" in r for r in solved)
+    lab = style.income_labels(len(solved[0]["consumption_by_J"])) if has_energy else []
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["step", "energy_demand_pct", "Y_pct", "C_pct", "K_pct", "L_pct",
-                    "govt_revenue_pct"] + [f"consumption_{x}" for x in lab])
+        w.writerow(["step"] + (["energy_demand_pct"] if has_energy else [])
+                   + ["Y_pct", "C_pct", "K_pct", "L_pct", "govt_revenue_pct"]
+                   + [f"consumption_{x}" for x in lab])
         for r in solved:
-            w.writerow([r["step"], r["energy_demand_pct"]] + [r["macro"].get(v) for v in ("Y", "C", "K", "L")]
-                       + [r["fiscal"]["cons_tax_revenue_pct"]] + r["consumption_by_J"])
+            w.writerow([r["step"]] + ([r["energy_demand_pct"]] if has_energy else [])
+                       + [r["macro"].get(v) for v in ("Y", "C", "K", "L")]
+                       + [r["fiscal"]["cons_tax_revenue_pct"]]
+                       + (r["consumption_by_J"] if has_energy else []))
     return path

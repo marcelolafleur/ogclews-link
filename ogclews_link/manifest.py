@@ -40,16 +40,21 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_mod
     is the registry entry's OG-model provenance (package/versions); the link env has no ogcore, so the
     actual solver version comes from the registry, not a local import.
     """
+    import dataclasses
     import inspect
     os.makedirs(out_dir, exist_ok=True)
     sc = country.scenario
     name = getattr(experiment, "__name__", str(experiment))
     desc = (inspect.getdoc(experiment) or "").splitlines()[0] if callable(experiment) else ""
+    con = getattr(ctx, "concordance", None)
     manifest = {
         "experiment": {"name": name, "description": desc},
         "country": country.name,
         "un_code": str(getattr(country, "un_code", "")),
         "scenario": {"name": sc.name, "base_dir": sc.base_dir, "reform_dir": sc.reform_dir},
+        # the per-run energy-port concordance the OG runner discovered (None / ports None -> the country
+        # could not be coupled on energy, so the energy channels skipped)
+        "concordance": dataclasses.asdict(con) if dataclasses.is_dataclass(con) else None,
         "channels": [{"id": pr.get("channel")} for pr in ctx.provenance],
         "clews_run": clews_run,
         "og_model": og_model or {"ogcore_version": _ogcore_version()},

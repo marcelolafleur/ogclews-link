@@ -27,11 +27,16 @@ def main():
     entry = registry.lookup(PHL)
     export_baseline, solve_reform = og_runner.inprocess_callables(
         entry.package, entry.params_resource_name, PHL.scenario.og_start_year,
-        num_workers=7, show_progress=True)  # multiprocess; never 1 worker (threaded trap)
+        num_workers=7, show_progress=True,        # multiprocess; never 1 worker (threaded trap)
+        calibration=entry.calibration)            # chosen multisector calibration (None -> single-industry)
     results = framework.run_across_steps(ACROSS_STEPS, PHL, export_baseline=export_baseline,
                                          solve_reform=solve_reform, out_root=OUT)
 
-    ie = PHL.concordance.energy_good_index
+    # the energy good index is the PER-RUN concordance the engine discovered (exported via
+    # baseline_meta.json), not a country literal; None when the country can't isolate electricity (e.g.
+    # PHL at a single-industry calibration) -> the energy-good demand/incidence rows are simply omitted.
+    ie = next((ctx.concordance.energy_good_index for _, ctx in results
+               if ctx.concordance is not None and ctx.concordance.energy_good_index is not None), None)
     layered = []
     for label, ctx in results:
         if ctx.reform_tpi is None:  # step did not solve -> record and skip the report math
@@ -39,21 +44,23 @@ def main():
             print(f"\n>>> {label}: DID NOT SOLVE ({ctx.extras.get('error')})")
             continue
         macro = report.macro_pct_diff(ctx.base_tpi, ctx.reform_tpi)
-        inc = report.incidence(ctx.base_tpi, ctx.reform_tpi, ie)
-        dC = report.demand_response(ctx.base_tpi, ctx.reform_tpi, ie)
         fc = report.fiscal_check(ctx.base_tpi, ctx.reform_tpi)
         row = {
             "step": label,
             "macro": {k: round(float(np.nanmean(v)), 3) for k, v in macro.items()},
-            "energy_demand_pct": round(float(np.nanmean(dC[:10])), 2),
-            "consumption_by_J": [round(float(x), 2) for x in inc["consumption_by_J"]],
-            "energy_by_J": [round(float(x), 2) for x in inc["energy_by_J"]],
             "fiscal": {k: round(float(v), 4) for k, v in fc.items()},
             "channels": [r.get("channel") for r in ctx.provenance],
         }
+        if ie is not None:                       # energy good isolated -> add the energy-good rows
+            inc = report.incidence(ctx.base_tpi, ctx.reform_tpi, ie)
+            dC = report.demand_response(ctx.base_tpi, ctx.reform_tpi, ie)
+            row["energy_demand_pct"] = round(float(np.nanmean(dC[:10])), 2)
+            row["consumption_by_J"] = [round(float(x), 2) for x in inc["consumption_by_J"]]
+            row["energy_by_J"] = [round(float(x), 2) for x in inc["energy_by_J"]]
         layered.append(row)
-        print(f"\n>>> {label}: energy {row['energy_demand_pct']}% | "
-              f"GDP {row['macro'].get('Y')}% | consumption_by_J {row['consumption_by_J']}")
+        _energy = f"energy {row['energy_demand_pct']}% | " if ie is not None else ""
+        print(f"\n>>> {label}: {_energy}GDP {row['macro'].get('Y')}% | "
+              f"consumption_by_J {row.get('consumption_by_J', '(no energy good)')}")
 
     # Decompose the +health step's GDP bar into mortality + morbidity for the stacked waterfall: re-solve
     # the SAME cumulative reform with health = mortality-only (1 extra solve); the figure takes morbidity
@@ -110,8 +117,9 @@ def main():
         if ctx.reform_tpi is None:
             continue
         sdir = os.path.join(out_dir, label, "figures")
-        plots.incidence_hero(ctx.base_tpi, ctx.reform_tpi, ie, sdir,
-                               title=f"{PHL.name}: {label}", note=note, factor=factor)
+        if ie is not None:       # incidence keys off the energy good; skip when none is isolated
+            plots.incidence_hero(ctx.base_tpi, ctx.reform_tpi, ie, sdir,
+                                 title=f"{PHL.name}: {label}", note=note, factor=factor)
         plots.og_default_outputs(base_dir, os.path.join(out_dir, label), sdir)
     print(f"\nWrote {out_dir}/ : layered_results.json, report.html, figures/ (incidence, waterfall, "
           f"macro, emissions) + per-step incidence ({len(layered)} steps)")

@@ -46,20 +46,35 @@ def _client(num_workers):
         c.close()
 
 
-def _resolve_prod_dict(og_package, un_code, prod_dict_path):
-    """The COUPLING's M-industry aggregation (sector -> SAM activity codes) used to build the I-O matrix.
-    This is a LINK decision -- which OG industries the channels map to (M=4 for PHL, with Electricity
-    isolated for the energy channel) -- NOT the country OG package's own PROD_DICT (e.g. ogphl ships a
-    finer 7-group disaggregation; using it would give the wrong io_matrix shape and break the solve).
-    Preference: (1) an explicit --prod-dict JSON override, (2) the vendored per-country coupling dict."""
-    if prod_dict_path:
-        with open(prod_dict_path) as f:
-            return json.load(f)
-    from ._calibration import PROD_DICT as VENDORED   # the PHL coupling aggregation (matches golden)
-    if str(un_code) != "608":
-        print(f"[og_runner] WARNING: using the vendored PHL coupling PROD_DICT for un_code {un_code}; "
-              "pass --prod-dict with this country's coupling aggregation.", file=sys.stderr)
-    return VENDORED
+def _discover_concordance(og_package, model_M):
+    """The energy-port concordance for this country, discovered from the package's own PROD_DICT/CONS_DICT
+    (electricity must be an ISOLATED industry -- see contract.Concordance.from_dicts). Returned as a plain
+    dict for export, because the link's env cannot import the country package to compute it. A
+    single-industry (M<=1) baseline has no electricity industry, so it is unconditionally unavailable."""
+    from dataclasses import asdict
+
+    from .contract import Concordance
+
+    if int(model_M) <= 1:
+        why = f"{og_package} ran at M={int(model_M)} (no multisector calibration) -- no electricity industry"
+        return {"energy_industry_index": None, "energy_good_index": None,
+                "unavailable": {"energy_industry_index": why, "energy_good_index": why}}
+    pkg = importlib.import_module(og_package)
+    prod, cons = getattr(pkg, "PROD_DICT", None), getattr(pkg, "CONS_DICT", None)
+    if prod is None or cons is None:
+        why = f"{og_package} exposes no PROD_DICT/CONS_DICT to locate electricity"
+        return {"energy_industry_index": None, "energy_good_index": None,
+                "unavailable": {"energy_industry_index": why, "energy_good_index": why}}
+    # The concordance index is a POSITIONAL offset into PROD_DICT; it only lines up with the model's
+    # Z/gamma/io_matrix columns if the loaded calibration was built at this exact aggregation. Refuse to
+    # emit a possibly-misaligned index when the group count disagrees with the baseline's realized M.
+    if len(prod) != int(model_M):
+        why = (f"{og_package} PROD_DICT has {len(prod)} groups but the baseline solved at M={int(model_M)} "
+               "-- the aggregation the concordance is read from does not match the model's columns, so the "
+               "energy-port indices would be misaligned")
+        return {"energy_industry_index": None, "energy_good_index": None,
+                "unavailable": {"energy_industry_index": why, "energy_good_index": why}}
+    return asdict(Concordance.from_dicts(prod, cons))
 
 
 def _read_solution(output_base, ss):
@@ -68,56 +83,34 @@ def _read_solution(output_base, ss):
     return safe_read_pickle(os.path.join(output_base, *sub))
 
 
-def _build_baseline_specs(og_package, params_resource, og_start_year, num_workers,
-                          out_dir, prod_dict_path=None, M=None, I=None):
-    """Port of the former Runtime.build_baseline, made country-generic (import via og_package).
-
-    Dimensions are DISCOVERED from the coupling calibration, not hardcoded: M = the number of OG
-    industries in the coupling PROD_DICT (the aggregation that isolates electricity as its own column
-    -- see contract.Concordance, which discovers the energy index from the same dict and refuses to run
-    if electricity is split, e.g. ogphl's native 'Utilities' = electricity+water); I = the number of
-    consumption goods in alpha_c. For PHL this is M=4, I=5 -- but it falls out of the aggregation, so a
-    new country supplies its own electricity-isolating PROD_DICT and M/I follow. M/I args override only
-    for diagnostics.
-
-    The UN country code (which the demographics build needs) is read from the OG PACKAGE itself
-    (e.g. ``ogphl.UN_COUNTRY_CODE``): the country model owns its own identity, so neither the link nor
-    the registry carries it."""
+def _build_baseline_specs(og_package, params_resource, og_start_year, num_workers, out_dir,
+                          calibration=None):
+    """Build the country baseline by LOADING the country model's OWN calibration -- the link no longer
+    authors any aggregation or sector factors. ``calibration`` is the packaged param resource the user
+    CHOSE via discovery (og_runner discover -> models register --calibration); load it. When None, load
+    the single-industry default (``params_resource``) -- in which case the energy channels skip (no
+    isolated electricity industry to couple to). Demographics are layered on (country-generic). The UN
+    country code is the package's own (e.g. ogphl.UN_COUNTRY_CODE) -- never the link's or the registry's."""
     from ogcore.parameters import Specifications
 
     pkg = importlib.import_module(og_package)
     un_code = str(getattr(pkg, "UN_COUNTRY_CODE", "") or "")
     if not un_code:
         raise ValueError(f"{og_package} does not expose UN_COUNTRY_CODE; the demographic build needs it.")
-    io = importlib.import_module(f"{og_package}.input_output")
     os.makedirs(out_dir, exist_ok=True)
     p = Specifications(baseline=True, num_workers=num_workers, baseline_dir=out_dir, output_base=out_dir)
-    with importlib.resources.open_text(og_package, params_resource) as f:
-        p.update_specifications(json.load(f))
-    prod_dict = _resolve_prod_dict(og_package, un_code, prod_dict_path)
-    alpha_c = io.get_alpha_c()
-    io_df = io.get_io_matrix(prod_dict=prod_dict)
-    p.M = M if M is not None else len(prod_dict)         # OG industries = coupling PROD_DICT groups
-    p.I = I if I is not None else len(alpha_c)            # consumption goods = alpha_c entries
-    p.update_specifications({
-        "gamma_g": [p.gamma_g] * p.M,
-        "epsilon": [p.epsilon] * p.M,
-        "gamma": [p.gamma] * p.M,
-        "cit_rate": [[p.cit_rate[0][0]]],
-        "tau_c": [[float(p.tau_c[0][0])] * p.I],
-        "c_min": [0.0] * p.I,
-        "alpha_c": np.array(list(alpha_c.values())),
-        "io_matrix": io_df.values,
-        "initial_guess_r_SS": 0.050 * 1.2,
-        "initial_guess_TR_SS": 0.2,
-        "initial_guess_factor_SS": 144617.0,
-    })
+    chosen = calibration or params_resource
+    with importlib.resources.open_text(og_package, chosen) as f:
+        p.update_specifications(json.load(f))         # the CHOSEN calibration (or single-industry default)
+    kind = ("chosen multisector calibration" if calibration
+            else "single-industry default -> energy channels skip")
+    print(f"[og_runner] {og_package}: loaded {chosen} ({kind}; M={p.M}, I={p.I})", file=sys.stderr)
     pop = baseline_pop(p, un_country_code=un_code, download=False)
     p.update_specifications(pop[0])
     if int(getattr(p, "start_year", og_start_year)) != og_start_year:
         print(f"[og_runner] WARNING: OG start_year {p.start_year} != scenario og_start_year {og_start_year}; "
               "CLEWS year-alignment will be off.", file=sys.stderr)
-    p._un_code = str(un_code)
+    p._un_code = un_code
     p._pop_aux = {"pop_dist": pop[1], "pre_pop_dist": pop[2], "fert_rates": pop[3],
                   "mort_rates": pop[4], "infmort_rates": pop[5], "imm_rates": pop[6]}
     return p
@@ -169,13 +162,20 @@ def _apply_health(p, health):
 # (e.g. run_across_steps' full deck). framework.run works with either pair injected.
 
 def inprocess_callables(og_package, params_resource, og_start_year, *,
-                        num_workers=7, show_progress=False, ss=False, M=None, I=None):
-    """Return (export_baseline, solve_reform) closures that build/solve in-process via ogcore."""
+                        num_workers=7, show_progress=False, ss=False, calibration=None):
+    """Return (export_baseline, solve_reform) closures that build/solve in-process via ogcore.
+    ``calibration`` is the chosen multisector param resource (None -> single-industry default)."""
     def export_baseline(country, out_root):
         base_dir = os.path.join(out_root, "baseline")
         p = _build_baseline_specs(og_package, params_resource, og_start_year,
-                                  num_workers, base_dir, None, M=M, I=I)
+                                  num_workers, base_dir, calibration=calibration)
         base = _solve(p, num_workers, ss, show_progress, "baseline")
+        # Export the discovered concordance next to the baseline (same file the subprocess path writes),
+        # so framework._load_concordance + the viz driver find the run's energy ports either way.
+        with open(os.path.join(base_dir, "baseline_meta.json"), "w") as f:
+            json.dump({"schema_version": serde.BASELINE_META_SCHEMA,
+                       "og_package": og_package, "M": int(p.M), "I": int(p.I),
+                       "concordance": _discover_concordance(og_package, p.M)}, f)
         return p, base, base_dir, {}        # template = real Specifications; baseline_arrays unused here
 
     def solve_reform(og_reform, baseline_arrays, health_shock, base_dir, reform_dir, country):
@@ -195,7 +195,7 @@ def inprocess_callables(og_package, params_resource, og_start_year, *,
 
 def export_baseline(a):
     p = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
-                              a.num_workers, a.out_dir, a.prod_dict, M=a.m, I=a.i)
+                              a.num_workers, a.out_dir, calibration=a.calibration)
     sol = _solve(p, a.num_workers, a.ss, not a.no_progress, "baseline")
     serde.save_params_npz(os.path.join(a.out_dir, "baseline_params.npz"), p)
     serde.save_solution_npz(os.path.join(a.out_dir, "baseline_solution.npz"), sol)
@@ -208,9 +208,14 @@ def export_baseline(a):
     # health re-solve needs. solve-reform rebuilds a FRESH baseline instead (deterministic, clean
     # paramtools state) and points baseline_dir at the solved solution written here.
     import ogcore
-    meta = {"og_package": a.og_package, "un_code": getattr(p, "_un_code", ""), "M": int(p.M), "I": int(p.I),
+    # The energy-port concordance is discovered in the OG env (it needs the country package's PROD_DICT/
+    # CONS_DICT, which the link env can't import) and EXPORTED here for the link to read -- tied to the
+    # baseline's realized M, so a single-industry baseline reports the ports unavailable (channels skip).
+    meta = {"schema_version": serde.BASELINE_META_SCHEMA,
+            "og_package": a.og_package, "un_code": getattr(p, "_un_code", ""), "M": int(p.M), "I": int(p.I),
             "S": int(p.S), "start_year": int(getattr(p, "start_year", a.og_start_year)),
-            "ogcore_version": getattr(ogcore, "__version__", None), "ss_only": bool(a.ss)}
+            "ogcore_version": getattr(ogcore, "__version__", None), "ss_only": bool(a.ss),
+            "concordance": _discover_concordance(a.og_package, p.M)}
     with open(os.path.join(a.out_dir, "baseline_meta.json"), "w") as f:
         json.dump(meta, f)
     print(f"[og_runner] exported baseline -> {a.out_dir}", file=sys.stderr)
@@ -222,7 +227,7 @@ def solve_reform(a):
     # update_specifications works (a cloudpickled one's doesn't). baseline_dir points at the solved
     # baseline solution on disk, which OG-Core reads for the reform.
     r = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
-                              a.num_workers, a.reform_dir, a.prod_dict, M=a.m, I=a.i)
+                              a.num_workers, a.reform_dir, calibration=a.calibration)
     r.baseline = False
     r.baseline_dir = a.baseline_dir
     r.output_base = a.reform_dir
@@ -247,13 +252,13 @@ def main(argv=None):
 
     e = sub.add_parser("export-baseline")
     e.add_argument("--og-package", required=True)
-    e.add_argument("--params-resource", required=True)
-    e.add_argument("--m", type=int, default=None, help="override OG industry count (default: len(PROD_DICT))")
-    e.add_argument("--i", type=int, default=None, help="override consumption-good count (default: len(alpha_c))")
+    e.add_argument("--params-resource", required=True,
+                   help="the package's single-industry default params (loaded when no --calibration is chosen)")
+    e.add_argument("--calibration", default=None,
+                   help="chosen multisector param resource (from discovery); omit for single-industry")
     e.add_argument("--og-start-year", type=int, required=True)
     e.add_argument("--num-workers", type=int, default=1)
     e.add_argument("--out-dir", required=True)
-    e.add_argument("--prod-dict", default=None)
     e.add_argument("--ss", action="store_true")
     e.add_argument("--no-progress", action="store_true")
     e.set_defaults(func=export_baseline)
@@ -267,10 +272,9 @@ def main(argv=None):
     # the reform rebuilds the baseline fresh (clean paramtools state), so it needs the same build inputs:
     s.add_argument("--og-package", required=True)
     s.add_argument("--params-resource", required=True)
+    s.add_argument("--calibration", default=None,
+                   help="MUST match the calibration the baseline was exported with (fresh rebuild)")
     s.add_argument("--og-start-year", type=int, required=True)
-    s.add_argument("--prod-dict", default=None)
-    s.add_argument("--m", type=int, default=None)
-    s.add_argument("--i", type=int, default=None)
     s.add_argument("--ss", action="store_true")
     s.add_argument("--no-progress", action="store_true")
     s.set_defaults(func=solve_reform)

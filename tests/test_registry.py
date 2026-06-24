@@ -42,6 +42,16 @@ def test_lookup_by_repo_key_package_and_country(tmp_path):
     assert registry.lookup(country, path=rp).package == "ogphl"       # and via a CountryConfig (.og_repo)
 
 
+def test_entry_carries_calibration(tmp_path):
+    # a registered model may pin a CHOSEN multisector calibration; absent -> None (single-industry)
+    p = tmp_path / "r.json"
+    p.write_text(json.dumps({"schema_version": 1, "models": {
+        "og-zaf": {"package": "ogzaf", "env_python": "/bin/sh", "version": "0.1.0",
+                   "calibration": "ogzaf_default_parameters_multisector.json"}}}))
+    assert registry.lookup("og-zaf", path=str(p)).calibration == "ogzaf_default_parameters_multisector.json"
+    assert registry.lookup("og-phl", path=_write(tmp_path)).calibration is None
+
+
 def test_unregistered_raises_actionable(tmp_path):
     import pytest
     with pytest.raises(registry.ModelNotInstalledError) as e:

@@ -24,15 +24,18 @@ def write_html_report(layered, out_path, title="OG-CLEWS across-steps results"):
     solved = [r for r in layered if "macro" in r]
     failed = [r["step"] for r in layered if "macro" not in r]
     steps = [r["step"] for r in solved]
-    J = len(solved[0]["consumption_by_J"]) if solved else 7
+    # the energy-good series (demand response + per-group consumption/energy) are dropped when the run
+    # has no isolated energy good (energy channels skipped); emit empty series so the charts degrade.
+    has_energy = bool(solved) and all("consumption_by_J" in r for r in solved)
+    J = len(solved[0]["consumption_by_J"]) if has_energy else 7
     jlabels = style.income_labels(J)
     payload = {
         "steps": steps,
-        "energy_demand": [r["energy_demand_pct"] for r in solved],
+        "energy_demand": [r["energy_demand_pct"] for r in solved] if has_energy else [],
         "macro": {v: [r["macro"].get(v) for r in solved] for v in ("Y", "C", "K", "L")},
         "revenue": [r["fiscal"]["cons_tax_revenue_pct"] for r in solved],
-        "welfare": [r["consumption_by_J"] for r in solved],
-        "energyJ": [r["energy_by_J"] for r in solved],
+        "welfare": [r["consumption_by_J"] for r in solved] if has_energy else [],
+        "energyJ": [r["energy_by_J"] for r in solved] if has_energy else [],
         "jlabels": jlabels,
         "stepColors": STEP_COLORS[:len(steps)],
         "varColors": VAR_COLORS,

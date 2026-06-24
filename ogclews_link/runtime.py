@@ -11,6 +11,7 @@ baseline export is content-addressed + cached, so a battery of reforms re-uses o
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -46,9 +47,30 @@ def _run(entry, args, label):
 
 
 def _cache_dir(out_root, entry, country, cfg):
-    # the baseline is per-OG-model + scenario-independent; key the cache by the model + version
-    tag = f"{entry.key}-{entry.version or 'na'}" + ("-ss" if cfg.ss else "")
+    # the baseline is per-OG-model + scenario-independent; key the cache by the model + version + the
+    # CHOSEN calibration, so switching calibrations (e.g. single-industry <-> multisector) never reuses
+    # a baseline solved at a different aggregation.
+    cal = os.path.splitext(entry.calibration)[0] if entry.calibration else "default"
+    tag = f"{entry.key}-{entry.version or 'na'}-{cal}" + ("-ss" if cfg.ss else "")
     return os.path.join(out_root, "_og_baseline_cache", tag)
+
+
+def _cache_current(cache, params_npz):
+    """A cached baseline is reusable only if its params .npz exists AND its baseline_meta.json is at the
+    CURRENT schema (carrying the discovered concordance). A meta written by an older link (no
+    schema_version / no "concordance") is a MISS -- reusing it would silently make every energy channel
+    skip on a baseline that may actually be energy-capable. The cache tag keys on the OG-package version,
+    which does NOT change when the link's discovery logic changes, so this contract check is what
+    invalidates a stale cache."""
+    meta_path = os.path.join(cache, "baseline_meta.json")
+    if not (os.path.exists(params_npz) and os.path.exists(meta_path)):
+        return False
+    try:
+        with open(meta_path) as f:
+            meta = json.load(f)
+    except (OSError, ValueError):
+        return False
+    return int(meta.get("schema_version", 0)) >= serde.BASELINE_META_SCHEMA and "concordance" in meta
 
 
 def export_baseline(country, out_root="./ogclews_runs", cfg: RunnerConfig | None = None):
@@ -59,12 +81,14 @@ def export_baseline(country, out_root="./ogclews_runs", cfg: RunnerConfig | None
     cache = _cache_dir(out_root, entry, country, cfg)
     params_npz = os.path.join(cache, "baseline_params.npz")
     solution_npz = os.path.join(cache, "baseline_solution.npz")
-    if not (os.path.exists(params_npz) and os.path.exists(os.path.join(cache, "baseline_meta.json"))):
+    if not _cache_current(cache, params_npz):
         os.makedirs(cache, exist_ok=True)
         args = ["export-baseline", "--og-package", entry.package,
                 "--params-resource", entry.params_resource_name,
                 "--og-start-year", str(country.scenario.og_start_year),
                 "--num-workers", str(cfg.num_workers), "--out-dir", cache]
+        if entry.calibration:           # the chosen multisector calibration (else single-industry default)
+            args += ["--calibration", entry.calibration]
         if cfg.ss:
             args.append("--ss")
         if not cfg.show_progress:
@@ -88,6 +112,8 @@ def solve_reform(og_reform, baseline_arrays, health_shock, base_dir, reform_dir,
             # the reform rebuilds the baseline fresh, so pass the same build inputs as export-baseline:
             "--og-package", entry.package, "--params-resource", entry.params_resource_name,
             "--og-start-year", str(country.scenario.og_start_year)]
+    if entry.calibration:               # MUST match export-baseline's calibration (fresh rebuild)
+        args += ["--calibration", entry.calibration]
     if health_shock is not None:
         hpath = os.path.join(reform_dir, "health.json")
         serde.write_health_json(health_shock, hpath)

@@ -8,7 +8,7 @@ import json
 import os
 from dataclasses import dataclass, field
 
-from .contract import Concordance, ScenarioPair, UnitMap, PHL_CONCORDANCE
+from .contract import ScenarioPair, UnitMap
 
 
 @dataclass
@@ -19,7 +19,10 @@ class CountryConfig:
                                             # finds this country's installed OG model. The UN code is the
                                             # OG package's own (ogphl.UN_COUNTRY_CODE), not used for lookup.
     gdp_musd: float                         # nominal GDP, base year, for %GDP conversions
-    concordance: Concordance
+    # NB: the energy-port concordance is NOT a country-config literal -- it is discovered per run in the
+    # OG env from the country package's real PROD_DICT/CONS_DICT and exported via baseline_meta.json
+    # (see og_runner._discover_concordance / framework._load_concordance), so it tracks the calibration
+    # the baseline actually solved at rather than a hand-set assumption.
     units: UnitMap
     scenario: ScenarioPair
     power_prefix: str = "PHL_POW"           # all power-sector technologies
@@ -87,7 +90,6 @@ PHL = CountryConfig(
     un_code="608",
     og_repo="og-phl",
     gdp_musd=461_600.0,  # 2024 nominal GDP, USD millions (World Bank)
-    concordance=PHL_CONCORDANCE,
     units=UnitMap(clews_money_unit="MUSD", clews_energy_unit="PJ", base_year=2020,
                   notes="CLEWS monetary outputs are model MUSD; convert vs baseline ratios where possible"),
     scenario=ScenarioPair(

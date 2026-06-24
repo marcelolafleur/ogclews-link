@@ -55,7 +55,8 @@ def fiscal_check(base_tpi, reform_tpi, n=10):
 
 def print_report(ctx):
     """Human-readable summary of a finished run."""
-    i_e = ctx.country.concordance.energy_good_index
+    con = ctx.concordance
+    i_e = con.energy_good_index if con is not None else None
     b, r = ctx.base_tpi, ctx.reform_tpi
     print("\n" + "=" * 70)
     print(f"REPORT: {ctx.country.name}  ({len(ctx.provenance)} channel(s) applied)")
@@ -70,11 +71,15 @@ def print_report(ctx):
     for k, v in macro_pct_diff(b, r).items():
         unit = "pp" if k in ("r", "w", "r_p", "r_gov") else "%"
         print(f"  {k:4} {np.round(v.mean(), 3)} {unit}")
-    print(f"\nEnergy-good demand response: {np.nanmean(demand_response(b, r, i_e)[:10]):.2f}%")
-    inc = incidence(b, r, i_e)
-    print("Incidence by income group J (j0 low .. high):")
-    print("  energy %chg     :", inc["energy_by_J"])
-    print("  consumption %chg:", inc["consumption_by_J"])
+    if i_e is not None:
+        print(f"\nEnergy-good demand response: {np.nanmean(demand_response(b, r, i_e)[:10]):.2f}%")
+        inc = incidence(b, r, i_e)
+        print("Incidence by income group J (j0 low .. high):")
+        print("  energy %chg     :", inc["energy_by_J"])
+        print("  consumption %chg:", inc["consumption_by_J"])
+    else:
+        print("\n(energy good not isolated for this country -- energy demand/incidence omitted; the "
+              "energy channels skipped)")
     fc = fiscal_check(b, r)
     if fc:
         print("\nFiscal/solve checks:", {k: round(v, 4) for k, v in fc.items()})

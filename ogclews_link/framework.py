@@ -24,6 +24,10 @@ POLICY = "policy"
 class ExperimentContext:
     """Everything a channel reads or writes during a run (the mutable analogue of OG-Core's ``p``)."""
     country: Any                              # CountryConfig
+    concordance: Any = None                   # per-run energy ports DISCOVERED in the OG env + exported
+                                              # via baseline_meta.json (the link can't import the country
+                                              # package to compute them). None / ports None -> energy
+                                              # channels skip (the country can't be coupled on energy).
     og_reform: Any = None                     # Specifications the pre-solve channels mutate
     base_tpi: dict | None = None              # baseline OG outputs (always solved before any channel)
     reform_tpi: dict | None = None            # reform OG outputs (for og->clews channels)
@@ -39,6 +43,26 @@ class ExperimentContext:
 
 
 # --- orchestration --------------------------------------------------------------
+
+def _load_concordance(base_dir):
+    """The energy-port concordance the OG runner discovered for this baseline and exported to
+    ``<base_dir>/baseline_meta.json`` -- the link env can't import the country package to compute it, so
+    it reads what the OG env wrote. Absent (older export) -> a fully-unavailable concordance, so the
+    energy channels skip rather than crash."""
+    import json
+
+    from .contract import Concordance
+
+    meta_path = os.path.join(base_dir, "baseline_meta.json")
+    con = None
+    if os.path.exists(meta_path):
+        with open(meta_path) as f:
+            con = json.load(f).get("concordance")
+    if not con:
+        why = f"no exported concordance in {base_dir}/baseline_meta.json"
+        return Concordance(None, None, {"energy_industry_index": why, "energy_good_index": why})
+    return Concordance(**con)
+
 
 def _fresh_reform(template):
     """A clean reform copy of the OGParams template for the next experiment's pre-solve channels to
@@ -73,6 +97,7 @@ def run(experiment_fn, country, *, solve_reform, export_baseline=None,
         template, ctx.base_tpi, base_dir, baseline_arrays = export_baseline(country, out_root)
     else:
         raise ValueError("run() needs either prebuilt=(...) or export_baseline=callable")
+    ctx.concordance = _load_concordance(base_dir)
     ctx.og_reform = _fresh_reform(template)
     experiment_fn(ctx, _solve_step(solve_reform, baseline_arrays, base_dir, reform_dir, country))
     return ctx
@@ -84,9 +109,10 @@ def run_across_steps(step_fns, country, *, export_baseline, solve_reform,
     (label, step_fn(ctx, solve)); each shares the baseline -- the layered 'what does each added channel
     do' view. A non-converging step is recorded and skipped, not fatal to the batch."""
     template, base_tpi, base_dir, baseline_arrays = export_baseline(country, out_root)
+    concordance = _load_concordance(base_dir)
     results = []
     for label, step_fn in step_fns:
-        ctx = ExperimentContext(country=country, base_tpi=base_tpi)
+        ctx = ExperimentContext(country=country, base_tpi=base_tpi, concordance=concordance)
         ctx.og_reform = _fresh_reform(template)
         reform_dir = os.path.join(out_root, "across_steps", label)
         try:

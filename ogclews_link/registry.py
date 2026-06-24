@@ -30,6 +30,12 @@ class ModelEntry:
     package: str               # importable package in the model's env, e.g. "ogphl"
     env_python: str            # absolute path to that env's python interpreter
     version: str | None = None
+    calibration: str | None = None   # the CHOSEN multisector param resource (from `models register`'s
+                                     # discovery); None -> the package's single-industry default, so the
+                                     # energy channels skip. Recorded once at onboarding, used every run.
+    source_dir: str | None = None    # the package's SOURCE dir (holds its *.py + param JSONs), so the link
+                                     # can read PROD_DICT/CONS_DICT + the calibrations WITHOUT importing it.
+                                     # None -> derived from env_python (see package_source_dir).
 
     @property
     def params_resource_name(self) -> str:
@@ -60,14 +66,27 @@ def load_registry(path: str | None = None) -> dict[str, ModelEntry]:
     out: dict[str, ModelEntry] = {}
     for key, e in data.get("models", {}).items():
         out[key] = ModelEntry(key=key, package=e["package"], env_python=e["env_python"],
-                              version=e.get("version"))
+                              version=e.get("version"), calibration=e.get("calibration"),
+                              source_dir=e.get("source_dir"))
     return out
 
 
-def lookup(model, path: str | None = None) -> ModelEntry:
+def package_source_dir(entry: ModelEntry) -> str:
+    """The package's source dir (for link-side reading of PROD_DICT/CONS_DICT + calibrations). The stored
+    ``source_dir`` if present, else derived from the env interpreter: ``<install>/.venv/bin/python`` ->
+    ``<install>/<package>`` (the checkout convention the installer produces)."""
+    if entry.source_dir:
+        return entry.source_dir
+    install = os.path.dirname(os.path.dirname(os.path.dirname(entry.env_python)))   # .venv/bin/python -> install
+    return os.path.join(install, entry.package)
+
+
+def lookup(model, path: str | None = None, *, require_env: bool = True) -> ModelEntry:
     """Resolve a repo key ('og-phl'), a package name ('ogphl'), or a CountryConfig (its ``og_repo``/
     ``og_package``) to its ModelEntry. Raises ModelNotInstalledError -- with an actionable message --
-    if unregistered or its interpreter is not on disk. NEVER installs a model."""
+    if unregistered or (when ``require_env``) its interpreter is not on disk. ``require_env=False`` for
+    link-side-only uses (e.g. reading the calibration menu, which needs the source dir, not the env).
+    NEVER installs a model."""
     ident = str(getattr(model, "og_repo", None) or getattr(model, "og_package", None) or model)
     rp = registry_path(path)
     reg = load_registry(path)
@@ -77,7 +96,7 @@ def lookup(model, path: str | None = None) -> ModelEntry:
             f"No OG model registered for '{ident}'. Registry: {rp}. Install + register it "
             f"(`ogclews-link models register --path <dir>`, or via the MUIOGO installer), or set "
             f"${ENV_VAR} to a registry that has it.")
-    if not os.path.exists(entry.env_python):
+    if require_env and not os.path.exists(entry.env_python):
         raise ModelNotInstalledError(
             f"OG model env for '{entry.key}' ({entry.package}) not found at {entry.env_python}. "
             f"Re-install/register that model (its interpreter moved or was never built).")

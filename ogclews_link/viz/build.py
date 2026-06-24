@@ -158,6 +158,22 @@ def _slug(label):
     return label.strip().lstrip("+ ").replace(" ", "_") or "step"
 
 
+def _run_concordance(run_dir):
+    """The PER-RUN energy-port concordance the OG runner discovered + exported next to the baseline
+    (`<run_dir>/baseline/baseline_meta.json`). Returns a contract.Concordance, or None when the run
+    predates the export or solved at a single industry -- callers then degrade to no energy marker."""
+    from ogclews_link.contract import Concordance
+    meta_path = os.path.join(run_dir, "baseline", "baseline_meta.json")
+    if not os.path.isfile(meta_path):
+        return None
+    try:
+        with open(meta_path, encoding="utf-8") as f:
+            con = json.load(f).get("concordance")
+        return Concordance(**con) if con else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, note=DEFAULT_NOTE,
                   illustrative=True):
     """Rebuild the full figure set for `country` from the solved pickles under `run_dir`,
@@ -171,7 +187,8 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     # run is calibrated (illustrative=False), so the caveat language lives in ONE place.
     full_note = note if illustrative else ""
     note = FIG_CAVEAT if illustrative else ""
-    ie = country.concordance.energy_good_index
+    conc = _run_concordance(run_dir)              # per-run energy ports (None / unset -> no energy marker)
+    ie = conc.energy_good_index if conc is not None else None
     with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
         layered = json.load(f)
     if headline_step is None:
@@ -217,7 +234,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     ep_ref = ep_params if ep_params is not None else headline_params
     if base_params is not None and ep_ref is not None:
         _try(plots.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note,
-             illustrative=illustrative)
+             concordance=conc, illustrative=illustrative)
     _try(plots.capex_by_technology, country, fig_dir, note=note, illustrative=illustrative)
     if base_tpi is not None:
         _try(plots.channel_inputs_over_time, country, base_tpi, fig_dir, note=note,
@@ -252,7 +269,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
         _try(plots.income_composition_by_age, base_tpi, headline_tpi, base_params, fig_dir, note=note)
 
     # --- multi-good / multi-sector composition (the GE structure) ---------------
-    conc = getattr(country, "concordance", None)  # the run's energy good/industry indices (portable)
+    # `conc` (the run's energy good/industry indices) was loaded once at the top from baseline_meta.json
     if None not in (base_ss, headline_ss, base_params):
         _try(plots.consumption_by_good, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
         _try(plots.sectoral_reallocation, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
@@ -273,8 +290,12 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
          illustrative=illustrative)
 
     # --- per-step incidence hero ------------------------------------------------
+    # the incidence hero keys off the energy good (energy budget share); with no isolated energy good
+    # (the country can't be coupled on energy) there is nothing to attribute incidence to, so skip it.
     made = []
-    for r in layered:
+    if ie is None:
+        print("  (skip per-step incidence: this run has no isolated energy good)")
+    for r in layered if ie is not None else []:
         label = r.get("step")
         if "macro" not in r or label == "baseline":
             continue

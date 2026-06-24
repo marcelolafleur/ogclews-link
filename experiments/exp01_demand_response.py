@@ -26,7 +26,13 @@ import sys
 import numpy as np
 
 from ogclews_link import og_wedge, signals
-from ogclews_link.contract import PHL_CONCORDANCE, ScenarioPair
+from ogclews_link._calibration import CONS_DICT as _CONS_DICT, PROD_DICT as _PROD_DICT
+from ogclews_link.contract import Concordance, ScenarioPair
+
+# This legacy demo BUILDS the link's old M=4 coupling calibration inline (electricity isolated at
+# column 1). Its energy ports are discovered from THAT build's own dicts -- the engine no longer keeps a
+# vendored country concordance (it is discovered per run in the OG env; see contract.Concordance).
+_M4_CON = Concordance.from_dicts(_PROD_DICT, _CONS_DICT)
 
 
 @contextlib.contextmanager
@@ -142,7 +148,7 @@ def run_dry():
     print(f"  S={p.S}  T={p.T}  M={p.M}  I={p.I}  start_year={p.start_year}")
     print(f"  tau_c shape={np.array(p.tau_c).shape}  Z shape={np.array(p.Z).shape}")
 
-    m_e, i_e = PHL_CONCORDANCE.energy_industry_index, PHL_CONCORDANCE.energy_good_index
+    m_e, i_e = _M4_CON.energy_industry_index, _M4_CON.energy_good_index
     good_ratio, share = _good_price_ratio(ratio.values, io_df, m_e, i_e)
     print(f"  electricity share of 'Energy and water' good (io_matrix[{i_e},{m_e}]) = {share:.3f}")
     print(f"  -> energy-good price ratio range: {good_ratio.min():.4f} .. {good_ratio.max():.4f}")
@@ -173,7 +179,7 @@ def run_full():
 
     print(f"\n[full] building + solving OG-PHL baseline ({mode})...")
     p, io_df = _build_ogphl_baseline(base_dir, num_workers=nw)
-    m_e, i_e = PHL_CONCORDANCE.energy_industry_index, PHL_CONCORDANCE.energy_good_index
+    m_e, i_e = _M4_CON.energy_industry_index, _M4_CON.energy_good_index
 
     # context: what the actual CLEWS data implies for the bundled energy good
     data_ratio, share = _good_price_ratio(ratio.values, io_df, m_e, i_e)
