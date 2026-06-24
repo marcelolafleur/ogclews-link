@@ -36,6 +36,11 @@ class ModelEntry:
     source_dir: str | None = None    # the package's SOURCE dir (holds its *.py + param JSONs), so the link
                                      # can read PROD_DICT/CONS_DICT + the calibrations WITHOUT importing it.
                                      # None -> derived from env_python (see package_source_dir).
+    discovered: dict | None = None   # the SAVED discovery findings (calibration menu + couplability +
+                                     # an 'at' timestamp), recorded at register time so the status is
+                                     # durable + user-inspectable without re-running. The authoritative
+                                     # CHOICE is `calibration` (edit that to override); `discovered` is the
+                                     # record. Re-read with `models calibrations --refresh` (it's cheap).
 
     @property
     def params_resource_name(self) -> str:
@@ -67,7 +72,7 @@ def load_registry(path: str | None = None) -> dict[str, ModelEntry]:
     for key, e in data.get("models", {}).items():
         out[key] = ModelEntry(key=key, package=e["package"], env_python=e["env_python"],
                               version=e.get("version"), calibration=e.get("calibration"),
-                              source_dir=e.get("source_dir"))
+                              source_dir=e.get("source_dir"), discovered=e.get("discovered"))
     return out
 
 

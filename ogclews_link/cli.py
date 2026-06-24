@@ -42,6 +42,8 @@ def main(argv=None):
     mr.add_argument("--registry", default=None, help="register file to write (default: $OGCLEWS_MODEL_REGISTRY or ./og_model_registry.json)")
     mc = msub.add_parser("calibrations", help="show a registered model's calibration choices (no solve)")
     mc.add_argument("model", help="repo key / package / country (e.g. og-phl)")
+    mc.add_argument("--refresh", action="store_true",
+                    help="re-read the package source (cheap) and update the saved status")
     mc.add_argument("--registry", default=None)
     ml = msub.add_parser("list", help="list registered OG models")
     ml.add_argument("--registry", default=None)
@@ -78,18 +80,21 @@ def main(argv=None):
                 discovery.print_calibrations(rec["findings"], print)
             print(f"  written to {rec['registry']}")
         elif args.models_cmd == "calibrations":
-            findings = models.calibrations(args.model, args.registry)
+            findings = models.calibrations(args.model, args.registry, refresh=args.refresh)
             if findings is None:
-                print(f"no package source found for {args.model} (cannot read calibrations)")
+                print(f"no calibration status for {args.model} (not discovered and no source on disk)")
             else:
+                if findings.get("discovered_at") and not args.refresh:
+                    print(f"  (saved status from {findings['discovered_at']}; --refresh to re-read)")
                 discovery.print_calibrations(findings, print)
         elif args.models_cmd == "list":
             rows = models.list_models(args.registry)
             if not rows:
                 print("no OG models registered (run: ogclews-link models register --path <dir>)")
-            for key, pkg, ver, cal, ok in rows:
+            for key, pkg, ver, cal, cc, ok in rows:
+                coup = "" if cc is None else f" couplable={cc}"
                 print(f"  [{'x' if ok else ' '}] {key:10} {pkg:12} {ver or '?':8} "
-                      f"calib={cal or 'single-industry'}" + ("" if ok else "  (interpreter missing)"))
+                      f"calib={cal or 'single-industry'}{coup}" + ("" if ok else "  (interpreter missing)"))
         else:
             mp.print_help()
         return

@@ -42,14 +42,26 @@ def test_lookup_by_repo_key_package_and_country(tmp_path):
     assert registry.lookup(country, path=rp).package == "ogphl"       # and via a CountryConfig (.og_repo)
 
 
-def test_entry_carries_calibration(tmp_path):
-    # a registered model may pin a CHOSEN multisector calibration; absent -> None (single-industry)
+def test_entry_carries_calibration_and_discovered(tmp_path):
+    # a registered model may pin a CHOSEN calibration + carry the SAVED discovery status; absent -> None
+    entry = {"package": "ogzaf", "env_python": "/bin/sh", "version": "0.1.0", "source_dir": "/x/ogzaf",
+             "calibration": "ogzaf_default_parameters_multisector.json",
+             "discovered": {"at": "2026-01-01T00:00:00Z", "recommended": "m.json", "couplable_count": 1,
+                            "candidates": [{"file": "m.json", "couplable": True}]}}
     p = tmp_path / "r.json"
-    p.write_text(json.dumps({"schema_version": 1, "models": {
-        "og-zaf": {"package": "ogzaf", "env_python": "/bin/sh", "version": "0.1.0",
-                   "calibration": "ogzaf_default_parameters_multisector.json"}}}))
-    assert registry.lookup("og-zaf", path=str(p)).calibration == "ogzaf_default_parameters_multisector.json"
-    assert registry.lookup("og-phl", path=_write(tmp_path)).calibration is None
+    p.write_text(json.dumps({"schema_version": 1, "models": {"og-zaf": entry}}))
+    e = registry.lookup("og-zaf", path=str(p))
+    assert e.calibration == "ogzaf_default_parameters_multisector.json"
+    assert e.source_dir == "/x/ogzaf" and e.discovered["couplable_count"] == 1
+    bare = registry.lookup("og-phl", path=_write(tmp_path))
+    assert bare.calibration is None and bare.discovered is None
+
+
+def test_package_source_dir_derived_from_env_python():
+    # absent source_dir -> derived from the env interpreter (<install>/.venv/bin/python -> <install>/<pkg>)
+    e = registry.ModelEntry(key="og-phl", package="ogphl",
+                            env_python="/Users/x/OG-PHL/.venv/bin/python")
+    assert registry.package_source_dir(e) == "/Users/x/OG-PHL/ogphl"
 
 
 def test_unregistered_raises_actionable(tmp_path):

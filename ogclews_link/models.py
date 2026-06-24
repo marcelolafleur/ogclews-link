@@ -9,8 +9,27 @@ import json
 import os
 import sys
 import tomllib
+from datetime import datetime, timezone
 
 from . import discovery, registry
+
+
+def _discovered_block(findings: dict) -> dict:
+    """The discovery findings as the durable record stored in the registry entry (drops the package/dir
+    that the entry already carries; stamps when it was recorded)."""
+    return {"at": datetime.now(timezone.utc).isoformat(),
+            "recommended": findings.get("recommended"),
+            "couplable_count": findings.get("couplable_count"),
+            "candidates": findings.get("candidates", [])}
+
+
+def _findings_from_saved(entry) -> dict:
+    """Reconstruct a findings-shaped dict from a registry entry's SAVED ``discovered`` block (so the same
+    display/consumers work whether the status is read from cache or freshly discovered)."""
+    d = entry.discovered or {}
+    return {"og_package": entry.package, "source_dir": registry.package_source_dir(entry),
+            "recommended": d.get("recommended"), "couplable_count": d.get("couplable_count"),
+            "candidates": d.get("candidates", []), "discovered_at": d.get("at")}
 
 
 def _read_pyproject(install_dir: str) -> dict:
@@ -66,6 +85,8 @@ def register(install_dir: str, *, key: str | None = None, registry_file: str | N
     entry = {"package": package, "env_python": env_python, "version": version, "source_dir": source_dir}
     if chosen is not None:
         entry["calibration"] = chosen
+    if findings is not None:
+        entry["discovered"] = _discovered_block(findings)   # the durable, user-inspectable status record
     data.setdefault("models", {})[key] = entry
     with open(rf, "w") as f:
         json.dump(data, f, indent=2)
@@ -73,17 +94,40 @@ def register(install_dir: str, *, key: str | None = None, registry_file: str | N
             "version": version, "calibration": chosen, "source_dir": source_dir, "findings": findings}
 
 
-def calibrations(model, registry_file: str | None = None) -> dict | None:
+def calibrations(model, registry_file: str | None = None, *, refresh: bool = False) -> dict | None:
     """Discovery findings (the calibration menu) for a REGISTERED model, resolved by repo key / package /
-    CountryConfig. Reads the package source LINK-SIDE (no env, no subprocess); None if the source dir is
-    not on disk."""
+    CountryConfig. By default returns the SAVED ``discovered`` status from the registry (no re-read).
+    ``refresh=True`` re-reads the package source LINK-SIDE (no env, no subprocess -- cheap) and rewrites
+    the saved record. Returns None if there is no saved status and the source dir is not on disk."""
     entry = registry.lookup(model, path=registry_file, require_env=False)   # discovery needs source, not env
+    if not refresh and entry.discovered:
+        return _findings_from_saved(entry)
     src = registry.package_source_dir(entry)
-    return discovery.discover_calibrations(src, entry.package) if os.path.isdir(src) else None
+    if not os.path.isdir(src):
+        return _findings_from_saved(entry) if entry.discovered else None
+    findings = discovery.discover_calibrations(src, entry.package)
+    if refresh:
+        _save_discovered(entry.key, findings, registry_file)
+    return findings
+
+
+def _save_discovered(key: str, findings: dict, registry_file: str | None) -> None:
+    """Rewrite a model's ``discovered`` block (and re-stamp it) in the active registry file -- used by
+    ``models calibrations --refresh`` to update the saved status after a package changed."""
+    rf = registry.registry_path(registry_file)
+    if not os.path.exists(rf):
+        return
+    with open(rf) as f:
+        data = json.load(f)
+    if key in data.get("models", {}):
+        data["models"][key]["discovered"] = _discovered_block(findings)
+        with open(rf, "w") as f:
+            json.dump(data, f, indent=2)
 
 
 def list_models(registry_file: str | None = None) -> list[tuple]:
-    """The registered models as (key, package, version, calibration, interpreter_exists)."""
+    """Registered models as (key, package, version, calibration, couplable_count, interpreter_exists).
+    ``couplable_count`` is from the saved discovery status (None if never discovered)."""
     reg = registry.load_registry(registry_file)
-    return [(k, e.package, e.version, e.calibration, os.path.exists(e.env_python))
-            for k, e in sorted(reg.items())]
+    return [(k, e.package, e.version, e.calibration, (e.discovered or {}).get("couplable_count"),
+             os.path.exists(e.env_python)) for k, e in sorted(reg.items())]
