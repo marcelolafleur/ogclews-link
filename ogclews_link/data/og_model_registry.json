@@ -1,14 +1,5 @@
 {
-  "version": 1,
-  "_doc": "Onboarded OG country models + their environments, keyed by UN country code. The link reads this to locate and subprocess each model's interpreter; it never installs. MUIOGO will own this file. Override with $OGCLEWS_MODEL_REGISTRY or a ./og_model_registry.json in the run dir.",
-  "countries": {
-    "608": {
-      "name": "Philippines",
-      "og_package": "ogphl",
-      "env_python": "/Users/mlafleur/Projects/OG-PHL/.venv/bin/python",
-      "og_version": "0.1.0",
-      "ogcore_version": "0.16.1",
-      "params_resource": "ogphl_default_parameters.json"
-    }
-  }
+  "schema_version": 1,
+  "_doc": "Installed OG country models, keyed by OG repo key (og-phl, og-idn, ...), mirroring OG-Core/scripts/repos.json. Each entry is a pure install record {package, env_python, version}; the UN country code is NOT here (the OG package owns it, e.g. ogphl.UN_COUNTRY_CODE). The link READS this; it never installs. This packaged default ships EMPTY -- a machine populates it at install time (MUIOGO drives OG-Core/scripts/install.sh) or via `ogclews-link models register --path <dir>`. Override with $OGCLEWS_MODEL_REGISTRY or a ./og_model_registry.json in the run dir (which takes precedence over this default).",
+  "models": {}
 }

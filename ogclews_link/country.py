@@ -15,6 +15,9 @@ from .contract import Concordance, ScenarioPair, UnitMap, PHL_CONCORDANCE
 class CountryConfig:
     name: str
     un_code: str
+    og_repo: str                            # OG-model registry/repo key (e.g. "og-phl"); how the link
+                                            # finds this country's installed OG model. The UN code is the
+                                            # OG package's own (ogphl.UN_COUNTRY_CODE), not used for lookup.
     gdp_musd: float                         # nominal GDP, base year, for %GDP conversions
     concordance: Concordance
     units: UnitMap
@@ -82,6 +85,7 @@ def _resolve_dose_response(name: str):
 PHL = CountryConfig(
     name="Philippines",
     un_code="608",
+    og_repo="og-phl",
     gdp_musd=461_600.0,  # 2024 nominal GDP, USD millions (World Bank)
     concordance=PHL_CONCORDANCE,
     units=UnitMap(clews_money_unit="MUSD", clews_energy_unit="PJ", base_year=2020,

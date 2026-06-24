@@ -29,6 +29,15 @@ def main(argv=None):
     sub.add_parser("list", help="list named experiments")
     sub.add_parser("channels", help="list registered channels")
 
+    mp = sub.add_parser("models", help="manage the installed OG-model register")
+    msub = mp.add_subparsers(dest="models_cmd")
+    mr = msub.add_parser("register", help="record an installed OG model by its checkout dir")
+    mr.add_argument("--path", required=True, help="the OG model's checkout dir (must contain .venv/)")
+    mr.add_argument("--key", default=None, help="repo key (default: the dir name, e.g. OG-PHL -> og-phl)")
+    mr.add_argument("--registry", default=None, help="register file to write (default: $OGCLEWS_MODEL_REGISTRY or ./og_model_registry.json)")
+    ml = msub.add_parser("list", help="list registered OG models")
+    ml.add_argument("--registry", default=None)
+
     args = ap.parse_args(argv)
 
     if args.cmd == "list":
@@ -49,6 +58,22 @@ def main(argv=None):
             doc = (inspect.getdoc(fn) or "").splitlines()
             print(f"{name:20} {direction:18} {doc[0] if doc else ''}")
         return
+    if args.cmd == "models":
+        from . import models
+        if args.models_cmd == "register":
+            rec = models.register(args.path, key=args.key, registry_file=args.registry)
+            print(f"registered {rec['key']} ({rec['package']} {rec['version'] or '?'}) -> {rec['env_python']}")
+            print(f"  written to {rec['registry']}")
+        elif args.models_cmd == "list":
+            rows = models.list_models(args.registry)
+            if not rows:
+                print("no OG models registered (run: ogclews-link models register --path <dir>)")
+            for key, pkg, ver, ok in rows:
+                print(f"  [{'x' if ok else ' '}] {key:10} {pkg:12} {ver or '?':8}"
+                      + ("" if ok else "  (interpreter missing)"))
+        else:
+            mp.print_help()
+        return
     if args.cmd == "run":
         from functools import partial
 
@@ -59,8 +84,8 @@ def main(argv=None):
         exp = experiments.get(args.experiment)
         cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress)
         entry = registry.lookup(PHL)        # OG-model provenance for the manifest (and fail-fast)
-        og_model = {"package": entry.og_package, "og_version": entry.og_version,
-                    "ogcore_version": entry.ogcore_version, "env_python": entry.env_python}
+        og_model = {"repo": entry.key, "package": entry.package, "version": entry.version,
+                    "env_python": entry.env_python}
         ctx = framework.run(
             exp, PHL,
             export_baseline=partial(runtime.export_baseline, cfg=cfg),

@@ -40,13 +40,14 @@ def _run(entry, args, label):
     if proc.stderr:
         sys.stderr.write(proc.stderr)                      # surface runner diagnostics (progress, RC_SS)
     if proc.returncode != 0:
-        raise RuntimeError(f"og_runner {label} failed (exit {proc.returncode}) in the {entry.og_package} "
+        raise RuntimeError(f"og_runner {label} failed (exit {proc.returncode}) in the {entry.package} "
                            f"env [{entry.env_python}]. See stderr above.")
     return proc
 
 
 def _cache_dir(out_root, entry, country, cfg):
-    tag = f"{entry.og_package}-{entry.og_version or 'na'}-{country.un_code}" + ("-ss" if cfg.ss else "")
+    # the baseline is per-OG-model + scenario-independent; key the cache by the model + version
+    tag = f"{entry.key}-{entry.version or 'na'}" + ("-ss" if cfg.ss else "")
     return os.path.join(out_root, "_og_baseline_cache", tag)
 
 
@@ -60,8 +61,8 @@ def export_baseline(country, out_root="./ogclews_runs", cfg: RunnerConfig | None
     solution_npz = os.path.join(cache, "baseline_solution.npz")
     if not (os.path.exists(params_npz) and os.path.exists(os.path.join(cache, "baseline_meta.json"))):
         os.makedirs(cache, exist_ok=True)
-        args = ["export-baseline", "--og-package", entry.og_package,
-                "--params-resource", entry.params_resource_name, "--un-code", str(country.un_code),
+        args = ["export-baseline", "--og-package", entry.package,
+                "--params-resource", entry.params_resource_name,
                 "--og-start-year", str(country.scenario.og_start_year),
                 "--num-workers", str(cfg.num_workers), "--out-dir", cache]
         if cfg.ss:
@@ -85,8 +86,8 @@ def solve_reform(og_reform, baseline_arrays, health_shock, base_dir, reform_dir,
     args = ["solve-reform", "--baseline-dir", base_dir, "--reform-dir", reform_dir,
             "--overrides", overrides, "--num-workers", str(cfg.num_workers),
             # the reform rebuilds the baseline fresh, so pass the same build inputs as export-baseline:
-            "--og-package", entry.og_package, "--params-resource", entry.params_resource_name,
-            "--un-code", str(country.un_code), "--og-start-year", str(country.scenario.og_start_year)]
+            "--og-package", entry.package, "--params-resource", entry.params_resource_name,
+            "--og-start-year", str(country.scenario.og_start_year)]
     if health_shock is not None:
         hpath = os.path.join(reform_dir, "health.json")
         serde.write_health_json(health_shock, hpath)

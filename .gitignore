@@ -20,3 +20,6 @@ IHME-GBD_2023_DATA/
 
 # Test-battery per-run progress (the golden baseline results/golden.json IS committed; this is not)
 results/battery-state.json
+
+# per-machine installed OG-model register (written by the installer / models register)
+og_model_registry.json

@@ -1,10 +1,10 @@
-"""Link-side unit tests for the OG-model registry loader. No OG env, no numpy/ogcore. Run with the
-standalone link venv: `uv run pytest tests/test_registry.py`.
+"""Link-side unit tests for the OG-model registry loader. No OG env, no numpy/ogcore. The registry is
+keyed by OG repo key (og-phl), and an entry is a pure install record {package, env_python, version}.
+Run with the standalone link venv: `uv run pytest tests/test_registry.py`.
 """
 from __future__ import annotations
 
 import json
-import os
 import types
 
 from ogclews_link import registry
@@ -12,19 +12,19 @@ from ogclews_link import registry
 
 def _write(tmp_path, env_python="/bin/sh"):
     p = tmp_path / "og_model_registry.json"
-    p.write_text(json.dumps({"version": 1, "countries": {
-        "608": {"name": "Philippines", "og_package": "ogphl", "env_python": env_python,
-                "og_version": "0.1.0"}}}))
+    p.write_text(json.dumps({"schema_version": 1, "models": {
+        "og-phl": {"package": "ogphl", "env_python": env_python, "version": "0.1.0"}}}))
     return str(p)
 
 
-def test_packaged_default_parses_and_has_phl():
-    reg = registry.load_registry()                       # the shipped default
-    assert "608" in reg and reg["608"].og_package == "ogphl"
-    assert reg["608"].params_resource_name == "ogphl_default_parameters.json"  # default applies
+def test_packaged_default_ships_empty():
+    # the wheel must NOT bake a machine-specific path; a machine populates the register via the installer
+    reg = registry.load_registry(path=registry._packaged_default())
+    assert reg == {}
 
 
 def test_registry_path_resolution_order(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)                                        # no ./og_model_registry.json here
     monkeypatch.delenv(registry.ENV_VAR, raising=False)
     assert registry.registry_path() == registry._packaged_default()   # falls back to packaged
     envfile = _write(tmp_path)
@@ -32,25 +32,26 @@ def test_registry_path_resolution_order(tmp_path, monkeypatch):
     assert registry.registry_path() == envfile                        # env var wins
 
 
-def test_lookup_success_and_params_default(tmp_path):
-    entry = registry.lookup("608", path=_write(tmp_path))
-    assert entry.og_package == "ogphl" and entry.name == "Philippines"
-    assert entry.params_resource_name == "ogphl_default_parameters.json"
-    # also resolves a CountryConfig-like object via .un_code
-    country = types.SimpleNamespace(un_code="608", name="Philippines")
-    assert registry.lookup(country, path=_write(tmp_path)).un_code == "608"
+def test_lookup_by_repo_key_package_and_country(tmp_path):
+    rp = _write(tmp_path)
+    e = registry.lookup("og-phl", path=rp)
+    assert (e.key, e.package, e.version) == ("og-phl", "ogphl", "0.1.0")
+    assert e.params_resource_name == "ogphl_default_parameters.json"   # derived by convention
+    assert registry.lookup("ogphl", path=rp).key == "og-phl"          # also resolves by package name
+    country = types.SimpleNamespace(og_repo="og-phl", name="Philippines")
+    assert registry.lookup(country, path=rp).package == "ogphl"       # and via a CountryConfig (.og_repo)
 
 
-def test_missing_country_raises_actionable(tmp_path):
+def test_unregistered_raises_actionable(tmp_path):
     import pytest
     with pytest.raises(registry.ModelNotInstalledError) as e:
-        registry.lookup("999", path=_write(tmp_path))
-    assert "No OG model registered" in str(e.value) and "999" in str(e.value)
+        registry.lookup("og-xxx", path=_write(tmp_path))
+    assert "No OG model registered" in str(e.value) and "og-xxx" in str(e.value)
 
 
 def test_absent_interpreter_raises(tmp_path):
     import pytest
     bad = _write(tmp_path, env_python="/no/such/python")
     with pytest.raises(registry.ModelNotInstalledError) as e:
-        registry.lookup("608", path=bad)
+        registry.lookup("og-phl", path=bad)
     assert "not found at" in str(e.value)

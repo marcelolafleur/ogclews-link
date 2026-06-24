@@ -1,10 +1,15 @@
 """The OG-model registry: where each onboarded country model's environment lives, so the link can
 locate and launch it as a subprocess without importing it. Stdlib-only (imports in the link env).
 
-Resolution order for the registry file: $OGCLEWS_MODEL_REGISTRY, then ./og_model_registry.json in the
-cwd, then the packaged default at ogclews_link/data/og_model_registry.json. Eventually MUIOGO owns this
-file (it installs the models); for now it ships a Philippines entry. The link READS it -- it never
-installs a model; a missing/unbuilt model raises an actionable ModelNotInstalledError.
+Keyed by the OG REPO KEY (e.g. ``og-phl``), mirroring ``OG-Core/scripts/repos.json`` and the universal
+installer. An entry is a pure INSTALL RECORD -- ``{package, env_python, version}`` -- nothing about
+coupling or calibration, and NOT the UN country code (the OG package owns that: ``ogphl.UN_COUNTRY_CODE``).
+
+The link only READS this file; it never installs. The installed register is WRITTEN by the installer
+(MUIOGO drives ``install.sh`` on demand) or by ``ogclews-link models register --path <dir>``. Resolution
+order: explicit arg > ``$OGCLEWS_MODEL_REGISTRY`` > ``./og_model_registry.json`` > the packaged default
+(which ships EMPTY -- a machine populates it via register). A missing/unbuilt model raises an actionable
+ModelNotInstalledError.
 """
 from __future__ import annotations
 
@@ -16,22 +21,19 @@ ENV_VAR = "OGCLEWS_MODEL_REGISTRY"
 
 
 class ModelNotInstalledError(RuntimeError):
-    """The requested country's OG model is not registered, or its environment is not on disk."""
+    """The requested OG model is not registered, or its environment is not on disk."""
 
 
 @dataclass(frozen=True)
 class ModelEntry:
-    un_code: str
-    name: str
-    og_package: str            # importable package name in the model's env, e.g. "ogphl"
+    key: str                   # the repo key, e.g. "og-phl" (matches repos.json + the installer)
+    package: str               # importable package in the model's env, e.g. "ogphl"
     env_python: str            # absolute path to that env's python interpreter
-    og_version: str | None = None
-    ogcore_version: str | None = None
-    params_resource: str | None = None
+    version: str | None = None
 
     @property
     def params_resource_name(self) -> str:
-        return self.params_resource or f"{self.og_package}_default_parameters.json"
+        return f"{self.package}_default_parameters.json"
 
 
 def _packaged_default() -> str:
@@ -51,34 +53,32 @@ def registry_path(path: str | None = None) -> str:
 
 
 def load_registry(path: str | None = None) -> dict[str, ModelEntry]:
-    """Parse the registry into {un_code: ModelEntry}."""
+    """Parse the installed register into {repo_key: ModelEntry}."""
     rp = registry_path(path)
     with open(rp) as f:
         data = json.load(f)
     out: dict[str, ModelEntry] = {}
-    for un_code, e in data.get("countries", {}).items():
-        out[str(un_code)] = ModelEntry(
-            un_code=str(un_code), name=e.get("name", un_code), og_package=e["og_package"],
-            env_python=e["env_python"], og_version=e.get("og_version"),
-            ogcore_version=e.get("ogcore_version"), params_resource=e.get("params_resource"))
+    for key, e in data.get("models", {}).items():
+        out[key] = ModelEntry(key=key, package=e["package"], env_python=e["env_python"],
+                              version=e.get("version"))
     return out
 
 
-def lookup(country_or_un_code, path: str | None = None) -> ModelEntry:
-    """Resolve a CountryConfig (uses .un_code) or a bare un_code string to its ModelEntry. Raises
-    ModelNotInstalledError -- with an actionable message -- if the country is unregistered or its
-    interpreter is not on disk. NEVER installs a model (that is MUIOGO's job)."""
-    un = str(getattr(country_or_un_code, "un_code", country_or_un_code))
-    name = getattr(country_or_un_code, "name", un)
+def lookup(model, path: str | None = None) -> ModelEntry:
+    """Resolve a repo key ('og-phl'), a package name ('ogphl'), or a CountryConfig (its ``og_repo``/
+    ``og_package``) to its ModelEntry. Raises ModelNotInstalledError -- with an actionable message --
+    if unregistered or its interpreter is not on disk. NEVER installs a model."""
+    ident = str(getattr(model, "og_repo", None) or getattr(model, "og_package", None) or model)
     rp = registry_path(path)
     reg = load_registry(path)
-    entry = reg.get(un)
+    entry = reg.get(ident) or next((e for e in reg.values() if e.package == ident), None)
     if entry is None:
         raise ModelNotInstalledError(
-            f"No OG model registered for {name} (un_code {un}). Registry: {rp}. Add an entry "
-            f"{{'og_package': ..., 'env_python': ...}} under countries['{un}'], or set ${ENV_VAR}.")
+            f"No OG model registered for '{ident}'. Registry: {rp}. Install + register it "
+            f"(`ogclews-link models register --path <dir>`, or via the MUIOGO installer), or set "
+            f"${ENV_VAR} to a registry that has it.")
     if not os.path.exists(entry.env_python):
         raise ModelNotInstalledError(
-            f"OG model env for {name} ({entry.og_package}) not found at {entry.env_python}. Install/build "
-            f"that model and point its registry 'env_python' at the interpreter (run MUIOGO onboarding).")
+            f"OG model env for '{entry.key}' ({entry.package}) not found at {entry.env_python}. "
+            f"Re-install/register that model (its interpreter moved or was never built).")
     return entry

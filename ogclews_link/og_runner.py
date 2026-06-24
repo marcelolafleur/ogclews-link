@@ -1,7 +1,7 @@
 """The OG-env runner: the ONLY module that imports ogcore + a country OG package. It ships in the link
 repo but is EXECUTED BY the OG model's own interpreter --
 
-    <env_python> -m ogclews_link.og_runner export-baseline --og-package ogphl --un-code 608 --out-dir ...
+    <env_python> -m ogclews_link.og_runner export-baseline --og-package ogphl --out-dir ...
     <env_python> -m ogclews_link.og_runner solve-reform   --baseline-dir ... --reform-dir ... --overrides ...
 
 -- with PYTHONPATH pointing at the link source so this module (and the pure-python serde/_demog/health_pop/
@@ -68,7 +68,7 @@ def _read_solution(output_base, ss):
     return safe_read_pickle(os.path.join(output_base, *sub))
 
 
-def _build_baseline_specs(og_package, params_resource, un_code, og_start_year, num_workers,
+def _build_baseline_specs(og_package, params_resource, og_start_year, num_workers,
                           out_dir, prod_dict_path=None, M=None, I=None):
     """Port of the former Runtime.build_baseline, made country-generic (import via og_package).
 
@@ -78,9 +78,17 @@ def _build_baseline_specs(og_package, params_resource, un_code, og_start_year, n
     if electricity is split, e.g. ogphl's native 'Utilities' = electricity+water); I = the number of
     consumption goods in alpha_c. For PHL this is M=4, I=5 -- but it falls out of the aggregation, so a
     new country supplies its own electricity-isolating PROD_DICT and M/I follow. M/I args override only
-    for diagnostics."""
+    for diagnostics.
+
+    The UN country code (which the demographics build needs) is read from the OG PACKAGE itself
+    (e.g. ``ogphl.UN_COUNTRY_CODE``): the country model owns its own identity, so neither the link nor
+    the registry carries it."""
     from ogcore.parameters import Specifications
 
+    pkg = importlib.import_module(og_package)
+    un_code = str(getattr(pkg, "UN_COUNTRY_CODE", "") or "")
+    if not un_code:
+        raise ValueError(f"{og_package} does not expose UN_COUNTRY_CODE; the demographic build needs it.")
     io = importlib.import_module(f"{og_package}.input_output")
     os.makedirs(out_dir, exist_ok=True)
     p = Specifications(baseline=True, num_workers=num_workers, baseline_dir=out_dir, output_base=out_dir)
@@ -160,12 +168,12 @@ def _apply_health(p, health):
 # For scripts that already run under the OG model's interpreter and want OG-Core's native plotting too
 # (e.g. run_across_steps' full deck). framework.run works with either pair injected.
 
-def inprocess_callables(og_package, params_resource, un_code, og_start_year, *,
+def inprocess_callables(og_package, params_resource, og_start_year, *,
                         num_workers=7, show_progress=False, ss=False, M=None, I=None):
     """Return (export_baseline, solve_reform) closures that build/solve in-process via ogcore."""
     def export_baseline(country, out_root):
         base_dir = os.path.join(out_root, "baseline")
-        p = _build_baseline_specs(og_package, params_resource, un_code, og_start_year,
+        p = _build_baseline_specs(og_package, params_resource, og_start_year,
                                   num_workers, base_dir, None, M=M, I=I)
         base = _solve(p, num_workers, ss, show_progress, "baseline")
         return p, base, base_dir, {}        # template = real Specifications; baseline_arrays unused here
@@ -186,7 +194,7 @@ def inprocess_callables(og_package, params_resource, un_code, og_start_year, *,
 # --- subprocess modes (invoked by the link via the CLI) --------------------------
 
 def export_baseline(a):
-    p = _build_baseline_specs(a.og_package, a.params_resource, a.un_code, a.og_start_year,
+    p = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
                               a.num_workers, a.out_dir, a.prod_dict, M=a.m, I=a.i)
     sol = _solve(p, a.num_workers, a.ss, not a.no_progress, "baseline")
     serde.save_params_npz(os.path.join(a.out_dir, "baseline_params.npz"), p)
@@ -200,7 +208,7 @@ def export_baseline(a):
     # health re-solve needs. solve-reform rebuilds a FRESH baseline instead (deterministic, clean
     # paramtools state) and points baseline_dir at the solved solution written here.
     import ogcore
-    meta = {"og_package": a.og_package, "un_code": str(a.un_code), "M": int(p.M), "I": int(p.I),
+    meta = {"og_package": a.og_package, "un_code": getattr(p, "_un_code", ""), "M": int(p.M), "I": int(p.I),
             "S": int(p.S), "start_year": int(getattr(p, "start_year", a.og_start_year)),
             "ogcore_version": getattr(ogcore, "__version__", None), "ss_only": bool(a.ss)}
     with open(os.path.join(a.out_dir, "baseline_meta.json"), "w") as f:
@@ -213,7 +221,7 @@ def solve_reform(a):
     # than reloading a pickle -- a fresh object has clean paramtools state, so the health re-solve's
     # update_specifications works (a cloudpickled one's doesn't). baseline_dir points at the solved
     # baseline solution on disk, which OG-Core reads for the reform.
-    r = _build_baseline_specs(a.og_package, a.params_resource, a.un_code, a.og_start_year,
+    r = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
                               a.num_workers, a.reform_dir, a.prod_dict, M=a.m, I=a.i)
     r.baseline = False
     r.baseline_dir = a.baseline_dir
@@ -240,7 +248,6 @@ def main(argv=None):
     e = sub.add_parser("export-baseline")
     e.add_argument("--og-package", required=True)
     e.add_argument("--params-resource", required=True)
-    e.add_argument("--un-code", required=True)
     e.add_argument("--m", type=int, default=None, help="override OG industry count (default: len(PROD_DICT))")
     e.add_argument("--i", type=int, default=None, help="override consumption-good count (default: len(alpha_c))")
     e.add_argument("--og-start-year", type=int, required=True)
@@ -260,7 +267,6 @@ def main(argv=None):
     # the reform rebuilds the baseline fresh (clean paramtools state), so it needs the same build inputs:
     s.add_argument("--og-package", required=True)
     s.add_argument("--params-resource", required=True)
-    s.add_argument("--un-code", required=True)
     s.add_argument("--og-start-year", type=int, required=True)
     s.add_argument("--prod-dict", default=None)
     s.add_argument("--m", type=int, default=None)

@@ -26,7 +26,7 @@ OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs"
 def main():
     entry = registry.lookup(PHL)
     export_baseline, solve_reform = og_runner.inprocess_callables(
-        entry.og_package, entry.params_resource_name, PHL.un_code, PHL.scenario.og_start_year,
+        entry.package, entry.params_resource_name, PHL.scenario.og_start_year,
         num_workers=7, show_progress=True)  # multiprocess; never 1 worker (threaded trap)
     results = framework.run_across_steps(ACROSS_STEPS, PHL, export_baseline=export_baseline,
                                          solve_reform=solve_reform, out_root=OUT)
