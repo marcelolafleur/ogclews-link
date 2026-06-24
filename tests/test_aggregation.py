@@ -158,17 +158,34 @@ def _load_real(repo):
     if not sam_csv or not const:
         return None
     sam = pd.read_csv(sam_csv[0], index_col=1, thousands=",").fillna(0)
+    src = _committed_source(base, const[0])   # base on UPSTREAM/committed, not a country repo's local WIP
 
     def load(name):
-        for node in ast.parse(open(const[0]).read()).body:
+        for node in ast.parse(src).body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == name for t in node.targets):
                 return ast.literal_eval(node.value)
         return None
     return sam, load("PROD_DICT"), load("CONS_DICT")
 
 
+def _committed_source(repo, path):
+    """The COMMITTED text of ``path`` (``git show HEAD:<rel>``), so these real-package tests assert the
+    upstream calibration rather than whatever uncommitted WIP a country repo's working tree happens to be
+    on. Falls back to the working tree if git/HEAD is unavailable."""
+    import subprocess
+    rel = os.path.relpath(path, repo)
+    try:
+        r = subprocess.run(["git", "-C", repo, "show", f"HEAD:{rel}"], capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout:
+            return r.stdout
+    except Exception:  # noqa: BLE001 -- not a git checkout / no HEAD -> use the working tree
+        pass
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
 @pytest.mark.parametrize("repo,exp_index,exp_share", [
-    ("OG-PHL", 2, 1.00),    # electricity now ISOLATED as its own group "Electricity" (aelec); was joined w/ water
+    ("OG-PHL", 2, 0.79),    # UPSTREAM/committed: electricity joined with water in "Utilities" (aelec+awatr)
     ("OG-IDN", 2, 0.90),    # electricity in joined "Utilities" (aelec + awatr)
     ("OG-ZAF", 1, 1.00),    # electricity isolated as "Energy" (aelcg)
     ("OG-ETH", 1, 1.00),    # electricity isolated as "Energy" (aelec)
@@ -199,20 +216,21 @@ def test_real_phl_energy_consumption_good_is_mostly_not_electricity():
 
 
 def test_real_apply_on_ogcore_specifications():
-    """Full pipeline on a REAL OG-Core Specifications at the calibration's natural M: discover
-    the energy index from the installed package, weight the +20% shock, apply it, and confirm
-    only that column moves by the weighted amount. Skips if OG-Core / ogphl aren't installed."""
+    """Full pipeline on a REAL OG-Core Specifications at the calibration's natural M: discover the energy
+    index from the COMMITTED PROD_DICT (upstream, not a local WIP working tree), weight the +20% shock,
+    apply it, and confirm only that column moves by the weighted amount. Skips if OG-Core / ogphl absent."""
     Specifications = pytest.importorskip("ogcore.parameters").Specifications
-    io = pytest.importorskip("ogphl.input_output")
-    PROD_DICT = pytest.importorskip("ogphl.constants").PROD_DICT
+    loaded = _load_real("OG-PHL")                     # committed PROD_DICT + SAM (upstream-based)
+    if loaded is None:
+        pytest.skip("OG-PHL not present locally")
+    sam, PROD_DICT, _ = loaded
     p = Specifications()
-    p.M = len(PROD_DICT)                              # straight from the dict (no hand-picked M)
+    p.M = len(PROD_DICT)                              # straight from the committed dict (no hand-picked M)
     p.Z = np.ones((p.T + p.S, p.M)) * 1.5             # a real (T+S, M) Z to haircut
-    plan = ag.weighted_shock(io.read_SAM(), PROD_DICT, "electricity", 0.20,
-                             axis="production", model_m=p.M)
+    plan = ag.weighted_shock(sam, PROD_DICT, "electricity", 0.20, axis="production", model_m=p.M)
     t = plan.targets[0]
-    # electricity is now its OWN group "Electricity" (index 2, share 1.0); it used to be joined w/ water (0.79)
-    assert t.index == 2 and t.share == pytest.approx(1.00, abs=0.02)
+    # UPSTREAM ogphl joins electricity with water in "Utilities" (index 2, share 0.79)
+    assert t.index == 2 and t.share == pytest.approx(0.79, abs=0.02)
     z0 = np.asarray(p.Z, float).copy()
     ag.apply_productivity_haircut(p, plan)
     ratio = np.asarray(p.Z, float)[0] / z0[0]
