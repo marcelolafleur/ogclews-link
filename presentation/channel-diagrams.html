@@ -91,7 +91,7 @@
 <section class="ch co">
   <div class="kick"><span class="rule"></span><span class="dir">CLEWS → OG</span></div>
   <h2>Investment</h2><p class="subt">paying for the public build-out</p>
-  <div class="scope"><span>⚠</span><span><b>Public infrastructure only.</b> The transition's private generation capex — most of the capital — has its own channel (<b>capital intensity</b>, next), or rides the cost-push / a capex incentive — not this (public) one.</span></div>
+  <div class="scope"><span>⚠</span><span><b>Public infrastructure only.</b> Private generation capex — the power plants — reaches the economy through the energy price, the <b>capital intensity</b> channel (next), or the <b>energy-capex</b> tax credit — not this (public) one.</span></div>
   <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
   <div class="step"><span class="mark a">1</span>
     <div class="story">Building the grid takes <b>a lot of money up front</b>.</div>
@@ -118,25 +118,40 @@
   <h2>Capital intensity</h2><p class="subt">the clean buildout is capital-heavy</p>
   <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
   <div class="step"><span class="mark a">1</span>
-    <div class="story">A clean-energy buildout (wind, solar, CCS) is <b>capital-heavy</b> — costly to build, cheap to run.</div>
+    <div class="story">A clean-energy build (wind, solar, carbon-capture) is <b>equipment-heavy</b> — costly to build, cheap to run.</div>
     <div class="model"><span class="lab">signal</span>CLEWS reform/base ratio of the power fleet's capital-cost share.</div></div>
   <div class="down">▼</div>
   <div class="step"><span class="mark">2</span>
-    <div class="story">The energy sector becomes <b>structurally more capital-intensive</b>.</div>
-    <div class="model"><span class="lab">capital share</span>raises the energy industry's capital share (<var>γ<sub>m</sub></var>) in production.</div></div>
-  <div class="branchhead"><span class="b">⌄</span><span>the capital market then works it out, <b>endogenously</b>:</span></div>
+    <div class="story"><b>More of the industry's cost is equipment</b>, less is fuel and labour.</div>
+    <div class="model"><span class="lab">capital share</span>raises the energy industry's capital share (<var>γ<sub>m</sub></var>); labour's share is the residual.</div></div>
+  <div class="branchhead"><span class="b">⌄</span><span>the result is <b>not the obvious one</b>:</span></div>
   <div class="cons">
     <div class="step"><span class="mark"></span>
-      <div class="story"><b>Capital flows toward energy.</b></div>
-      <div class="model"><span class="lab">capital pull</span>higher <var>γ</var> lifts energy's marginal product of capital.</div></div>
+      <div class="story"><b>Energy gets cheaper to produce</b>, so its price falls.</div>
+      <div class="model"><span class="lab">price</span>shifting cost toward equipment lowers the energy good's price (≈ −¼, PHL).</div></div>
+    <div class="step hi"><span class="mark"></span>
+      <div class="story">Demand barely moves, so the same demand is met more cheaply — <b class="reg">using less equipment, not more</b>.</div>
+      <div class="model"><span class="lab">capital</span>energy-sector capital falls (≈ −14%, PHL); the interest rate <var>r</var> stays roughly flat.</div></div>
     <div class="step"><span class="mark"></span>
-      <div class="story">The <b>cost of borrowing rises</b>, and other industries get less.</div>
-      <div class="model"><span class="lab">crowding-out</span>economy-wide <var>r</var> ↑ and crowd-out emerge from the multi-industry capital market.</div></div>
-    <div class="step"><span class="mark"></span>
-      <div class="story">Energy leans <b>less on labour</b>.</div>
+      <div class="story">Income shifts <b>from workers toward equipment-owners</b>.</div>
       <div class="model"><span class="lab">factor split</span>labour share is the residual <var>1 − γ − γ<sub>g</sub></var> (hard-floored).</div></div>
   </div>
-  <div class="foot">The private-sector twin of the public <b>investment</b> channel (<var>α<sub>I</sub></var>→<var>K<sub>g</sub></var>) — complementary. One of three views of generation capex (<var>γ</var> here / <var>Z</var> cost-push / ITC); use one.</div>
+  <div class="foot">A <b>price / income-split</b> lever — not "capital drawn in." Drawing capital in is the <b>energy-capex</b> tax credit (next), which moves energy capital the opposite way; use one, not both.</div>
+</section>
+
+<!-- ============ 2c ENERGY CAPEX (ITC) ============ -->
+<section class="ch pol">
+  <div class="kick"><span class="rule"></span><span class="dir">policy → OG</span></div>
+  <h2>Energy capex incentive</h2><p class="subt">a tax credit pulls capital into clean generation</p>
+  <div class="caps"><span class="s">What happens</span><span class="m">In the model</span></div>
+  <div class="step"><span class="mark a">1</span>
+    <div class="story">A <b>tax credit</b> makes it cheaper for the energy industry to fund new equipment.</div>
+    <div class="model"><span class="lab">cost of capital</span>an investment tax credit lowers the energy industry's cost of capital.</div></div>
+  <div class="down">▼</div>
+  <div class="step"><span class="mark">2</span>
+    <div class="story"><b>Capital is drawn into energy</b> — paid for through the public budget.</div>
+    <div class="model"><span class="lab">capital in</span>energy-sector capital rises (≈ +5%, PHL); funded by the budget.</div></div>
+  <div class="foot">The counterpart to <b>capital intensity</b>: that changes the cost <b>share</b> (and makes energy cheaper, using less equipment); this changes the cost <b>of</b> capital (and draws capital in). Opposite directions on energy capital — use one, not both.</div>
 </section>
 
 <!-- ============ 3 CARBON ============ -->

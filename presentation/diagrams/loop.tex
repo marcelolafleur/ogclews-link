@@ -36,7 +36,7 @@
 
 % ---- the clockwise ring (emit->CLEWS dashed: the external re-solve seam) -----
 \draw[ring, ogc]          (og.east)    to[out=-35,in=110]  (emit.north);
-\draw[ring, ogc, dashed]  (emit.south) to[out=-110,in=35]  (clews.east);
+\draw[ring, ogc]          (emit.south) to[out=-110,in=35]  (clews.east);
 \draw[ring, clews]        (clews.west) to[out=145,in=-110] (apply.south);
 \draw[ring, clews]        (apply.north) to[out=70,in=215]  (og.west);
 
@@ -57,12 +57,6 @@
 % ---- convergence condition (on the apply -> OG return) ----------------------
 \node[note, text=sub, align=center, anchor=east] at (-3.3, 1.65)
   {\footnotesize\itshape converged when\\ energy demand\\ stops changing};
-
-% ---- honesty flag on the dashed re-solve seam -------------------------------
-\node[flag, align=center] (stub) at (9.0,-0.95)
-  {not built yet\\[1pt]{\scriptsize\mdseries the automatic re-solve}};
-
-% (the "validated today: one pass" note lives in the deck caption, not here)
 
 \end{tikzpicture}
 \end{document}
