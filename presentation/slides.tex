@@ -1,7 +1,7 @@
 % ==========================================================================
-% OG-Core x CLEWS/OSeMOSYS — integration framework: demo deck.
-% Self-contained Beamer presentation that uses the standalone diagram PDFs
-% (diagrams/*.pdf, built first) and the curated example figures (figures/*.png).
+% OG-Core x CLEWS/OSeMOSYS — how the two models work together: narrative deck.
+% Follows presentation/NARRATIVE.md. Reuses two standalone diagram PDFs
+% (diagrams/architecture.pdf, diagrams/loop.pdf); the rest is native Beamer.
 % Build: latexmk -pdf slides.tex   (or see ../build.sh)
 % ==========================================================================
 \documentclass[aspectratio=169,11pt]{beamer}
@@ -23,6 +23,7 @@
 \setbeamercolor{structure}{fg=ogc}
 \setbeamercolor{itemize item}{fg=ogc}
 \setbeamercolor{itemize subitem}{fg=clews}
+\setbeamercolor{enumerate item}{fg=ogc}
 \setbeamercolor{block title}{fg=white,bg=ogc}
 \setbeamercolor{block body}{fg=ink,bg=ogc!6}
 \setbeamerfont{frametitle}{series=\bfseries,size=\large}
@@ -39,48 +40,21 @@
 % spare footline: caption left, frame number right (full-width box so \hfill works)
 \setbeamertemplate{footline}{%
   \hbox to\paperwidth{\hspace{0.5cm}%
-    {\color{mute}\scriptsize OG-Core\,$\times$\,CLEWS · integration framework}%
+    {\color{mute}\scriptsize OG-Core\,$\times$\,CLEWS · how the two models work together}%
     \hfill{\color{mute}\scriptsize\insertframenumber\,/\,\inserttotalframenumber}%
     \hspace{0.5cm}}%
   \vspace{3pt}}
-
-% section divider frames
-\AtBeginSection[]{%
-  \begin{frame}[plain]
-    \vfill\centering
-    {\color{claret}\rule{1.1cm}{2.5pt}}\par\vspace{6pt}
-    {\usebeamerfont{title}\Large\color{ink}\insertsectionhead}\par
-    \vfill
-  \end{frame}}
 
 % a titled diagram frame: title + diagram (sized to leave room) + a short 1-2 line note
 \newcommand{\dgmframe}[3]{%
   \begin{frame}{#1}%
     \centering
-    \includegraphics[width=\linewidth,height=0.67\textheight,keepaspectratio]{diagrams/#2.pdf}\par
-    \vspace{3pt}{\scriptsize\color{mute}#3}%
-  \end{frame}}
-\newcommand{\srcline}[1]{\vspace{2pt}{\scriptsize\color{mute}#1}}
-% a full-bleed plain-language channel-flow frame (the diagram is self-titling)
-\newcommand{\chflow}[1]{%
-  \begin{frame}[plain]%
-    \vfill\centering
-    \includegraphics[width=\linewidth,height=0.86\textheight,keepaspectratio]{diagrams/#1.pdf}%
-    \vfill
-  \end{frame}}
-% a full-bleed figure frame: the editorial figures are self-titling, so no frame title;
-% optional one-line interpretive note below.
-\newcommand{\figframe}[2]{%
-  \begin{frame}[plain]%
-    \vfill\centering
-    \includegraphics[width=\linewidth,height=0.84\textheight,keepaspectratio]{figures/#1.png}\par
-    \vspace{3pt}{\scriptsize\color{mute}#2}%
-    \vfill
+    \includegraphics[width=\linewidth,height=0.66\textheight,keepaspectratio]{diagrams/#2.pdf}\par
+    \vspace{4pt}{\scriptsize\color{mute}#3}%
   \end{frame}}
 
-\title{Coupling OG-Core with CLEWS / OSeMOSYS}
-\subtitle{A channel-based soft-link: how the variables interact, how scenarios are built,
-and the path to dual-consistency}
+\title{How OG-Core and CLEWS work together}
+\subtitle{What passes between them, and what it means}
 \date{\today}
 
 \begin{document}
@@ -89,112 +63,138 @@ and the path to dual-consistency}
 \begin{frame}[plain]
   \vfill
   {\color{claret}\rule{1.2cm}{2.5pt}}\par\vspace{10pt}
-  {\bfseries\LARGE\color{ink}Coupling OG-Core with CLEWS\,/\,OSeMOSYS}\par\vspace{8pt}
-  {\large\color{sub}A channel-based soft-link: how the variables interact,\\
-   how scenarios are built, and the path to dual-consistency}\par\vspace{18pt}
-  {\footnotesize\color{mute}OG-PHL calibration · \texttt{ogclews-link} orchestrator · \today}\par
+  {\bfseries\LARGE\color{ink}How OG-Core and CLEWS work together}\par\vspace{8pt}
+  {\large\color{sub}What passes between the economy and the energy system,\\ and what it means}\par\vspace{18pt}
+  {\footnotesize\color{mute}OG-PHL calibration\, ·\, \texttt{ogclews-link}\, ·\, \today}\par
   \vfill
 \end{frame}
 
-% ===========================================================================
-\section{The coupling problem}
-
-\dgmframe{The structural seam}{architecture}{%
-  A \emph{soft} link — the two models stay separate and pass a few signals back and forth.
-  A hard link is impossible: one traces a path through time, the other plans all years at once.}
-
-% ===========================================================================
-\section{The seven channels — how the two worlds connect}
-
-\begin{frame}{Seven cause-and-effect links}
-  Seven channels connect the energy system and the economy — each a simple cause-and-effect story:
-  \smallskip
-  {\small
-  \begin{itemize}\setlength\itemsep{2.5pt}
-    \item \textbf{Health} — cleaner air means healthier, more productive people
-    \item \textbf{Energy prices} — system costs reach household bills, and hit poorer families hardest
-    \item \textbf{Carbon price} — one price pushes the energy system cleaner \emph{and} raises
-          revenue that can be returned to households
-    \item \textbf{Investment} — building the public grid is a public cost, funded by debt or taxes
-    \item \textbf{Capital intensity} — a clean power system is capital-heavy, so it pulls in investment
-          and shifts the mix away from labour (the private twin of investment)
-    \item \textbf{Cost of capital} — how patient the economy is shapes which projects get built
-    \item \textbf{Demand} — a growing economy needs more energy
-  \end{itemize}}
-  \smallskip
-  {\color{sub}\small The plain flows follow; the full variable-level map is in the appendix.}
+% ---- the gap ----------------------------------------------------------------
+\begin{frame}{Two analyses that usually don't meet}
+  Energy-transition pathways and their economic consequences are normally studied with
+  \textbf{separate models that don't share inputs}.
+  \medskip
+  \begin{itemize}\setlength\itemsep{7pt}
+    \item A least-cost \textbf{energy} model gives build costs, electricity prices, and emissions —
+          but not what they do to wages, the public budget, household welfare, or who gains and loses.
+    \item A \textbf{macroeconomic} model gives those — but treats energy as a price and a quantity,
+          with no representation of the system that supplies it.
+  \end{itemize}
+  \medskip
+  {\color{ink}This couples the two}, so a change on the energy side carries through to the economy,
+  and the economy's response carries back.
 \end{frame}
 
-\chflow{ch_health}
-\chflow{ch_energy}
-\chflow{ch_carbon}
-\chflow{ch_investment}
-\chflow{ch_discount}
-\chflow{ch_demand}
+% ---- the two models ---------------------------------------------------------
+\dgmframe{What each model covers}{architecture}{%
+  Each model is detailed exactly where the other is blank; coupling is the exchange of a few quantities
+  between them.}
 
-% ===========================================================================
-\section{Running the coupled model}
+% ---- the linking price ------------------------------------------------------
+\begin{frame}{The link is a price — the marginal cost of energy}
+  The central quantity passed to the economy is the \textbf{energy price}, and it is not assumed or
+  marked up.
+  \medskip
+  \begin{itemize}\setlength\itemsep{7pt}
+    \item It is the \textbf{marginal cost of supply} in the least-cost solution — the cost of the
+          \emph{next} unit of energy — which CLEWS produces directly (its shadow price), not as a markup.
+    \item Marginal, not average, cost is the right signal: it is what an additional unit actually costs
+          the system, so it is what should govern how much energy the economy chooses to use.
+  \end{itemize}
+  \medskip
+  {\color{sub}That is what reaches households — not the average cost of everything produced.}
+\end{frame}
 
-\dgmframe{Running it back and forth}{loop}{%
-  The economy and the energy system are re-solved in turn until energy demand stops changing.
-  Validated today: a single pass — the repeating loop is the next piece to build.}
+% ---- the channels (overview) ------------------------------------------------
+\begin{frame}{What connects them: eight channels}
+  \textbf{\color{clews}From the energy system to the economy}\\[2pt]
+  {\small the energy price\, ·\, the public grid build\, ·\, how capital-heavy the industry is\, ·\, air pollution and health}
+  \medskip\par
+  \textbf{\color{policy}Policy levers, applied to one or both models}\\[2pt]
+  {\small a carbon price\, ·\, a tax credit for clean investment}
+  \medskip\par
+  \textbf{\color{ogc}From the economy back to the energy system}\\[2pt]
+  {\small the energy demand to plan for\, ·\, the interest rate to discount with}
+  \vfill
+  {\footnotesize\color{sub}Each changes a \emph{different} part of the economy. They don't feed one
+   another — their combined effect is worked out when the economy is solved.}
+\end{frame}
 
-\dgmframe{The scenario builder}{scenarios}{%
-  A scenario is a list of \texttt{(channel, options)}; defaults encode the defensible choice. MUIOGO (the UI) prompts from this catalog and calls the same CLI.}
+% ---- how they reach a consistent answer -------------------------------------
+\dgmframe{Reaching a consistent answer}{loop}{%
+  Run the two in turn until the economy's energy demand and the system's supply agree — the consistent answer.}
 
-% ===========================================================================
-\section{What it produces}
+% ---- channels act together --------------------------------------------------
+\begin{frame}{The channels act together, not in sequence}
+  Each channel sets a different parameter, and the economy is then solved \textbf{once} with all of them
+  in place. Their interactions — cheaper energy changing labour supply, a capital subsidy moving the
+  interest rate — are resolved \textbf{inside that single equilibrium}, not summed by hand. Because each
+  touches a different parameter, the order they are applied in does not change the result.
+  \vfill
+  {\footnotesize\color{sub}Two pairs do act on the same quantity, so they are not combined:
+   \textbf{energy price} and \textbf{carbon} both raise the price of energy; \textbf{capital intensity}
+   and the \textbf{clean-investment tax credit} both move energy-sector capital, in opposite directions.}
+\end{frame}
 
-\figframe{waterfall_gdp}{%
-  Marginal contribution of each policy step to output, health split into mortality vs morbidity. Magnitudes illustrative (see the figure's source line).}
-
-\figframe{energy_by_income}{%
-  Energy-good demand change by lifetime-income group — the heterogeneous incidence a single-agent macro core cannot show.}
-
-\figframe{health_gdp_split}{%
-  The +health GDP gain is the reduced-form \emph{morbidity} multiplier, \emph{not} lives saved: PHL PM2.5 deaths skew elderly, so saved lives add retirees, not workers.}
-
-% ===========================================================================
-\section{Rigor \& roadmap}
-
-\dgmframe{Where each channel sits — and where it is heading}{maturity}{%
-  Filled = today; open = target. The practical frontier is a ladder of approximations to the dual-exchanging theoretical best.}
-
-\begin{frame}{What works today}
+% ---- spotlight: capital intensity -------------------------------------------
+\begin{frame}{A counterintuitive one: capital intensity}
+  A clean fleet (wind, solar, carbon-capture) is \textbf{equipment-heavy} — more of its cost is the
+  equipment built once, less is the fuel and labour paid for continuously, so a larger share of the
+  industry's cost goes to capital.
+  \medskip
   \begin{itemize}\setlength\itemsep{6pt}
-    \item The energy system's results — prices, build costs, emissions — flow into the economy, which
-          is then solved in full, \emph{including who is affected} across income groups.
-    \item On a real test case it reproduced a roughly 17\% fall in energy use and a clear pattern of
-          who bears the cost.
-    \item The economy also produces the signals the energy system needs back: energy demand and the
-          interest rate.
-    \item Every building block is unit-tested.
+    \item But energy is small and \textbf{price-inelastic}: making it cheaper to produce barely raises
+          demand, so the industry doesn't expand. It meets the same demand more cheaply, and ends up
+          using \textbf{\color{loss}\emph{less} total capital}, with the interest rate roughly flat.
   \end{itemize}
   \medskip
-  {\color{sub}\small What isn't finished yet is shown per channel on the roadmap and listed under
-   Next steps — chiefly the automatic back-and-forth loop and calibrating the sizes.}
+  {\color{sub}So this is a lever on the \textbf{price of energy} and the \textbf{capital--labour split} —
+   not a way to draw capital in. (Drawing capital in is the tax credit, which pushes the other way.)}
 \end{frame}
 
-\begin{frame}{Next steps}
-  \begin{itemize}\setlength\itemsep{5pt}
-    \item Feed in the energy system's real prices from a full model run.
-    \item Fix the money units so the cost and revenue sizes can be trusted.
-    \item Close the loop — re-solve the two models back and forth automatically until they agree.
-    \item Refine how avoided illness becomes worker productivity (the pollution$\to$deaths link is now calibrated from real data).
-    \item Plug this in to MUIOGO, the planning tool, as its economy engine.
-  \end{itemize}
+% ---- spotlight: health ------------------------------------------------------
+\begin{frame}{Cleaner air: small on lives, real on productivity}
+  The channel takes the change in fine-particle pollution (PM2.5), then scales it down sharply — the
+  power sector is only about a tenth of the pollution people breathe, and the health response is
+  concave. For the Philippines, roughly \textbf{8\%} of the raw change survives.
   \medskip
-  \begin{block}{One line}
-    A small, careful library of cause-and-effect links — a step beyond the classic energy-economy
-    models, using a richer economy that tracks households, government, and who is affected.
-  \end{block}
+  \begin{itemize}\setlength\itemsep{6pt}
+    \item \textbf{Mortality:} fewer early deaths — but they fall mostly on the elderly, so the effect on
+          output is small.
+    \item \textbf{Productivity:} working-age people are sick less and produce more — \textbf{this is where
+          the output gain comes from}.
+  \end{itemize}
 \end{frame}
 
-% ===========================================================================
-\section{Appendix}
+% ---- worked example ---------------------------------------------------------
+\begin{frame}{One quantity around the loop}
+  A scenario makes electricity cheaper to supply — say about \textbf{4\%} cheaper.
+  \medskip
+  \begin{enumerate}\setlength\itemsep{5pt}
+    \item The lower cost flows through the \textbf{energy-price} channel and eases the price households pay.
+    \item The economy is solved: households use more energy, and the relief is proportionally larger for
+          \textbf{poorer households} — reported group by group.
+    \item The \textbf{demand} channel passes that higher demand back to the energy system.
+    \item The system re-solves at the higher demand; its mix and price shift; the economy responds again
+          — until demand and supply line up.
+  \end{enumerate}
+  \medskip
+  {\footnotesize\color{mute}One full circuit:\ \ \textbf{\color{clews}price} $\rightarrow$
+   \textbf{\color{ogc}demand} $\rightarrow$ \textbf{\color{clews}price} $\rightarrow \cdots$}
+\end{frame}
 
-\dgmframe{Reference — the full channel map (for modelers)}{channels}{%
-  The same seven channels at the variable level: each wires one OG-Core parameter to one CLEWS
-  variable. Direction = colour + arrowhead; theory status = line style.}
+% ---- close ------------------------------------------------------------------
+\begin{frame}{What the coupling adds}
+  Neither model alone produces this:
+  \medskip
+  \begin{itemize}\setlength\itemsep{7pt}
+    \item \textbf{Who} a change in the energy system helps or hurts — the effect by income group.
+    \item \textbf{What cleaner air is worth} — in lives, and in a more productive workforce.
+    \item A \textbf{mutually consistent} energy--economy outcome, rather than each side assuming the other.
+  \end{itemize}
+  \vfill
+  {\footnotesize\color{mute}Plain-language guide: \texttt{presentation/NARRATIVE.md}\, ·\, OG-PHL
+   calibration\, ·\, \texttt{ogclews-link}}
+\end{frame}
 
 \end{document}

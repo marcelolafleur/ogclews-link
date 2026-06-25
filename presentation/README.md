@@ -1,10 +1,11 @@
 # Presentation assets — OG-Core × CLEWS integration framework
 
 Programmatically generated, reusable assets for presenting the OG-Core ⇄ CLEWS/OSeMOSYS
-soft-link: **channel-mechanism explainers** (`CHANNEL-MECHANISMS.md` + `mechanisms.html`), **de novo
-HTML channel diagrams** (`channel-diagrams.html`), **TikZ diagrams** (six per-channel flows + five
-framework diagrams, vector PDF), **curated example figures** (from the matplotlib suite), and a
-self-contained **Beamer deck** (`slides.tex`). Everything shares one editorial, colorblind-safe palette
+soft-link: the **narrative guide** (`NARRATIVE.md` — the single plain-language explanation of how the
+two models work together, across all eight channels), **de novo HTML channel diagrams**
+(`channel-diagrams.html`), **TikZ diagrams** (per-channel flows + framework diagrams, vector PDF),
+**curated example figures** (from the matplotlib suite), and a self-contained **Beamer deck**
+(`slides.tex`). Everything shares one editorial, colorblind-safe palette
 ([`theme/ogclews-colors.tex`](theme/ogclews-colors.tex), mirrored from `ogclews_link/viz/style.py`).
 
 ## Build
@@ -22,8 +23,9 @@ Build outputs (`*.pdf`, `figures/*.png`) are git-ignored; rerun `build.sh` to re
 
 ```
 presentation/
-  CHANNEL-MECHANISMS.md the seven channel mechanisms — the source text
-  mechanisms.html       the mechanism explainer, styled (web)
+  NARRATIVE.md          the narrative guide — how the two models work together (single source)
+  CHANNEL-MECHANISMS.md (retired) → redirects to NARRATIVE.md
+  mechanisms.html       (retired) → redirects to NARRATIVE.md
   channel-diagrams.html the de novo per-channel diagrams (web; energy also standalone
                         in diagram-energy-price.html)
   slides.tex            the demo Beamer deck (16:9) — narrative + diagrams + figures
@@ -46,7 +48,8 @@ presentation/
   figures/
     curate.py             copies the curated example figures from the run dir
     *.png                 the curated set (generated)
-  EXPLANATION.md        prose walkthrough of the framework + how to read each diagram
+  EXPLANATION.md        (retired) → redirects to NARRATIVE.md; its technical-reference material
+                        stays in git history, pending the separate technical doc
 ```
 
 ## Reusing the assets
