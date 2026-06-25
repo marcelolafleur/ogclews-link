@@ -129,14 +129,14 @@ description.)
 
 | # | Channel | Direction | What it carries | What it changes in the receiving model |
 |---|---------|-----------|-----------------|----------------------------------------|
-| 1 | `energy_price` | energy → economy | the cost of supplying one more unit of energy | a price on the energy good households buy (`τ_c`) |
-| 2 | `investment` | energy → economy | the cost of building the public grid | public investment that builds up public infrastructure (`α_I`, `K_g`) |
-| 3 | `capital_intensity` | energy → economy | how equipment-heavy the power system is | how the energy industry splits its costs between equipment and labour (`γ`) |
-| 4 | `health` | energy → economy | the change in air pollution (PM2.5) | death rates by age (`ρ`) and how much workers produce by age (`e`) |
-| 5 | `carbon` | policy (both models) | a carbon price | the household energy price (`τ_c`) and, inside CLEWS, an added cost on polluting options |
-| 6 | `energy_capex` | policy | a tax credit for clean building | what it costs the energy industry to fund its equipment (cost of capital) |
-| 7 | `demand` | economy → energy | how much energy the economy wants | the demand CLEWS plans to meet |
-| 8 | `discount_rate` | economy → energy | the economy's interest rate | the rate CLEWS uses to value long-lived investments |
+| 1 | Energy price | energy → economy | the cost of supplying one more unit of energy | a price on the energy good households buy (`τ_c`) |
+| 2 | Investment | energy → economy | the cost of building the public grid | public investment that builds up public infrastructure (`α_I`, `K_g`) |
+| 3 | Capital intensity | energy → economy | how equipment-heavy the power system is | how the energy industry splits its costs between equipment and labour (`γ`) |
+| 4 | Health | energy → economy | the change in air pollution (PM2.5) | death rates by age (`ρ`) and how much workers produce by age (`e`) |
+| 5 | Carbon price | policy (both models) | a carbon price | the household energy price (`τ_c`) and, inside CLEWS, an added cost on polluting options |
+| 6 | Energy capex incentive | policy | a tax credit for clean building | what it costs the energy industry to fund its equipment (cost of capital) |
+| 7 | Demand | economy → energy | how much energy the economy wants | the demand CLEWS plans to meet |
+| 8 | Discount rate | economy → energy | the economy's interest rate | the rate CLEWS uses to value long-lived investments |
 
 ### From the energy system to the economy
 
@@ -247,17 +247,17 @@ Two pairs of channels reach for the same quantity, so they should not be combine
 
 The clearest way to see the channels in action is to follow one quantity the whole way around the loop:
 the price of energy going out to the economy, and the energy demand it produces coming back. Two
-channels carry it — `energy_price` on the way out, `demand` on the way back. (The five-step loop from
-Section 3 is what drives this; here it is filled in with one concrete number.)
+channels carry it — the energy-price channel on the way out, the demand channel on the way back. (The
+five-step loop from Section 3 is what drives this; here it is filled in with one concrete number.)
 
 Take a scenario that changes the power system and, in the process, makes electricity cheaper to supply
 — say about 4% cheaper than the starting point.
 
-- That 4% lower cost flows through `energy_price` and eases the price households pay for energy (`τ_c`).
+- That 4% lower cost flows through the energy-price channel and eases the price households pay for energy (`τ_c`).
 - The economy is worked out with the lower price in place. Households use more energy, and because
   energy is a necessity, the relief is proportionally larger for poorer households — which the model
   reports group by group. The economy's energy demand is now higher.
-- `demand` passes that higher demand back to the energy system as the amount it must now plan to meet.
+- The demand channel passes that higher demand back to the energy system as the amount it must now plan to meet.
 - The energy system re-solves at the higher demand; its mix of plants and its price shift; the economy
   responds again; and the loop repeats until the demand the economy wants and the supply the energy
   system plans line up.
@@ -265,7 +265,7 @@ Take a scenario that changes the power system and, in the process, makes electri
 So the same quantity has gone from the energy system into the economy as a price, come back out as a
 demand, and returned to the energy system — one full circuit.
 
-For contrast, the `health` channel enters the economy at a different point. It does not work through
+For contrast, the health channel enters the economy at a different point. It does not work through
 prices; it works through people. A change in pollution becomes a change in death rates and in the
 productivity of working-age people, which changes both the size of the workforce and how much each
 worker produces. It is the same overall shape — one quantity from the energy system changing one part
