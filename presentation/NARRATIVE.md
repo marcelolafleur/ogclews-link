@@ -120,8 +120,9 @@ parameter, the order in which they are applied does not change the result.
 
 ## 4. The channels in detail
 
-There are eight channels. The table lists all eight at a glance — what each one carries, and what it
-changes in the model that receives it. They are then explained in turn, grouped by direction: first the
+There are eight channels — the carbon price counts once here, as a single lever applied on both sides
+(in the code it is two pieces, one per side). The table lists all eight at a glance — what each one
+carries, and what it changes in the model that receives it. They are then explained in turn, grouped by direction: first the
 four channels from the energy system to the economy, then the two policy levers, then the two channels
 from the economy back to the energy system. The table follows that reading order. (Model symbols such
 as `τ_c` appear in parentheses; they are names for the settings being changed, secondary to the plain
