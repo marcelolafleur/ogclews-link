@@ -31,6 +31,8 @@ class RunnerConfig:
     show_progress: bool = True
     ss: bool = False                 # steady-state-only solve (fast; for the SS smoke / ss_smoke battery)
     registry_path: str | None = None
+    rebuild: bool = False            # force a fresh baseline solve, ignoring any cached one (e.g. to pick
+                                     # up newer UN demographics or a re-baked calibration)
 
 
 def _run(entry, args, label):
@@ -81,7 +83,7 @@ def export_baseline(country, out_root="./ogclews_runs", cfg: RunnerConfig | None
     cache = _cache_dir(out_root, entry, country, cfg)
     params_npz = os.path.join(cache, "baseline_params.npz")
     solution_npz = os.path.join(cache, "baseline_solution.npz")
-    if not _cache_current(cache, params_npz):
+    if cfg.rebuild or not _cache_current(cache, params_npz):
         os.makedirs(cache, exist_ok=True)
         args = ["export-baseline", "--og-package", entry.package,
                 "--params-resource", entry.params_resource_name,

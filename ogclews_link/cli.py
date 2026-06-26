@@ -22,6 +22,9 @@ def main(argv=None):
     rp.add_argument("--workers", type=int, default=7, help="OG-Core J-loop worker processes (use multiprocess; avoid 1)")
     rp.add_argument("--out", default="./ogclews_runs")
     rp.add_argument("--no-progress", action="store_true")
+    rp.add_argument("--rebuild-baseline", action="store_true",
+                    help="force a fresh baseline solve, ignoring any cached one (e.g. to pick up newer "
+                         "UN demographics or a re-baked calibration)")
     rp.add_argument("--clews-run", default=None,
                     help="source CLEWS/MUIOGO run dir to record in the run manifest (provenance; "
                          "scenario-source override is future work)")
@@ -106,7 +109,8 @@ def main(argv=None):
         from .manifest import write_run_manifest
 
         exp = experiments.get(args.experiment)
-        cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress)
+        cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress,
+                                   rebuild=args.rebuild_baseline)
         entry = registry.lookup(PHL)        # OG-model provenance for the manifest (and fail-fast)
         og_model = {"repo": entry.key, "package": entry.package, "version": entry.version,
                     "env_python": entry.env_python}
