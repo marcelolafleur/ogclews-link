@@ -499,6 +499,66 @@ def test_commodity_shadow_price_dual():
         os.remove(path)
 
 
+def test_commodity_shadow_price_drops_slack_years():
+    # A 0 (or sub-resolution near-zero) commodity-balance dual is a SLACK/unreported year -- missing
+    # data, not a free price. Keeping it would let a reform-side zero form a ~100% collapse and a
+    # base-side 1e-4 a ~10,000x spike. drop_zero (default) removes those so the ratio spans only
+    # genuine-dual years and stays bounded. (Mirrors the real PHL_HOU_ELE pattern.)
+    import tempfile
+
+    # base: genuine dual in 2025/2041, slack-zero in 2030, sub-resolution 1e-4 in 2043
+    base = ("r,f,y,EBb4_EnergyBalanceEachYear4_ICR,DiscountRate\n"
+            "RE1,ELC,2025,8.0,0.0\nRE1,ELC,2030,0.0,0.0\n"
+            "RE1,ELC,2041,4.0,0.0\nRE1,ELC,2043,0.0001,0.0\n")
+    # reform: genuine in 2025/2041 (one moved), slack-zero in 2043, genuine in 2030
+    ref = ("r,f,y,EBb4_EnergyBalanceEachYear4_ICR,DiscountRate\n"
+           "RE1,ELC,2025,8.0,0.0\nRE1,ELC,2030,5.0,0.0\n"
+           "RE1,ELC,2041,3.0,0.0\nRE1,ELC,2043,0.0,0.0\n")
+    paths = []
+    try:
+        for txt in (base, ref):
+            f = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False)
+            f.write(txt); f.close(); paths.append(f.name)
+        bpath, rpath = paths
+        s = signals.commodity_shadow_price(bpath, fuel="ELC")            # drop_zero default
+        assert set(s.index) == {2025, 2041}                              # 2030 (zero) + 2043 (1e-4) dropped
+        kept = signals.commodity_shadow_price(bpath, fuel="ELC", drop_zero=False)
+        assert {2030, 2043} <= set(kept.index)                           # opt-out keeps them
+        ratio = signals.commodity_shadow_price_ratio(bpath, rpath, fuel="ELC").dropna()
+        assert set(ratio.index) == {2025, 2041}                          # only BOTH-genuine years
+        assert abs(ratio.loc[2025] - 1.0) < 1e-9
+        assert abs(ratio.loc[2041] - 0.75) < 1e-9                        # 3.0 / 4.0, bounded -- no spike
+        assert (ratio < 100).all() and (ratio > 0).all()                 # no explosive / collapse artifact
+    finally:
+        for p in paths:
+            os.remove(p)
+
+
+def test_energy_price_ratio_auto_selects_dual_without_workbook():
+    # 'auto' uses the curated cost-of-electricity workbook when present, else the EBb4 dual -- so raw
+    # MUIOGO output (no workbook) works without configuration. Here the scenario dirs hold only EBb4
+    # CSVs, so 'auto' must resolve to the dual and equal an explicit kind='dual'.
+    import tempfile
+
+    csv = ("r,f,y,EBb4_EnergyBalanceEachYear4_ICR,DiscountRate\n"
+           "RE1,ELC,2026,2.0,0.0\nRE1,ELC,2027,2.0,0.0\n")
+    bdir = tempfile.mkdtemp(); rdir = tempfile.mkdtemp()
+    try:
+        for d in (bdir, rdir):
+            with open(os.path.join(d, "EBb4_EnergyBalanceEachYear4_ICR.csv"), "w") as f:
+                f.write(csv)
+        assert not signals._has_cost_xlsx(bdir) and not signals._has_cost_xlsx(rdir)
+        kw = dict(base_dir=bdir, reform_dir=rdir, share=0.5, og_start_year=2026, n=2, fuel="ELC")
+        auto = signals.energy_price_ratio("auto", **kw)
+        dual = signals.energy_price_ratio("dual", **kw)
+        assert auto is not None and np.allclose(auto, dual)              # auto == dual here
+        assert np.allclose(auto, 1.0)                                    # self-ratio -> no price move
+    finally:
+        for d in (bdir, rdir):
+            os.remove(os.path.join(d, "EBb4_EnergyBalanceEachYear4_ICR.csv"))
+            os.rmdir(d)
+
+
 def test_energy_price_dual_source():
     # price_source="dual" drives the energy wedge from the commodity-balance dual RATIO (not
     # the controlled shock). Stub the reader so the branch + alignment are exercised with no

@@ -121,12 +121,14 @@ def forward(ctx, solve):
 
 
 def coupled(ctx, solve):
-    """The full coupled soft-link: energy price from the CLEWS cost-of-electricity index (recycled) +
+    """The full coupled soft-link: energy price from CLEWS (the cost-of-electricity index if the curated
+    workbook is present, else the OSeMOSYS commodity-balance dual on raw MUIOGO output -- 'auto') +
     public investment + carbon on the CLEWS side + GBD health, then OG rate/activity emitted back."""
     c, p = ctx.country, ctx.og_reform
-    pr = signals.energy_price_ratio("cost_index", base_dir=c.scenario.base_dir,
+    pr = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir,
                                     reform_dir=c.scenario.reform_dir, share=_energy_share(ctx),
-                                    og_start_year=c.scenario.og_start_year, n=np.asarray(p.tau_c).shape[0])
+                                    og_start_year=c.scenario.og_start_year, n=np.asarray(p.tau_c).shape[0],
+                                    fuel=c.electricity_fuel)
     channels.energy_price(ctx, price_ratio=pr, recycle_revenue_to_transfers=True)
     channels.investment(ctx, _public_capex(ctx))
     channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)    # carbon priced on the CLEWS side only here

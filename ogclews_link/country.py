@@ -27,6 +27,10 @@ class CountryConfig:
     scenario: ScenarioPair
     power_prefix: str = "PHL_POW"           # all power-sector technologies
     public_power_markers: tuple = ("_TD",)  # techs treated as public infrastructure (T&D)
+    # the CLEWS commodity code whose OSeMOSYS commodity-balance dual is the household electricity price
+    # (drives the energy_price channel's 'dual'/'auto' source). None -> the dual's generic 'ELC*' default,
+    # which is wrong for country-prefixed fuels (PHL uses PHL_*_ELE), so set it per country.
+    electricity_fuel: str | None = None
     co2_emission: str = "CO2e"        # carbon-policy / climate species (carbon channel + emissions chart)
     health_emission: str = "PM2_5"    # the ambient pollutant the GBD health burden is attributed to; the
                                       # health channel scales its PM2.5 dose-response by THIS species'
@@ -125,6 +129,7 @@ PHL = CountryConfig(
     name="Philippines",
     un_code="608",
     og_repo="og-phl",
+    electricity_fuel="PHL_HOU_ELE",   # household electricity commodity (its EBb4 dual = the price route A faces)
     gdp_musd=461_600.0,  # 2024 nominal GDP, USD millions (World Bank)
     units=UnitMap(clews_money_unit="MUSD", clews_energy_unit="PJ", base_year=2020,
                   notes="CLEWS monetary outputs are model MUSD; convert vs baseline ratios where possible"),

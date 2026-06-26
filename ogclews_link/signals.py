@@ -266,17 +266,30 @@ def _cost_xlsx(scenario_dir: str) -> str:
     return sorted(hits)[0]
 
 
+def _has_cost_xlsx(scenario_dir: str) -> bool:
+    """Whether a scenario dir ships the curated 'Cost of electricity' workbook (a CLEWS-OG artifact;
+    MUIOGO's raw OSeMOSYS export does not)."""
+    return bool([h for h in glob.glob(os.path.join(scenario_dir, "*Cost of electricity*.xlsx"))
+                 if not os.path.basename(h).startswith("~$")])
+
+
 # --- channel sourcing helpers: turn a CLEWS source choice into the ready value a channel applies ---
 
 def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, fuel=None) -> np.ndarray:
     """The energy GOOD's reform/base price-ratio path from CLEWS, diluted by electricity's value-share
-    of the OG energy good and aligned to og_start_year (length n). kind='cost_index' uses the
-    cost-of-electricity index PROXY; kind='dual' uses the rigorous OSeMOSYS commodity-balance shadow
-    price. The controlled +20% case does NOT go through here -- a caller passes that scalar straight to
+    of the OG energy good and aligned to og_start_year (length n). ``kind``:
+      'cost_index' -- the curated cost-of-electricity index PROXY (a CLEWS-OG workbook);
+      'dual'       -- the rigorous OSeMOSYS commodity-balance shadow price (the EBb4 dual; works on raw
+                      MUIOGO output), for the commodity ``fuel`` (the country's household electricity code);
+      'auto'       -- 'cost_index' when both scenario dirs ship the workbook, else 'dual' (so a pure-MUIOGO
+                      scenario, which has no workbook but does have EBb4, works without configuration).
+    The controlled +20% case does NOT go through here -- a caller passes that scalar straight to
     energy_price(), undiluted. ``share is None`` (the country can't isolate electricity's value-share)
     returns None -- the dependent energy_price channel then skips, so this path is never consumed."""
     if share is None:
         return None
+    if kind == "auto":
+        kind = "cost_index" if (_has_cost_xlsx(base_dir) and _has_cost_xlsx(reform_dir)) else "dual"
     if kind == "dual":
         ratio = commodity_shadow_price_ratio(base_dir, reform_dir, fuel=fuel)
         if ratio.dropna().empty:
@@ -329,7 +342,11 @@ def pm25_dose_response(country, *, override=None) -> float:
 _DUAL_CONSTRAINT = "EBb4_EnergyBalanceEachYear4_ICR"  # OSeMOSYS annual commodity balance
 
 
+_DUAL_ZERO_ATOL = 1e-3   # CBC dual reporting resolution: |dual| at/below this is slack/noise, not a price
+
+
 def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=None,
+                           drop_zero=True, zero_atol=_DUAL_ZERO_ATOL,
                            constraint=_DUAL_CONSTRAINT) -> pd.Series:
     """The rigorous energy price: the annual dual of the OSeMOSYS commodity-balance
     constraint, as exported by a MUIOGO CBC solve to
@@ -341,6 +358,16 @@ def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=Non
     electricity codes (prefix 'ELC'). MUIOGO writes the dual *discounted* to start-year PV
     (raw x (1+DR)^(y-start_year+0.5)); ``undiscount=True`` recovers the raw per-year marginal
     (the genuine shadow price in that year). ``start_year`` defaults to the first year present.
+
+    ``drop_zero=True`` (the default) drops years whose dual is at/below ``zero_atol`` (slack): in a real
+    CBC export the commodity balance for household electricity is binding most years, so a reported 0 --
+    or a sub-resolution near-zero like 1e-4 against genuine duals of O(1-10) -- means the constraint was
+    slack/unreported that year: MISSING data, not a true zero price. Keeping such a value would let it
+    form an absurd ratio against a nonzero counterpart -- a reform-side zero -> ~100% price collapse, a
+    base-side 1e-4 -> a 10,000x spike (both observed on PHL's PHL_HOU_ELE). After the drop the ratio only
+    spans years where BOTH scenarios carry a genuine dual. (On PHL the surviving years barely move
+    between Base/PEP, so the dual is near-flat there -- the curated cost-of-electricity workbook stays
+    the meaningful PHL source; the dual is the fallback for runs that ship no workbook.)
     """
     path = source if os.path.isfile(source) else _find(source, constraint.split("_", 1)[0])
     df = pd.read_csv(path)
@@ -370,6 +397,8 @@ def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=Non
         sub[val_col] = sub[val_col] / (1.0 + dr) ** (sub[ycol].astype(float) - sy + 0.5)
     s = sub.groupby(ycol)[val_col].mean().sort_index()   # mean across matched fuels (usually one)
     s.index = s.index.astype(int)
+    if drop_zero:
+        s = s[s.abs() > zero_atol]                        # slack/sub-resolution year -> missing, not free
     return s.rename("shadow_price")
 
 
