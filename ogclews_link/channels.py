@@ -136,6 +136,95 @@ def energy_price(ctx, price_ratio, *, energy_subsistence_floor=0.0, recycle_reve
                    recycled_pct_gdp=recycled)
 
 
+# --- #1b energy price via the electricity industry's TFP (Option A) · clews->og ---
+
+def energy_price_tfp(ctx, price_ratio):
+    r"""Energy price via electricity's TFP (clews->og; Option A -- the structural alternative to the
+    ``energy_price`` ``tau_c`` wedge).
+
+    Rather than hand-applying the price to a consumption-tax wedge, lower the electricity INDUSTRY's TFP
+    ``Z`` so OG-Core *produces* a higher electricity price ``p_m`` endogenously. The model's own Leontief
+    ``io_matrix`` then carries ``p_m`` into the energy consumption good's price -- WITH the general-
+    equilibrium feedback (``r``, ``w``, and electricity's own ``K``/``L``/``Y``) that the ``tau_c`` wedge
+    discards. Since ``p_m`` is proportional to ``1/Z`` (holding factor prices), ``Z[:, e] /= price_ratio``
+    targets a ``price_ratio`` rise in the electricity producer price; the REALIZED price differs slightly
+    via GE, so report it from the solve. Like ``tau_c`` this still reaches households via CONSUMPTION only
+    (OG-Core has no inter-industry intermediates); for a cost-push to OTHER industries see
+    ``energy_cost_push``.
+
+    Args:
+        ctx (CouplingState): mutates the energy industry's column of ``og_reform.Z``.
+        price_ratio (float or array_like): the ALREADY-SOURCED reform/base electricity price ratio.
+    Returns:
+        dict: provenance -- target_price_ratio_0, z_multiplier_0, industry_index (or a skip record).
+    """
+    if (skip := _skip_if_unavailable(ctx, "energy_price_tfp", "energy_industry_index")) is not None:
+        return skip
+    if price_ratio is None:
+        reason = "no energy price ratio sourced (electricity's value-share of the energy good unresolved)"
+        print(f"[skip] energy_price_tfp: {reason}")
+        return ctx.log("energy_price_tfp", skipped=True, reason=reason)
+    m = ctx.concordance.energy_industry_index
+    p = ctx.og_reform
+    Z = np.array(p.Z, dtype=float)
+    r = _fit(price_ratio, Z.shape[0])
+    if not np.all(r > 0):
+        raise ValueError(
+            f"energy_price_tfp: price ratio has non-positive entries (min={float(np.min(r)):.4g}); "
+            "Z /= ratio would be non-positive (negative TFP). Check the energy-price source/alignment.")
+    Z[:, m] = Z[:, m] / r                        # lower TFP -> higher p_m (p_m ~ 1/Z); permanent: full tail
+    p.Z = Z
+    return ctx.log("energy_price_tfp", target_price_ratio_0=float(r[0]),
+                   z_multiplier_0=float(1.0 / r[0]), industry_index=int(m))
+
+
+# --- #1c electricity cost-push across industries (Option A', a reduced-form proxy) · clews->og ---
+
+def energy_cost_push(ctx, price_ratio, electricity_intensity):
+    r"""Electricity cost-push across industries (clews->og; Option A' -- a reduced-form PROXY for the
+    inter-industry intermediate-input channel OG-Core's value-added production lacks).
+
+    A higher electricity price raises every electricity-USING industry j's unit cost by ~``phi_j (r-1)``,
+    where ``phi_j`` is electricity's share of j's input costs (from the country SAM, via
+    ``aggregation.input_intensity``). Injected as a per-industry TFP haircut ``Z[:, j] /= (1 +
+    phi_j (r-1))`` -- since ``p_j ~ 1/Z_j``, this raises ``p_j`` by ~``phi_j (r-1)``. It reaches households
+    through the higher price of EVERY electricity-intensive good, so it is the broadest-footprint of the
+    three transmissions. ILLUSTRATIVE: ``phi_j`` and the unit pass-through are calibrated weights, not a
+    structural equation in OG-Core (that is Option B -- a real M x M use matrix + a firm-side rewrite).
+
+    Args:
+        ctx (CouplingState): mutates ``og_reform.Z`` for every industry with ``phi_j > 0``.
+        price_ratio (float or array_like): the ALREADY-SOURCED reform/base electricity price ratio.
+        electricity_intensity (array_like or None): the M-vector ``phi_j`` (PROD_DICT order). None -> skip.
+    Returns:
+        dict: provenance -- phi, max_haircut_0, n_industries_hit (or a skip record).
+    """
+    if electricity_intensity is None:
+        reason = "no electricity input-intensity vector (SAM/PROD_DICT unavailable for this country)"
+        print(f"[skip] energy_cost_push: {reason}")
+        return ctx.log("energy_cost_push", skipped=True, reason=reason)
+    p = ctx.og_reform
+    Z = np.array(p.Z, dtype=float)
+    M = Z.shape[1]
+    phi = np.asarray(electricity_intensity, dtype=float)
+    if phi.shape != (M,):
+        raise ValueError(f"energy_cost_push: electricity_intensity has shape {phi.shape}, expected ({M},) "
+                         "-- it must align to the model's M industries (PROD_DICT order).")
+    r = _fit(price_ratio, Z.shape[0])
+    if not np.all(r > 0):
+        raise ValueError(
+            f"energy_cost_push: price ratio has non-positive entries (min={float(np.min(r)):.4g}). "
+            "Check the energy-price source/alignment.")
+    push = 1.0 + np.outer(r - 1.0, phi)          # (T+S, M): per-industry cost-push factor 1 + phi_j (r-1)
+    if not np.all(push > 0):
+        raise ValueError("energy_cost_push: a cost-push factor went non-positive (phi*(r-1) <= -1); "
+                         "the price drop is too large for these intensities.")
+    p.Z = Z / push                               # Z[:, j] /= (1 + phi_j (r-1)); permanent: full tail
+    haircut0 = 1.0 - 1.0 / push[0]
+    return ctx.log("energy_cost_push", phi=phi.tolist(), max_haircut_0=float(np.max(haircut0)),
+                   n_industries_hit=int(np.count_nonzero(phi > 0)))
+
+
 # --- #2 public-infrastructure capex -> public capital (alpha_I -> K_g) · clews->og ---
 
 def investment(ctx, capex_pct_gdp, *, use_baseline_spending=False, persist_into_steady_state=False):

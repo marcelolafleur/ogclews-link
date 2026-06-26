@@ -41,8 +41,8 @@ import numpy as np
 import pandas as pd
 
 __all__ = ["CARRIERS", "aggregation_groups", "locate", "shares", "weighted_shock",
-           "apply_productivity_haircut", "from_package", "GroupShare", "SubgoodShares",
-           "ShockTarget", "ShockPlan"]
+           "apply_productivity_haircut", "input_intensity", "from_package", "GroupShare",
+           "SubgoodShares", "ShockTarget", "ShockPlan"]
 
 # Convenience regexes for the common IFPRI-SAM carriers. Axis-agnostic: they match an activity
 # ('a*') OR a commodity ('c*') code, so the same name works on PROD_DICT and CONS_DICT
@@ -83,6 +83,35 @@ def _commodity_absorption(sam, rows, weight_cols=None):
         return 0.0
     block = sam.loc[rows, cols].apply(pd.to_numeric, errors="coerce")
     return float(np.nansum(block.values))
+
+
+# --- inter-industry input intensity (the cost-push weights OG-Core's production lacks) ------
+
+def input_intensity(sam, prod_dict, carrier="electricity"):
+    """Per-industry intensity of ``carrier`` as an intermediate INPUT, aligned to ``prod_dict`` order
+    (an M-vector ``phi``). For each industry j: (``carrier`` commodity absorbed by j's activity columns)
+    / (j's gross output) -- the COST-PUSH weight: a 1% rise in the carrier's price raises industry j's
+    unit cost by ~``phi_j``%. This reads the SAM's intermediate-use block -- the inter-industry flows
+    OG-Core's value-added-only production function does NOT carry -- so it is the data behind the
+    Option-A' cost-push proxy. Nothing country-specific: rows/cols come from the SAM and ``prod_dict``.
+    Returns 0 for an industry the SAM lacks output for or that uses none of the carrier.
+
+    ``carrier`` is a CARRIERS key (e.g. 'electricity'), an explicit regex, or a list of SAM codes; the
+    INPUT-use rows are the carrier's COMMODITY rows ('c*'), falling back to any carrier match."""
+    if isinstance(carrier, (list, tuple, set)):
+        wanted = set(map(str, carrier))
+        rows = [r for r in sam.index if str(r) in wanted]
+    else:
+        rx = re.compile(CARRIERS.get(carrier, carrier))
+        rows = [r for r in sam.index if rx.search(str(r))]
+    crows = [r for r in rows if str(r).lower().startswith("c")] or rows   # commodity rows = input use
+    out = []
+    for _name, codes in prod_dict.items():
+        cols = list(dict.fromkeys(codes))
+        gross = _activity_gross(sam, cols)
+        absorbed = _commodity_absorption(sam, crows, weight_cols=cols)
+        out.append((absorbed / gross) if gross > 0 else 0.0)
+    return np.array(out, dtype=float)
 
 
 # --- aggregation introspection (no country knowledge; just the dict you hand it) ------------

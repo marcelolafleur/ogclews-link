@@ -619,6 +619,96 @@ def test_energy_price_skips_when_ratio_none():
     assert np.allclose(ctx.og_reform.tau_c, before)
 
 
+def test_energy_price_tfp_lowers_electricity_Z():
+    # Option A: a +20% electricity price via the industry's TFP -> Z[:, e] /= 1.20 (p_m ~ 1/Z), other
+    # industries untouched. No solve: this is the pre-solve Z mutation the channel performs.
+    ctx = _ctx()
+    base_Z = np.array(ctx.og_reform.Z)
+    rec = channels.energy_price_tfp(ctx, price_ratio=1.20)
+    Z = np.asarray(ctx.og_reform.Z)
+    assert np.allclose(Z[:, M_E], base_Z[:, M_E] / 1.20)
+    assert all(np.allclose(Z[:, m], base_Z[:, m]) for m in range(M) if m != M_E)
+    assert abs(rec["z_multiplier_0"] - 1 / 1.20) < 1e-9 and rec["industry_index"] == M_E
+
+
+def test_energy_price_tfp_skips_without_industry():
+    con = Concordance(energy_industry_index=None, energy_good_index=I_E)
+    ctx = ExperimentContext(country=PHL, concordance=con, og_reform=_params(), base_tpi=_tpi(1.0))
+    base_Z = np.array(ctx.og_reform.Z)
+    rec = channels.energy_price_tfp(ctx, price_ratio=1.20)
+    assert rec.get("skipped") is True
+    assert np.allclose(ctx.og_reform.Z, base_Z)
+
+
+def test_energy_price_tfp_rejects_nonpositive():
+    ctx = _ctx()
+    base_Z = np.array(ctx.og_reform.Z)
+    raised = False
+    try:
+        channels.energy_price_tfp(ctx, price_ratio=0.0)
+    except ValueError:
+        raised = True
+    assert raised, "a zero price ratio would make Z non-positive (negative TFP)"
+    assert np.allclose(ctx.og_reform.Z, base_Z)
+
+
+def test_energy_cost_push_haircuts_by_intensity():
+    # Option A': a +20% electricity price as a per-industry cost-push, weighted by electricity's input
+    # share phi_j -> Z[:, j] /= (1 + phi_j*0.20). Industries with phi_j=0 are untouched.
+    ctx = _ctx()
+    base_Z = np.array(ctx.og_reform.Z)
+    phi = np.zeros(M); phi[M_E] = 0.3; phi[2] = 0.1     # electricity-using industries
+    rec = channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=phi)
+    Z = np.asarray(ctx.og_reform.Z)
+    for m in range(M):
+        assert np.allclose(Z[:, m], base_Z[:, m] / (1.0 + phi[m] * 0.20)), m
+    assert rec["n_industries_hit"] == 2 and abs(rec["max_haircut_0"] - (1 - 1 / 1.06)) < 1e-9
+
+
+def test_energy_cost_push_skips_without_intensity():
+    ctx = _ctx()
+    base_Z = np.array(ctx.og_reform.Z)
+    rec = channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=None)
+    assert rec.get("skipped") is True
+    assert np.allclose(ctx.og_reform.Z, base_Z)
+
+
+def test_energy_cost_push_shape_guard():
+    ctx = _ctx()
+    raised = False
+    try:
+        channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=np.zeros(M + 1))
+    except ValueError:
+        raised = True
+    assert raised, "a phi vector that does not align to M must raise"
+
+
+def test_input_intensity_from_sam():
+    # electricity's input-cost share per industry, from a minimal SAM: manufacturing buys 20 of
+    # electricity against a gross output of 50 -> phi=0.4; electricity self-uses 5 of 15 -> 0.333.
+    import pandas as pd
+
+    from ogclews_link import aggregation
+    idx = ["celec", "cmanu", "aelec", "amanu"]
+    sam = pd.DataFrame(0.0, index=idx, columns=idx)
+    sam.loc["celec", "aelec"] = 5.0;  sam.loc["cmanu", "aelec"] = 10.0    # electricity activity inputs
+    sam.loc["celec", "amanu"] = 20.0; sam.loc["cmanu", "amanu"] = 30.0    # manufacturing inputs
+    prod = {"Electricity": ["aelec"], "Manufacturing": ["amanu"]}
+    phi = aggregation.input_intensity(sam, prod)
+    assert np.allclose(phi, [5.0 / 15.0, 20.0 / 50.0])
+
+
+def test_Z_is_mutable_in_override_diff():
+    # the foundation: a Z change must now appear in the cross-env override diff (it was read-only before).
+    from ogclews_link import serde
+    assert "Z" in serde.MUTABLE_PARAM_KEYS
+    p = _params()
+    base = {k: np.array(getattr(p, k), dtype=float) for k in serde.MUTABLE_PARAM_KEYS}
+    assert "Z" not in serde.diff_against_baseline(p, base)        # unchanged -> not in the diff
+    p.Z = np.asarray(p.Z, dtype=float) * 0.9                      # a channel lowers TFP
+    assert "Z" in serde.diff_against_baseline(p, base)            # now carried across the boundary
+
+
 def test_energy_price_ratio_auto_selects_dual_without_workbook():
     # 'auto' uses the curated cost-of-electricity workbook when present, else the EBb4 dual -- so raw
     # MUIOGO output (no workbook) works without configuration. Here the scenario dirs hold only EBb4

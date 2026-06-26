@@ -23,6 +23,24 @@ def _energy_share(ctx):
     return float(np.asarray(p.io_matrix)[con.energy_good_index, con.energy_industry_index])
 
 
+def _electricity_intensity(ctx):
+    """The M-vector phi_j (electricity's input-cost share per industry) for the Option-A' cost-push,
+    read LINK-SIDE from the country package's SAM + PROD_DICT (no package import). None if the registry,
+    SAM, or PROD_DICT is unavailable, or the vector does not align to the model's M -> the cost_push
+    channel then skips. Best-effort: any failure degrades to None rather than breaking the run."""
+    try:
+        from . import aggregation, discovery, registry
+        src = registry.package_source_dir(registry.lookup(ctx.country, require_env=False))
+        sam = discovery._read_sam(src)
+        prod, _cons = discovery.read_package_dicts(src)
+        if sam is None or not prod:
+            return None
+        phi = aggregation.input_intensity(sam, prod)
+        return phi if phi.shape == (int(ctx.og_reform.M),) else None
+    except Exception:  # noqa: BLE001 -- a missing/odd SAM or registry must not break the run
+        return None
+
+
 def _activity(ctx, driver="Y_m"):
     con = ctx.concordance
     idx = None if con is None else (
@@ -44,6 +62,24 @@ def _public_capex(ctx, *, scale=1.0, smooth_years=1):
 def energy_price(ctx, solve):
     """Controlled +20% energy price; the demand-response mechanism (no recycling, c_min=0)."""
     channels.energy_price(ctx, price_ratio=1.20)
+    solve(ctx)
+
+
+# --- the three energy-price TRANSMISSIONS, same controlled +20% stimulus (for the comparison) -----
+# tau_c wedge = ``energy_price`` above (consumption-tax wedge); the two below route the SAME +20%
+# electricity-price change through PRODUCTION instead. See experiments/run_energy_price_comparison.py.
+
+def energy_price_tfp(ctx, solve):
+    """Option A: a controlled +20% electricity price via the electricity industry's TFP (Z), so OG-Core
+    produces the price endogenously and propagates it through its own Leontief io_matrix + GE feedback."""
+    channels.energy_price_tfp(ctx, price_ratio=1.20)
+    solve(ctx)
+
+
+def energy_cost_push(ctx, solve):
+    """Option A': a controlled +20% electricity price as an inter-industry cost-push -- a per-industry
+    TFP haircut weighted by electricity's input-cost share phi_j (from the SAM). Reduced-form proxy."""
+    channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=_electricity_intensity(ctx))
     solve(ctx)
 
 
@@ -180,8 +216,8 @@ ACROSS_STEPS = [
 
 # --- registry of runnable experiments (names for the CLI / battery dispatch) -----
 
-_EXPERIMENTS = [energy_price, clean_incidence, investment, capital_intensity, energy_capex,
-                carbon, health, discount_rate, demand, forward, coupled]
+_EXPERIMENTS = [energy_price, energy_price_tfp, energy_cost_push, clean_incidence, investment,
+                capital_intensity, energy_capex, carbon, health, discount_rate, demand, forward, coupled]
 
 
 def names() -> list[str]:

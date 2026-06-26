@@ -27,9 +27,13 @@ BASELINE_ARRAY_KEYS = ("tau_c", "c_min", "alpha_T", "alpha_I", "alpha_bs_I", "ga
                        "epsilon", "e", "inv_tax_credit", "delta_tau", "tau_b", "Z", "io_matrix")
 
 # The params a channel may MUTATE (everything the link diffs back as overrides). Subset of the arrays
-# above; the read-only ones (gamma_g, epsilon, Z) are shape/guard inputs, never written by a channel.
+# above; the read-only ones (gamma_g, epsilon) are shape/guard inputs, never written by a channel. Z
+# (industry TFP, T x M) is mutable: the energy_price_tfp / energy_cost_push channels lower it to raise an
+# industry's price endogenously (p_m proportional to 1/Z). An unchanged Z never enters the sparse diff,
+# so this is inert for every experiment that does not touch it (the og_runner applies a Z override by the
+# same setattr path as the others, exactly as it already round-trips Z in the continuation build).
 MUTABLE_PARAM_KEYS = ("tau_c", "c_min", "alpha_T", "alpha_I", "alpha_bs_I", "gamma",
-                      "inv_tax_credit", "delta_tau", "tau_b", "e")
+                      "inv_tax_credit", "delta_tau", "tau_b", "e", "Z")
 
 # The solution variables read downstream -- the consumed subset of an OG SS/TPI dict. The first row is
 # read by channels + report + golden (the battery's correctness gate); the second is read only by the viz
