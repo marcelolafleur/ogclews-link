@@ -83,6 +83,29 @@ def energy_cost_push(ctx, solve):
     solve(ctx)
 
 
+def energy_full(ctx, solve):
+    """Composite (A' cost-push + recycled final-good wedge): BOTH halves of the same +20% electricity
+    price that the single mechanisms each miss. The PHL SAM splits electricity ~73% intermediate / 25%
+    final, so the true response needs both:
+      - INTERMEDIATE (cost-push): energy_cost_push with phi_j, but electricity's OWN self-use is ZEROED
+        so it does not double-count the household wedge below. This is the contractionary, wage-bearing
+        macro channel (the correct GDP sign).
+      - FINAL (consumption): the recycled energy_price wedge raises the energy consumption good by
+        electricity's value-share of it (the regressive cost-of-living incidence).
+    Reduced-form -- two stacked proxies for the inter-industry channel OG-Core lacks; the exact version
+    is a real use matrix (built from the SAM's observable inter-industry electricity column)."""
+    con = ctx.concordance
+    phi = _electricity_intensity(ctx)
+    if phi is not None and con is not None and con.energy_industry_index is not None:
+        phi = np.array(phi, dtype=float)
+        phi[con.energy_industry_index] = 0.0          # self-use carried by the final wedge, not here
+    channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=phi)
+    share = _energy_share(ctx)                        # electricity's value-share of the energy good
+    if share is not None:
+        channels.energy_price(ctx, price_ratio=1.0 + share * 0.20, recycle_revenue_to_transfers=True)
+    solve(ctx)
+
+
 def clean_incidence(ctx, solve):
     """Energy price with revenue recycled + energy a necessity (c_min>0): the textbook regressive
     incidence. NB energy_cmin must be below every group's baseline energy consumption."""
@@ -216,8 +239,9 @@ ACROSS_STEPS = [
 
 # --- registry of runnable experiments (names for the CLI / battery dispatch) -----
 
-_EXPERIMENTS = [energy_price, energy_price_tfp, energy_cost_push, clean_incidence, investment,
-                capital_intensity, energy_capex, carbon, health, discount_rate, demand, forward, coupled]
+_EXPERIMENTS = [energy_price, energy_price_tfp, energy_cost_push, energy_full, clean_incidence,
+                investment, capital_intensity, energy_capex, carbon, health, discount_rate, demand,
+                forward, coupled]
 
 
 def names() -> list[str]:

@@ -709,6 +709,29 @@ def test_Z_is_mutable_in_override_diff():
     assert "Z" in serde.diff_against_baseline(p, base)            # now carried across the boundary
 
 
+def test_energy_full_composes_costpush_and_wedge():
+    # The composite experiment must (a) cost-push every USING industry by phi_j, (b) ZERO electricity's
+    # own self-use (so it doesn't double-count the wedge), and (c) raise the energy good's consumption
+    # wedge by electricity's value-share of it. Stub the SAM-read intensity so no package/SAM is needed.
+    from ogclews_link import experiments
+    ctx = _ctx()
+    base_Z = np.array(ctx.og_reform.Z); base_tau = np.array(ctx.og_reform.tau_c)
+    phi = np.full(M, 0.1); phi[M_E] = 0.5                 # electricity self-use 0.5 must be zeroed
+    orig = experiments._electricity_intensity
+    experiments._electricity_intensity = lambda c: phi
+    try:
+        experiments.energy_full(ctx, solve=lambda c: None)
+    finally:
+        experiments._electricity_intensity = orig
+    Z = np.asarray(ctx.og_reform.Z); tau = np.asarray(ctx.og_reform.tau_c)
+    assert np.allclose(Z[:, M_E], base_Z[:, M_E])         # electricity's own Z NOT haircut (self-use zeroed)
+    other = next(m for m in range(M) if m != M_E)
+    assert np.allclose(Z[:, other], base_Z[:, other] / (1 + 0.1 * 0.20))   # a using industry IS hit
+    share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])
+    assert abs((1 + tau[0, I_E]) - (1 + share * 0.20) * (1 + base_tau[0, I_E])) < 1e-9   # final wedge
+    assert all(np.allclose(tau[:, i], base_tau[:, i]) for i in range(I) if i != I_E)     # only energy good
+
+
 def test_energy_price_ratio_auto_selects_dual_without_workbook():
     # 'auto' uses the curated cost-of-electricity workbook when present, else the EBb4 dual -- so raw
     # MUIOGO output (no workbook) works without configuration. Here the scenario dirs hold only EBb4

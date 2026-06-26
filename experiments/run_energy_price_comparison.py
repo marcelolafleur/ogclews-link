@@ -32,6 +32,7 @@ MECHANISMS = [
     ("tau_c", "energy_price"),
     ("ownZ (A)", "energy_price_tfp"),
     ("costpush (A')", "energy_cost_push"),
+    ("full (A'+wedge)", "energy_full"),
 ]
 
 # aggregate solution series compared as a first-decade-mean % difference (reform vs baseline).
