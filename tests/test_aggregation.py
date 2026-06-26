@@ -169,17 +169,19 @@ def _load_real(repo):
 
 
 def _committed_source(repo, path):
-    """The COMMITTED text of ``path`` (``git show HEAD:<rel>``), so these real-package tests assert the
-    upstream calibration rather than whatever uncommitted WIP a country repo's working tree happens to be
-    on. Falls back to the working tree if git/HEAD is unavailable."""
+    """The UPSTREAM text of ``path`` -- prefer ``origin/main`` (the stable upstream, so the test is robust
+    to the local checkout being on a feature branch / open PR), then ``HEAD``, then the working tree. So
+    these real-package tests assert the upstream calibration, not whatever branch/WIP a country repo
+    happens to be on."""
     import subprocess
     rel = os.path.relpath(path, repo)
-    try:
-        r = subprocess.run(["git", "-C", repo, "show", f"HEAD:{rel}"], capture_output=True, text=True)
-        if r.returncode == 0 and r.stdout:
-            return r.stdout
-    except Exception:  # noqa: BLE001 -- not a git checkout / no HEAD -> use the working tree
-        pass
+    for ref in ("origin/main", "HEAD"):
+        try:
+            r = subprocess.run(["git", "-C", repo, "show", f"{ref}:{rel}"], capture_output=True, text=True)
+            if r.returncode == 0 and r.stdout:
+                return r.stdout
+        except Exception:  # noqa: BLE001 -- ref/git unavailable -> try the next fallback
+            pass
     with open(path, encoding="utf-8") as f:
         return f.read()
 
