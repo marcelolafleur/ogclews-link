@@ -50,35 +50,38 @@ def extrapolate_demographics(rates, num_years):
     return np.concatenate((rates, extra_rows), axis=0)
 
 
-def baseline_pop(p, un_country_code="608", download=False):
-    """Baseline population objects from the vendored ``demographic_data/`` CSVs (or the UN portal
-    if ``download=True``). Returns ``(pop_dict, pop_dist, pre_pop_dist, fert_rates, mort_rates,
-    infmort_rates, imm_rates, deaths)``. From CLEWS-OG ``get_pop_data.baseline_pop``; ``ogcore`` is
-    imported lazily so this module stays numpy-only at import time."""
+def baseline_pop(p, un_country_code="608", download=False, download_path=None):
+    """Baseline population objects via ogcore.demographics. With ``download=True`` (the path the link
+    uses) ogcore fetches from the UN data portal and falls back to the github EAPD-DRB/Population-Data
+    repo, writing the raw CSVs to ``download_path`` (a per-run cache, NOT the package source). Returns
+    ``(pop_dict, pop_dist, pre_pop_dist, fert_rates, mort_rates, infmort_rates, imm_rates, deaths)``.
+    ``ogcore`` is imported lazily so this module stays numpy-only at import time."""
     from ogcore import demographics
 
+    dp = download_path or DEMOG_PATH
+    os.makedirs(dp, exist_ok=True)
     if download:
         pop_dist, pre_pop_dist = demographics.get_pop(
             p.E, p.S, 0, 99, country_id=un_country_code,
-            start_year=p.start_year, end_year=p.start_year + 1, download_path=DEMOG_PATH)
+            start_year=p.start_year, end_year=p.start_year + 1, download_path=dp)
         fert_rates = demographics.get_fert(
             p.E + p.S, 0, 99, country_id=un_country_code,
-            start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=DEMOG_PATH)
+            start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=dp)
         mort_rates, infmort_rates = demographics.get_mort(
             p.E + p.S, 0, 99, country_id=un_country_code,
-            start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=DEMOG_PATH)
+            start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=dp)
         imm_rates = demographics.get_imm_rates(
             p.E + p.S, 0, 99, country_id=un_country_code, fert_rates=fert_rates,
             mort_rates=mort_rates, infmort_rates=infmort_rates, pop_dist=pop_dist,
-            start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=DEMOG_PATH)
+            start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=dp)
     else:
-        pop_dist = np.loadtxt(os.path.join(DEMOG_PATH, "population_distribution.csv"), delimiter=",")
+        pop_dist = np.loadtxt(os.path.join(dp, "population_distribution.csv"), delimiter=",")
         pre_pop_dist = np.loadtxt(
-            os.path.join(DEMOG_PATH, "pre_period_population_distribution.csv"), delimiter=",")
-        fert_rates = np.loadtxt(os.path.join(DEMOG_PATH, "fert_rates.csv"), delimiter=",")
-        mort_rates = np.loadtxt(os.path.join(DEMOG_PATH, "mort_rates.csv"), delimiter=",")
-        infmort_rates = np.loadtxt(os.path.join(DEMOG_PATH, "infmort_rates.csv"), delimiter=",")
-        imm_rates = np.loadtxt(os.path.join(DEMOG_PATH, "immigration_rates.csv"), delimiter=",")
+            os.path.join(dp, "pre_period_population_distribution.csv"), delimiter=",")
+        fert_rates = np.loadtxt(os.path.join(dp, "fert_rates.csv"), delimiter=",")
+        mort_rates = np.loadtxt(os.path.join(dp, "mort_rates.csv"), delimiter=",")
+        infmort_rates = np.loadtxt(os.path.join(dp, "infmort_rates.csv"), delimiter=",")
+        imm_rates = np.loadtxt(os.path.join(dp, "immigration_rates.csv"), delimiter=",")
 
     deaths = total_deaths(pop_dist, fert_rates, mort_rates, infmort_rates, imm_rates, num_years=200)
     pop_dict = demographics.get_pop_objs(

@@ -83,6 +83,48 @@ def _read_solution(output_base, ss):
     return safe_read_pickle(os.path.join(output_base, *sub))
 
 
+def _load_calibration(p, og_package, params_resource, calibration):
+    """Load the single-industry DEFAULT + (optional) multisector OVERLAY into ``p`` -- the country's own
+    load order. The overlay sets M/I + sector arrays but inherits scalars (e.g. initial_Kg_ratio) from the
+    default, so it must be applied ON TOP of the default (loading it standalone fails paramtools)."""
+    with importlib.resources.open_text(og_package, params_resource) as f:
+        p.update_specifications(json.load(f))
+    if calibration:
+        with importlib.resources.open_text(og_package, calibration) as f:
+            p.update_specifications(json.load(f))
+
+
+def _update_demographics(p, un_code, cache_dir):
+    """Refresh demographics the SAME way every OG model does -- ogcore.demographics, which fetches from the
+    UN data portal and falls back to the github EAPD-DRB/Population-Data repo (inside get_un_data) -- and
+    FAIL SAFELY to the country's BUILT-IN baked demographics (already loaded from its calibration JSON,
+    still in ``p``) when the live data is unavailable. The link NEVER substitutes its own copy. Country-
+    generic: the only country-specific input is ``un_code`` (the package's UN_COUNTRY_CODE). Sets
+    ``p._demog_spec`` (the fetched overlay the continuation re-applies, or None when built-in) and
+    ``p._pop_aux`` (the rate aux the health channel needs, or None when built-in -> the shock skips)."""
+    import io
+
+    guard = sys.stdin
+    sys.stdin = io.StringIO("")     # ogcore's get_un_data input()-prompts for a UN token; EOF -> github backup
+    try:
+        pop = baseline_pop(p, un_country_code=un_code, download=True,
+                           download_path=os.path.join(cache_dir, "_demog_cache"))
+        p.update_specifications(pop[0])
+        p._demog_spec = pop[0]
+        p._pop_aux = {"pop_dist": pop[1], "pre_pop_dist": pop[2], "fert_rates": pop[3],
+                      "mort_rates": pop[4], "infmort_rates": pop[5], "imm_rates": pop[6]}
+        print(f"[og_runner] demographics: live update applied (UN portal -> github backup) for country "
+              f"{un_code}", file=sys.stderr)
+    except Exception as e:          # noqa: BLE001 -- portal+github unavailable -> use the country's built-in
+        p._demog_spec = None        # keep the JSON-baked demographics already in p (do NOT override)
+        p._pop_aux = None           # no rate aux -> the health mortality shock skips; baseline still solves
+        print(f"[og_runner] demographics: live update unavailable ({type(e).__name__}: {str(e)[:120]}); "
+              f"using country {un_code}'s BUILT-IN calibrated demographics (health shock will skip)",
+              file=sys.stderr)
+    finally:
+        sys.stdin = guard
+
+
 def _build_baseline_specs(og_package, params_resource, og_start_year, num_workers, out_dir,
                           calibration=None):
     """Build the country baseline by LOADING the country model's OWN calibration -- the link no longer
@@ -92,8 +134,9 @@ def _build_baseline_specs(og_package, params_resource, og_start_year, num_worker
     but INHERITS scalars (e.g. initial_Kg_ratio) from the default, so loading it standalone fails
     paramtools cross-validation (e.g. gamma_g>0 requires initial_Kg_ratio>0). This mirrors the country's
     own load order (see ogphl examples/run_og_phl_multi_industry_calibrated). When ``calibration`` is None
-    the baseline stays single-industry (the energy channels skip). Demographics are layered on
-    (country-generic); the UN code is the package's own (ogphl.UN_COUNTRY_CODE), never the link's."""
+    the baseline stays single-industry (the energy channels skip). Demographics are UPDATED via the
+    country's own mechanism (ogcore.demographics: UN portal -> github backup -> the country's built-in
+    JSON), never the link's own copy; the UN code is the package's own (ogphl.UN_COUNTRY_CODE)."""
     from ogcore.parameters import Specifications
 
     pkg = importlib.import_module(og_package)
@@ -102,22 +145,15 @@ def _build_baseline_specs(og_package, params_resource, og_start_year, num_worker
         raise ValueError(f"{og_package} does not expose UN_COUNTRY_CODE; the demographic build needs it.")
     os.makedirs(out_dir, exist_ok=True)
     p = Specifications(baseline=True, num_workers=num_workers, baseline_dir=out_dir, output_base=out_dir)
-    with importlib.resources.open_text(og_package, params_resource) as f:
-        p.update_specifications(json.load(f))         # base: single-industry default (scalars like initial_Kg_ratio)
-    if calibration:
-        with importlib.resources.open_text(og_package, calibration) as f:
-            p.update_specifications(json.load(f))     # overlay: the chosen multisector calibration
+    _load_calibration(p, og_package, params_resource, calibration)
     kind = (f"{params_resource} + {calibration} overlay" if calibration
             else f"{params_resource} (single-industry -> energy channels skip)")
     print(f"[og_runner] {og_package}: loaded {kind} (M={p.M}, I={p.I})", file=sys.stderr)
-    pop = baseline_pop(p, un_country_code=un_code, download=False)
-    p.update_specifications(pop[0])
+    p._un_code = un_code
+    _update_demographics(p, un_code, out_dir)
     if int(getattr(p, "start_year", og_start_year)) != og_start_year:
         print(f"[og_runner] WARNING: OG start_year {p.start_year} != scenario og_start_year {og_start_year}; "
               "CLEWS year-alignment will be off.", file=sys.stderr)
-    p._un_code = un_code
-    p._pop_aux = {"pop_dist": pop[1], "pre_pop_dist": pop[2], "fert_rates": pop[3],
-                  "mort_rates": pop[4], "infmort_rates": pop[5], "imm_rates": pop[6]}
     return p
 
 
@@ -136,6 +172,132 @@ def _solve(p, num_workers, ss, show_progress, label):
                 print(f"[og_runner] {label}: RC_SS gate loosened to {float(p.RC_SS):.0e}; realized SS "
                       f"max|RC|={np.max(np.abs(np.atleast_1d(rc))):.2e}", file=sys.stderr)
     return out
+
+
+# max-min spread of the per-industry capital share above which OG-Core's cold SS solve is unreliable
+# (it seeds every industry price at p_m=1, which is wrong when capital shares -- hence relative prices --
+# differ a lot) and we solve by continuation instead.
+_GAMMA_DISPERSION_THRESHOLD = 0.05
+
+
+def _validate_ss(out_dir):
+    """Sanity-check a solved steady state (mirrors a country example's validate_ss): every industry price
+    positive, numeraire p_m[-1]=1, r in (0,0.2), K/Y in (1,8). A guard for the cold-solve path; the real
+    protection against a spurious root is solving heterogeneous-gamma calibrations by continuation."""
+    from ogcore.utils import safe_read_pickle
+    try:
+        ss = safe_read_pickle(os.path.join(out_dir, "SS", "SS_vars.pkl"))
+        s = lambda x: float(np.squeeze(x))                                       # noqa: E731
+        p_m = np.atleast_1d(np.squeeze(ss["p_m"]))
+        r, K, Y = s(ss["r"]), s(ss["K"]), s(ss["Y"])
+        return bool((p_m > 0).all() and np.isclose(p_m[-1], 1.0, atol=1e-3)
+                    and 0.0 < r < 0.2 and 1.0 < K / Y < 8.0)
+    except Exception:                                                            # noqa: BLE001
+        return False
+
+
+def _continuation_baseline(og_package, params_resource, calibration, num_workers, out_dir, p_final,
+                           ss, show_progress):
+    """Solve the calibrated baseline steady state by adaptive CONTINUATION (homotopy), then run the TPI off
+    it -- a generic robust solver, NOT a country-specific build, so it needs no change to the OG repo. We
+    cold-solve a flat-gamma / Z=1 anchor (where OG-Core's p_m=1 guess is correct), then morph gamma+Z to
+    the calibrated values in adaptive warm-started steps (the cross-industry dispersion is what moves the
+    relative prices, so we walk it in). The arithmetic-mean anchor holds the aggregate capital share fixed
+    and only grows the dispersion. If the path stalls we RAISE -- the link can't solve this calibration, so
+    the caller fails loudly rather than shipping a wrong equilibrium. SS reused for the TPI (a cold re-solve
+    would diverge), exactly as the country examples do. Writes SS/TPI/model_params under out_dir."""
+    import pickle
+    import shutil
+
+    import cloudpickle
+    from ogcore import TPI
+    from ogcore.execute import runner
+
+    gamma_target = np.asarray(p_final.gamma, dtype=float).ravel()
+    Z_arr = np.asarray(p_final.Z, dtype=float)
+    Z_target = Z_arr[-1].ravel() if Z_arr.ndim == 2 else Z_arr.ravel()
+    M = int(p_final.M)
+    anchor_gamma = np.full(M, float(gamma_target.mean()))      # flat share -> p_m=1 holds -> cold-solvable
+    anchor_Z = np.ones(M)
+
+    def build_step(gamma, Z, baseline, output_base, baseline_dir=None):
+        from ogcore.parameters import Specifications
+        p = Specifications(baseline=baseline, num_workers=num_workers,
+                           baseline_dir=baseline_dir or output_base, output_base=output_base)
+        _load_calibration(p, og_package, params_resource, calibration)
+        if p_final._demog_spec is not None:                    # fetched demographics (else the JSON's stand)
+            p.update_specifications(p_final._demog_spec)       # reused, no re-fetch per step
+        p.update_specifications({"gamma": list(gamma), "Z": [list(Z)]})
+        return p
+
+    work = os.path.join(out_dir, "_continuation")
+    if os.path.exists(work):
+        shutil.rmtree(work)
+    anchor_dir = os.path.join(work, "anchor")
+    os.makedirs(os.path.join(anchor_dir, "SS"), exist_ok=True)
+    print(f"[og_runner] baseline: heterogeneous gamma (spread {gamma_target.max()-gamma_target.min():.2f}) "
+          f"-> solving SS by continuation (M={M})", file=sys.stderr)
+    with _client(num_workers) as client:
+        with solve_progress(1e-5, "baseline:anchor", enabled=show_progress):
+            runner(build_step(anchor_gamma, anchor_Z, True, anchor_dir), time_path=False, client=client)
+        good_dir, t, dt, idx = anchor_dir, 0.0, 0.125, 0
+        while t < 1.0 - 1e-9:
+            t_try = min(t + dt, 1.0)
+            gamma = (1 - t_try) * anchor_gamma + t_try * gamma_target
+            Z = (1 - t_try) * anchor_Z + t_try * Z_target
+            idx += 1
+            step_dir = os.path.join(work, f"t{idx}")
+            os.makedirs(os.path.join(step_dir, "SS"), exist_ok=True)
+            try:
+                runner(build_step(gamma, Z, False, step_dir, baseline_dir=good_dir),
+                       time_path=False, client=client)
+                t, good_dir, dt = t_try, step_dir, min(dt * 1.5, 0.25)
+                print(f"[og_runner]   continuation t={t:.3f} (dt={dt:.3f}) solved", file=sys.stderr)
+            except Exception:                                  # noqa: BLE001 -- step failed; shrink + retry
+                dt /= 2.0
+                if dt < 0.01:
+                    raise RuntimeError(
+                        f"baseline continuation stalled at t={t:.3f} (dt<0.01) for {og_package}: the "
+                        "calibrated steady state could not be reached; this country cannot be coupled "
+                        "until its baseline is solvable.")
+    # place the converged calibrated SS as the baseline SS, then run the TPI off it (a cold re-solve of
+    # the calibrated SS would diverge), mirroring the country examples' run_baseline_tpi.
+    os.makedirs(os.path.join(out_dir, "SS"), exist_ok=True)
+    shutil.copyfile(os.path.join(good_dir, "SS", "SS_vars.pkl"),
+                    os.path.join(out_dir, "SS", "SS_vars.pkl"))
+    p_base = build_step(gamma_target, Z_target, True, out_dir)
+    with open(os.path.join(out_dir, "model_params.pkl"), "wb") as f:
+        cloudpickle.dump(p_base, f)
+    if ss:
+        return _read_solution(out_dir, ss=True)
+    with _client(num_workers) as client, solve_progress(getattr(p_base, "mindist_TPI", 1e-5),
+                                                        "baseline:TPI", enabled=show_progress):
+        tpi_out = TPI.run_TPI(p_base, client=client)
+    os.makedirs(os.path.join(out_dir, "TPI"), exist_ok=True)
+    with open(os.path.join(out_dir, "TPI", "TPI_vars.pkl"), "wb") as f:
+        pickle.dump(tpi_out, f)
+    return _read_solution(out_dir, ss=False)
+
+
+def _solve_baseline(og_package, params_resource, og_start_year, num_workers, out_dir, calibration,
+                    ss, show_progress):
+    """Build + SOLVE the country baseline, choosing a solve strategy by the calibration's gamma dispersion.
+    Single-industry / flat-gamma calibrations cold-solve reliably (OG-Core's runner). A multisector
+    calibration with heterogeneous capital shares does NOT cold-solve (OG-Core's p_m=1 guess is wrong), so
+    it is solved by continuation; a cold solve that fails validation also falls back to continuation. If
+    the continuation stalls it raises (fail loud, never ship a wrong equilibrium). Returns (p, solution)."""
+    p = _build_baseline_specs(og_package, params_resource, og_start_year, num_workers, out_dir, calibration)
+    gamma = np.asarray(p.gamma, dtype=float).ravel()
+    dispersion = float(gamma.max() - gamma.min()) if gamma.size else 0.0
+    if int(p.M) <= 1 or dispersion <= _GAMMA_DISPERSION_THRESHOLD:
+        sol = _solve(p, num_workers, ss, show_progress, "baseline")
+        if _validate_ss(out_dir):
+            return p, sol
+        print("[og_runner] baseline cold solve failed SS validation; retrying by continuation",
+              file=sys.stderr)
+    sol = _continuation_baseline(og_package, params_resource, calibration, num_workers, out_dir, p,
+                                 ss, show_progress)
+    return p, sol
 
 
 def _apply_health(p, health):
@@ -172,9 +334,8 @@ def inprocess_callables(og_package, params_resource, og_start_year, *,
     ``calibration`` is the chosen multisector param resource (None -> single-industry default)."""
     def export_baseline(country, out_root):
         base_dir = os.path.join(out_root, "baseline")
-        p = _build_baseline_specs(og_package, params_resource, og_start_year,
-                                  num_workers, base_dir, calibration=calibration)
-        base = _solve(p, num_workers, ss, show_progress, "baseline")
+        p, base = _solve_baseline(og_package, params_resource, og_start_year,
+                                  num_workers, base_dir, calibration, ss, show_progress)
         # Export the discovered concordance next to the baseline (same file the subprocess path writes),
         # so framework._load_concordance + the viz driver find the run's energy ports either way.
         with open(os.path.join(base_dir, "baseline_meta.json"), "w") as f:
@@ -199,9 +360,8 @@ def inprocess_callables(og_package, params_resource, og_start_year, *,
 # --- subprocess modes (invoked by the link via the CLI) --------------------------
 
 def export_baseline(a):
-    p = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
-                              a.num_workers, a.out_dir, calibration=a.calibration)
-    sol = _solve(p, a.num_workers, a.ss, not a.no_progress, "baseline")
+    p, sol = _solve_baseline(a.og_package, a.params_resource, a.og_start_year,
+                             a.num_workers, a.out_dir, a.calibration, a.ss, not a.no_progress)
     serde.save_params_npz(os.path.join(a.out_dir, "baseline_params.npz"), p)
     serde.save_solution_npz(os.path.join(a.out_dir, "baseline_solution.npz"), sol)
     if not a.ss:   # a TPI solve also wrote SS_vars; export the SS slice so SS-mode reforms compare SS->SS
