@@ -102,11 +102,22 @@ def energy_price(ctx, price_ratio, *, energy_subsistence_floor=0.0, recycle_reve
     """
     if (skip := _skip_if_unavailable(ctx, "energy_price", "energy_good_index")) is not None:
         return skip
+    if price_ratio is None:                      # no ratio sourced -- e.g. energy_price_ratio returned None
+        reason = "no energy price ratio sourced (electricity's value-share of the energy good unresolved)"
+        print(f"[skip] energy_price: {reason}")
+        return ctx.log("energy_price", skipped=True, reason=reason)
     i_e = ctx.concordance.energy_good_index
     p = ctx.og_reform
     tau = np.array(p.tau_c, dtype=float)
     before = tau[:, i_e].copy()
-    tau[:, i_e] = _fit(price_ratio, tau.shape[0]) * (1.0 + tau[:, i_e]) - 1.0   # permanent: full tail
+    r = _fit(price_ratio, tau.shape[0])
+    if not np.all(r > 0):                        # r<=0 inverts the wedge to <= -100% (free/negative gross
+        raise ValueError(                        # price): a degenerate source, not a real price signal.
+            f"energy_price: price ratio has non-positive entries (min={float(np.min(r)):.4g}); "
+            "r*(1+tau)-1 would set a <= -100% consumption wedge on the energy good. This means a degenerate "
+            "price source (an all-slack/empty dual, or a CLEWS horizon ending before og_start_year so the "
+            "aligned path is all-zero). Check the energy-price source and alignment.")
+    tau[:, i_e] = r * (1.0 + tau[:, i_e]) - 1.0  # permanent: full tail
     p.tau_c = tau
     dtau = tau[:, i_e] - before
     if energy_subsistence_floor > 0:

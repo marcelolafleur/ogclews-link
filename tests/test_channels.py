@@ -534,6 +534,91 @@ def test_commodity_shadow_price_drops_slack_years():
             os.remove(p)
 
 
+def _write_cost_workbook(path, vals_by_year):
+    """A minimal CLEWS 'Cost of electricity generation' workbook: a labeled cost ROW with integer
+    year-column headers (the shape cost_of_electricity_ratio reads)."""
+    import pandas as pd
+    data = {"metric": ["Average electricity cost", "Total generation (PJ)"]}
+    for y in sorted(vals_by_year):
+        data[y] = [vals_by_year[y], 999.0]
+    pd.DataFrame(data).to_excel(path, index=False)
+
+
+def test_cost_of_electricity_ratio_reads_workbook():
+    # The cost-index source (the curated workbook) is the REAL production path for a calibrated
+    # country; exercise the reader + the fail-loud missing-row guard (no fixture existed before).
+    import tempfile
+
+    import pandas as pd
+    d = tempfile.mkdtemp()
+    try:
+        bp = os.path.join(d, "base Cost of electricity generation.xlsx")
+        rp = os.path.join(d, "reform Cost of electricity generation.xlsx")
+        _write_cost_workbook(bp, {2026: 100.0, 2027: 100.0})
+        _write_cost_workbook(rp, {2026: 110.0, 2027: 121.0})
+        ratio = signals.cost_of_electricity_ratio(bp, rp)
+        assert abs(ratio.loc[2026] - 1.10) < 1e-9 and abs(ratio.loc[2027] - 1.21) < 1e-9
+        bad = os.path.join(d, "no-cost-row.xlsx")
+        pd.DataFrame({"metric": ["Total generation (PJ)"], 2026: [1.0]}).to_excel(bad, index=False)
+        raised = False
+        try:
+            signals.cost_of_electricity_ratio(bad, bad)
+        except ValueError:
+            raised = True
+        assert raised, "a workbook with no 'average electricity cost' row must raise (fail loud)"
+    finally:
+        for f in os.listdir(d):
+            os.remove(os.path.join(d, f))
+        os.rmdir(d)
+
+
+def test_energy_price_ratio_auto_selects_cost_index_with_workbook():
+    # The other half of 'auto': when BOTH scenario dirs ship the cost-of-electricity workbook, 'auto'
+    # must resolve to cost_index (not the dual) and equal an explicit kind='cost_index'.
+    import tempfile
+
+    bdir = tempfile.mkdtemp(); rdir = tempfile.mkdtemp()
+    try:
+        _write_cost_workbook(os.path.join(bdir, "Cost of electricity generation.xlsx"), {2026: 100.0, 2027: 100.0})
+        _write_cost_workbook(os.path.join(rdir, "Cost of electricity generation.xlsx"), {2026: 110.0, 2027: 121.0})
+        assert signals._has_cost_xlsx(bdir) and signals._has_cost_xlsx(rdir)
+        kw = dict(base_dir=bdir, reform_dir=rdir, share=0.5, og_start_year=2026, n=2, fuel="ELC")
+        auto = signals.energy_price_ratio("auto", **kw)
+        ci = signals.energy_price_ratio("cost_index", **kw)
+        assert auto is not None and np.allclose(auto, ci)            # auto -> cost_index when workbook present
+        assert np.allclose(auto, [1.05, 1.105])                      # 1 + 0.5*(ratio-1); ratio = 1.10, 1.21
+    finally:
+        for d in (bdir, rdir):
+            for f in os.listdir(d):
+                os.remove(os.path.join(d, f))
+            os.rmdir(d)
+
+
+def test_energy_price_rejects_nonpositive_ratio():
+    # A degenerate aligned ratio (all-zero -- e.g. an all-slack dual or a horizon ending before
+    # og_start_year) would make r*(1+tau)-1 = -1: a silent -100% consumption wedge. The channel must
+    # FAIL LOUD and mutate nothing, not apply it.
+    ctx = _ctx()
+    before = np.array(ctx.og_reform.tau_c)
+    raised = False
+    try:
+        channels.energy_price(ctx, price_ratio=np.zeros(TS))
+    except ValueError:
+        raised = True
+    assert raised, "all-zero price ratio must raise (it would invert the wedge to -100%)"
+    assert np.allclose(ctx.og_reform.tau_c, before)                  # nothing mutated on the raise
+
+
+def test_energy_price_skips_when_ratio_none():
+    # share is None (country can't isolate electricity's value-share) -> energy_price_ratio returns None
+    # -> the channel must skip cleanly (record + no mutation), the documented contract.
+    ctx = _ctx()
+    before = np.array(ctx.og_reform.tau_c)
+    rec = channels.energy_price(ctx, price_ratio=None)
+    assert rec.get("skipped") is True
+    assert np.allclose(ctx.og_reform.tau_c, before)
+
+
 def test_energy_price_ratio_auto_selects_dual_without_workbook():
     # 'auto' uses the curated cost-of-electricity workbook when present, else the EBb4 dual -- so raw
     # MUIOGO output (no workbook) works without configuration. Here the scenario dirs hold only EBb4
