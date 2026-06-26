@@ -5,8 +5,10 @@ linkage is a small, guard-railed **channel** (a plain function); experiments are
 a **CLI** runs them; the transforms are **unit-tested without solving**. The link is its own
 environment and imports **no** OG-Core — to solve, it drives the country's OG model in *its* own
 environment as a subprocess, so the link, MUIOGO, and each OG model stay independently installed.
-This is the answer to "how do we manage this as it gets complex": a channel library + config-driven
-experiments + clean environment boundaries, not a growing pile of one-off scripts.
+
+The link does **not** author a country's calibration. It **discovers** what each OG model ships
+(its multisector aggregation, its demographics) and **uses it, or skips** the channels it can't
+support — see the discover/use/skip design below.
 
 ## Architecture
 
@@ -16,96 +18,198 @@ ogclews_link/
                  emit_* = og→clews, run after the solve
   signals.py     source each channel's input from CLEWS outputs / OG results (cost index, dual, GBD, ...)
   experiments.py named, reproducible experiments — exp(ctx, solve) calling channels in order
-  framework.py   ExperimentContext + run / run_across_steps / preflight (the solve callables are injected)
+  framework.py   ExperimentContext (carries the per-run concordance) + run / run_across_steps / preflight
   runtime.py     the run orchestrator (numpy/stdlib, imports NO ogcore): looks up the model registry
-                 and drives the country OG model's OWN interpreter as a subprocess
+                 and drives the country OG model's OWN interpreter as a subprocess; caches the baseline
   og_runner.py   runs INSIDE the OG env — the only module importing ogcore + the country package:
-                 export-baseline / solve-reform, exchanging data files with the link
-  registry.py    OG-model discovery (un_code → package + env_python + version) + data/og_model_registry.json
+                 loads the country's calibration, solves the baseline (by continuation when needed),
+                 solves the reform, and exports data files for the link
+  discovery.py   LINK-SIDE calibration discovery — reads a package's param JSONs + PROD_DICT/CONS_DICT
+                 (ast, no import) to enumerate calibrations + their couplability (no solve, no subprocess)
+  registry.py    OG-model registry (repo key → package + env_python + version + chosen calibration +
+                 saved discovery status) + data/og_model_registry.json
+  models.py      `ogclews-link models register | calibrations | list`
   serde.py       the cross-env boundary: JSON overrides in, .npz solutions out (no pickle/ogcore crosses)
-  contract.py    ScenarioPair / Concordance (discovers the energy ports; marks them None if electricity
-                 can't be isolated, so dependent channels skip)
-  country.py     CountryConfig (PHL): scenario paths, concordance, GBD, public-tech tags
-  clews_io.py    serialize the og→clews artifacts (Demand, EmissionsPenalty, DiscountRate)
+  contract.py    ScenarioPair / Concordance (discovers the energy ports from a model's own PROD_DICT/
+                 CONS_DICT; marks them None if electricity can't be isolated, so dependent channels skip)
+  country.py     CountryConfig (PHL): scenario paths, units, GBD, public-tech tags
   health_pop.py / health_profile.py   signed age-profile mortality (disease_pop) + GBD morbidity shapes
-  _calibration.py    vendored PHL PROD_DICT + CONS_DICT (the M=4 coupling aggregation, electricity isolated)
-  _demog.py      vendored demographics (+ demographic_data/)
-  report.py      macro / demand / incidence read-outs (import-light, tested)
+  report.py      macro table + demand / incidence read-outs (import-light, tested)
   viz/           the figure/deck subpackage (python -m ogclews_link.viz)
-  cli.py         ogclews-link {list | channels | run <name>}
-tests/           transform + boundary (serde) + registry tests (numpy-only; ogcore/ogphl tests skip if absent)
+  cli.py         ogclews-link {list | channels | run <name> | models ...}
+tests/           transform + boundary (serde) + discovery + registry tests (numpy-only; ogcore/ogphl tests skip if absent)
 ```
 
-The boundary matters: `channels`, `signals`, `framework`, `serde`, `registry`, `report` import only
-numpy/pandas, so the economics is unit-testable with no solver. The link **never** imports ogcore;
-`runtime` subprocesses the OG model's own interpreter (found via the registry) and `og_runner` — the
-only ogcore-importing module — runs over there. Data crosses as JSON (parameter overrides) and `.npz`
-(solutions); no pickle and no ogcore object ever crosses the environment boundary.
+The boundary matters: everything except `og_runner` imports only numpy/pandas, so the economics is
+unit-testable with no solver. The link **never** imports ogcore; `runtime` subprocesses the OG model's
+own interpreter (found via the registry) and `og_runner` runs over there. Data crosses as JSON
+(parameter overrides) and `.npz` (solutions) — no pickle and no ogcore object ever crosses.
+
+## How the coupling decides what it can do (discover / use / skip)
+
+- **Calibration.** The link reads the OG package's own parameter files. If the package ships a
+  multisector (M>1) calibration that **isolates electricity as its own industry**, the link uses it and
+  the energy channels engage. Otherwise the baseline stays single-industry and the energy channels skip.
+  The chosen calibration is recorded in the registry by `models register` (auto-picked, or `--calibration`).
+- **Concordance.** Which OG industry/good is "electricity" is **discovered per run** from the package's
+  `PROD_DICT`/`CONS_DICT` (never a hand-set index). If electricity is fused with water, or the
+  consumption good is too diluted, the relevant channels skip and record why.
+- **Solve.** A heterogeneous-capital-share multisector baseline does **not** cold-solve (OG-Core seeds
+  every industry price at 1, which is wrong when capital shares differ). The link solves the steady
+  state by **continuation** (a flat-gamma anchor morphed to the calibrated values), then runs the
+  transition path off it. If the continuation can't converge, the run fails loudly rather than shipping
+  a wrong equilibrium.
+- **Demographics.** The link refreshes demographics the same way the OG models do — via
+  `ogcore.demographics` (UN data portal → the GitHub `EAPD-DRB/Population-Data` backup) — and **fails
+  safely to the model's own built-in (baked) demographics** when the live data is unavailable. It never
+  substitutes its own copy.
 
 ## The channels
 
-Plain functions in `channels.py`. A channel takes the **already-sourced** value it needs (a `signals.*`
-helper supplies it); `emit_*` channels run **after** the reform solve and emit CLEWS inputs. If a
-country's OG aggregation can't isolate electricity, the energy-port channels **skip themselves**
-(recorded in provenance) and the channels that don't need it still run.
+Plain functions in `channels.py`. `emit_*` channels run **after** the reform solve and emit CLEWS inputs.
+A channel skips itself (recorded in provenance) when the country's calibration can't supply the energy
+port it needs.
 
 | channel | direction | what it does |
 |---|---|---|
-| `energy_price` | clews→og | CLEWS energy price → `tau_c` wedge on the energy good → demand + incidence (+ optional recycle, energy `c_min`) |
+| `energy_price` | clews→og | CLEWS energy price → `tau_c` wedge on the energy good → demand + incidence (+ optional recycle) |
 | `investment` | clews→og | public power capex → OG public investment `alpha_I` → `K_g` |
-| `capital_intensity` | clews→og | generation-mix capital share → the energy industry's capital exponent (factor-share lever) |
-| `energy_capex` | policy | an ITC → the energy industry's cost of capital (capital-demand lever; opposite sign on energy K to `capital_intensity`) |
+| `capital_intensity` | clews→og | generation-mix capital share → the energy industry's capital exponent |
+| `energy_capex` | policy | an ITC → the energy industry's cost of capital (opposite sign on energy K to `capital_intensity`) |
 | `carbon_tax` | policy | a carbon price → OG consumption tax on the energy good (`tau_c`, optional recycle) |
 | `emit_carbon_penalty` | og→clews | the same carbon price → CLEWS `EmissionsPenalty` |
 | `emit_discount_rate` | og→clews | OG equilibrium market return → CLEWS `DiscountRate` |
 | `emit_energy_demand` | og→clews | OG activity (`Y_m`/`C_i`) → CLEWS energy-service demand scaling |
 | `health` | clews→og | CLEWS PM2.5 emissions → calibrated dose-response (M) → OG mortality (`disease_pop`) + morbidity (`e`) |
 
-The `og→clews` channels emit CLEWS input files (the producer side of loop closure); the CLEWS re-run
-that closes the loop is the external seam (MUIOGO) — in design now.
+---
 
-## Run
+# End-to-end walkthrough — reproduce the PHL multi-industry coupled run
 
-The link is a standalone `uv` project with its own venv and **does not need ogcore**. To solve, the
-country's OG model must be installed in its own environment and registered in
-`ogclews_link/data/og_model_registry.json` (or a file named by `$OGCLEWS_MODEL_REGISTRY`); the link
-finds it there and subprocesses it.
+This drives the whole stack the way it is meant to be used: the energy side (MUIOGO/CLEWS), the OG
+country model (OG-PHL with its multi-industry calibration), and the link that couples them.
 
+### Prerequisites
+- `git`, and [`uv`](https://docs.astral.sh/uv/) (the package/venv manager all three projects use)
+- Python 3.11 (3.10–3.12 supported)
+- [`gh`](https://cli.github.com/) (to check out the OG-PHL PR), authenticated
+
+### The pieces
+1. **MUIOGO** — the CLEWS/OSeMOSYS energy side (and GUI). Produces the energy-system scenarios.
+2. **OG-PHL @ PR #63** — the OG-Core country model with the multi-industry (M=8) calibration.
+3. **ogclews-link** (this repo) — the coupling layer.
+4. **CLEWS scenario outputs** (a *base* and a *reform*) — read by the link's energy channels.
+
+### Step 1 — MUIOGO (the energy side)
 ```bash
-uv run ogclews-link list                 # named experiments
-uv run ogclews-link channels             # the channel functions + direction
-uv run ogclews-link run coupled --out ./ogclews_runs --clews-run <CLEWS run dir>
+git clone https://github.com/EAPD-DRB/MUIOGO.git
+cd MUIOGO
+./scripts/setup.sh      # macOS/Linux: venv + GLPK/CBC solvers + demo data   (Windows: scripts\setup.bat)
+./scripts/start.sh      # launch the app to build/run CLEWS scenarios        (Windows: scripts\start.bat)
 ```
+MUIOGO runs OSeMOSYS/CLEWS and writes a scenario folder per run (the OSeMOSYS output CSVs plus a
+`Cost of electricity generation_*.xlsx` workbook). You need **two**: a baseline and a reform. See
+MUIOGO's own README for details.
 
-`run` exports the OG baseline (cached; scenario-independent), applies the experiment's channels to a
-fresh reform, solves it **in the OG env**, prints a report, and writes the og→clews CLEWS inputs +
-a run manifest under `./ogclews_runs/<name>/`. `--workers` sets the OG solve's worker processes
-(default 7).
+### Step 2 — OG-PHL at PR #63 (multi-industry, M=8)
+```bash
+git clone https://github.com/EAPD-DRB/OG-PHL.git
+cd OG-PHL
+gh pr checkout 63 -R EAPD-DRB/OG-PHL    # "Multi-industry (M=8) calibration from the Philippine SAM"
+uv sync                                 # builds OG-PHL's own .venv (ogcore + deps)
+uv run python -c "import ogphl; print(ogphl.UN_COUNTRY_CODE, list(ogphl.PROD_DICT))"
+# -> 608  ['Agriculture and Fishing','Mining','Electricity','Water','Construction','Trade and Transport','Services','Manufacturing']
+```
+This PR ships `ogphl_multisector_default_parameters.json` (M=8, I=5, with `alpha_c` + `io_matrix`) and
+isolates electricity as its own production group — the thing that makes PHL couplable on energy.
+
+### Step 3 — the link: install and register the OG model
+```bash
+git clone https://github.com/SeaCelo/ogclews-link.git
+cd ogclews-link
+uv sync
+uv run ogclews-link models register --path ../OG-PHL
+```
+`register` discovers the calibrations **link-side** (no solve) and auto-picks the couplable one. Expect:
+```
+registered og-phl (ogphl 0.1.0) -> .../OG-PHL/.venv/bin/python
+  calibration: ogphl_multisector_default_parameters.json
+   * ogphl_multisector_default_parameters.json  M=8 I=5  [energy industry=2 good=1]
+        route-A good is 39% electricity  -- DILUTED (mostly non-electricity; demand-side wedge is approximate)
+        electricity isolated as its own industry -- couplable on energy
+```
+Inspect any time with `uv run ogclews-link models list` and `uv run ogclews-link models calibrations og-phl`.
+
+### Step 4 — point the link at the CLEWS scenarios
+The link's PHL scenario (`ogclews_link/country.py`, `PHL.scenario`) names a **base** and a **reform**
+CLEWS directory. They are currently hardcoded to `…/CLEWS-OG/CLEWS_simulations/v6-Base` and `v6-PEP`.
+Either place your MUIOGO/CLEWS scenario folders at those paths, or edit
+`PHL.scenario.base_dir` / `reform_dir` to point at your two scenario folders. Each must contain the
+OSeMOSYS output CSVs and the `Cost of electricity generation_*.xlsx` workbook.
+
+> A CLI/config override for scenario paths (so you don't edit `country.py`) is on the roadmap.
+
+### Step 5 — run the coupled scenario
+```bash
+uv run ogclews-link run coupled --out ./ogclews_runs
+```
+What happens, printed live:
+1. looks up OG-PHL in the registry and subprocesses **its** interpreter;
+2. **demographics**: UN portal → GitHub backup → the model's built-in (fail-safe);
+3. **baseline**: heterogeneous γ ⇒ solves the M=8 steady state by **continuation**, then the transition path
+   (the baseline is cached and reused; first run is several minutes);
+4. applies the coupled channels to a fresh reform and solves it;
+5. prints the report + macro table; writes the og→clews CLEWS inputs and a run manifest.
+
+Other useful flags: `--workers N` (OG solve processes, default 7), `--rebuild-baseline` (force a fresh
+baseline solve, ignoring the cache — e.g. to pick up newer UN demographics), `--no-progress`.
+
+### Step 6 — where the results are
+Under `./ogclews_runs/coupled/`:
+- **`macro_table.csv`** — headline % change reform vs baseline (`Y, C, K, L, r, w`), by year + a 10-yr
+  window + the steady state (OG-Core `macro_table` style; also printed in the report).
+- **`clews_inputs/`** — the og→clews artifacts that close the loop back to CLEWS:
+  `EmissionsPenalty.csv`, `DiscountRate.csv`, `demand_scaling.csv`.
+- **`ogclews_manifest.json`** — provenance: country, the discovered concordance, the channels that ran,
+  the scenario, the OG model version.
+- **`reform/`** — the solved reform (`.npz` for the link + OG-Core's `SS`/`TPI` pickles).
+
+The solved baseline is cached at `./ogclews_runs/_og_baseline_cache/og-phl-<version>-<calibration>/`
+and reused by any later run against the same model/version/calibration (the continuation runs once).
+
+### What to expect (PHL M=8 coupled)
+- **6 channels fire**: `energy_price` (active — electricity is isolated), `investment`, `emit_carbon_penalty`,
+  `health` (≈ −279 deaths via the calibrated PM2.5 dose-response), `emit_discount_rate`, `emit_energy_demand`.
+- **Small macro effects** — electricity is a small, recycled share of household spending: roughly
+  `+0.005%` on `Y` over the 10-yr window in the macro table.
+- **Energy-good demand response ≈ 2%**, with incidence by income group (the route-A "energy" good is
+  ≈ 39% electricity, so the wedge is diluted — flagged at registration).
+- The baseline steady state solves cleanly via continuation (resource-constraint error ≈ 1e-13).
+
+> **Illustrative magnitudes.** The energy-price path here is a stand-in until the CLEWS cost path is fully
+> wired, and the `carbon_tax`→OG ad-valorem conversion is illustrative until its deflator is calibrated
+> (flagged in-code). The *mechanism* is validated end-to-end; treat the levels as illustrative.
+
+### Notes / fail-safe behavior
+- **Offline / no UN data**: demographics fall back to the model's built-in calibrated values, and the
+  `health` mortality shock skips (the baseline still solves).
+- **A country whose calibration can't isolate electricity** (single-industry, or electricity fused with
+  water): the energy channels skip with a recorded reason; the non-energy channels still run.
+
+---
 
 ## Test (no solve)
-
 ```bash
-uv run pytest tests/        # 95 pass / 4 skip — the 4 skip when ogcore/ogphl aren't installed
+uv run pytest tests/        # 101 pass / 4 skip — the 4 skip when ogcore/ogphl aren't installed
 ```
-
-The transform, boundary (`serde`), and registry tests run numpy-only in seconds; the few
+The transform, boundary (`serde`), discovery, and registry tests run numpy-only in seconds; the few
 country-integration tests skip gracefully without the OG packages.
 
-## Managing complexity: scripts → framework → UI
-
-- **Channels are the unit of reuse.** An experiment is a function calling channels in order; the CLI
-  runs any of them reproducibly and the transforms are tested in isolation — this scales to many
-  channels/experiments without duplicating run scripts.
-- **Environment boundaries** keep the link, the OG models, and MUIOGO independently installed: the
-  link presses go itself and drives each OG model in its own env (the model registry is the seam).
-- **Later — the UI (MUIOGO).** MUIOGO (the GSoC orchestrator) calls this package as its OG-side
-  engine over the CLI seam and visualizes results; it is the natural owner of the model registry.
-
 ## Status / honesty
-
-The cross-env solve works end-to-end and reproduces the committed golden across the whole battery
-(13/13, zero drift) and the real coupled PEP-vs-Base run. The channels are plain, unit-tested
-functions. `health` is calibrated (country PM2.5 dose-response M; PHL ≈ 0.082); the `carbon_tax`→OG
-ad-valorem conversion is still illustrative until its deflator is calibrated (flagged in-code), and
-the energy `c_min` must be set below every income group's baseline energy consumption before use. The
-loop-closure (emit a CLEWS scenario patch → MUIOGO re-solves → iterate) is the next architectural piece.
+The cross-env solve runs end-to-end and the full PHL M=8 coupled stack has been validated through the
+intended install → register → run flow. The link discovers and uses each country's own calibration and
+demographics (or skips), solves hard multisector baselines by continuation, and reports an OG-Core-style
+macro table. `health` is calibrated (country PM2.5 dose-response M; PHL ≈ 0.082). Open items: a few
+PHL-specific CLEWS codes and the scenario paths are not yet config-driven (hardcoded in `country.py`);
+the loop-closure (emit a CLEWS scenario patch → MUIOGO re-solves → iterate) is the next architectural
+piece; the link's legacy vendored `demographic_data/` CSVs are now unused.
