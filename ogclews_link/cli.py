@@ -25,9 +25,12 @@ def main(argv=None):
     rp.add_argument("--rebuild-baseline", action="store_true",
                     help="force a fresh baseline solve, ignoring any cached one (e.g. to pick up newer "
                          "UN demographics or a re-baked calibration)")
+    rp.add_argument("--clews-base", default=None,
+                    help="CLEWS baseline scenario dir (overrides $OGCLEWS_CLEWS_BASE / the MUIOGO-install "
+                         "resolution); e.g. <MUIOGO>/WebAPP/DataStorage/<case>/res/<run>/csv")
+    rp.add_argument("--clews-reform", default=None, help="CLEWS reform scenario dir (the reform side)")
     rp.add_argument("--clews-run", default=None,
-                    help="source CLEWS/MUIOGO run dir to record in the run manifest (provenance; "
-                         "scenario-source override is future work)")
+                    help="CLEWS/MUIOGO run dir recorded in the manifest for provenance")
 
     sub.add_parser("list", help="list named experiments")
     sub.add_parser("channels", help="list registered channels")
@@ -104,13 +107,25 @@ def main(argv=None):
     if args.cmd == "run":
         from functools import partial
 
+        import os
+
         from . import framework, registry, runtime
-        from .country import PHL
+        from .country import CLEWS_SCENARIO_HELP, PHL
         from .manifest import write_run_manifest
 
         exp = experiments.get(args.experiment)
         cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress,
                                    rebuild=args.rebuild_baseline)
+        # CLEWS scenario source: CLI flag > env / MUIOGO-install resolution (country.clews_scenario_dir)
+        if args.clews_base:
+            PHL.scenario.base_dir = args.clews_base
+        if args.clews_reform:
+            PHL.scenario.reform_dir = args.clews_reform
+        for side, d in (("base", PHL.scenario.base_dir), ("reform", PHL.scenario.reform_dir)):
+            status = "ok" if d and os.path.isdir(d) else "NOT FOUND -- CLEWS-reading channels will fail"
+            print(f"CLEWS {side:6} scenario: {d or '(unset)'}  [{status}]")
+            if not (d and os.path.isdir(d)):
+                print(f"  {CLEWS_SCENARIO_HELP}")
         entry = registry.lookup(PHL)        # OG-model provenance for the manifest (and fail-fast)
         og_model = {"repo": entry.key, "package": entry.package, "version": entry.version,
                     "env_python": entry.env_python}

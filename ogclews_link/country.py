@@ -63,7 +63,43 @@ class CountryConfig:
         return self.is_power(tech) and any(m in tech for m in self.public_power_markers)
 
 
-_CLEWS = "/Users/mlafleur/Projects/CLEWS-OG/CLEWS_simulations"
+# --- CLEWS scenario location: from the user's MUIOGO installation, NOT a hardcoded machine path ------
+# Each scenario side ('base'/'reform') resolves by first match:
+#   1. an explicit dir -- $OGCLEWS_CLEWS_BASE / $OGCLEWS_CLEWS_REFORM (or CLI --clews-base/--clews-reform)
+#   2. the MUIOGO install -- <MUIOGO>/WebAPP/DataStorage/<case>/res/<run>/csv, where
+#        MUIOGO = $OGCLEWS_MUIOGO_HOME (or a sibling ../MUIOGO next to this repo),
+#        case   = $OGCLEWS_CLEWS_CASE,  run = $OGCLEWS_CLEWS_BASE_RUN / $OGCLEWS_CLEWS_REFORM_RUN
+#   3. "" -- unresolved; the CLEWS-reading channels then fail with CLEWS_SCENARIO_HELP. No machine default.
+CLEWS_SCENARIO_HELP = (
+    "CLEWS scenario directory is unset. Point the link at your MUIOGO installation: set "
+    "$OGCLEWS_MUIOGO_HOME (or place MUIOGO at ../MUIOGO), $OGCLEWS_CLEWS_CASE, and "
+    "$OGCLEWS_CLEWS_BASE_RUN/$OGCLEWS_CLEWS_REFORM_RUN; or give explicit dirs via "
+    "$OGCLEWS_CLEWS_BASE/$OGCLEWS_CLEWS_REFORM, or `ogclews-link run ... --clews-base <dir> --clews-reform <dir>`.")
+
+
+def _muiogo_home():
+    """The MUIOGO installation dir: $OGCLEWS_MUIOGO_HOME, else a sibling ../MUIOGO next to this repo."""
+    env = os.environ.get("OGCLEWS_MUIOGO_HOME")
+    if env:
+        return env
+    sibling = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.pardir, "MUIOGO"))
+    return sibling if os.path.isdir(sibling) else None
+
+
+def clews_scenario_dir(which):
+    """The CLEWS scenario dir for ``which`` in {'base','reform'}, resolved from config / the MUIOGO
+    install (see the note above); '' if unresolved. Reads MUIOGO's WebAPP/DataStorage/<case>/res/<run>/csv
+    layout, so the link uses whatever is installed there rather than a baked-in path."""
+    w = which.upper()
+    direct = os.environ.get(f"OGCLEWS_CLEWS_{w}")
+    if direct:
+        return direct
+    home, case = _muiogo_home(), os.environ.get("OGCLEWS_CLEWS_CASE")
+    run = os.environ.get(f"OGCLEWS_CLEWS_{w}_RUN")
+    if home and case and run:
+        return os.path.join(home, "WebAPP", "DataStorage", case, "res", run, "csv")
+    return ""
 
 
 def _resolve_gbd_csv():
@@ -94,8 +130,8 @@ PHL = CountryConfig(
                   notes="CLEWS monetary outputs are model MUSD; convert vs baseline ratios where possible"),
     scenario=ScenarioPair(
         name="PEP_vs_Base",
-        base_dir=os.path.join(_CLEWS, "v6-Base"),
-        reform_dir=os.path.join(_CLEWS, "v6-PEP"),
+        base_dir=clews_scenario_dir("base"),       # from the MUIOGO install / config, not hardcoded
+        reform_dir=clews_scenario_dir("reform"),
         years=tuple(range(2020, 2054)),
         og_start_year=2026,
     ),

@@ -140,14 +140,26 @@ registered og-phl (ogphl 0.1.0) -> .../OG-PHL/.venv/bin/python
 ```
 Inspect any time with `uv run ogclews-link models list` and `uv run ogclews-link models calibrations og-phl`.
 
-### Step 4 — point the link at the CLEWS scenarios
-The link's PHL scenario (`ogclews_link/country.py`, `PHL.scenario`) names a **base** and a **reform**
-CLEWS directory. They are currently hardcoded to `…/CLEWS-OG/CLEWS_simulations/v6-Base` and `v6-PEP`.
-Either place your MUIOGO/CLEWS scenario folders at those paths, or edit
-`PHL.scenario.base_dir` / `reform_dir` to point at your two scenario folders. Each must contain the
-OSeMOSYS output CSVs and the `Cost of electricity generation_*.xlsx` workbook.
+### Step 4 — point the link at your CLEWS scenarios (from your MUIOGO install — no hardcoded paths)
+The link resolves the **base** and **reform** scenario dirs from config / your MUIOGO installation
+(first match wins):
+1. CLI flags `--clews-base <dir> --clews-reform <dir>`, or env `$OGCLEWS_CLEWS_BASE` / `$OGCLEWS_CLEWS_REFORM`;
+2. the **MUIOGO install** — set `$OGCLEWS_MUIOGO_HOME` (or place MUIOGO at `../MUIOGO` next to this repo),
+   `$OGCLEWS_CLEWS_CASE`, and `$OGCLEWS_CLEWS_BASE_RUN` / `$OGCLEWS_CLEWS_REFORM_RUN`; the link then reads
+   `<MUIOGO>/WebAPP/DataStorage/<case>/res/<run>/csv`.
 
-> A CLI/config override for scenario paths (so you don't edit `country.py`) is on the roadmap.
+```bash
+export OGCLEWS_CLEWS_CASE=Philippines_v9        # a case in your MUIOGO DataStorage
+export OGCLEWS_CLEWS_BASE_RUN=Base_v8           # the baseline caserun
+export OGCLEWS_CLEWS_REFORM_RUN=<your reform caserun>
+```
+The run prints the resolved scenario dirs (and a `NOT FOUND` notice + guidance if unset). The
+emissions/capex channels read MUIOGO's raw OSeMOSYS CSVs directly.
+
+> **Energy-price source caveat.** The `coupled` experiment's `energy_price` currently reads a curated
+> *Cost of electricity generation* workbook (a CLEWS-OG artifact that MUIOGO's raw output does not
+> include). On a pure-MUIOGO scenario that signal needs the OSeMOSYS **dual** (`EBb4…`) instead — a
+> follow-up. The path resolution above is country/install-agnostic regardless.
 
 ### Step 5 — run the coupled scenario
 ```bash
@@ -209,7 +221,9 @@ country-integration tests skip gracefully without the OG packages.
 The cross-env solve runs end-to-end and the full PHL M=8 coupled stack has been validated through the
 intended install → register → run flow. The link discovers and uses each country's own calibration and
 demographics (or skips), solves hard multisector baselines by continuation, and reports an OG-Core-style
-macro table. `health` is calibrated (country PM2.5 dose-response M; PHL ≈ 0.082). Open items: a few
-PHL-specific CLEWS codes and the scenario paths are not yet config-driven (hardcoded in `country.py`);
-the loop-closure (emit a CLEWS scenario patch → MUIOGO re-solves → iterate) is the next architectural
-piece; the link's legacy vendored `demographic_data/` CSVs are now unused.
+macro table. `health` is calibrated (country PM2.5 dose-response M; PHL ≈ 0.082). The CLEWS scenario
+location is now config-driven (resolved from the MUIOGO install / env / CLI — no hardcoded paths). Open
+items: a few PHL-specific CLEWS codes still live in `country.py`; the `coupled` energy-price reads a
+curated cost-of-electricity workbook rather than MUIOGO's raw OSeMOSYS dual (a follow-up); the
+loop-closure (emit a CLEWS scenario patch → MUIOGO re-solves → iterate) is the next architectural piece;
+the link's legacy vendored `demographic_data/` CSVs are now unused.
