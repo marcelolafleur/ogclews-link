@@ -116,6 +116,17 @@ def main(argv=None):
             solve_reform=partial(runtime.solve_reform, cfg=cfg),
             out_root=args.out)
         print_report(ctx)
+        if ctx.base_tpi is not None and ctx.reform_tpi is not None:
+            import os
+
+            from .report import macro_table
+            mt_path = os.path.join(args.out, args.experiment, "macro_table.csv")
+            try:
+                os.makedirs(os.path.dirname(mt_path), exist_ok=True)
+                macro_table(ctx.base_tpi, ctx.reform_tpi, PHL.scenario.og_start_year).to_csv(mt_path)
+                print("Wrote macro table:", mt_path)
+            except Exception as e:  # noqa: BLE001 -- the CSV is a convenience; never fail the run for it
+                print(f"(macro table CSV skipped: {type(e).__name__})")
         if ctx.clews_inputs:
             written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")
             print("Wrote CLEWS inputs:", written)

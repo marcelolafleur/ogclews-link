@@ -23,6 +23,33 @@ def macro_pct_diff(base_tpi, reform_tpi, var_list=("Y", "C", "K", "L", "r", "w")
     return out
 
 
+def macro_table(base_tpi, reform_tpi, start_year, var_list=("Y", "C", "K", "L", "r", "w"), num_years=10):
+    """A headline macro table mirroring ``ogcore.output_tables.macro_table`` (the standard OG run report):
+    % difference reform vs baseline, ((reform-base)/base)*100, by year for the first ``num_years``, plus a
+    window-overall column and the steady state. Returns a pandas DataFrame indexed by Year (rows = years,
+    then the window, then SS; columns = the macro variables). r/w are %-of-rate differences, as in OG-Core.
+    Built link-side from the exported TPI paths -- no ogcore needed."""
+    import pandas as pd
+
+    years = list(range(int(start_year), int(start_year) + num_years))
+    index = [str(y) for y in years] + [f"{years[0]}-{years[-1]}", "SS"]
+    cols = {}
+    for v in var_list:
+        if v not in base_tpi or v not in reform_tpi:
+            continue
+        b = np.asarray(base_tpi[v], dtype=float).ravel()
+        r = np.asarray(reform_tpi[v], dtype=float).ravel()
+        n = min(num_years, b.size, r.size)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            pct = (r - b) / np.where(b == 0, np.nan, b) * 100.0
+        bw = b[:n].sum()
+        overall = float((r[:n].sum() - bw) / bw * 100.0) if bw else float("nan")
+        cols[v] = [float(pct[i]) if i < n else float("nan") for i in range(num_years)] + [overall, float(pct[-1])]
+    df = pd.DataFrame(cols, index=index).round(3)
+    df.index.name = "Year"
+    return df
+
+
 def demand_response(base_tpi, reform_tpi, i_energy):
     """% change in aggregate energy-good consumption, by period."""
     return og_wedge.energy_demand_response(base_tpi["C_i"], reform_tpi["C_i"], i_energy)
@@ -67,10 +94,18 @@ def print_report(ctx):
     if b is None or r is None:
         print("\n(no solve results in context)")
         return
-    print("\nMacro (Δ first 10 yrs):")
-    for k, v in macro_pct_diff(b, r).items():
-        unit = "pp" if k in ("r", "w", "r_p", "r_gov") else "%"
-        print(f"  {k:4} {np.round(v.mean(), 3)} {unit}")
+    print("\nMacro aggregates -- % difference, reform vs baseline (OG-Core macro_table style):")
+    start_year = int(getattr(getattr(ctx.country, "scenario", None), "og_start_year", 2026))
+    try:
+        import pandas as pd
+        with pd.option_context("display.width", 140, "display.max_columns", 20,
+                               "display.float_format", lambda x: f"{x:7.3f}"):
+            print(macro_table(b, r, start_year).to_string())
+    except Exception as e:  # noqa: BLE001 -- fall back to the one-line summary if pandas/format hiccups
+        print(f"  (macro table unavailable: {type(e).__name__}); first-10-yr means:")
+        for k, v in macro_pct_diff(b, r).items():
+            unit = "pp" if k in ("r", "w", "r_p", "r_gov") else "%"
+            print(f"  {k:4} {np.round(v.mean(), 3)} {unit}")
     if i_e is not None:
         print(f"\nEnergy-good demand response: {np.nanmean(demand_response(b, r, i_e)[:10]):.2f}%")
         inc = incidence(b, r, i_e)
