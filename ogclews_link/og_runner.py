@@ -86,11 +86,14 @@ def _read_solution(output_base, ss):
 def _build_baseline_specs(og_package, params_resource, og_start_year, num_workers, out_dir,
                           calibration=None):
     """Build the country baseline by LOADING the country model's OWN calibration -- the link no longer
-    authors any aggregation or sector factors. ``calibration`` is the packaged param resource the user
-    CHOSE via discovery (og_runner discover -> models register --calibration); load it. When None, load
-    the single-industry default (``params_resource``) -- in which case the energy channels skip (no
-    isolated electricity industry to couple to). Demographics are layered on (country-generic). The UN
-    country code is the package's own (e.g. ogphl.UN_COUNTRY_CODE) -- never the link's or the registry's."""
+    authors any aggregation or sector factors. Load the single-industry DEFAULT (``params_resource``) as
+    the base, then OVERLAY the chosen multisector ``calibration`` if any. Country packages ship their
+    multisector JSON as an update_specifications OVERLAY on the default: it sets M/I + the sector arrays
+    but INHERITS scalars (e.g. initial_Kg_ratio) from the default, so loading it standalone fails
+    paramtools cross-validation (e.g. gamma_g>0 requires initial_Kg_ratio>0). This mirrors the country's
+    own load order (see ogphl examples/run_og_phl_multi_industry_calibrated). When ``calibration`` is None
+    the baseline stays single-industry (the energy channels skip). Demographics are layered on
+    (country-generic); the UN code is the package's own (ogphl.UN_COUNTRY_CODE), never the link's."""
     from ogcore.parameters import Specifications
 
     pkg = importlib.import_module(og_package)
@@ -99,12 +102,14 @@ def _build_baseline_specs(og_package, params_resource, og_start_year, num_worker
         raise ValueError(f"{og_package} does not expose UN_COUNTRY_CODE; the demographic build needs it.")
     os.makedirs(out_dir, exist_ok=True)
     p = Specifications(baseline=True, num_workers=num_workers, baseline_dir=out_dir, output_base=out_dir)
-    chosen = calibration or params_resource
-    with importlib.resources.open_text(og_package, chosen) as f:
-        p.update_specifications(json.load(f))         # the CHOSEN calibration (or single-industry default)
-    kind = ("chosen multisector calibration" if calibration
-            else "single-industry default -> energy channels skip")
-    print(f"[og_runner] {og_package}: loaded {chosen} ({kind}; M={p.M}, I={p.I})", file=sys.stderr)
+    with importlib.resources.open_text(og_package, params_resource) as f:
+        p.update_specifications(json.load(f))         # base: single-industry default (scalars like initial_Kg_ratio)
+    if calibration:
+        with importlib.resources.open_text(og_package, calibration) as f:
+            p.update_specifications(json.load(f))     # overlay: the chosen multisector calibration
+    kind = (f"{params_resource} + {calibration} overlay" if calibration
+            else f"{params_resource} (single-industry -> energy channels skip)")
+    print(f"[og_runner] {og_package}: loaded {kind} (M={p.M}, I={p.I})", file=sys.stderr)
     pop = baseline_pop(p, un_country_code=un_code, download=False)
     p.update_specifications(pop[0])
     if int(getattr(p, "start_year", og_start_year)) != og_start_year:
