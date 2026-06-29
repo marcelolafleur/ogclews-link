@@ -57,6 +57,29 @@ def _public_capex(ctx, *, scale=1.0, smooth_years=1):
                                         scale=scale, smooth_years=smooth_years)
 
 
+def _apply_energy_composite(ctx, elec_price_ratio):
+    """Apply BOTH halves of an electricity-price change -- the ``energy_full`` transmission shared by the
+    controlled comparison and the live ``coupled`` run:
+      - INTERMEDIATE cost-push: ``energy_cost_push`` weighted by SAM input-share phi_j, with electricity's
+        OWN self-use ZEROED so it doesn't double-count the wedge below;
+      - FINAL consumption: a RECYCLED ``energy_price`` wedge on the energy good, diluted to electricity's
+        value-share of it (1 + share*(ratio-1)).
+    ``elec_price_ratio`` is the UN-diluted electricity reform/base price ratio -- a scalar (controlled +20%)
+    or a per-period path (the CLEWS 'auto' source). COUPLABILITY-GATED: when the country can't isolate
+    electricity as its own industry AND good, both legs are ill-defined, so the composite skips cleanly."""
+    con = ctx.concordance
+    if con is None or con.energy_industry_index is None or con.energy_good_index is None:
+        return ctx.log("energy_price_composite", skipped=True, reason="electricity not isolable -- skipped")
+    phi = _electricity_intensity(ctx)                 # None (no SAM) -> cost-push leg skips; wedge still fires
+    if phi is not None:
+        phi = np.array(phi, dtype=float)
+        phi[con.energy_industry_index] = 0.0          # self-use carried by the final wedge, not here
+    channels.energy_cost_push(ctx, price_ratio=elec_price_ratio, electricity_intensity=phi)
+    wedge = 1.0 + _energy_share(ctx) * (np.asarray(elec_price_ratio, dtype=float) - 1.0)
+    channels.energy_price(ctx, price_ratio=wedge, recycle_revenue_to_transfers=True)
+    return None
+
+
 # --- single-channel experiments -------------------------------------------------
 
 def energy_price(ctx, solve):
@@ -93,26 +116,10 @@ def energy_full(ctx, solve):
       - FINAL (consumption): the recycled energy_price wedge raises the energy consumption good by
         electricity's value-share of it (the regressive cost-of-living incidence).
     Reduced-form -- two stacked proxies for the inter-industry channel OG-Core lacks; the exact version
-    is a real use matrix (built from the SAM's observable inter-industry electricity column).
-
-    COUPLABILITY GATE: as the coupled headline, the composite requires the country to isolate electricity
-    as its own industry AND good (both concordance ports). When it can't (single-industry M=1, or
-    electricity fused with water), BOTH legs would be ill-defined -- the self-use can't be zeroed and the
-    wedge share is None -- so the whole composite skips cleanly, like the other energy channels. (The
-    standalone energy_cost_push experiment stays SAM-driven / concordance-independent by design.)"""
-    con = ctx.concordance
-    if con is None or con.energy_industry_index is None or con.energy_good_index is None:
-        ctx.log("energy_full", skipped=True, reason="electricity not isolable -- composite skipped")
-        solve(ctx)
-        return
-    phi = _electricity_intensity(ctx)                 # None (no SAM) -> cost-push leg skips; wedge still fires
-    if phi is not None:
-        phi = np.array(phi, dtype=float)
-        phi[con.energy_industry_index] = 0.0          # self-use carried by the final wedge, not here
-    channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=phi)
-    # final wedge: +20% on the electricity PORTION of the energy good (share = its io_matrix weight)
-    channels.energy_price(ctx, price_ratio=1.0 + _energy_share(ctx) * 0.20,
-                          recycle_revenue_to_transfers=True)
+    is a real use matrix (built from the SAM's observable inter-industry electricity column). The shared
+    composite logic (gate, self-use zeroing, recycled wedge) lives in ``_apply_energy_composite``; the
+    live ``coupled`` run applies the SAME transmission at the real CLEWS price."""
+    _apply_energy_composite(ctx, 1.20)                # controlled +20% (the comparison stimulus)
     solve(ctx)
 
 
@@ -190,15 +197,19 @@ def forward(ctx, solve):
 
 
 def coupled(ctx, solve):
-    """The full coupled soft-link: energy price from CLEWS (the cost-of-electricity index if the curated
-    workbook is present, else the OSeMOSYS commodity-balance dual on raw MUIOGO output -- 'auto') +
-    public investment + carbon on the CLEWS side + GBD health, then OG rate/activity emitted back."""
+    """The full coupled soft-link: the electricity price from CLEWS ('auto' -- the cost-of-electricity
+    index if the curated workbook is present, else the OSeMOSYS commodity-balance dual on raw MUIOGO
+    output) transmitted via the ENERGY_FULL COMPOSITE (inter-industry cost-push + recycled household
+    wedge -- the defensible transmission; see docs/design/energy-price-transmission.md) + public
+    investment + carbon on the CLEWS side + GBD health, then OG rate/activity emitted back."""
     c, p = ctx.country, ctx.og_reform
-    pr = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir,
-                                    reform_dir=c.scenario.reform_dir, share=_energy_share(ctx),
-                                    og_start_year=c.scenario.og_start_year, n=np.asarray(p.tau_c).shape[0],
-                                    fuel=c.electricity_fuel)
-    channels.energy_price(ctx, price_ratio=pr, recycle_revenue_to_transfers=True)
+    # the UN-diluted electricity price ratio path (share=1.0 -> no dilution); the composite applies the
+    # per-industry phi_j to the cost-push leg and the energy-good share to the recycled wedge itself.
+    elec = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir,
+                                      reform_dir=c.scenario.reform_dir, share=1.0,
+                                      og_start_year=c.scenario.og_start_year, n=np.asarray(p.tau_c).shape[0],
+                                      fuel=c.electricity_fuel)
+    _apply_energy_composite(ctx, elec)
     channels.investment(ctx, _public_capex(ctx))
     channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)    # carbon priced on the CLEWS side only here
     channels.health(ctx)

@@ -210,6 +210,13 @@ haircut, and the ITC act on different objects and are not interchangeable.
 - **Cross-env SS+TPI run (`experiments/run_energy_price_comparison.py`):** the 4-way table in §3, on the
   live PHL M=8 multisector baseline (rebuilt on the updated `gamma`/`gamma_g` calibration), all four
   reforms converged (exit 0). Re-run on a calibration change with `OGCLEWS_REBUILD=1`.
+- **Flagship wiring + live-CLEWS validation:** the `coupled` experiment transmits the CLEWS electricity
+  price (the `auto` source) through this composite — `_apply_energy_composite` is shared by `coupled`
+  (real price) and `energy_full` (the +20% stress). A full `coupled` run on the real PHL Base_v8/PEP_v8
+  scenario converged (exit 0); the composite fired cleanly but contributed ≈0 (cost-push `max_haircut 0.0`,
+  wedge `dtau ≈ 1e-16`) because PHL's dual is near-flat — i.e. it degrades correctly on a flat price and
+  will transmit when a real price move is present. NB: `golden[coupled]` should be regenerated (the
+  channel composition changed), though the realized numbers are materially unchanged on the flat dual.
 - **Economics:** the sign decomposition, the `Z ∝ 1/p` mechanics, the SAM 73/25 split, and the
   recycled-wedge consistency check were adversarially verified (6-agent theory pass + a pre-merge
   generality/economics/test audit).
