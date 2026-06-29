@@ -11,7 +11,7 @@ import types
 
 import numpy as np
 
-from ogclews_link import channels, report, signals  # noqa: F401
+from ogclews_link import channels, experiments, report, signals  # noqa: F401
 from ogclews_link.contract import Concordance
 from ogclews_link.country import PHL
 from ogclews_link.framework import ExperimentContext, preflight
@@ -730,6 +730,143 @@ def test_energy_full_composes_costpush_and_wedge():
     share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])
     assert abs((1 + tau[0, I_E]) - (1 + share * 0.20) * (1 + base_tau[0, I_E])) < 1e-9   # final wedge
     assert all(np.allclose(tau[:, i], base_tau[:, i]) for i in range(I) if i != I_E)     # only energy good
+
+
+def _ctx_at(mi, gi):
+    """A ctx whose concordance pins the energy industry/good at arbitrary indices (to prove the channel
+    math is index-driven, not fixed at the fixture's 1)."""
+    return ExperimentContext(country=PHL, concordance=Concordance(energy_industry_index=mi, energy_good_index=gi),
+                             og_reform=_params(), base_tpi=_tpi(1.0))
+
+
+def test_energy_channels_route_at_nonunit_index():
+    # index-INDEPENDENCE at the channel/composite layer: run at energy index 2 (PHL-real shape, not the
+    # fixture default 1) and assert the Z mutation + self-use-zeroing land on column 2, nothing else.
+    ctx = _ctx_at(2, 2)
+    base_Z = np.array(ctx.og_reform.Z)
+    channels.energy_price_tfp(ctx, price_ratio=1.20)
+    Z = np.asarray(ctx.og_reform.Z)
+    assert np.allclose(Z[:, 2], base_Z[:, 2] / 1.20)
+    assert all(np.allclose(Z[:, m], base_Z[:, m]) for m in range(M) if m != 2)
+    ctx2 = _ctx_at(2, 2); bZ = np.array(ctx2.og_reform.Z); btau = np.array(ctx2.og_reform.tau_c)
+    phi = np.full(M, 0.1); phi[2] = 0.5
+    orig = experiments._electricity_intensity
+    experiments._electricity_intensity = lambda c: phi
+    try:
+        experiments.energy_full(ctx2, solve=lambda c: None)
+    finally:
+        experiments._electricity_intensity = orig
+    Z2 = np.asarray(ctx2.og_reform.Z); tau2 = np.asarray(ctx2.og_reform.tau_c)
+    assert np.allclose(Z2[:, 2], bZ[:, 2])                       # electricity self-use zeroed at index 2
+    assert np.allclose(Z2[:, 0], bZ[:, 0] / (1 + 0.1 * 0.20))    # a using industry IS hit
+    assert tau2[0, 2] > btau[0, 2] and np.allclose(tau2[:, 0], btau[:, 0])   # wedge on good index 2 only
+
+
+def test_energy_full_skips_when_not_couplable():
+    # the composite is the couplable headline: no concordance, or no energy_industry/good index -> skip
+    # both legs cleanly (no crash, no mutation). Covers single-industry / fused-electricity countries.
+    for con in (None,
+                Concordance(energy_industry_index=None, energy_good_index=I_E),
+                Concordance(energy_industry_index=M_E, energy_good_index=None)):
+        ctx = ExperimentContext(country=PHL, concordance=con, og_reform=_params(), base_tpi=_tpi(1.0))
+        bZ = np.array(ctx.og_reform.Z); btau = np.array(ctx.og_reform.tau_c)
+        experiments.energy_full(ctx, solve=lambda c: None)       # must not call the SAM or mutate anything
+        assert np.allclose(ctx.og_reform.Z, bZ) and np.allclose(ctx.og_reform.tau_c, btau)
+
+
+def test_energy_full_wedge_only_when_no_sam():
+    # couplable country but the package ships no SAM -> _electricity_intensity None -> cost-push leg skips,
+    # but the (concordance-resolved) final wedge still fires.
+    ctx = _ctx()
+    bZ = np.array(ctx.og_reform.Z); btau = np.array(ctx.og_reform.tau_c)
+    orig = experiments._electricity_intensity
+    experiments._electricity_intensity = lambda c: None
+    try:
+        experiments.energy_full(ctx, solve=lambda c: None)
+    finally:
+        experiments._electricity_intensity = orig
+    assert np.allclose(ctx.og_reform.Z, bZ)                      # cost-push skipped (no intensity)
+    share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])
+    tau = np.asarray(ctx.og_reform.tau_c)
+    assert abs((1 + tau[0, I_E]) - (1 + share * 0.20) * (1 + btau[0, I_E])) < 1e-9   # wedge fired
+
+
+def test_energy_cost_push_rejects_nonpositive_and_collapsing():
+    # symmetric guards: a non-positive ratio, and a price DROP big enough that 1+phi*(r-1)<=0, both raise
+    # and mutate nothing.
+    ctx = _ctx(); bZ = np.array(ctx.og_reform.Z)
+    for pr, phi in ((0.0, np.full(M, 0.1)), (0.1, _collapsing_phi())):
+        raised = False
+        try:
+            channels.energy_cost_push(ctx, price_ratio=pr, electricity_intensity=phi)
+        except ValueError:
+            raised = True
+        assert raised, (pr, phi)
+        assert np.allclose(ctx.og_reform.Z, bZ)
+
+
+def _collapsing_phi():
+    phi = np.zeros(M); phi[M_E] = 2.0    # 1 + 2.0*(0.1-1) = -0.8 <= 0
+    return phi
+
+
+def test_input_intensity_branches():
+    # carrier as a list of codes; the 'no commodity-rows -> fall back to any match' branch; and an
+    # industry the SAM lacks output for (phi=0).
+    import pandas as pd
+
+    from ogclews_link import aggregation
+    idx = ["celec", "cmanu", "aelec", "amanu"]
+    sam = pd.DataFrame(0.0, index=idx, columns=idx)
+    sam.loc["celec", "amanu"] = 20.0; sam.loc["cmanu", "amanu"] = 30.0
+    sam.loc["celec", "aelec"] = 5.0;  sam.loc["cmanu", "aelec"] = 10.0
+    phi_list = aggregation.input_intensity(sam, {"Elec": ["aelec"], "Mfg": ["amanu"]}, carrier=["celec"])
+    assert np.allclose(phi_list, [5.0 / 15.0, 20.0 / 50.0])      # list-of-codes carrier
+    phi_ghost = aggregation.input_intensity(sam, {"Elec": ["aelec"], "Ghost": ["aghost"]})
+    assert phi_ghost[1] == 0.0                                   # industry with no SAM output -> 0
+    sam2 = pd.DataFrame(0.0, index=["aelec", "amanu"], columns=["aelec", "amanu"])
+    sam2.loc["aelec", "amanu"] = 4.0                             # only activity rows (no 'c*' commodity rows)
+    phi_fallback = aggregation.input_intensity(sam2, {"Mfg": ["amanu"]})
+    assert phi_fallback[0] == 1.0                                # crows falls back to the carrier match
+
+
+def test_electricity_intensity_reads_sam_via_registry():
+    # exercise the REAL _electricity_intensity body (registry -> SAM -> input_intensity), which the
+    # composite test stubs out; and the wrong-length -> None degrade.
+    import pandas as pd
+
+    from ogclews_link import discovery, registry
+    sam = pd.DataFrame(0.0, index=["celec", "cmanu", "aelec", "amanu", "aagr", "asrv"],
+                       columns=["celec", "cmanu", "aelec", "amanu", "aagr", "asrv"])
+    sam.loc["celec", "amanu"] = 20.0; sam.loc["cmanu", "amanu"] = 30.0
+    prod4 = {"Elec": ["aelec"], "Mfg": ["amanu"], "Agr": ["aagr"], "Srv": ["asrv"]}   # M=4 == fixture
+    ctx = _ctx()
+    saved = (registry.lookup, registry.package_source_dir, discovery._read_sam, discovery.read_package_dicts)
+    registry.lookup = lambda *a, **k: object()
+    registry.package_source_dir = lambda e: "/nonexistent"
+    discovery._read_sam = lambda src: sam
+    discovery.read_package_dicts = lambda src: (prod4, None)
+    try:
+        phi = experiments._electricity_intensity(ctx)
+        assert phi is not None and phi.shape == (4,) and abs(phi[1] - 20.0 / 50.0) < 1e-9
+        discovery.read_package_dicts = lambda src: ({"A": ["aelec"], "B": ["amanu"]}, None)  # M=2 != 4
+        assert experiments._electricity_intensity(ctx) is None    # wrong length -> None, not a raise
+    finally:
+        registry.lookup, registry.package_source_dir, discovery._read_sam, discovery.read_package_dicts = saved
+
+
+def test_transmissions_touch_disjoint_state():
+    # the Z modes must not touch tau_c, and the tau_c wedge must not touch Z (guards against an accidental
+    # cross-mutation regression that the composite relies on).
+    ctx = _ctx(); btau = np.array(ctx.og_reform.tau_c)
+    channels.energy_price_tfp(ctx, price_ratio=1.20)
+    assert np.allclose(ctx.og_reform.tau_c, btau)
+    ctx2 = _ctx(); btau2 = np.array(ctx2.og_reform.tau_c)
+    channels.energy_cost_push(ctx2, price_ratio=1.20, electricity_intensity=np.full(M, 0.1))
+    assert np.allclose(ctx2.og_reform.tau_c, btau2)
+    ctx3 = _ctx(); bZ3 = np.array(ctx3.og_reform.Z)
+    channels.energy_price(ctx3, price_ratio=1.20)
+    assert np.allclose(ctx3.og_reform.Z, bZ3)
 
 
 def test_energy_price_ratio_auto_selects_dual_without_workbook():

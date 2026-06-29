@@ -93,16 +93,26 @@ def energy_full(ctx, solve):
       - FINAL (consumption): the recycled energy_price wedge raises the energy consumption good by
         electricity's value-share of it (the regressive cost-of-living incidence).
     Reduced-form -- two stacked proxies for the inter-industry channel OG-Core lacks; the exact version
-    is a real use matrix (built from the SAM's observable inter-industry electricity column)."""
+    is a real use matrix (built from the SAM's observable inter-industry electricity column).
+
+    COUPLABILITY GATE: as the coupled headline, the composite requires the country to isolate electricity
+    as its own industry AND good (both concordance ports). When it can't (single-industry M=1, or
+    electricity fused with water), BOTH legs would be ill-defined -- the self-use can't be zeroed and the
+    wedge share is None -- so the whole composite skips cleanly, like the other energy channels. (The
+    standalone energy_cost_push experiment stays SAM-driven / concordance-independent by design.)"""
     con = ctx.concordance
-    phi = _electricity_intensity(ctx)
-    if phi is not None and con is not None and con.energy_industry_index is not None:
+    if con is None or con.energy_industry_index is None or con.energy_good_index is None:
+        ctx.log("energy_full", skipped=True, reason="electricity not isolable -- composite skipped")
+        solve(ctx)
+        return
+    phi = _electricity_intensity(ctx)                 # None (no SAM) -> cost-push leg skips; wedge still fires
+    if phi is not None:
         phi = np.array(phi, dtype=float)
         phi[con.energy_industry_index] = 0.0          # self-use carried by the final wedge, not here
     channels.energy_cost_push(ctx, price_ratio=1.20, electricity_intensity=phi)
-    share = _energy_share(ctx)                        # electricity's value-share of the energy good
-    if share is not None:
-        channels.energy_price(ctx, price_ratio=1.0 + share * 0.20, recycle_revenue_to_transfers=True)
+    # final wedge: +20% on the electricity PORTION of the energy good (share = its io_matrix weight)
+    channels.energy_price(ctx, price_ratio=1.0 + _energy_share(ctx) * 0.20,
+                          recycle_revenue_to_transfers=True)
     solve(ctx)
 
 
