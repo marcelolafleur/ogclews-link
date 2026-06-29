@@ -98,8 +98,12 @@ def run():
     from ogclews_link import experiments, framework, runtime, serde
     from ogclews_link.country import PHL
 
-    cfg = runtime.RunnerConfig(num_workers=7, show_progress=False)
-    print("Exporting (or reusing) the OG baseline once ...")
+    # OGCLEWS_REBUILD=1 forces a fresh baseline solve -- REQUIRED after a calibration update, since the
+    # baseline cache is keyed by {repo}-{version}-{calibration-name} and a same-name content change
+    # (e.g. updated gamma/gamma_g) would otherwise silently reuse the stale baseline.
+    rebuild = os.environ.get("OGCLEWS_REBUILD") == "1"
+    cfg = runtime.RunnerConfig(num_workers=7, show_progress=False, rebuild=rebuild)
+    print(f"Exporting the OG baseline once (rebuild={rebuild}) ...")
     template, base_tpi, base_dir, arrays = runtime.export_baseline(PHL, OUT_ROOT, cfg=cfg)
     base_sol = serde.load_solution(os.path.join(base_dir, "baseline_solution.npz"))
 

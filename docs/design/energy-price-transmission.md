@@ -48,30 +48,34 @@ households through the **same** Leontief consumption bridge `p_i = io_matrix·p_
 
 ## 3. Verified result — the 4-way (PHL M=8, controlled +20%, first-decade-mean % vs baseline)
 
-One solved baseline, four reforms (`experiments/run_energy_price_comparison.py`):
+One solved baseline, four reforms (`experiments/run_energy_price_comparison.py`; baseline on the updated
+PHL calibration — heterogeneous per-industry `gamma` with `gamma_g` carved out):
 
 | transmission | Y | C | K | L | r | w | elec output | energy `pᵢ` | energy consumption |
 |---|---|---|---|---|---|---|---|---|---|
-| `tau_c` | +0.22 | +0.03 | +0.22 | +0.23 | −0.03 | +0.02 | −9.7 | −0.4 | −16.1 |
-| own-`Z` (A) | +0.24 | −0.01 | +0.25 | +0.23 | +0.03 | −0.03 | −6.5 | **+12.3** | −10.7 |
-| cost-push (A′) | **−0.34** | −0.06 | −0.30 | +0.21 | −0.10 | **−0.53** | −1.1 | +1.7 | −1.7 |
-| **composite** (`energy_full`) | **−0.40** | −0.06 | −0.37 | +0.17 | −0.12 | **−0.50** | **−7.6** | −0.3 | **−12.5** |
+| `tau_c` | +0.01 | −0.18 | +0.01 | +0.03 | −0.03 | +0.02 | −10.1 | −0.4 | −16.2 |
+| own-`Z` (A) | +0.04 | −0.21 | +0.05 | +0.03 | +0.03 | −0.03 | −6.8 | **+12.1** | −10.8 |
+| cost-push (A′) | **−0.56** | −0.31 | −0.50 | −0.01 | −0.11 | **−0.53** | −1.3 | +1.6 | −1.9 |
+| **composite** (`energy_full`) | **−0.61** | −0.28 | −0.58 | −0.03 | −0.12 | **−0.51** | **−8.0** | −0.3 | **−12.7** |
 
 ## 4. Why the GDP signs disagree (the economics)
 
 This is the crux, and it is a **structural** consequence of value-added-only production, not a
 calibration slip:
 
-- **`tau_c` (+0.22) and own-`Z` (+0.24) are artifacts.** A `Z` cut on electricity is a negative TFP shock
-  to **one small sector**. There is no inter-industry use matrix, so the cost never reaches the other
-  seven sectors' marginal cost; the freed `K`/`L` reallocate into those unshocked sectors, and the OLG
-  household *factor-supply* response to the higher cost-of-living (work more, save more → `K +0.25`,
-  `L +0.23`) dominates the tiny own-sector efficiency loss. Measured GDP rises **even though welfare
-  falls** (`C`, `w` down). The "+" is a household-supply/reallocation artifact — the **wrong macro sign**
-  for a world where electricity is an intermediate.
-- **Cost-push (A′, −0.34) has the right sign.** A broad, `φⱼ`-weighted productivity loss is a genuine
+- **`tau_c` (+0.01) and own-`Z` (+0.04) are non-contractionary — an artifact.** A `Z` cut on electricity
+  is a negative TFP shock to **one small sector**. There is no inter-industry use matrix, so the cost
+  never reaches the other seven sectors' marginal cost; the freed `K`/`L` reallocate into those unshocked
+  sectors, and the OLG household *factor-supply* response to the higher cost-of-living roughly offsets the
+  tiny own-sector efficiency loss. Measured GDP is ≈**neutral even though welfare clearly falls** —
+  consumption drops (`C −0.18`/`−0.21`) and the energy good is cut hard (`−16.2`/`−10.8`). The point
+  stands: these modes **cannot deliver a contraction**, because the dominant real channel (the
+  intermediate cost-push) is structurally absent. (Under an earlier calibration the same artifact read as
+  a spurious *+0.22*/+0.24; the refined heterogeneous capital shares shrink it to ≈0 — the sign was never
+  economically meaningful either way.)
+- **Cost-push (A′, −0.56) has the right sign.** A broad, `φⱼ`-weighted productivity loss is a genuine
   economy-wide negative supply shock: output falls and the **immobile factor (labor) bears it**
-  (`w −0.53`; capital is cushioned by the partially-open closure, `r −0.10`). This is the textbook
+  (`w −0.53`; capital is cushioned by the partially-open closure, `r −0.11`). This is the textbook
   cost-push incidence — and the channel OG-Core structurally lacks, restored as a reduced-form proxy.
 - **The SAM settles it.** Electricity is 73% intermediate, so the true response is cost-push-dominated →
   **negative**. A′ is directionally right; A/`tau_c` are faithful only to the 25% consumption piece.
@@ -100,10 +104,10 @@ against the equations.)*
             energy_full = cost-push sign  +  household incidence
 ```
 
-Reading the composite row against the singles: GDP **−0.40%** with `w −0.50%` (the A′ cost-push, in fact
+Reading the composite row against the singles: GDP **−0.61%** with `w −0.51%` (the A′ cost-push, in fact
 slightly *deeper* — the wedge does **not** flip the sign positive), **and** the household channel
-restored — electricity output **−7.6%**, energy consumption **−12.5%** — which A′ alone almost entirely
-missed (−1.1 / −1.7).
+restored — electricity output **−8.0%**, energy consumption **−12.7%** — which A′ alone almost entirely
+missed (−1.3 / −1.9).
 
 Two construction choices make it consistent:
 
@@ -115,9 +119,10 @@ Two construction choices make it consistent:
   use matrix (Option B) would. So the zeroing is conservative and keeps the "lower bound" claim honest.
 - **The final wedge is recycled.** A CLEWS price is a *resource cost*, not a levy, so the wedge revenue
   is rebated lump-sum (`recycle_revenue_to_transfers=True`). This removes the phantom government revenue
-  that inflates `tau_c`-alone: the recycled wedge contributes only **~−0.06** to GDP (full −0.40 vs A′
-  −0.34), versus `tau_c`-alone's **+0.22** — direct confirmation that `tau_c`'s positive sign was an
-  unrebated-revenue artifact, not a price effect.
+  that an unrecycled consumption tax invents: the recycled wedge contributes only **~−0.06** to GDP
+  (full −0.61 vs A′ −0.56) — contractionary, as a resource cost should be — whereas `tau_c`-alone (the
+  *unrecycled* tax) reads **+0.01**, its phantom revenue propping the number up. Recycling is what keeps
+  the composite's sign honest.
 
 The final wedge is sized `price_ratio = 1 + share·0.20`, where `share = io_matrix[energy_good,
 energy_industry]` is electricity's **io_matrix (Leontief) weight in the energy consumption good** — for
@@ -163,7 +168,7 @@ PHL-specific position.
 1. **It is a reduced-form composite** — two stacked `Z`/`tau_c` proxies for a channel OG-Core lacks. A
    `Z` haircut conflates "costlier input" with "less productive" and has **no factor substitution** away
    from dear electricity, and no intermediate *quantity* to reconcile with CLEWS supply.
-2. **`−0.40%` is a lower bound.** The first-order `φⱼ` haircut omits the Leontief-inverse `(I−B′)⁻¹`
+2. **The `−0.61%` is a lower bound.** The first-order `φⱼ` haircut omits the Leontief-inverse `(I−B′)⁻¹`
    upstream amplification (a sector also buys electricity-intensive inputs from other sectors), so the
    true contraction is somewhat larger.
 
@@ -203,7 +208,8 @@ haircut, and the ITC act on different objects and are not interchangeable.
   couplable** (wedge-only when no SAM); the three modes touch **disjoint state** (Z modes leave `tau_c`,
   the wedge leaves `Z`). All green (suite 126 pass / 1 skip).
 - **Cross-env SS+TPI run (`experiments/run_energy_price_comparison.py`):** the 4-way table in §3, on the
-  live PHL M=8 multisector baseline (reused from cache), all four reforms converged (exit 0).
+  live PHL M=8 multisector baseline (rebuilt on the updated `gamma`/`gamma_g` calibration), all four
+  reforms converged (exit 0). Re-run on a calibration change with `OGCLEWS_REBUILD=1`.
 - **Economics:** the sign decomposition, the `Z ∝ 1/p` mechanics, the SAM 73/25 split, and the
   recycled-wedge consistency check were adversarially verified (6-agent theory pass + a pre-merge
   generality/economics/test audit).
