@@ -57,6 +57,53 @@ def test_index_renders():
     assert os.path.isfile(out) and "summary_table.png" in open(out).read()
 
 
+def _fake_cache(root, tag, concordance=None):
+    """A minimal selectable baseline cache: _discover_baseline_cache only isfile-checks these."""
+    cache = os.path.join(root, "_og_baseline_cache", tag)
+    os.makedirs(os.path.join(cache, "SS"))
+    open(os.path.join(cache, "model_params.pkl"), "wb").write(b"x")
+    open(os.path.join(cache, "SS", "SS_vars.pkl"), "wb").write(b"x")
+    if concordance is not None:
+        import json
+        with open(os.path.join(cache, "baseline_meta.json"), "w") as f:
+            json.dump({"concordance": concordance}, f)
+    return cache
+
+
+def test_discover_baseline_cache_walks_up():
+    """The cache lives at the run root; the experiment dir may be nested below it (any country/model)."""
+    from ogclews_link.viz import build
+    root = tempfile.mkdtemp()
+    cache = _fake_cache(root, "og-x-1.0-calib")
+    coupled = os.path.join(root, "coupled"); os.makedirs(coupled)        # cache one level up
+    assert build._discover_baseline_cache(coupled, {}) == cache
+    deep = os.path.join(root, "exp", "exp"); os.makedirs(deep)            # cache two levels up
+    assert build._discover_baseline_cache(deep, {}) == cache
+    assert build._discover_baseline_cache(tempfile.mkdtemp(), {}) is None  # none present -> None
+
+
+def test_discover_baseline_cache_matches_concordance():
+    """With several caches, prefer the one whose baseline_meta concordance matches the run manifest."""
+    from ogclews_link.viz import build
+    root = tempfile.mkdtemp()
+    want = {"energy_industry_index": 2, "energy_good_index": 1, "unavailable": {}}
+    _fake_cache(root, "og-x-1.0-other", concordance={"energy_good_index": 9})
+    match = _fake_cache(root, "og-x-1.0-match", concordance=want)
+    coupled = os.path.join(root, "coupled"); os.makedirs(coupled)
+    assert build._discover_baseline_cache(coupled, {"concordance": want}) == match
+
+
+def test_coupled_run_missing_inputs_raise():
+    """The bridge fails loud (no silent empty deck) when the reform or baseline is absent."""
+    from ogclews_link.viz import build
+    from ogclews_link.country import PHL
+    try:
+        build.build_deck_from_coupled_run(tempfile.mkdtemp(), PHL)  # empty: no reform/, no cache
+        raise AssertionError("expected SystemExit for a run with no reform/")
+    except SystemExit:
+        pass
+
+
 if __name__ == "__main__":
     for _name, _fn in sorted(globals().items()):
         if _name.startswith("test_") and callable(_fn):

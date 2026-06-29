@@ -43,20 +43,8 @@ def main():
             layered.append({"step": label, "error": ctx.extras.get("error", "did not solve")})
             print(f"\n>>> {label}: DID NOT SOLVE ({ctx.extras.get('error')})")
             continue
-        macro = report.macro_pct_diff(ctx.base_tpi, ctx.reform_tpi)
-        fc = report.fiscal_check(ctx.base_tpi, ctx.reform_tpi)
-        row = {
-            "step": label,
-            "macro": {k: round(float(np.nanmean(v)), 3) for k, v in macro.items()},
-            "fiscal": {k: round(float(v), 4) for k, v in fc.items()},
-            "channels": [r.get("channel") for r in ctx.provenance],
-        }
-        if ie is not None:                       # energy good isolated -> add the energy-good rows
-            inc = report.incidence(ctx.base_tpi, ctx.reform_tpi, ie)
-            dC = report.demand_response(ctx.base_tpi, ctx.reform_tpi, ie)
-            row["energy_demand_pct"] = round(float(np.nanmean(dC[:10])), 2)
-            row["consumption_by_J"] = [round(float(x), 2) for x in inc["consumption_by_J"]]
-            row["energy_by_J"] = [round(float(x), 2) for x in inc["energy_by_J"]]
+        row = report.layered_entry(label, ctx.base_tpi, ctx.reform_tpi, energy_good_index=ie,
+                                    channels=[r.get("channel") for r in ctx.provenance])
         layered.append(row)
         _energy = f"energy {row['energy_demand_pct']}% | " if ie is not None else ""
         print(f"\n>>> {label}: {_energy}GDP {row['macro'].get('Y')}% | "

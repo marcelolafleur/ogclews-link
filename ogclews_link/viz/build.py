@@ -121,19 +121,19 @@ def _default_gbd_csv(run_dir, country):
     return sorted(hits)[0] if hits else (getattr(country, "gbd_burden_csv", None) or None)
 
 
-def _tpi(run_dir, label):
-    p = os.path.join(run_dir, label, "TPI", "TPI_vars.pkl")
-    return safe_read_pickle(p) if label and os.path.isfile(p) else None
+def _tpi(d):
+    p = os.path.join(d, "TPI", "TPI_vars.pkl") if d else None
+    return safe_read_pickle(p) if p and os.path.isfile(p) else None
 
 
-def _params(run_dir, label):
-    p = os.path.join(run_dir, label, "model_params.pkl")
-    return safe_read_pickle(p) if label and os.path.isfile(p) else None
+def _params(d):
+    p = os.path.join(d, "model_params.pkl") if d else None
+    return safe_read_pickle(p) if p and os.path.isfile(p) else None
 
 
-def _ss(run_dir, label):
-    p = os.path.join(run_dir, label, "SS", "SS_vars.pkl")
-    return safe_read_pickle(p) if label and os.path.isfile(p) else None
+def _ss(d):
+    p = os.path.join(d, "SS", "SS_vars.pkl") if d else None
+    return safe_read_pickle(p) if p and os.path.isfile(p) else None
 
 
 def _start_year(base_dir, country, default=2026):
@@ -158,13 +158,13 @@ def _slug(label):
     return label.strip().lstrip("+ ").replace(" ", "_") or "step"
 
 
-def _run_concordance(run_dir):
+def _run_concordance(base_dir):
     """The PER-RUN energy-port concordance the OG runner discovered + exported next to the baseline
-    (`<run_dir>/baseline/baseline_meta.json`). Returns a contract.Concordance, or None when the run
-    predates the export or solved at a single industry -- callers then degrade to no energy marker."""
+    (`<base_dir>/baseline_meta.json`). Returns a contract.Concordance, or None when the run predates
+    the export or solved at a single industry -- callers then degrade to no energy marker."""
     from ogclews_link.contract import Concordance
-    meta_path = os.path.join(run_dir, "baseline", "baseline_meta.json")
-    if not os.path.isfile(meta_path):
+    meta_path = os.path.join(base_dir, "baseline_meta.json") if base_dir else None
+    if not meta_path or not os.path.isfile(meta_path):
         return None
     try:
         with open(meta_path, encoding="utf-8") as f:
@@ -174,10 +174,13 @@ def _run_concordance(run_dir):
         return None
 
 
-def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, note=DEFAULT_NOTE,
-                  illustrative=True):
-    """Rebuild the full figure set for `country` from the solved pickles under `run_dir`,
-    writing to `fig_dir`. `headline_step` None -> auto-detect (last layered step).
+def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step=None,
+                 gbd_csv=None, note=DEFAULT_NOTE, illustrative=True):
+    """Render the full figure deck + index, resolving each role (``"baseline"`` and the step
+    labels) to a solved-pickle directory through the ``dir_of(label) -> dir`` callable. This is
+    the layout-agnostic core: the across-steps driver and the coupled-run bridge differ only in
+    how they map labels to directories, so any country/model that produces a (baseline, reform)
+    pair can be visualized -- nothing about the on-disk layout is assumed here.
 
     `illustrative` (default True) is the single switch for the placeholder phase: while True the
     charts carry the short caveat and the unit-labelled "model units" disclosures; flip it to False
@@ -187,13 +190,11 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     # run is calibrated (illustrative=False), so the caveat language lives in ONE place.
     full_note = note if illustrative else ""
     note = FIG_CAVEAT if illustrative else ""
-    conc = _run_concordance(run_dir)              # per-run energy ports (None / unset -> no energy marker)
+    base_dir = dir_of("baseline")
+    conc = _run_concordance(base_dir)             # per-run energy ports (None / unset -> no energy marker)
     ie = conc.energy_good_index if conc is not None else None
-    with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
-        layered = json.load(f)
     if headline_step is None:
         headline_step = _default_headline(layered)
-    print(f"regen: read {run_dir}\n       write {fig_dir}")
     print(f"       country {country.name}   headline {headline_step!r}")
     print(f"       gbd  {gbd_csv if gbd_csv and os.path.isfile(gbd_csv) else '(none -- health profiles skipped)'}")
 
@@ -204,21 +205,20 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     _try(report.write_html_report, layered, os.path.join(fig_dir, "report.html"))
 
     # --- OG-Core's own canonical suite (free reference set) for the headline reform ----
-    base_dir = os.path.join(run_dir, "baseline")
-    headline_dir = os.path.join(run_dir, headline_step) if headline_step else None
+    headline_dir = dir_of(headline_step)
     if headline_dir and os.path.isdir(headline_dir):
         _try(plots.og_default_outputs, base_dir, headline_dir,
              os.path.join(fig_dir, "og_suite"), plots=True)
 
-    base_tpi = _tpi(run_dir, "baseline")
-    base_ss = _ss(run_dir, "baseline")  # also feeds the CEV/distribution/composition figures below
+    base_tpi = _tpi(base_dir)
+    base_ss = _ss(base_dir)  # also feeds the CEV/distribution/composition figures below
     factor = float(base_ss["factor"]) if base_ss and "factor" in base_ss else None
     start_year = _start_year(base_dir, country)
 
     # --- editorial transition-path figures for the headline reform --------------
-    base_params = _params(run_dir, "baseline")        # also feeds closure marker, energy, health, welfare
-    headline_params = _params(run_dir, headline_step)
-    headline_tpi = _tpi(run_dir, headline_step)
+    base_params = _params(base_dir)                   # also feeds closure marker, energy, health, welfare
+    headline_params = _params(headline_dir)
+    headline_tpi = _tpi(headline_dir)
     if base_tpi is not None and headline_tpi is not None:
         for fn in (plots.macro_transition, plots.fiscal_transition,
                    plots.revenue_transition, plots.rates_transition,
@@ -230,7 +230,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     # The energy-price channel's applied wedge = the FIRST reform step's params (the +20% energy-price
     # proxy), so the flagship compares the CLEWS energy-price ratio to the wedge that channel actually
     # applied -- not the headline's cumulative energy+carbon wedge.
-    ep_params = _params(run_dir, layered[0]["step"]) if layered else None
+    ep_params = _params(dir_of(layered[0]["step"])) if layered else None
     ep_ref = ep_params if ep_params is not None else headline_params
     if base_params is not None and ep_ref is not None:
         _try(plots.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note,
@@ -250,7 +250,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     _try(plots.gdp_split, layered, fig_dir, note=note, illustrative=illustrative)
 
     # --- welfare: consumption-equivalent variation (CEV) ------------------------
-    headline_ss = _ss(run_dir, headline_step)  # base_ss loaded once above
+    headline_ss = _ss(headline_dir)  # base_ss loaded once above
     if None not in (base_ss, headline_ss, base_params, headline_params):
         _try(plots.cev_by_group, base_ss, headline_ss, base_params, headline_params,
              fig_dir, note=note)
@@ -299,7 +299,7 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
         label = r.get("step")
         if "macro" not in r or label == "baseline":
             continue
-        reform_tpi = _tpi(run_dir, label)
+        reform_tpi = _tpi(dir_of(label))
         if base_tpi is None or reform_tpi is None:
             print(f"  (skip incidence for {label!r}: pickle missing)")
             continue
@@ -310,17 +310,130 @@ def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, not
     print(f"Regenerated top-level figures in {fig_dir}/ + incidence for: {made}")
 
     # --- scenario entry point: one index.html at the run-dir root linking the whole deck --------
-    index = _try(report.write_index, fig_dir, os.path.join(run_dir, "index.html"),
+    index = _try(report.write_index, fig_dir, index_path,
                  _INDEX_SECTIONS, country=country, note=full_note)
     if index:
         print(f"Wrote scenario index -> {index}")
+
+
+def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, note=DEFAULT_NOTE,
+                  illustrative=True):
+    """Rebuild the full figure set from a solved ACROSS-STEPS tree under `run_dir` (``baseline/`` +
+    per-step dirs + ``layered_results.json``), writing to `fig_dir`. A thin wrapper over
+    `_render_deck` that just resolves the on-disk across-steps layout; `headline_step` None ->
+    auto-detect (last layered step)."""
+    with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
+        layered = json.load(f)
+    print(f"regen: read {run_dir}\n       write {fig_dir}")
+    _render_deck(country, lambda label: os.path.join(run_dir, label) if label else None,
+                 layered, fig_dir, os.path.join(run_dir, "index.html"),
+                 headline_step=headline_step, gbd_csv=gbd_csv, note=note, illustrative=illustrative)
+
+
+def _read_manifest(coupled_dir):
+    """The `ogclews_manifest.json` a `run coupled` writes (concordance, channels, scenario, model)."""
+    p = os.path.join(coupled_dir, "ogclews_manifest.json")
+    if not os.path.isfile(p):
+        return {}
+    with open(p, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _discover_baseline_cache(coupled_dir, manifest):
+    """Locate the cached baseline solve for a coupled run -- general, no hardcoded cache tag. The
+    runner writes it to ``<run-root>/_og_baseline_cache/<og-pkg>-<ver>-<calib>/``; the run root is
+    some ancestor of the experiment dir, so walk up looking for it, and, when several caches exist,
+    keep those whose `baseline_meta.json` concordance matches the run's manifest, newest first."""
+    cands, d = [], coupled_dir
+    for _ in range(4):                       # the cache lives at the run root, an ancestor of this dir
+        cands += glob.glob(os.path.join(d, "_og_baseline_cache", "*"))
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    cands = [c for c in cands if os.path.isfile(os.path.join(c, "model_params.pkl"))
+             and os.path.isfile(os.path.join(c, "SS", "SS_vars.pkl"))]
+    if len(cands) <= 1:
+        return cands[0] if cands else None
+    want = manifest.get("concordance")
+
+    def _meta_conc(c):
+        try:
+            with open(os.path.join(c, "baseline_meta.json"), encoding="utf-8") as f:
+                return json.load(f).get("concordance")
+        except (OSError, ValueError):
+            return None
+    matched = [c for c in cands if want and _meta_conc(c) == want] or cands
+    return max(matched, key=os.path.getmtime)
+
+
+def _note_from_manifest(manifest):
+    """Honest caveat for a coupled run: the electricity price is the REAL CLEWS signal (not a +20%
+    stand-in); carbon/investment magnitudes are still uncalibrated and carbon revenue is unrecycled."""
+    name = (manifest.get("scenario") or {}).get("name") or "the CLEWS scenario"
+    return (f"Coupled run: electricity price from {name} (the CLEWS signal, not a +20% stand-in); "
+            "carbon and investment magnitudes uncalibrated; carbon-tax revenue not recycled.")
+
+
+def build_deck_from_coupled_run(coupled_dir, country, *, fig_dir=None, gbd_csv=None,
+                                step_label=None, note=None, illustrative=True):
+    """Build the full rich deck from ONE solved `run coupled` output dir, with NO new solve.
+
+    General over country/model: the baseline is the run's own cached solve and the single reform is
+    the coupled reform already on disk; the energy concordance and applied channels are READ from the
+    run's manifest + baseline_meta.json. Nothing country- or path-specific is hardcoded. Figures that
+    need a baseline+reform pair (macro/fiscal/welfare/health/distribution/composition) are the genuine
+    current-calibration deck; the across-steps multi-bar waterfall is intentionally omitted (it needs
+    >=2 solved steps to span), so for the layered view only the single-row summary table renders."""
+    coupled_dir = os.path.abspath(coupled_dir)
+    manifest = _read_manifest(coupled_dir)
+    # The run records the country it was solved for; --country is an override -> warn on a mismatch
+    # so a wrong --country can't silently render one country's labels over another's pickles.
+    m_country = manifest.get("un_code") or manifest.get("country")
+    if m_country and str(m_country) not in (str(country.un_code), country.name):
+        print(f"  [warn] --country {country.name}/{country.un_code} != the run's manifest "
+              f"({m_country}); rendering with the passed-in country")
+    reform_dir = os.path.join(coupled_dir, "reform")
+    base_dir = _discover_baseline_cache(coupled_dir, manifest)
+    if not os.path.isdir(reform_dir):
+        raise SystemExit(f"no reform/ under {coupled_dir}")
+    if base_dir is None:
+        raise SystemExit(f"no cached baseline solve found for {coupled_dir} "
+                         "(looked under <run-root>/_og_baseline_cache/*)")
+    base_tpi, reform_tpi = _tpi(base_dir), _tpi(reform_dir)
+    if base_tpi is None or reform_tpi is None:
+        raise SystemExit("baseline or reform TPI pickle missing -- cannot build the deck")
+    # Energy good: the baseline's exported concordance (baseline_meta.json) is the single source --
+    # _render_deck re-derives the SAME value for the marker/incidence, so the layered row's energy
+    # rows and the deck's energy figures stay consistent (no separate manifest fallback to diverge).
+    conc = _run_concordance(base_dir)
+    ie = conc.energy_good_index if conc is not None else None
+    channels = [c.get("id") for c in manifest.get("channels", [])]
+    label = step_label or (manifest.get("experiment") or {}).get("name") or "reform"
+    if label == "baseline":                  # reserved role name -> keep the reform step distinct
+        label = "reform"
+    layered = [report.layered_entry(label, base_tpi, reform_tpi,
+                                    energy_good_index=ie, channels=channels)]
+
+    def dir_of(which):
+        return base_dir if which == "baseline" else (reform_dir if which == label else None)
+
+    fig_dir = fig_dir or os.path.join(coupled_dir, "figures")
+    gbd_csv = gbd_csv or _default_gbd_csv(coupled_dir, country)
+    note = _note_from_manifest(manifest) if note is None else note
+    print(f"coupled-deck: read {coupled_dir}\n       baseline {base_dir}\n       write {fig_dir}")
+    _render_deck(country, dir_of, layered, fig_dir, os.path.join(coupled_dir, "index.html"),
+                 headline_step=label, gbd_csv=gbd_csv, note=note, illustrative=illustrative)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--country", help="country model to visualize (default: phl)")
-    ap.add_argument("--run-dir", help="input solved across-steps tree (read-only)")
+    src = ap.add_mutually_exclusive_group()   # one input layout or the other, not both
+    src.add_argument("--run-dir", help="input solved across-steps tree (read-only)")
+    src.add_argument("--coupled-run", help="build the deck from a single solved `run coupled` output "
+                                           "dir (uses its cached baseline + reform; no new solve)")
     ap.add_argument("--fig-dir", help="output dir for figures (viz-local)")
     ap.add_argument("--gbd-csv", help="IHME GBD burden CSV for health age-profile figures")
     ap.add_argument("--headline-step", help="reform step for transition/welfare/dashboard figures "
@@ -331,6 +444,21 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     country = _resolve_country(_resolve(args.country, "OGCLEWS_COUNTRY", DEFAULT_COUNTRY))
+    illustrative = not args.calibrated
+
+    # A single coupled run (the live `run coupled` output): build the deck off its cached baseline +
+    # reform, no new solve. fig-dir/gbd-csv None -> the function defaults them under the coupled dir;
+    # note None -> a manifest-derived caveat (the energy price is the real CLEWS signal).
+    coupled = _resolve(args.coupled_run, "OGCLEWS_COUPLED_RUN", None)
+    if coupled:
+        build_deck_from_coupled_run(
+            coupled, country,
+            fig_dir=_resolve(args.fig_dir, "OGCLEWS_FIG_DIR", None),
+            gbd_csv=_resolve(args.gbd_csv, "OGCLEWS_GBD_CSV", None),
+            note=_resolve(args.note, "OGCLEWS_NOTE", None),
+            illustrative=illustrative)
+        return
+
     run_dir = _resolve(args.run_dir, "OGCLEWS_RUN_DIR", SHARED_RUN)
     # Default: write figures INTO the run/scenario directory (organized under figures/), so a
     # MUIOGO-OG run's results and its visuals live together. Override --fig-dir for viz iteration.
@@ -339,7 +467,6 @@ def main(argv=None):
     note = _resolve(args.note, "OGCLEWS_NOTE", DEFAULT_NOTE)
     headline_step = _resolve(args.headline_step, "OGCLEWS_HEADLINE_STEP", None)  # None -> auto-detect
 
-    illustrative = not args.calibrated
     build_figures(country, run_dir, fig_dir, gbd_csv, headline_step=headline_step, note=note,
                   illustrative=illustrative)
 
