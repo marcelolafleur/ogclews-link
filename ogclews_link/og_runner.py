@@ -343,6 +343,12 @@ def _continuation_reform(a, gamma_base, overrides, demog_spec, ss, show_progress
     shutil.copyfile(os.path.join(good_dir, "SS", "SS_vars.pkl"),
                     os.path.join(a.reform_dir, "SS", "SS_vars.pkl"))
     r_final = build_step(gamma_reform, a.reform_dir, a.baseline_dir)   # full reform; SS read from reform_dir
+    # This is the hardest reform in the battery by construction (the largest gamma shift). Its transition
+    # path limit-cycles at the multisector calibration's nu=0.2 (observed: TPIdist plateaus ~0.86, never
+    # reaching mindist). Damp the TPI update harder than the calibration default and grant more iterations
+    # so the more-damped (slower) path has room to settle. Scoped to the continuation reform only.
+    r_final.nu = min(float(getattr(r_final, "nu", 0.2)), 0.1)
+    r_final.maxiter = max(int(getattr(r_final, "maxiter", 250)), 500)
     with open(os.path.join(a.reform_dir, "model_params.pkl"), "wb") as f:
         cloudpickle.dump(r_final, f)
     if ss:
