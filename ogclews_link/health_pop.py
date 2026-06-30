@@ -2,7 +2,11 @@
 excess-deaths target may be NEGATIVE (lives saved -- the cleaner-air / pollution direction) as well
 as positive (the HIV / disease-burden direction the published code handles).
 
-    rho(s,t) = rho0(s,t) + shock_scale * h(s) * (t+1)/phase_years        (clipped to [0, 1])
+    rho(s,t) = rho0(s,t) + shock_scale * h(s) * t/phase_years          (clipped to [0, 1])
+
+for the ``phase_years`` MODEL years, where ``t`` runs 1..phase_years. The rate arrays carry a leading
+PRE-PERIOD row (year start_year-1, the ogcore data window's first row) that is NEVER shocked -- you
+cannot shock history -- so the ramp lands on rows 1..phase_years and row 0 stays at the baseline rate.
 
 ``shock_scale`` is solved so the realized year-``phase_years`` excess deaths equal the (signed)
 target; then the population path is recomputed with the built-in ``ogcore.demographics.get_pop_objs``.
@@ -36,7 +40,14 @@ def calibrate_shock_scale(target, pop_dist, fert, mort, infmort, imm, profile, p
     """Solve the additive age-profile shock scale that hits a SIGNED year-``phase_years``
     excess-deaths target. ``target > 0`` adds deaths (positive scale); ``target < 0`` saves lives
     (negative scale); ``target == 0`` is a no-op. Returns ``(shock_scale, shocked_mortality_path)``.
-    Pure -- no ogcore. Robust to a non-monotone gap (see module docstring)."""
+    Pure -- no ogcore. Robust to a non-monotone gap (see module docstring).
+
+    The mortality arrays carry a LEADING PRE-PERIOD row (year start_year-1): row 0 is the pre-period
+    and is NEVER shocked, and the ramp covers the ``phase_years`` MODEL years on rows 1..phase_years
+    (so ``mort`` has ``phase_years + 1`` rows). The target is the realized excess at the LAST model
+    year (row ``phase_years``); deaths are iterated over ``phase_years + 1`` years so the unshocked
+    pre-period contributes identically to the baseline and shocked paths and cancels out of the
+    marginal."""
     from scipy.optimize import brentq
 
     profile = np.asarray(profile, dtype=float)
@@ -44,17 +55,20 @@ def calibrate_shock_scale(target, pop_dist, fert, mort, infmort, imm, profile, p
         raise ValueError("disease_pop: profile must be a finite, nonnegative 1-D age shape "
                          "(a negative h(s) would let the shock add deaths where it should remove them).")
     ny = phase_years
-    base_d = total_deaths_fn(pop_dist, fert, mort, infmort, imm, num_years=ny)[ny - 1].sum()
+    nyears = ny + 1                                   # 1 pre-period row + ny model-year rows
+    base_d = total_deaths_fn(pop_dist, fert, mort, infmort, imm, num_years=nyears)[ny].sum()
 
     def shock_path(scale):
         alt = mort.copy()
-        for t in range(ny):
-            alt[t, :] = np.clip(mort[t, :] + scale * profile * ((t + 1) / ny), 0.0, 1.0)
+        # row 0 = pre-period (start_year-1): left UNSHOCKED -- you can't shock history. The ramp lands
+        # on the ny model-year rows 1..ny, reaching full strength at the last model year.
+        for t in range(1, nyears):
+            alt[t, :] = np.clip(mort[t, :] + scale * profile * (t / ny), 0.0, 1.0)
         return alt
 
-    def gap(scale):  # realized year-ny excess deaths minus the target (root at gap == 0)
-        d = total_deaths_fn(pop_dist, fert, shock_path(scale), infmort, imm, num_years=ny)
-        return d[ny - 1].sum() - base_d - target
+    def gap(scale):  # realized year-ny (last MODEL year) excess deaths minus the target (root at gap == 0)
+        d = total_deaths_fn(pop_dist, fert, shock_path(scale), infmort, imm, num_years=nyears)
+        return d[ny].sum() - base_d - target
 
     if target == 0:
         return 0.0, shock_path(0.0)
@@ -88,21 +102,29 @@ def calibrate_shock_scale(target, pop_dist, fert, mort, infmort, imm, profile, p
         f"(max ~= {best_excess:+,.0f}); the age shape cannot reach it even fully saturated.")
 
 
-def disease_pop(p, aux, excess_deaths, profile, phase_years=5, un_country_code="608"):
+def disease_pop(p, aux, excess_deaths, profile, phase_years=5, *, un_country_code):
     """Recompute the population under a (signed) excess-deaths age-profile mortality shock.
 
     ``aux`` is the stashed baseline demographic dict (pop_dist, fert_rates, mort_rates, infmort_rates,
-    imm_rates; ``pre_pop_dist`` may be present for the legacy return contract but is unused since
-    ogcore 0.16.3 dropped it). Returns ``(pop_dict, shock_scale)``: the pop_dict goes straight into
-    ``p.update_specifications(...)`` before solving, exactly as CostOfDisease/main.py does.
-    """
+    imm_rates) produced by :func:`ogclews_link._demog.baseline_pop`. Because that wrapper now uses
+    ogcore's window convention, the FIRST row of every rate array is the PRE-PERIOD year
+    (start_year-1) and ``aux["pop_dist"][0]`` is that pre-period population row. Returns
+    ``(pop_dict, shock_scale)``: the pop_dict goes straight into ``p.update_specifications(...)`` before
+    solving, exactly as CostOfDisease/main.py does.
+
+    The get_pop_objs call passes the SHOCKED mortality (so it stays a pass-rates inference), aligned to
+    ogcore's convention: ``initial_data_year = start_year - 1`` (the pre-period), ``final_data_year =
+    start_year + ny - 1``, giving ``T0 = ny + 1`` data rows -- exactly the leading pre-period row plus
+    the ``ny`` model years. The rate arrays are extrapolated to that T0; ``calibrate_shock_scale``
+    leaves the pre-period row unshocked and ramps the ny model years."""
     from ogcore import demographics
 
     ny = int(phase_years)
-    fert = extrapolate_demographics(np.asarray(aux["fert_rates"], dtype=float), ny)
-    mort = extrapolate_demographics(np.asarray(aux["mort_rates"], dtype=float), ny)
-    imm = extrapolate_demographics(np.asarray(aux["imm_rates"], dtype=float), ny)
-    infmort = extrapolate_demographics(np.asarray(aux["infmort_rates"], dtype=float), ny)
+    nyears = ny + 1                                   # T0 = ny model years + 1 leading pre-period row
+    fert = extrapolate_demographics(np.asarray(aux["fert_rates"], dtype=float), nyears)
+    mort = extrapolate_demographics(np.asarray(aux["mort_rates"], dtype=float), nyears)
+    imm = extrapolate_demographics(np.asarray(aux["imm_rates"], dtype=float), nyears)
+    infmort = extrapolate_demographics(np.asarray(aux["infmort_rates"], dtype=float), nyears)
     pop_dist = np.asarray(aux["pop_dist"], dtype=float)
 
     h = np.asarray(profile, dtype=float)
@@ -113,13 +135,15 @@ def disease_pop(p, aux, excess_deaths, profile, phase_years=5, un_country_code="
     scale, alt_mort = calibrate_shock_scale(
         float(excess_deaths), pop_dist, fert, mort, infmort, imm, h, ny, total_deaths)
 
-    # ogcore 0.16.3: get_pop_objs no longer accepts pre_pop_dist. Seed the population inference with the
-    # actual start_year UN row (pop_dist[:1, :], infer_pop=True) -- identical seed to baseline_pop; ogcore
-    # infers forward over the ny-year window using the SHOCKED mort path, so the baseline-vs-shock
-    # marginal stays a pure mortality difference (same window, same rate-shaping, only mort_rates differs).
+    # ogcore convention: initial_data_year = start_year - 1 (the pre-period row), final_data_year =
+    # start_year + ny - 1 -> T0 = ny + 1 = the leading pre-period row plus the ny model years -- the
+    # SAME window baseline_pop uses, extended over the shock phase. Seed the inference with pop_dist's
+    # leading (start_year-1) row, identical to baseline_pop's seed, and feed the SHOCKED mort path; the
+    # baseline-vs-shock marginal stays a pure mortality difference (same window, same seed, only
+    # mort_rates differs -- and only on the ny model rows, since the pre-period row 0 is unshocked).
     pop_dict = demographics.get_pop_objs(
         p.E, p.S, p.T, 0, 99, country_id=un_country_code,
         fert_rates=fert, mort_rates=alt_mort, infmort_rates=infmort, imm_rates=imm,
         infer_pop=True, pop_dist=pop_dist[:1, :],
-        initial_data_year=p.start_year, final_data_year=p.start_year + ny - 1, GraphDiag=False)
+        initial_data_year=p.start_year - 1, final_data_year=p.start_year + ny - 1, GraphDiag=False)
     return pop_dict, scale

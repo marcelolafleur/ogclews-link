@@ -339,23 +339,27 @@ def test_disease_pop_bidirectional_calibration():
     # (no external-path skip).
     from ogclews_link import _demog, health_pop, health_profile
 
+    # ny model years + 1 leading PRE-PERIOD row (start_year-1): calibrate_shock_scale leaves row 0
+    # unshocked and ramps rows 1..ny, measuring the realized excess at the last model year (row ny).
     nage, ny = 100, 5
+    nrows = ny + 1
     s = np.arange(nage)
-    mort = np.tile(0.001 + 0.004 * (s / 99.0) ** 3, (ny, 1))      # rises with age, in (0,1)
-    fert = np.zeros((ny, nage)); fert[:, 15:45] = 0.05
-    imm = np.zeros((ny, nage))
-    infmort = np.full(ny, 0.02)
+    mort = np.tile(0.001 + 0.004 * (s / 99.0) ** 3, (nrows, 1))   # rises with age, in (0,1)
+    fert = np.zeros((nrows, nage)); fert[:, 15:45] = 0.05
+    imm = np.zeros((nrows, nage))
+    infmort = np.full(nrows, 0.02)
     pop = (1e6 * np.exp(-s / 50.0))[None, :]                       # (1, nage)
     h = health_profile.placeholder_profile(nage)
-    base = _demog.total_deaths(pop, fert, mort, infmort, imm, num_years=ny)[ny - 1].sum()
+    base = _demog.total_deaths(pop, fert, mort, infmort, imm, num_years=nrows)[ny].sum()
 
     for target in (+5000.0, -5000.0):
         scale, path = health_pop.calibrate_shock_scale(
             target, pop, fert, mort, infmort, imm, h, ny, _demog.total_deaths)
-        realized = _demog.total_deaths(pop, fert, path, infmort, imm, num_years=ny)[ny - 1].sum() - base
+        realized = _demog.total_deaths(pop, fert, path, infmort, imm, num_years=nrows)[ny].sum() - base
         assert (scale > 0) == (target > 0), (target, scale)        # scale sign tracks target sign
         assert abs(realized - target) < 1.0, (target, realized)    # brentq hit the signed target
         assert path.min() >= 0.0 and path.max() <= 1.0             # clip floor + ceiling respected
+        assert np.array_equal(path[0], mort[0])                    # pre-period row 0 stays UNSHOCKED
 
 
 def test_disease_pop_nonmonotone_bracketing():
@@ -367,9 +371,11 @@ def test_disease_pop_nonmonotone_bracketing():
     # infeasibility. Driven by a controlled non-monotone total_deaths so the curve shape is exact.
     from ogclews_link import health_pop
 
+    # ny model years + 1 leading pre-period row; the ramp reaches full strength on the last row (t/ny=1).
     nage, ny = 8, 3
-    mort = np.full((ny, nage), 0.10)
-    fert = np.zeros((ny, nage)); imm = np.zeros((ny, nage)); infmort = np.zeros(ny)
+    nrows = ny + 1
+    mort = np.full((nrows, nage), 0.10)
+    fert = np.zeros((nrows, nage)); imm = np.zeros((nrows, nage)); infmort = np.zeros(nrows)
     pop = np.full((1, nage), 1.0)
     h = np.ones(nage)                                             # so mean(final-row shock) == 0.1 + scale
 

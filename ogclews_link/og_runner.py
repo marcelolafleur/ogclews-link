@@ -107,7 +107,7 @@ def _update_demographics(p, un_code, cache_dir):
     guard = sys.stdin
     sys.stdin = io.StringIO("")     # ogcore's get_un_data input()-prompts for a UN token; EOF -> github backup
     try:
-        pop = baseline_pop(p, un_country_code=un_code, download=True,
+        pop = baseline_pop(p, un_country_code=un_code,
                            download_path=os.path.join(cache_dir, "_demog_cache"))
         p.update_specifications(pop[0])
         p._demog_spec = pop[0]
