@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from . import registry, serde
 
 # parent of the ogclews_link/ package dir -- put on the subprocess PYTHONPATH so the OG env's python
-# can import ogclews_link.og_runner (+ the pure-python serde/_demog/health_pop/_calibration/progress it
+# can import ogclews_link.og_runner (+ the pure-python serde/_demog/health_pop/progress it
 # uses) from the link source, while ogcore + the country package come from the OG env.
 _LINK_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

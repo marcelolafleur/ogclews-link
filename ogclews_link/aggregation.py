@@ -54,7 +54,7 @@ CARRIERS = {
 }
 
 
-# --- SAM magnitude helpers (mirror energy_calibration's care with the 'total' aggregate) ----
+# --- SAM magnitude helpers (careful with the 'total' aggregate, which equals the primary sum) ----
 
 def _drop_total(labels):
     """Labels with any 'total' aggregate row/column removed (it equals the primary sum and

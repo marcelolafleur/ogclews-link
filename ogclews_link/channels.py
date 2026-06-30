@@ -280,10 +280,11 @@ def capital_intensity(ctx, energy_capital_share_multiplier=None, *, energy_capit
     """Energy industry's capital share -- a factor-SHARE / production-technology lever (clews->og).
 
     Raises the energy industry's capital exponent (a permanent, time-invariant shift; labor's share is
-    the residual, which falls). VERIFIED (PHL M=4) this is NOT crowding-out: with the small,
-    demand-inelastic energy good, a higher capital share makes electricity CHEAPER (price ~-24%, output
-    ~flat) so energy CAPITAL FALLS (~-14%) with r flat. The capital-draw-in story is ``energy_capex``
-    (the ITC); the two give OPPOSITE signs on energy K.
+    the residual, which falls). This is a factor-share/price lever, NOT crowding-out: for a small,
+    demand-inelastic energy good a higher capital share lowers electricity's unit cost, so energy CAPITAL
+    need not rise. The capital-DEMAND story is ``energy_capex`` (the ITC), which acts on the cost of
+    capital instead. (On PHL's M=8 calibration electricity's capital share is already high, so this
+    reform is solved by continuation from the baseline SS -- a cold solve would diverge.)
 
     Args:
         ctx (CouplingState): mutates the energy industry's capital exponent.
@@ -316,8 +317,8 @@ def energy_capex(ctx, *, investment_tax_credit_rate=0.20, accelerated_depreciati
 
     The capital-DEMAND counterpart to ``capital_intensity``: an ITC lowers the energy industry's COST OF
     CAPITAL (it enters firm.get_cost_of_capital; the capital share does not), drawing capital INTO
-    energy. VERIFIED (PHL M=4): energy K +5.0%, funded via the public budget. At PHL's small electricity
-    scale this is capital REALLOCATION into energy, not economy-wide crowding-out.
+    energy -- capital REALLOCATION into the energy industry (at a small electricity scale, not
+    economy-wide crowding-out), funded via the public budget.
 
     Args:
         ctx (CouplingState): mutates the energy industry's firm-tax instruments.

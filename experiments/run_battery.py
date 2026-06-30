@@ -60,15 +60,11 @@ GROUPS = [
     ("energy", [
         {"id": "energy_price",    "kind": "experiment", "target": "energy_price",    "mode": "TPI", "sign": "demand falls"},
         {"id": "clean_incidence", "kind": "experiment", "target": "clean_incidence", "mode": "TPI", "sign": "regressive incidence"},
-        {"id": "routeB_costpush", "kind": "script", "env": "og", "target": "experiments/run_io_calibrated_energy_shock.py",
-         "expect_stdout": "LOWERS GDP", "sign": "Route B lowers GDP"},
     ]),
     ("supply", [
         {"id": "investment",        "kind": "experiment", "target": "investment",       "mode": "TPI"},
-        {"id": "capital_intensity", "kind": "experiment", "target": "capital_intensity","mode": "TPI", "sign": "factor-share: energy price down, energy K down"},
+        {"id": "capital_intensity", "kind": "experiment", "target": "capital_intensity","mode": "TPI", "sign": "factor-share: energy price down, energy K down (M=8: solved by reform continuation)"},
         {"id": "carbon",            "kind": "experiment", "target": "carbon",           "mode": "TPI"},
-        {"id": "crowding_out_solve","kind": "script", "env": "og", "target": "experiments/run_capital_intensity.py", "sign": "energy price -24%, energy K -14% (factor-share, NOT crowding-out)"},
-        {"id": "energy_itc",        "kind": "script", "env": "og", "target": "experiments/run_energy_itc.py"},
     ]),
     ("forward", [   # OG->CLEWS emit; MUST be TPI (they read the result time series)
         {"id": "discount_rate", "kind": "experiment", "target": "discount_rate", "mode": "TPI", "sign": "emits DiscountRate path"},

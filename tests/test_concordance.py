@@ -7,7 +7,6 @@ package's PROD_DICT/CONS_DICT) and exported to the link; there is no link-vendor
 import pytest
 
 from ogclews_link.contract import Concordance
-from ogclews_link.energy_calibration import M4_PROD_DICT
 
 # CONS_DICT-shaped aggregation: electricity good ("Energy and water") at index 1
 CONS = {"Food": ["cfood"], "Energy and water": ["cmine", "celec", "cwatr"],
@@ -15,11 +14,14 @@ CONS = {"Food": ["cfood"], "Energy and water": ["cmine", "celec", "cwatr"],
 # real-style 7-sector PROD_DICT: electricity FUSED with water in "Utilities" at index 2 (NOT isolated)
 PROD7 = {"Agriculture": ["amaiz"], "Mining": ["amine"], "Utilities": ["aelec", "awatr"],
          "Construction": ["acons"], "Trade": ["atrad"], "Services": ["aosrv"], "Mfg": ["afood"]}
+# isolated-electricity PROD_DICT: "Electricity" = ["aelec"] as its OWN pure industry, at index 1
+PROD_ISO = {"Natural resources": ["amine"], "Electricity": ["aelec"],
+            "Cons/Trade/Services": ["aosrv"], "Manufacturing": ["afood"]}
 
 
 def test_from_dicts_isolated_electricity_resolves():
-    # the M=4 build isolates electricity as its OWN pure industry ("Electricity" = ["aelec"]) -> index 1
-    c = Concordance.from_dicts(M4_PROD_DICT, CONS)
+    # electricity isolated as its OWN pure industry ("Electricity" = ["aelec"]) at index 1 -> resolves
+    c = Concordance.from_dicts(PROD_ISO, CONS)
     assert (c.energy_industry_index, c.energy_good_index) == (1, 1)
     assert not c.unavailable
 
@@ -111,8 +113,3 @@ def test_channel_skips_when_no_concordance():
     assert np.array_equal(og.tau_c, np.full((20, 5), 0.12))
 
 
-def test_cost_push_reports_discovered_energy_index():
-    pytest.importorskip("ogphl")
-    from ogclews_link.io_energy_passthrough import cost_push_by_industry
-    out = cost_push_by_industry(0.20)            # default M4 build dict (electricity isolated) -> column 1
-    assert out["_energy_industry_index"] == 1

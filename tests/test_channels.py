@@ -413,10 +413,9 @@ def test_morbidity_age_profile():
 
 
 def test_vendored_demog_selfcontained():
-    # Portability: the demographic helpers + PHL calibration are vendored in-repo (no absolute-path
-    # loads of CostOfDisease / CLEWS-OG). They import and run on numpy alone.
-    from ogclews_link import _calibration, _demog
-    assert "Electricity" in _calibration.PROD_DICT and _calibration.PROD_DICT["Electricity"] == ["aelec"]
+    # Portability: the demographic helpers are vendored in-repo (no absolute-path loads of
+    # CostOfDisease / CLEWS-OG). They import and run on numpy alone.
+    from ogclews_link import _demog
     ny, nage = 5, 100
     mort = np.full((ny, nage), 0.01)
     fert = np.zeros((ny, nage)); fert[:, 20:40] = 0.05

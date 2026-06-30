@@ -88,7 +88,7 @@ class Concordance:
     @classmethod
     def from_package(cls, pkg, carrier="electricity"):
         """Discover the energy ports from an installed OG country package's real PROD_DICT/
-        CONS_DICT. For a model run at a *different* aggregation (e.g. a bespoke M=4 build), use
+        CONS_DICT. For a model run at a *different* aggregation (e.g. a bespoke custom build), use
         ``from_dicts`` with that build's dicts so the index matches the model's columns."""
         from . import aggregation as ag
         _, prod, cons = ag.from_package(pkg)

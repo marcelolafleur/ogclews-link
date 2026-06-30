@@ -5,7 +5,7 @@ repo but is EXECUTED BY the OG model's own interpreter --
     <env_python> -m ogclews_link.og_runner solve-reform   --baseline-dir ... --reform-dir ... --overrides ...
 
 -- with PYTHONPATH pointing at the link source so this module (and the pure-python serde/_demog/health_pop/
-_calibration/progress it uses) import here, while ogcore + the country package come from the OG env. The
+progress it uses) import here, while ogcore + the country package come from the OG env. The
 link never imports any of this. Boundary I/O is via serde (JSON in, .npz out); no ogcore object is ever
 serialized (cloudpickle can pickle a Specifications but corrupts its paramtools validation schema on
 reload), so the reform REBUILDS the baseline fresh instead of reloading one.
@@ -179,6 +179,12 @@ def _solve(p, num_workers, ss, show_progress, label):
 # differ a lot) and we solve by continuation instead.
 _GAMMA_DISPERSION_THRESHOLD = 0.05
 
+# max |reform gamma - baseline gamma| above which a reform's COLD SS solve is unreliable (the same p_m=1
+# seed problem as the baseline, now triggered by a channel shifting an industry's capital share a lot --
+# e.g. capital_intensity on PHL M=8 pushes electricity gamma 0.78->0.88, which cold-diverges to NaN). Such
+# a reform is solved by continuation from the (already-solved) baseline SS instead.
+_REFORM_GAMMA_CONT_THRESHOLD = 0.02
+
 
 def _validate_ss(out_dir):
     """Sanity-check a solved steady state (mirrors a country example's validate_ss): every industry price
@@ -277,6 +283,77 @@ def _continuation_baseline(og_package, params_resource, calibration, num_workers
     with open(os.path.join(out_dir, "TPI", "TPI_vars.pkl"), "wb") as f:
         pickle.dump(tpi_out, f)
     return _read_solution(out_dir, ss=False)
+
+
+def _continuation_reform(a, gamma_base, overrides, demog_spec, ss, show_progress):
+    """Solve a reform whose GAMMA shift is large by CONTINUATION from the already-solved baseline SS, then
+    run the reform TPI off it. A cold reform solve seeds p_m=1 (wrong when an industry's capital share is
+    high), so a big gamma move diverges to NaN (PHL M=8 electricity gamma 0.78->0.88). The baseline
+    (gamma_base) is solved at a.baseline_dir; we morph gamma to the reform value in adaptive warm-started
+    steps, holding the NON-gamma overrides at their reform values throughout. Mirrors
+    _continuation_baseline, anchored at the baseline SS rather than a flat-gamma anchor. Returns the
+    consumed solution dict; RAISES if the path stalls (then the reform gamma is genuinely unreachable)."""
+    import pickle
+    import shutil
+
+    import cloudpickle
+    from ogcore import TPI
+    from ogcore.execute import runner
+    from ogcore.parameters import Specifications
+
+    gamma_base = np.asarray(gamma_base, dtype=float).ravel()
+    gamma_reform = np.asarray(overrides["gamma"], dtype=float).ravel()
+
+    def build_step(gamma, output_base, baseline_dir):
+        p = Specifications(baseline=False, num_workers=a.num_workers,
+                           baseline_dir=baseline_dir, output_base=output_base)
+        _load_calibration(p, a.og_package, a.params_resource, a.calibration)
+        if demog_spec is not None:                       # reuse the fetched demographics (no UN re-fetch)
+            p.update_specifications(demog_spec)
+        for name, value in overrides.items():            # all reform overrides at full value ...
+            setattr(p, name, value)
+        p.gamma = np.asarray(gamma, dtype=float)         # ... except gamma, which we walk in
+        p.__dict__.pop("_e_long_cache", None)
+        return p
+
+    work = os.path.join(a.reform_dir, "_continuation")
+    if os.path.exists(work):
+        shutil.rmtree(work)
+    print(f"[og_runner] reform: gamma shift {float(np.max(np.abs(gamma_reform - gamma_base))):.2f} "
+          "-> solving SS by continuation from the baseline", file=sys.stderr)
+    with _client(a.num_workers) as client:
+        good_dir, t, dt, idx = a.baseline_dir, 0.0, 0.125, 0
+        while t < 1.0 - 1e-9:
+            t_try = min(t + dt, 1.0)
+            gamma = (1 - t_try) * gamma_base + t_try * gamma_reform
+            idx += 1
+            step_dir = os.path.join(work, f"t{idx}")
+            os.makedirs(os.path.join(step_dir, "SS"), exist_ok=True)
+            try:
+                runner(build_step(gamma, step_dir, good_dir), time_path=False, client=client)
+                t, good_dir, dt = t_try, step_dir, min(dt * 1.5, 0.25)
+                print(f"[og_runner]   reform continuation t={t:.3f} (dt={dt:.3f}) solved", file=sys.stderr)
+            except Exception:                            # noqa: BLE001 -- step failed; shrink + retry
+                dt /= 2.0
+                if dt < 0.01:
+                    raise RuntimeError(
+                        f"reform gamma continuation stalled at t={t:.3f} (dt<0.01): the reform steady "
+                        "state could not be reached -- the requested capital share may be infeasible.")
+    os.makedirs(os.path.join(a.reform_dir, "SS"), exist_ok=True)
+    shutil.copyfile(os.path.join(good_dir, "SS", "SS_vars.pkl"),
+                    os.path.join(a.reform_dir, "SS", "SS_vars.pkl"))
+    r_final = build_step(gamma_reform, a.reform_dir, a.baseline_dir)   # full reform; SS read from reform_dir
+    with open(os.path.join(a.reform_dir, "model_params.pkl"), "wb") as f:
+        cloudpickle.dump(r_final, f)
+    if ss:
+        return _read_solution(a.reform_dir, ss=True)
+    with _client(a.num_workers) as client, solve_progress(getattr(r_final, "mindist_TPI", 1e-5),
+                                                          "reform:TPI", enabled=show_progress):
+        tpi_out = TPI.run_TPI(r_final, client=client)
+    os.makedirs(os.path.join(a.reform_dir, "TPI"), exist_ok=True)
+    with open(os.path.join(a.reform_dir, "TPI", "TPI_vars.pkl"), "wb") as f:
+        pickle.dump(tpi_out, f)
+    return _read_solution(a.reform_dir, ss=False)
 
 
 def _solve_baseline(og_package, params_resource, og_start_year, num_workers, out_dir, calibration,
@@ -393,6 +470,8 @@ def solve_reform(a):
     # baseline solution on disk, which OG-Core reads for the reform.
     r = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
                               a.num_workers, a.reform_dir, calibration=a.calibration)
+    gamma_base = np.array(r.gamma, dtype=float)  # calibrated baseline gamma, BEFORE any channel override
+    demog_spec = getattr(r, "_demog_spec", None)
     r.baseline = False
     r.baseline_dir = a.baseline_dir
     r.output_base = a.reform_dir
@@ -401,12 +480,22 @@ def solve_reform(a):
     # re-runs paramtools validation that direct assignment never triggers (it rejects the full morbidity
     # e array); OG-Core's solver reads these numpy attributes directly, so setattr reproduces the old
     # in-process semantics exactly.
-    for name, value in serde.read_overrides_json(a.overrides).items():
+    overrides = serde.read_overrides_json(a.overrides)
+    for name, value in overrides.items():
         setattr(r, name, value)
     r.__dict__.pop("_e_long_cache", None)        # e may have been replaced; drop ogcore's memoized long-e
-    if a.health_shock and os.path.exists(a.health_shock):
+    has_health = bool(a.health_shock and os.path.exists(a.health_shock))
+    if has_health:
         r = _apply_health(r, serde.read_health_json(a.health_shock))
-    sol = _solve(r, a.num_workers, a.ss, not a.no_progress, "reform")
+    # A large gamma shift cold-diverges (OG-Core seeds p_m=1, wrong for a high capital share), so solve
+    # such a reform by continuation from the already-solved baseline SS. Only gamma-shifting channels
+    # (capital_intensity) trip this; Z/tau_c reforms cold-solve fine. Not combined with a health shock.
+    big_gamma = ("gamma" in overrides and not has_health and float(np.max(np.abs(
+        np.asarray(overrides["gamma"], dtype=float).ravel() - gamma_base.ravel()))) > _REFORM_GAMMA_CONT_THRESHOLD)
+    if big_gamma:
+        sol = _continuation_reform(a, gamma_base, overrides, demog_spec, a.ss, not a.no_progress)
+    else:
+        sol = _solve(r, a.num_workers, a.ss, not a.no_progress, "reform")
     serde.save_solution_npz(os.path.join(a.reform_dir, "reform_solution.npz"), sol)
     print(f"[og_runner] solved reform -> {a.reform_dir}", file=sys.stderr)
 

@@ -114,12 +114,11 @@ def set_capital_intensity(p, industry_index, *, gamma_target=None, gamma_scale=N
 
     This is a factor-SHARE / production-technology shock -- it raises the share of industry m's value
     added paid to capital and lowers labor's residual share. It is NOT an "inject/attract capital" dial.
-    VERIFIED against a PHL M=4 steady-state solve (energy gamma 0.538->0.604): because gamma is a
-    Cobb-Douglas exponent (epsilon=1) and the energy good is small and demand-inelastic, raising it makes
-    energy CHEAPER to produce -- the energy output price falls sharply (~-24%), real output stays ~flat
-    (+0.8%), and via the firm identity K_m = gamma_m * p_m * Y_m / rho (capital's revenue share = gamma)
-    the energy CAPITAL stock FALLS (~-14%) with the economy-wide cost of capital rho essentially
-    unchanged. So this lever does NOT pull capital into energy and does NOT raise r; its real effects are
+    Because gamma is a Cobb-Douglas exponent (epsilon=1), raising it re-weights the industry toward
+    capital; for a small, demand-inelastic energy good that LOWERS its unit cost, and via the firm
+    identity K_m = gamma_m * p_m * Y_m / rho (capital's revenue share = gamma) the energy CAPITAL stock
+    can FALL even as the share rises, with the economy-wide cost of capital rho ~unchanged. So this lever
+    does NOT pull capital into energy and does NOT raise r; its real effects are
     on the energy PRICE and the capital/labor income split. To draw capital INTO energy (the capex-heavy-
     generation "crowding-out" story), use ``set_investment_incentive``: an ITC lowers the cost of capital
     rho (gamma is ABSENT from ``firm.get_cost_of_capital``), shifting capital demand out at the going r.
