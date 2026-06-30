@@ -1,0 +1,61 @@
+% The iterated soft-link: the linking software runs the two models in turn, passing each model's results
+% them, until energy demand settles. Plain language; each model glossed; transfers de-circularised.
+\documentclass[border=16pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  modelnode/.style={panel, text width=4.7cm, align=center, minimum height=1.7cm,
+                    font=\footnotesize},
+  ognode/.style={modelnode, draw=ogc, fill=ogc!5},
+  clewsnode/.style={modelnode, draw=clews, fill=clews!5},
+  transfer/.style={rounded corners=4pt, line width=0.9pt, inner sep=7pt, align=center,
+                   text width=4.1cm, font=\scriptsize},
+  hub/.style={circle, draw=ink, line width=1.1pt, fill=grid!40, align=center,
+              font=\scriptsize\bfseries, text=ink, inner sep=4pt, minimum size=2.1cm},
+  anchor box/.style={card, draw=mute, fill=grid!25, text width=3.9cm, align=center,
+                     font=\scriptsize, text=sub},
+  ring/.style={line width=1.6pt, -{Stealth[length=3mm,width=2.5mm]}},
+}
+
+\begin{document}
+\begin{tikzpicture}
+
+\fighead{-8.6}{5.7}{HOW THE TWO MODELS ARE LINKED}{The two models run in turn until they agree}{the linking software runs them in turn, passing each model's results to the other}
+
+% ---- the two model stations + hub -------------------------------------------
+\node[ognode]    (og)    at (0, 2.8)  {\textbf{\color{ogc}Run the economy model}\\[1pt]
+                                       {\scriptsize\color{sub}OG-Core --- the macroeconomy}};
+\node[clewsnode] (clews) at (0,-2.8)  {\textbf{\color{clews}Run the energy system}\\[1pt]
+                                       {\scriptsize\color{sub}CLEWS --- least-cost power}};
+\node[transfer, draw=ogc!55, fill=ogc!6, text=ink]   (emit)  at (6.8, 0)
+     {\textbf{economy $\rightarrow$ energy model}\\[1pt]{\color{sub}the economy's energy demand, and the interest rate it sets}};
+\node[transfer, draw=clews!55, fill=clews!6, text=ink] (apply) at (-6.8,0)
+     {\textbf{energy model $\rightarrow$ economy}\\[1pt]{\color{sub}the electricity price, the cost of new energy infrastructure, and emissions}};
+\node[hub] (hub) at (0,0) {ogclews-\\link};
+
+% ---- the clockwise ring -----------------------------------------------------
+\draw[ring, ogc]          (og.east)    to[out=-35,in=110]  (emit.north);
+\draw[ring, ogc]          (emit.south) to[out=-110,in=35]  (clews.east);
+\draw[ring, clews]        (clews.west) to[out=145,in=-110] (apply.south);
+\draw[ring, clews]        (apply.north) to[out=70,in=215]  (og.west);
+
+% ---- hub caption ------------------------------------------------------------
+\node[font=\scriptsize, text=sub, align=center, below=0.15cm of hub]
+  {\textbf{\color{ink}the linking software}};
+
+% ---- baseline anchor feeding the loop ---------------------------------------
+\node[anchor box] (base) at (-6.8, 3.3)
+  {\textbf{\color{ink}Start: a scenario}\\ a policy or technology change, on either model};
+\draw[thinflow, mute] (base.east) to[out=0,in=150] (og.north west);
+
+% ---- outputs leaving the loop -----------------------------------------------
+\node[anchor box, draw=ink!30, fill=white, text=ink] (out) at (8.9, -3.5)
+  {\textbf{Results}\\ the change from each model's baseline --- growth $\cdot$ who bears the cost $\cdot$ the budget};
+\draw[thinflow, ink!55] (clews.south east) to[out=-25,in=170] (out.west);
+
+% ---- convergence condition (on the apply -> OG return) ----------------------
+\node[note, text width=2.8cm] at (-2.9, 1.0)
+  {done when energy demand barely changes between rounds};
+
+\end{tikzpicture}
+\end{document}

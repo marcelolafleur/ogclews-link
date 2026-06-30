@@ -1,66 +1,47 @@
-# Presentation assets — OG-Core × CLEWS integration framework
+# Presentation — OG-Core × CLEWS (`ogclews-link`)
 
-Programmatically generated, reusable assets for presenting the OG-Core ⇄ CLEWS/OSeMOSYS
-soft-link: the **narrative guide** (`NARRATIVE.md` — the single plain-language explanation of how the
-two models work together, across all eight channels), **de novo HTML channel diagrams**
-(`channel-diagrams.html`), **TikZ diagrams** (per-channel flows + framework diagrams, vector PDF),
-**curated example figures** (from the matplotlib suite), and a self-contained **Beamer deck**
-(`slides.tex`). Everything shares one editorial, colorblind-safe palette
-([`theme/ogclews-colors.tex`](theme/ogclews-colors.tex), mirrored from `ogclews_link/viz/style.py`).
+A technical introduction to the OG-Core ⇄ CLEWS/OSeMOSYS soft link: a **Beamer deck**
+(`ogclews-link.tex`) built on five **standalone TikZ figures** (`coupling-diagrams/`). Everything
+shares one editorial, colour-blind-safe palette
+([`theme/ogclews-colors.tex`](theme/ogclews-colors.tex), mirrored from `ogclews_link/style.py`).
+
+The deck runs: intro → overview → the channels → the channels in detail → the software →
+use in MUIOGO. The software and MUIOGO sections are content-faithful to the code
+(`ogclews_link/channels.py` and the rest of the package), and honest about what is built today
+(the single CLEWS→OG pass) versus the next step (closing the loop back into MUIOGO).
 
 ## Build
 
 ```bash
-bash build.sh        # diagrams -> PDFs, curate figures, compile slides.pdf
+bash build.sh        # figures -> PDF/PNG, then the deck -> ogclews-link.pdf
 ```
 
-Requires TeX Live (`pdflatex` + `latexmk`) and `python3`. The figures step copies from a
-completed run under `../ogclews_runs/` — regenerate those first with
-`python -m ogclews_link.viz --run-dir ogclews_runs/across_steps` (in the OG-PHL venv) if missing.
-Build outputs (`*.pdf`, `figures/*.png`) are git-ignored; rerun `build.sh` to regenerate.
+Requires TeX Live (`pdflatex` + `latexmk`) and `pdftoppm` (poppler) for the web PNGs. Build
+outputs (`*.pdf`) are git-ignored; rerun `build.sh` to regenerate them.
 
 ## What's here
 
 ```
 presentation/
-  NARRATIVE.md          the narrative guide — how the two models work together (single source)
-  CHANNEL-MECHANISMS.md (retired) → redirects to NARRATIVE.md
-  mechanisms.html       (retired) → redirects to NARRATIVE.md
-  channel-diagrams.html the de novo per-channel diagrams (web; energy also standalone
-                        in diagram-energy-price.html)
-  slides.tex            the demo Beamer deck (16:9) — narrative + diagrams + figures
-  build.sh              one-command build of every asset (TikZ + figures + deck)
+  ogclews-link.tex      the deck (16:9)
+  build.sh              one-command build (figures + deck)
   theme/
-    ogclews-colors.tex  the shared palette (the single source of truth for colour)
-  diagrams/             standalone TikZ — each compiles to its own tight-cropped PDF
-    _preamble.tex         shared tikz libraries + semantic styles + the icon flow helper
-    ch_health.tex         CHANNEL FLOWS — plain-language causal chains (general audience):
-    ch_energy.tex           health, energy prices, carbon, investment, cost of capital, demand.
-    ch_carbon.tex           Icon-led, no model variables. These are the main channel explanation.
-    ch_investment.tex
-    ch_discount.tex
-    ch_demand.tex
-    architecture.tex      the structural seam: what each model solves / takes as given
-    channels.tex          the full channel map at the variable level (technical reference)
-    loop.tex              the iterated soft-link + convergence (honest about the stub)
-    scenarios.tex         the scenario builder: defaults, levers, templates, guardrails
-    maturity.tex          per-channel roadmap: proxy -> dual-consistent
-  figures/
-    curate.py             copies the curated example figures from the run dir
-    *.png                 the curated set (generated)
-  EXPLANATION.md        (retired) → redirects to NARRATIVE.md; its technical-reference material
-                        stays in git history, pending the separate technical doc
+    ogclews-colors.tex  the shared palette (single source of truth for colour)
+  coupling-diagrams/    the five self-titled figures — each a standalone .tex -> .pdf/.png
+    system-map.tex        the connections: two models bookending the channel bands
+    loop.tex              how the two models run in turn
+    energy-fork.tex       one electricity price reaching the economy two ways
+    two-channels.tex      the two transmission channels the live link uses
+    worked-example.tex    one change, traced step by step
+    _preamble.tex         shared styles (the figure look) + colour
+    index.html            a web gallery of the five figures
 ```
 
 ## Reusing the assets
 
-- **Drop a diagram into your own slides / paper:** `\includegraphics{diagrams/architecture.pdf}`.
-  Each diagram is a `standalone` document — edit the `.tex` and recompile just that file
-  (`cd diagrams && latexmk -pdf architecture.tex`).
-- **Match the colours** in new material by `\input{theme/ogclews-colors}` and using
-  `ogc` (OG-Core blue), `clews` (teal), `policy` (red), `claret`, `ink`/`sub`/`mute`.
-- **Re-skin the deck** by editing the theme block at the top of `slides.tex`.
-
-The diagrams are content-faithful to the code: channel directions, parameter names, theory
-status, and the stubbed/placeholder flags all track `ogclews_link/channels.py`, `STATUS.md`,
-and `docs/design/`. If the channels change, update the diagrams to match.
+- **Drop a figure into your own slides / paper:** `\includegraphics{coupling-diagrams/system-map.pdf}`.
+  Each figure is a `standalone` document — edit the `.tex` and recompile just that file
+  (`cd coupling-diagrams && latexmk -pdf system-map.tex`).
+- **Match the colours** with `\input{theme/ogclews-colors}` and `ogc` (OG-Core blue),
+  `clews` (teal), `policy` (red), `claret`, plus `ink`/`sub`/`mute`.
+- **Re-skin the deck** by editing the theme block at the top of `ogclews-link.tex`.

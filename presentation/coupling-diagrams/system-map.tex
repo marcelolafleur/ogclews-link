@@ -1,0 +1,75 @@
+% System map: the overall picture of the connections. Two model panels bookend three direction-grouped
+% bands. The panels say what is INSIDE each model; the bands carry the flows between them. Each band line
+% leads with a plain label and trails the software (code) name; the legend declares that convention.
+\documentclass[border=16pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  modelpanel/.style={panel, text width=3.7cm, align=center, minimum height=10.0cm, font=\footnotesize},
+  grp/.style={rounded corners=6pt, line width=1pt, inner sep=12pt, align=left, text width=9.7cm, font=\footnotesize},
+  gA/.style={grp, draw=clews!55, fill=clews!7},
+  gB/.style={grp, draw=policy!50, fill=policy!5},
+  gC/.style={grp, draw=ogc!55, fill=ogc!7},
+  aCO/.style={flow, draw=clews},
+  aOC/.style={flow, draw=ogc},
+  aPOL/.style={flow, draw=policy, line width=1.2pt},
+}
+% \ch{plain label}{plain gloss}{software name}
+\newcommand{\ch}[3]{{\bfseries #1}\,\,{\color{sub}#2}\,\,{\ttfamily\scriptsize\color{mute}#3}}
+
+\begin{document}
+\begin{tikzpicture}
+
+\fighead{0}{7.2}{THE CONNECTIONS}{Two models, joined channel by channel}{what each model sends the other, and the policy knobs in between}
+
+\node[modelpanel, draw=clews, line width=1.4pt, fill=clews!4, anchor=north west] (clews) at (0,4.9) {%
+  {\large\bfseries\color{clews}CLEWS}\\[2pt]
+  {\scriptsize\color{sub}a model of the energy system,\\ solved at least cost}\\[10pt]
+  {\color{grid}\rule{2.6cm}{0.6pt}}\\[8pt]
+  {\scriptsize\bfseries\color{ink}INSIDE THE MODEL}\\[5pt]
+  {\scriptsize power plants \& the grid\\[3pt] fuels \& dispatch\\[3pt] emissions}};
+
+\node[modelpanel, draw=ogc, line width=1.4pt, fill=ogc!4, anchor=north east] (og) at (21.1,4.9) {%
+  {\large\bfseries\color{ogc}OG-Core}\\[2pt]
+  {\scriptsize\color{sub}a model of the whole\\ economy}\\[10pt]
+  {\color{grid}\rule{2.6cm}{0.6pt}}\\[8pt]
+  {\scriptsize\bfseries\color{ink}INSIDE THE MODEL}\\[5pt]
+  {\scriptsize households by age \& income\\[3pt] 8 industries \& their prices\\[3pt] the government budget}};
+
+\node[gA, anchor=north] (gA) at (10.55,4.85) {%
+  {\small\bfseries\color{clews}From the energy model to the economy}\\[6pt]
+  \ch{Electricity price}{reaches households and producers --- two channels}{energy\_price}\\[3.5pt]
+  \ch{Grid build-out}{spending on the grid adds to public capital (power plants are private)}{investment}\\[3.5pt]
+  \ch{Capital intensity}{a more capital-heavy power sector lowers the electricity price}{capital\_intensity}\\[3.5pt]
+  \ch{Air-quality health}{PM2.5 pollution $\to$ deaths (mostly elderly) and worker productivity}{health}};
+
+\node[gB, anchor=north] (gB) at (10.55,0.35) {%
+  {\small\bfseries\color{policy}Policy settings\, \textmd{\color{sub}--- set by the analyst, acting on one or both models}}\\[6pt]
+  \ch{Carbon price}{a price on emissions, applied in both models}{carbon}\\[3.5pt]
+  \ch{Energy investment credit}{a tax credit that draws capital into the energy sector}{energy\_capex}};
+
+\node[gC, anchor=north] (gC) at (10.55,-2.7) {%
+  {\small\bfseries\color{ogc}From the economy to the energy model}\\[6pt]
+  \ch{Energy demand}{the economy's output becomes the demand the energy model must meet}{emit\_energy\_demand}\\[3.5pt]
+  \ch{Interest rate}{the economy's return on capital becomes the energy model's discount rate}{emit\_discount\_rate}};
+
+\draw[aCO] (clews.east|-gA) -- (gA.west);
+\draw[aCO] (gA.east) -- (og.west|-gA);
+\draw[aOC] (og.west|-gC) -- (gC.east);
+\draw[aOC] (gC.west) -- (clews.east|-gC);
+\draw[aPOL] (gB.west) -- (clews.east|-gB);
+\draw[aPOL] (gB.east) -- (og.west|-gB);
+
+\begin{scope}[shift={(0,-6.0)}]
+  \node[anchor=west] at (0.0,0) {\tikz\draw[clews,line width=2.4pt](0,0)--(0.5,0);};
+  \node[font=\scriptsize,text=sub,anchor=west] at (0.55,0) {energy model $\rightarrow$ economy};
+  \node[anchor=west] at (4.5,0) {\tikz\draw[ogc,line width=2.4pt](0,0)--(0.5,0);};
+  \node[font=\scriptsize,text=sub,anchor=west] at (5.05,0) {economy $\rightarrow$ energy model};
+  \node[anchor=west] at (9.2,0) {\tikz\draw[policy,line width=2.4pt](0,0)--(0.5,0);};
+  \node[font=\scriptsize,text=sub,anchor=west] at (9.75,0) {policy (acts on both)};
+  \node[font=\scriptsize,text=mute,anchor=west] at (13.0,0) {\ttfamily\footnotesize name};
+  \node[font=\scriptsize,text=mute,anchor=west] at (13.95,0) {= the connection's name in the software};
+\end{scope}
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,41 @@
+% Worked example: one electricity-price change traced around the loop. Each card auto-sizes to its own
+% text (width constrained, height grows to fit -- no overflow); cards hang from a shared top so the
+% headings align, and the step arrows are drawn at a fixed height so they stay horizontal.
+\documentclass[border=16pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  stepcard/.style={card, line width=0.9pt, fill=white, text width=3.0cm, align=left,
+               anchor=north, font=\footnotesize, inner sep=11pt},
+  seq/.style={flow, draw=ink!70},
+  back/.style={-{Stealth[length=2.8mm,width=2.3mm]}, line width=1.1pt, draw=mute,
+               dash pattern=on 2.5pt off 2.5pt},
+}
+% one consistent step header: a number and the acting model, same size, coloured by the model
+\newcommand{\stephd}[3]{{\small\color{#1}\textbf{#2}\,\textperiodcentered\,#3}\\[6pt]}
+
+\begin{document}
+\begin{tikzpicture}
+
+\fighead{0.2}{3.8}{AN EXAMPLE, STEP BY STEP}{Following one change around the loop}{a scenario: electricity becomes cheaper --- followed step by step between the two models}
+
+\node[stepcard, draw=clews!50] (s1) at (1.9,2.0) {\stephd{clews}{1}{energy model}\textbf{The scenario:} a cleaner power system makes electricity cheaper to supply.};
+\node[stepcard, draw=ink!35]   (s2) at (6.3,2.0) {\stephd{ink}{2}{the link}The cheaper price reaches the economy two ways: households pay less, and producers' costs fall.};
+\node[stepcard, draw=ogc!50]   (s3) at (10.7,2.0) {\stephd{ogc}{3}{economy model}The economy re-runs: households use more energy, and the poorest gain most when energy is a necessity.};
+\node[stepcard, draw=ogc!50]   (s4) at (15.1,2.0) {\stephd{ogc}{4}{to energy model}The economy sends its new, higher energy demand back to the energy model.};
+\node[stepcard, draw=clews!50] (s5) at (19.5,2.0) {\stephd{clews}{5}{energy model}The energy system re-runs at the new demand, repeating until energy demand settles.};
+
+% step arrows: drawn at a fixed height so they stay horizontal whatever each card's height
+\coordinate (arrowy) at (0,0.45);
+\draw[seq] (s1.east|-arrowy) -- (s2.west|-arrowy);
+\draw[seq] (s2.east|-arrowy) -- (s3.west|-arrowy);
+\draw[seq] (s3.east|-arrowy) -- (s4.west|-arrowy);
+\draw[seq] (s4.east|-arrowy) -- (s5.west|-arrowy);
+
+% loop-back: the cycle repeats
+\coordinate (loopy) at (0,-2.1);
+\draw[back] (s5.south) -- (s5.south|-loopy) -- (s1.south|-loopy) -- (s1.south);
+\node[font=\large, text=mute, fill=paper, inner sep=2pt] at (10.7,-2.1) {$\circlearrowleft$};
+
+\end{tikzpicture}
+\end{document}
