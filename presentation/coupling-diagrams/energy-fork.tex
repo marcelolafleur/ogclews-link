@@ -1,0 +1,84 @@
+% Energy-price fork (bow-tie): one electricity price reaches the economy two ways -- producers' costs
+% rise (a broad approximation) and households pay more directly (represented natively), both converging
+% on households. Plain language, trust tags (size reliable vs direction only), no model symbols/code.
+\documentclass[border=16pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  pivotc/.style={card, draw=clews, line width=1.6pt, fill=clews!6, text width=3.5cm, font=\footnotesize},
+  arm/.style={card, draw=grid, line width=0.9pt, fill=white, text width=4.7cm, font=\footnotesize},
+  hhc/.style={card, draw=ink, line width=1.5pt, fill=ink!3, text width=2.7cm, align=center, font=\footnotesize},
+  outc/.style={card, draw=grid, fill=white, text width=3.0cm, font=\scriptsize, align=left},
+  edgefaith/.style={flow, draw=ink!78},
+  edgeill/.style={flow, draw=ink!78, dash pattern=on 1pt off 2.4pt},
+  edgeloss/.style={flow, draw=loss},
+  modarrow/.style={-{Stealth[length=2mm,width=1.7mm]}, draw=mute, line width=0.8pt,
+                   dash pattern=on 1.6pt off 1.6pt},
+  modchip/.style={draw=mute, dash pattern=on 1.6pt off 1.6pt, rounded corners=3pt, fill=white,
+                  font=\scriptsize, text=sub, align=center, inner sep=4pt, text width=3.2cm},
+}
+\newcommand{\modelbox}[1]{\\[4pt]{\scriptsize\textcolor{ogc}{\textbf{In the model:}}\ #1}}
+
+\begin{document}
+\begin{tikzpicture}[every node/.style={outer sep=0pt}]
+
+\fighead{-1.7}{8.3}{THE ENERGY-PRICE FORK}{One electricity price hits the economy through two channels at once}{producers' costs rise, and households pay more directly --- both reach households}
+
+% ---------- nodes ----------
+\node[pivotc] (piv) at (0,0) {%
+  {\bfseries\color{clews}Electricity costs more to supply}\\[2pt]
+  {\scriptsize\color{sub}the price the CLEWS energy model returns --- the cost of supplying one more unit of electricity}};
+
+\node[arm] (prod) at (6.3,3.1) {%
+  \tagline{ink}{CALIBRATED FROM DATA}%
+  {\bfseries Producers' costs rise}\ {\bfseries\color{loss}($-$)}\\[2pt]
+  Every industry that uses electricity faces higher costs, so it produces less from the same inputs and its goods cost more.%
+  \modelbox{the economy model tracks each industry's labour and capital, not the energy it buys --- so this is approximated: each industry's productivity is trimmed by how much electricity it uses.}};
+
+\node[arm] (dem) at (6.3,-3.1) {%
+  \tagline{ink}{REPRESENTED DIRECTLY}%
+  {\bfseries Households pay more directly}\\[2pt]
+  Households pay more for the energy they buy, so they use less and spend more on a necessity.%
+  \modelbox{this is how the economy model naturally represents an energy price. When energy is set as a necessity and the revenue is recycled, the burden is regressive --- shown by a dedicated incidence run.}};
+
+\node[hhc] (hh) at (12.0,0) {%
+  {\bfseries Households}\\[2pt]{\scriptsize\color{sub}both channels reach households}};
+
+\node[outc] (o1) at (16.0,2.6) {{\bfseries\color{ogc}GDP falls}\ {\color{loss}$\downarrow$}\\{\scriptsize\color{sub}mainly the producers'-cost channel}};
+\node[outc] (o2) at (16.0,0)   {{\bfseries\color{ogc}Real incomes fall}\ {\color{loss}$\downarrow$}};
+\node[outc] (o3) at (16.0,-2.6){{\bfseries\color{ogc}Who bears it}\\{\scriptsize\color{sub}regressive when energy is treated as a necessity}};
+
+% ---------- edges (auto-attach to borders) ----------
+\draw[edgeill]   (piv.east) to[out=58,in=205] node[pos=0.5,coordinate](pe){} (prod.west);
+\draw[edgefaith] (piv.east) to[out=-58,in=155] (dem.west);
+\draw[edgeill]   (prod.east) to[out=-15,in=125] (hh.north west);
+\draw[edgefaith] (dem.east) to[out=15,in=-125] (hh.south west);
+\draw[edgeloss]  (hh.east) to[out=32,in=180] (o1.west);
+\draw[edgeloss]  (hh.east) to[out=0,in=180]  (o2.west);
+\draw[edgefaith] (hh.east) to[out=-32,in=180] (o3.west);
+
+% ---------- sizing factor landing ON the pivot->prod edge ----------
+\node[modchip] (mod) at (0.8,4.3) {how much electricity each industry uses};
+\draw[modarrow] (mod.east) to[out=-30,in=150] (pe);
+
+% ---------- legend ----------
+\begin{scope}[shift={(-0.1,-5.7)}]
+  \node[font=\scriptsize\bfseries, text=ink, anchor=west] at (0,0) {How each channel is represented};
+  \draw[edgefaith] (5.0,0) -- (5.9,0);
+  \node[font=\scriptsize, text=sub, anchor=west] at (5.95,0) {represented directly --- the model's own mechanism (size reliable)};
+  \draw[edgeill] (0,-0.7) -- (0.9,-0.7);
+  \node[font=\scriptsize, text=sub, anchor=west] at (0.95,-0.7) {calibrated from data --- a stand-in for the energy in production (size approximate)};
+  \node[text=loss, font=\bfseries] at (0.2,-1.4) {$\downarrow$};
+  \node[font=\scriptsize, text=sub, anchor=west] at (0.55,-1.4) {falls / contractionary};
+  \node[modchip, scale=0.82, text width=2.0cm] at (5.9,-1.4) {sizing factor};
+  \node[font=\scriptsize, text=sub, anchor=west] at (7.0,-1.4) {scales the channel it points at};
+\end{scope}
+
+\node[font=\scriptsize, text=mute, align=left, anchor=north west, text width=16.8cm] at (-0.1,-7.6)
+  {Colour shows which model each element comes from (teal = the CLEWS energy model, blue = the OG-Core economy),
+   not its sign --- direction is shown by the arrows and line style, so the figure reads the same in greyscale.
+   The linked run combines these two channels on disjoint flows --- electricity's own use is carried by the
+   household wedge, so the price is not counted twice.};
+
+\end{tikzpicture}
+\end{document}

@@ -1,36 +1,31 @@
 #!/usr/bin/env bash
-# Build every presentation asset from source:
-#   1. the standalone TikZ diagrams  (diagrams/*.tex  -> diagrams/*.pdf)
-#   2. the curated example figures   (copied from the run dir by figures/curate.py)
-#   3. the demo Beamer deck          (slides.tex      -> slides.pdf)
-# Requires: TeX Live (pdflatex + latexmk) and python3. The figures step needs a completed run under
-# ogclews_runs/ (regenerate with: python -m ogclews_link.viz --run-dir ogclews_runs/across_steps).
+# Build the presentation from source:
+#   1. the five coupling diagrams  (coupling-diagrams/*.tex -> .pdf, and .png for the web gallery)
+#   2. the Beamer deck             (ogclews-link.tex -> ogclews-link.pdf)
+# Requires: TeX Live (pdflatex + latexmk); pdftoppm (poppler) for the PNGs.
+# Build outputs (*.pdf) are git-ignored; rerun this to regenerate.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-DIAGRAMS=(architecture channels loop scenarios maturity \
-          ch_health ch_energy ch_carbon ch_investment ch_discount ch_demand)
+FIGURES=(system-map loop energy-fork two-channels worked-example)
 
-echo "==> 1/3  diagrams"
-pushd diagrams >/dev/null
-for f in "${DIAGRAMS[@]}"; do
-  printf '   - %-14s' "$f"
+echo "==> 1/2  coupling diagrams"
+pushd coupling-diagrams >/dev/null
+for f in "${FIGURES[@]}"; do
+  printf '   - %-16s' "$f"
   latexmk -pdf -interaction=nonstopmode -halt-on-error "$f.tex" >/dev/null 2>&1 \
-    && echo "ok" || { echo "FAILED — see diagrams/$f.log"; exit 1; }
+    && echo "ok" || { echo "FAILED — see coupling-diagrams/$f.log"; exit 1; }
+  pdftoppm -png -r 150 "$f.pdf" "$f" >/dev/null 2>&1 && mv -f "$f-1.png" "$f.png" 2>/dev/null || true
 done
-latexmk -c >/dev/null 2>&1 || true   # drop aux, keep the PDFs
+latexmk -c >/dev/null 2>&1 || true   # drop aux files, keep the PDFs
 popd >/dev/null
 
-echo "==> 2/3  figures"
-python3 figures/curate.py || echo "   (figures step skipped — run the model first)"
-
-echo "==> 3/3  deck"
-latexmk -pdf -interaction=nonstopmode -halt-on-error slides.tex >/dev/null 2>&1 \
-  && echo "   - slides.pdf ok" || { echo "   deck FAILED — see slides.log"; exit 1; }
+echo "==> 2/2  deck"
+latexmk -pdf -interaction=nonstopmode -halt-on-error ogclews-link.tex >/dev/null 2>&1 \
+  && echo "   - ogclews-link.pdf ok" || { echo "   deck FAILED — see ogclews-link.log"; exit 1; }
 latexmk -c >/dev/null 2>&1 || true
 
 echo ""
 echo "Done."
-echo "  diagrams : $(printf '%s ' "${DIAGRAMS[@]/%/.pdf}")(in diagrams/)"
-echo "  figures  : figures/*.png"
-echo "  deck     : slides.pdf"
+echo "  diagrams : coupling-diagrams/*.pdf (+ .png, + index.html)"
+echo "  deck     : ogclews-link.pdf"

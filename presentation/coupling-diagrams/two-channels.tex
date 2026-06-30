@@ -1,0 +1,31 @@
+% The live link transmits the electricity price through TWO channels (the energy_full composite the
+% coupled run uses): households pay a tax on the energy good; each industry's productivity is trimmed
+% in line with its electricity use. The two are combined on disjoint flows -- the price is not counted twice.
+\documentclass[border=16pt]{standalone}
+\input{_preamble}
+
+\tikzset{
+  chcard/.style={card, draw=grid, line width=0.9pt, fill=white, text width=5.2cm, align=left,
+                 anchor=north, font=\footnotesize, inner sep=14pt},
+}
+
+\begin{document}
+\begin{tikzpicture}
+
+\fighead{0.4}{2.9}{TRANSMITTING THE ELECTRICITY PRICE}{The link works across two channels}{the economy has no energy in production, so the coupled run sends the price through both at once}
+
+\node[chcard] (a) at (3.7,0.5) {%
+  {\bfseries Households pay more}\\[5pt]
+  {\scriptsize\color{sub}a higher cost for the energy they buy --- applied directly, as a tax on the energy good}};
+
+\node[font=\Large\bfseries, text=claret] at (7.3,-0.35) {+};
+
+\node[chcard] (b) at (10.9,0.5) {%
+  {\bfseries Industries pay more}\\[5pt]
+  {\scriptsize\color{sub}the model's firms buy no energy, so a higher energy cost is represented as lower productivity --- each industry gets less from the same inputs, scaled by how much electricity it uses, so its goods cost more}};
+
+\node[font=\footnotesize, text=sub, anchor=north west, text width=15.2cm] at (0.4,-2.6)
+  {The coupled run uses both at once --- they act on separate flows, so the price is not counted twice.};
+
+\end{tikzpicture}
+\end{document}
