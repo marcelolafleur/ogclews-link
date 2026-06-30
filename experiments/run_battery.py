@@ -118,11 +118,12 @@ def _stamp():
 # the cache (prebuilt) and only the reform is solved. Already exported -> skip. SS-mode items compare
 # against the SS baseline slice; TPI items against the TPI baseline.
 _BASELINE: dict = {}   # in-process: holds {template, base_tpi, dir, arrays}, built once per invocation
+_REBUILD_BASELINE = False   # set by --rebuild-baseline; forces a fresh baseline solve past the cache
 
 
-def _runner_cfg(ss=False):
+def _runner_cfg(ss=False, rebuild=False):
     from ogclews_link import runtime
-    return runtime.RunnerConfig(num_workers=7, show_progress=False, ss=ss)
+    return runtime.RunnerConfig(num_workers=7, show_progress=False, ss=ss, rebuild=rebuild)
 
 
 def ensure_baseline():
@@ -133,7 +134,8 @@ def ensure_baseline():
     from ogclews_link import runtime
     from ogclews_link.country import PHL
 
-    template, base_tpi, base_dir, arrays = runtime.export_baseline(PHL, OUT_ROOT, cfg=_runner_cfg(ss=False))
+    template, base_tpi, base_dir, arrays = runtime.export_baseline(
+        PHL, OUT_ROOT, cfg=_runner_cfg(ss=False, rebuild=_REBUILD_BASELINE))
     _BASELINE.update(template=template, base_tpi=base_tpi, dir=base_dir, arrays=arrays)
     return _BASELINE
 
@@ -215,6 +217,29 @@ def run_pytest(item) -> dict:
 _DISPATCH = {"experiment": run_experiment, "baseline": run_baseline, "script": run_script, "pytest": run_pytest}
 
 
+def _solve_diagnostic(item) -> dict:
+    """For a failed SOLVE item, locate its persisted solve.log and distill WHY it failed (phase, outcome,
+    iterations, distance) + a relative pointer to the full log. Empty for non-solve items / no log."""
+    if item["kind"] == "experiment":
+        pat = os.path.join(OUT_ROOT, item["id"], "*", "reform", "solve.log")
+    elif item["kind"] == "baseline":
+        pat = os.path.join(OUT_ROOT, "_og_baseline_cache", "*", "solve.log")
+    else:
+        return {}
+    import glob
+
+    from ogclews_link import solve_log
+    hits = glob.glob(pat)
+    if not hits:
+        return {}
+    lp = max(hits, key=os.path.getmtime)
+    diag = solve_log.summarize(lp)
+    if not diag:
+        return {}
+    return {"why": solve_log.why(diag), "solve_log": os.path.relpath(lp, REPO),
+            "diagnostic": {k: diag.get(k) for k in ("phase", "outcome", "iters", "last_distances", "min_distance")}}
+
+
 def run_item(item, dry=False) -> dict:
     if dry:
         return {"status": "would-run", "kind": item["kind"], "target": item.get("target"), "mode": item.get("mode")}
@@ -222,8 +247,9 @@ def run_item(item, dry=False) -> dict:
         res = _DISPATCH[item["kind"]](item)
     except Exception as exc:  # noqa: BLE001 -- record, never crash the battery
         import traceback
-        res = {"status": "error", "error": f"{type(exc).__name__}: {exc}",
+        res = {"status": "error", "error": f"{type(exc).__name__}: {exc}".splitlines()[0][:300],
                "trace": traceback.format_exc().splitlines()[-4:]}
+        res.update(_solve_diagnostic(item))   # concise convergence verdict + pointer to the persisted log
     return res
 
 
@@ -262,15 +288,33 @@ def cmd_list():
             print(f"  {it['id']:24s} {it['kind']:10s} {it.get('target',''):46s}{extra}  {it.get('note', it.get('sign',''))}")
 
 
+def _fmt_dur(s):
+    s = int(round(s))
+    return f"{s // 60}m{s % 60:02d}s" if s >= 60 else f"{s}s"
+
+
 def run_items(items, state, dry):
+    import time
     for it in items:
         print(f"\n>>> {it['id']}  ({it['kind']}{' '+it.get('mode','') if it.get('mode') else ''})"
               + ("  [DRY]" if dry else ""))
+        started, t0 = _stamp(), time.time()
         res = run_item(it, dry=dry)
-        print(f"    -> {res.get('status')}" + (f"  {res.get('error','')}" if res.get("status") == "error" else ""))
+        finished, dur = _stamp(), time.time() - t0
+        if res.get("status") == "error":     # enough to trace back WHAT failed, WHEN, and WHY -- no more
+            print("    -> ERROR")
+            print(f"       when:  {started} -> {finished}  ({_fmt_dur(dur)})")
+            if res.get("why"):
+                print(f"       why:   {res['why']}")
+            print(f"       error: {res.get('error')}")
+            if res.get("solve_log"):
+                print(f"       log:   {res['solve_log']}")
+        else:
+            print(f"    -> {res.get('status')}" + ("" if dry else f"  ({_fmt_dur(dur)})"))
         if not dry:
             state[it["id"]] = {**res, "group": next(g for g, items2 in GROUPS if it in items2),
-                               "kind": it["kind"], "finished": _stamp()}
+                               "kind": it["kind"], "started": started, "finished": finished,
+                               "duration_s": round(dur, 1)}
             save_state(state)   # persist after EVERY item -> resumable
     return state
 
@@ -285,7 +329,12 @@ def main():
     g.add_argument("--item", help="run a single item by id")
     ap.add_argument("--dry-run", action="store_true", help="show what would run; no solves, no state change")
     ap.add_argument("--rerun", action="store_true", help="re-run even items already marked pass")
+    ap.add_argument("--rebuild-baseline", action="store_true",
+                    help="force a fresh baseline solve, ignoring the cache (e.g. after an ogcore or "
+                         "calibration change the cache tag -- keyed on the OG-package version -- can't see)")
     args = ap.parse_args()
+    global _REBUILD_BASELINE
+    _REBUILD_BASELINE = args.rebuild_baseline
 
     state = load_state()
     if args.list:

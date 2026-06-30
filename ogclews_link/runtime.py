@@ -35,17 +35,35 @@ class RunnerConfig:
                                      # up newer UN demographics or a re-baked calibration)
 
 
-def _run(entry, args, label):
+def _run(entry, args, label, log_path=None):
+    """Subprocess the OG runner, streaming its combined output LIVE to the parent's stderr and -- when
+    ``log_path`` is given -- to a persisted per-run ``solve.log``. So a solve that FAILS or is KILLED
+    always leaves a durable trail to trace back what happened (the old capture-then-dump lost everything
+    on a SIGKILL). ``PYTHONUNBUFFERED`` keeps the last lines from being swallowed by buffering on a kill.
+    Raises (naming the log) on a non-zero exit; ``ogclews_link.solve_log`` distills the log into a verdict."""
     env = dict(os.environ)
     env["PYTHONPATH"] = _LINK_ROOT + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-    proc = subprocess.run([entry.env_python, "-m", "ogclews_link.og_runner", *args],
-                          env=env, capture_output=True, text=True)
-    if proc.stderr:
-        sys.stderr.write(proc.stderr)                      # surface runner diagnostics (progress, RC_SS)
-    if proc.returncode != 0:
-        raise RuntimeError(f"og_runner {label} failed (exit {proc.returncode}) in the {entry.package} "
-                           f"env [{entry.env_python}]. See stderr above.")
-    return proc
+    env["PYTHONUNBUFFERED"] = "1"
+    if log_path:
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    logf = open(log_path, "w") if log_path else None
+    try:
+        proc = subprocess.Popen([entry.env_python, "-m", "ogclews_link.og_runner", *args], env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for line in proc.stdout:                           # surface runner diagnostics (progress, RC_SS) live
+            sys.stderr.write(line)
+            if logf:
+                logf.write(line)
+                logf.flush()
+        rc = proc.wait()
+    finally:
+        if logf:
+            logf.close()
+    if rc != 0:
+        where = f" Solve log: {log_path}" if log_path else " See stderr above."
+        raise RuntimeError(f"og_runner {label} failed (exit {rc}) in the {entry.package} "
+                           f"env [{entry.env_python}].{where}")
+    return rc
 
 
 def _cache_dir(out_root, entry, country, cfg):
@@ -95,7 +113,7 @@ def export_baseline(country, out_root="./ogclews_runs", cfg: RunnerConfig | None
             args.append("--ss")
         if not cfg.show_progress:
             args.append("--no-progress")
-        _run(entry, args, "export-baseline")
+        _run(entry, args, "export-baseline", log_path=os.path.join(cache, "solve.log"))
     og, base_tpi, baseline_arrays = serde.load_baseline_bundle(params_npz, solution_npz)
     return og, base_tpi, cache, baseline_arrays
 
@@ -124,7 +142,7 @@ def solve_reform(og_reform, baseline_arrays, health_shock, base_dir, reform_dir,
         args.append("--ss")
     if not cfg.show_progress:
         args.append("--no-progress")
-    _run(entry, args, "solve-reform")
+    _run(entry, args, "solve-reform", log_path=os.path.join(reform_dir, "solve.log"))
     sol_npz = os.path.join(reform_dir, "reform_solution.npz")
     if not os.path.exists(sol_npz):
         raise RuntimeError(f"og_runner solve-reform produced no reform_solution.npz in {reform_dir}")
