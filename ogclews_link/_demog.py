@@ -55,15 +55,25 @@ def baseline_pop(p, un_country_code="608", download=False, download_path=None):
     uses) ogcore fetches from the UN data portal and falls back to the github EAPD-DRB/Population-Data
     repo, writing the raw CSVs to ``download_path`` (a per-run cache, NOT the package source). Returns
     ``(pop_dict, pop_dist, pre_pop_dist, fert_rates, mort_rates, infmort_rates, imm_rates, deaths)``.
-    ``ogcore`` is imported lazily so this module stays numpy-only at import time."""
+    ``ogcore`` is imported lazily so this module stays numpy-only at import time.
+
+    ogcore 0.16.3 API: ``get_pop`` now returns a SINGLE array (the population distribution; in the
+    download/non-infer path its rows are start_year .. end_year+1, i.e. ``end_year + 2 - start_year``
+    rows) and ``get_pop_objs`` no longer takes ``pre_pop_dist``. We seed the population inference with
+    the actual start_year UN row (``pop_dist[:1, :]`` with ``infer_pop=True``); ogcore then infers the
+    distribution forward from that seed using the supplied rates -- the same seed the pre-0.16.3 call
+    used, so the demographics are unchanged modulo ogcore's own internal updates. ``pre_pop_dist`` is
+    derived as the leading row of the fetched distribution purely to preserve the return contract /
+    ``_pop_aux`` (no consumer feeds it back to get_pop_objs anymore)."""
     from ogcore import demographics
 
     dp = download_path or DEMOG_PATH
     os.makedirs(dp, exist_ok=True)
     if download:
-        pop_dist, pre_pop_dist = demographics.get_pop(
+        pop_dist = demographics.get_pop(
             p.E, p.S, 0, 99, country_id=un_country_code,
             start_year=p.start_year, end_year=p.start_year + 1, download_path=dp)
+        pre_pop_dist = pop_dist[:1, :].copy()   # leading (pre-period) row -- contract only; see docstring
         fert_rates = demographics.get_fert(
             p.E + p.S, 0, 99, country_id=un_country_code,
             start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=dp)
@@ -76,8 +86,7 @@ def baseline_pop(p, un_country_code="608", download=False, download_path=None):
             start_year=p.start_year, end_year=p.start_year + 1, graph=False, download_path=dp)
     else:
         pop_dist = np.loadtxt(os.path.join(dp, "population_distribution.csv"), delimiter=",")
-        pre_pop_dist = np.loadtxt(
-            os.path.join(dp, "pre_period_population_distribution.csv"), delimiter=",")
+        pre_pop_dist = pop_dist[:1, :].copy()   # 0.16.3 no longer materializes a separate pre-period file
         fert_rates = np.loadtxt(os.path.join(dp, "fert_rates.csv"), delimiter=",")
         mort_rates = np.loadtxt(os.path.join(dp, "mort_rates.csv"), delimiter=",")
         infmort_rates = np.loadtxt(os.path.join(dp, "infmort_rates.csv"), delimiter=",")
@@ -87,6 +96,6 @@ def baseline_pop(p, un_country_code="608", download=False, download_path=None):
     pop_dict = demographics.get_pop_objs(
         p.E, p.S, p.T, 0, 99, country_id=un_country_code,
         fert_rates=fert_rates, mort_rates=mort_rates, infmort_rates=infmort_rates, imm_rates=imm_rates,
-        infer_pop=True, pop_dist=pop_dist[:1, :], pre_pop_dist=pre_pop_dist,
+        infer_pop=True, pop_dist=pop_dist[:1, :],
         initial_data_year=p.start_year, final_data_year=p.start_year + 1, GraphDiag=False)
     return (pop_dict, pop_dist, pre_pop_dist, fert_rates, mort_rates, infmort_rates, imm_rates, deaths)

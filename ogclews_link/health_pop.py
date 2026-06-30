@@ -91,8 +91,9 @@ def calibrate_shock_scale(target, pop_dist, fert, mort, infmort, imm, profile, p
 def disease_pop(p, aux, excess_deaths, profile, phase_years=5, un_country_code="608"):
     """Recompute the population under a (signed) excess-deaths age-profile mortality shock.
 
-    ``aux`` is the stashed baseline demographic dict (pop_dist, pre_pop_dist, fert_rates, mort_rates,
-    infmort_rates, imm_rates). Returns ``(pop_dict, shock_scale)``: the pop_dict goes straight into
+    ``aux`` is the stashed baseline demographic dict (pop_dist, fert_rates, mort_rates, infmort_rates,
+    imm_rates; ``pre_pop_dist`` may be present for the legacy return contract but is unused since
+    ogcore 0.16.3 dropped it). Returns ``(pop_dict, shock_scale)``: the pop_dict goes straight into
     ``p.update_specifications(...)`` before solving, exactly as CostOfDisease/main.py does.
     """
     from ogcore import demographics
@@ -103,7 +104,6 @@ def disease_pop(p, aux, excess_deaths, profile, phase_years=5, un_country_code="
     imm = extrapolate_demographics(np.asarray(aux["imm_rates"], dtype=float), ny)
     infmort = extrapolate_demographics(np.asarray(aux["infmort_rates"], dtype=float), ny)
     pop_dist = np.asarray(aux["pop_dist"], dtype=float)
-    pre = np.asarray(aux["pre_pop_dist"], dtype=float)
 
     h = np.asarray(profile, dtype=float)
     nage = mort.shape[1]
@@ -113,9 +113,13 @@ def disease_pop(p, aux, excess_deaths, profile, phase_years=5, un_country_code="
     scale, alt_mort = calibrate_shock_scale(
         float(excess_deaths), pop_dist, fert, mort, infmort, imm, h, ny, total_deaths)
 
+    # ogcore 0.16.3: get_pop_objs no longer accepts pre_pop_dist. Seed the population inference with the
+    # actual start_year UN row (pop_dist[:1, :], infer_pop=True) -- identical seed to baseline_pop; ogcore
+    # infers forward over the ny-year window using the SHOCKED mort path, so the baseline-vs-shock
+    # marginal stays a pure mortality difference (same window, same rate-shaping, only mort_rates differs).
     pop_dict = demographics.get_pop_objs(
         p.E, p.S, p.T, 0, 99, country_id=un_country_code,
         fert_rates=fert, mort_rates=alt_mort, infmort_rates=infmort, imm_rates=imm,
-        infer_pop=True, pop_dist=pop_dist[:1, :], pre_pop_dist=pre,
+        infer_pop=True, pop_dist=pop_dist[:1, :],
         initial_data_year=p.start_year, final_data_year=p.start_year + ny - 1, GraphDiag=False)
     return pop_dict, scale
