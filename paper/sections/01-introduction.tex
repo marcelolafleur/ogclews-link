@@ -1,0 +1,36 @@
+\section{Introduction}
+\label{sec:intro}
+
+% FRAMING: methods/framework paper for economists. The contribution to foreground is
+% the *architecture + channel taxonomy* (an auditable soft-link), not Philippine point
+% estimates. Sell the generality (country-agnostic registry); the OG-PHL run is proof
+% the machinery solves and signs are right.
+% TODO(intro):
+%  1. The complementarity / asymmetry gap.
+%     - CLEWS/OSeMOSYS: least-cost engineering optimizer; rich technology, emissions,
+%       sub-annual dispatch; BUT demand is price-inelastic, no behaviour, no fiscal
+%       sector, no distribution, single representative consumer of "cost".
+%     - OG-Core: OLG general equilibrium; rich households (J income x S age), firms,
+%       government budget closure, welfare; BUT energy is invisible -- no technology,
+%       no emissions, no energy as a priced input to production.
+%     - The interface is asymmetric and complementary: macro -> energy passes
+%       quantities (demand, activity); energy -> macro passes prices/duals.
+%  2. Why not a hard link (state as a theoretical conclusion, not convenience):
+%     OG solves an OLG *transition path*; OSeMOSYS is a single *perfect-foresight* LP;
+%     OG has no scalar welfare to fold the LP into; shocks cannot be injected mid-solve.
+%     => a staged *soft* link is the right object.
+%  3. Contribution:
+%     - a channel-based coupling: each channel = one CLEWS signal -> one OG wedge,
+%       small, auditable, with explicit no-double-counting discipline.
+%     - eight channels spanning price, fiscal, capital (factor-share + capital-demand),
+%       demographic, and feedback links.
+%     - the load-bearing idea: the *commodity shadow price (dual)* is the correct
+%       price signal; it both makes demand price-responsive and reveals incidence.
+%     - a distinctive demographic *health* channel (emissions -> dose-response ->
+%       mortality + morbidity -> population + effective labour).
+%     - an honest "maturity ladder": structural vs reduced-form, one-way vs iterated.
+%  4. Results preview + roadmap of the paper.
+
+% Position vs hard-linked energy-macro models (MESSAGE-MACRO, TIMES-MACRO, MERGE) and
+% reduced-form IAMs: those couple to a single representative agent / aggregate welfare;
+% here the macro core is an OLG GE with heterogeneity, fiscal closure, and demography.

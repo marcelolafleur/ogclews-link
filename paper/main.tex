@@ -1,0 +1,50 @@
+% ==========================================================================
+% Coupling an Overlapping-Generations Economy with an
+% Energy-Land-Water Systems Model: A Channel-Based Soft-Link
+%
+% Build:  latexmk -pdf main.tex      (bibtex pass included)
+% Figures: build ../presentation diagrams first (see ../presentation/build.sh)
+%          or drop standalone PDFs/PNGs into figures/.
+%
+% FRAMING (agreed): a METHODS / FRAMEWORK paper for an ECONOMICS audience.
+%  - Contribution = the coupling architecture + the channel taxonomy (NOT headline
+%    Philippine magnitudes); the OG-PHL run is validation, magnitudes illustrative.
+%  - Audience = economists: COMPRESS the OG-Core exposition (assume OLG/GE fluency,
+%    cite the OG-Core docs); spend the explanation budget on CLEWS/OSeMOSYS, what a
+%    commodity LP dual is, and why it is the correct price signal.
+% ==========================================================================
+\documentclass[11pt]{article}
+\input{preamble}
+
+\title{\bfseries Coupling an Overlapping-Generations Economy with an
+Energy--Land--Water Systems Model:\\[2pt]
+\large A Channel-Based Soft-Link, Its Mechanisms, and Validation}
+
+\author{Matthew LaFleur \\ \small co-authors TBD}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/00-abstract}
+\end{abstract}
+
+\input{sections/01-introduction}
+\input{sections/02-background}
+\input{sections/03-models}
+\input{sections/04-framework}
+\input{sections/05-channels}
+\input{sections/06-calibration}
+\input{sections/07-results}
+\input{sections/08-discussion}
+\input{sections/09-conclusion}
+
+\appendix
+\input{sections/10-appendix}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
