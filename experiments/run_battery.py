@@ -163,6 +163,20 @@ def run_experiment(item) -> dict:
     ctx = framework.run(exp, PHL, solve_reform=partial(runtime.solve_reform, cfg=cfg),
                         out_root=os.path.join(OUT_ROOT, item["id"]),
                         prebuilt=(bl["template"], base, bl["dir"], bl["arrays"]))
+    # Write a run manifest next to the solved reform so the viz deck can be pointed straight at this
+    # run dir (battery runs previously wrote none -> unvisualizable without hand-passed flags). Records
+    # the shared baseline cache + GBD path too. Wrapped: a manifest must NEVER break a battery solve.
+    try:
+        from ogclews_link import registry
+        from ogclews_link.manifest import write_run_manifest
+        entry = registry.lookup(PHL)
+        run_dir = os.path.join(OUT_ROOT, item["id"], getattr(exp, "__name__", item["id"]))
+        write_run_manifest(run_dir, exp, PHL, ctx, baseline_dir=bl["dir"],
+                           gbd_csv=getattr(PHL, "gbd_burden_csv", None),
+                           og_model={"repo": entry.key, "package": entry.package,
+                                     "version": entry.version, "env_python": entry.env_python})
+    except Exception as e:  # noqa: BLE001 -- provenance is a nicety; never fail the solve for it
+        print(f"(manifest skipped for {item['id']}: {type(e).__name__}: {e})")
     rec = golden.from_context(item["id"], ctx)
     golden.save(rec)
     return {"status": "pass", "mode": mode, "reused_baseline": True,
