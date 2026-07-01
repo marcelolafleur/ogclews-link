@@ -104,6 +104,15 @@ def test_coupled_run_missing_inputs_raise():
         pass
 
 
+def test_bridge_wires_model_report_layered_entry():
+    """Regression: build_deck_from_coupled_run must call the MODEL report's layered_entry, not
+    viz.report (the HTML/index module, which has no such function). The guard-only test above
+    exits before that call, so this checks the namespace wiring directly."""
+    from ogclews_link.viz import build
+    assert callable(getattr(build, "og_report", None) and build.og_report.layered_entry), \
+        "build.og_report must be ogclews_link.report exposing layered_entry"
+
+
 if __name__ == "__main__":
     for _name, _fn in sorted(globals().items()):
         if _name.startswith("test_") and callable(_fn):

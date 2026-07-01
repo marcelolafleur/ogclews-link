@@ -33,6 +33,7 @@ import json
 import os
 
 from ogclews_link.viz import plots, report, tables  # noqa: F401
+from ogclews_link import report as og_report  # MODEL report (report.layered_entry); `report` above is viz's HTML/index module
 from ogclews_link import country as _country_mod
 
 
@@ -397,8 +398,8 @@ def build_deck_from_coupled_run(coupled_dir, country, *, fig_dir=None, gbd_csv=N
     label = step_label or (manifest.get("experiment") or {}).get("name") or "reform"
     if label == "baseline":                  # reserved role name -> keep the reform step distinct
         label = "reform"
-    layered = [report.layered_entry(label, base_tpi, reform_tpi,
-                                    energy_good_index=ie, channels=channels)]
+    layered = [og_report.layered_entry(label, base_tpi, reform_tpi,
+                                       energy_good_index=ie, channels=channels)]
 
     def dir_of(which):
         return base_dir if which == "baseline" else (reform_dir if which == label else None)
