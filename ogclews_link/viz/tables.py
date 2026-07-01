@@ -145,6 +145,67 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
+def macro_table_figure(base_tpi, reform_tpi, start_year, out_dir, *, note=None, name="macro_table"):
+    """The OG-Core-standard macro aggregates table as a figure: % change reform vs baseline for
+    output, consumption, investment, capital and labour, plus the interest and wage rates -- year by
+    year over the first decade, a 10-year-window average, and the steady state. Mirrors
+    ``ogcore.output_tables.macro_table`` (the summary economists expect), built from `report.macro_table`.
+    r and w are percentage-point rate differences. Works for any run (the variables present are shown)."""
+    from ogclews_link import report
+    want = ("Y", "C", "I", "K", "L", "r", "w")
+    df = report.macro_table(base_tpi, reform_tpi, start_year, var_list=want)
+    if df is None or getattr(df, "empty", True):
+        return []
+    os.makedirs(out_dir, exist_ok=True)
+    labels = {"Y": "Output %", "C": "Consumption %", "I": "Investment %", "K": "Capital %",
+              "L": "Labour %", "r": "Interest rate (pp)", "w": "Wage (pp)"}
+    col_labels = ["Year"] + [labels.get(c, c) for c in df.columns]
+    idxs = [str(i) for i in df.index]
+    rows = [[i] + [_fmt_pct(df.loc[df.index[k], c]) for c in df.columns] for k, i in enumerate(idxs)]
+    # the window-average ("YYYY-YYYY") and steady-state ("SS") rows are summaries -> set them off
+    setoff = {k for k, i in enumerate(idxs, start=1) if i == "SS" or "-" in i}
+
+    ncols = len(col_labels)
+    fig, ax = plt.subplots(figsize=(10.0, max(4.8, 1.7 + 0.34 * (len(rows) + 1))))
+    fig.subplots_adjust(top=0.80, bottom=0.06, left=0.045, right=0.965)
+    ax.set_axis_off()
+    table = ax.table(cellText=rows, colLabels=col_labels, cellLoc="right", bbox=[0, 0, 1, 1])
+    table.auto_set_font_size(False)
+    table.set_fontsize(9.5)
+    table.auto_set_column_width(col=list(range(ncols)))
+    for (rr, cc), cell in table.get_celld().items():
+        cell.set_edgecolor(style.GRID)
+        cell.set_linewidth(0.6)
+        if cc == 0:
+            cell.set_text_props(ha="left")
+            cell.PAD = 0.03
+        if rr == 0:  # header
+            cell.set_text_props(color=style.INK, fontweight="bold")
+            cell.set_facecolor("white")
+            cell.visible_edges = "B"
+            cell.set_linewidth(1.0)
+            cell.set_edgecolor("#333333")
+            continue
+        cell.set_text_props(color=style.INK)  # neutral ink; the +/- sign carries direction (no red/green)
+        cell.visible_edges = "B"
+        if rr in setoff:  # window-avg + SS rows: bold, ruled off from the year-by-year block
+            cell.set_text_props(fontweight="bold")
+            cell.visible_edges = "T"
+            cell.set_linewidth(1.0)
+            cell.set_edgecolor("#333333")
+    for rr in range(1, len(rows) + 1):  # faint banding on the year rows for legibility
+        if rr % 2 == 0 and rr not in setoff:
+            for cc in range(ncols):
+                table[(rr, cc)].set_facecolor("#FAFAFA")
+
+    style.title_block(
+        fig, title="Macro aggregates over the transition",
+        subtitle="% change vs baseline (interest rate and wage as percentage-point differences)  ·  "
+                 "year by year, the first-decade average, then the steady state",
+        source=style.source_line(note), kicker="macro table", top=0.965)
+    return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+
+
 def cover_page(layered, country, fig_titles, out_dir, *, note=None, illustrative=True, name="cover"):
     """The deck's title page: country name + scenario headline, a plain-language statement of the
     scenario (the four changes described by MECHANISM, and what the health channel is), and a

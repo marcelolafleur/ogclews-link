@@ -62,7 +62,7 @@ FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally."
 # run degrades gracefully.
 _INDEX_SECTIONS = [
     ("Headline",
-     ["headline_dashboard", "summary_table", "waterfall_gdp", "waterfall_poorest"]),
+     ["headline_dashboard", "macro_table", "summary_table", "waterfall_gdp", "waterfall_poorest"]),
     ("How the scenario is built",
      ["channel_inputs", "clews_signal_vs_applied", "capex_by_technology", "emissions_path"]),
     ("Macro & fiscal detail",
@@ -282,9 +282,15 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
              illustrative=illustrative)
 
     # --- deck front matter & at-a-glance summary --------------------------------
-    # The cover carries the FULL caveat + the plain-language scenario description; summary_table is
-    # a chart-like page (short caveat).
-    _try(tables.summary_table, layered, fig_dir, note=note)
+    # The OG-standard macro-aggregates table (output/consumption/investment/capital/labour + rates,
+    # year-by-year + window + SS) is the richer summary economists expect; render it whenever a
+    # baseline+reform TPI pair is present. The step-decomposition summary_table adds value only with
+    # >=2 layered scenarios, so it is skipped for a single coupled run (where it would be one row).
+    if base_tpi is not None and headline_tpi is not None:
+        _try(tables.macro_table_figure, base_tpi, headline_tpi, start_year, fig_dir, note=note)
+    if len([r for r in layered if "macro" in r]) >= 2:
+        _try(tables.summary_table, layered, fig_dir, note=note)
+    # The cover carries the FULL caveat + the plain-language scenario description.
     _try(tables.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note,
          illustrative=illustrative)
 
@@ -374,7 +380,8 @@ def _note_from_manifest(manifest):
             "carbon and investment magnitudes uncalibrated; carbon-tax revenue not recycled.")
 
 
-def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, fig_dir=None, gbd_csv=None,
+def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_base=None,
+                                clews_reform=None, fig_dir=None, gbd_csv=None,
                                 step_label=None, note=None, illustrative=True):
     """Build the full rich deck from ONE solved `run coupled` output dir, with NO new solve.
 
@@ -386,8 +393,9 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, fig_dir=N
     the coupled reform already on disk; the energy concordance and applied channels are READ from the
     run's manifest + baseline_meta.json. Nothing country- or path-specific is hardcoded. Figures that
     need a baseline+reform pair (macro/fiscal/welfare/health/distribution/composition) are the genuine
-    current-calibration deck; the across-steps multi-bar waterfall is intentionally omitted (it needs
-    >=2 solved steps to span), so for the layered view only the single-row summary table renders."""
+    current-calibration deck; the across-steps multi-bar waterfall is intentionally omitted for a single
+    step (the OG-style macro-aggregates table is the summary instead). `clews_base`/`clews_reform` (or
+    the run's manifest scenario) point the emissions + energy-linkage figures at the CLEWS output."""
     coupled_dir = os.path.abspath(coupled_dir)
     manifest = _read_manifest(coupled_dir)
     # The run records the country it was solved for; --country is an override -> warn on a mismatch
@@ -396,6 +404,18 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, fig_dir=N
     if m_country and str(m_country) not in (str(country.un_code), country.name):
         print(f"  [warn] --country {country.name}/{country.un_code} != the run's manifest "
               f"({m_country}); rendering with the passed-in country")
+    # CLEWS scenario dirs drive the emissions + energy-linkage figures. Prefer explicit args, else the
+    # dirs the run recorded in its manifest; set them on country.scenario so those figures can find the
+    # CLEWS output (they are otherwise blank on the CountryConfig, which the coupling run fills at solve
+    # time). Guarded: a frozen scenario just leaves those figures to skip (logged later, never silent).
+    sc = manifest.get("scenario") or {}
+    for _attr, _val in (("base_dir", clews_base or sc.get("base_dir")),
+                        ("reform_dir", clews_reform or sc.get("reform_dir"))):
+        if _val and getattr(country, "scenario", None) is not None:
+            try:
+                setattr(country.scenario, _attr, _val)
+            except Exception:  # noqa: BLE001 -- immutable scenario: energy/emissions figures skip loudly
+                pass
     reform_dir = os.path.join(coupled_dir, "reform")
     base_dir = _discover_baseline_cache(coupled_dir, manifest)
     if not os.path.isdir(reform_dir):
@@ -444,6 +464,10 @@ def main(argv=None):
                                            "dir (uses its cached baseline + reform; no new solve)")
     ap.add_argument("--out-dir", help="collect the whole coupled-run deck in ONE directory "
                                       "(out-dir/figures/ + out-dir/index.html); with --coupled-run only")
+    ap.add_argument("--clews-base", help="CLEWS baseline scenario dir (its AnnualTechnologyEmission + "
+                                         "cost-of-electricity files feed the emissions + energy-linkage "
+                                         "figures); default: the run's manifest scenario")
+    ap.add_argument("--clews-reform", help="CLEWS reform scenario dir (see --clews-base)")
     ap.add_argument("--fig-dir", help="output dir for figures (viz-local)")
     ap.add_argument("--gbd-csv", help="IHME GBD burden CSV for health age-profile figures")
     ap.add_argument("--headline-step", help="reform step for transition/welfare/dashboard figures "
@@ -465,6 +489,8 @@ def main(argv=None):
         build_deck_from_coupled_run(
             coupled, country,
             out_dir=_resolve(args.out_dir, "OGCLEWS_OUT_DIR", None),
+            clews_base=_resolve(args.clews_base, "OGCLEWS_CLEWS_BASE", None),
+            clews_reform=_resolve(args.clews_reform, "OGCLEWS_CLEWS_REFORM", None),
             fig_dir=_resolve(args.fig_dir, "OGCLEWS_FIG_DIR", None),
             gbd_csv=_resolve(args.gbd_csv, "OGCLEWS_GBD_CSV", None),
             note=_resolve(args.note, "OGCLEWS_NOTE", None),
