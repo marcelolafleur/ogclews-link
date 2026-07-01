@@ -361,9 +361,13 @@ def _note_from_manifest(manifest):
             "carbon and investment magnitudes uncalibrated; carbon-tax revenue not recycled.")
 
 
-def build_deck_from_coupled_run(coupled_dir, country, *, fig_dir=None, gbd_csv=None,
+def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, fig_dir=None, gbd_csv=None,
                                 step_label=None, note=None, illustrative=True):
     """Build the full rich deck from ONE solved `run coupled` output dir, with NO new solve.
+
+    `out_dir` collects the whole simulation deck in ONE directory -- `out_dir/figures/` + `out_dir/
+    index.html` -- mirroring OG-Core's single save-dir convention, so a simulation's results are one
+    self-contained, discoverable folder. Default (`out_dir=None`) writes beside the run itself.
 
     General over country/model: the baseline is the run's own cached solve and the single reform is
     the coupled reform already on disk; the energy concordance and applied channels are READ from the
@@ -404,11 +408,12 @@ def build_deck_from_coupled_run(coupled_dir, country, *, fig_dir=None, gbd_csv=N
     def dir_of(which):
         return base_dir if which == "baseline" else (reform_dir if which == label else None)
 
-    fig_dir = fig_dir or os.path.join(coupled_dir, "figures")
+    out_dir = os.path.abspath(out_dir) if out_dir else coupled_dir  # one dir for the whole sim deck
+    fig_dir = fig_dir or os.path.join(out_dir, "figures")
     gbd_csv = gbd_csv or _default_gbd_csv(coupled_dir, country)
     note = _note_from_manifest(manifest) if note is None else note
-    print(f"coupled-deck: read {coupled_dir}\n       baseline {base_dir}\n       write {fig_dir}")
-    _render_deck(country, dir_of, layered, fig_dir, os.path.join(coupled_dir, "index.html"),
+    print(f"coupled-deck: read {coupled_dir}\n       baseline {base_dir}\n       write {out_dir}")
+    _render_deck(country, dir_of, layered, fig_dir, os.path.join(out_dir, "index.html"),
                  headline_step=label, gbd_csv=gbd_csv, note=note, illustrative=illustrative)
 
 
@@ -424,6 +429,8 @@ def main(argv=None):
     src.add_argument("--run-dir", help="input solved across-steps tree (read-only)")
     src.add_argument("--coupled-run", help="build the deck from a single solved `run coupled` output "
                                            "dir (uses its cached baseline + reform; no new solve)")
+    ap.add_argument("--out-dir", help="collect the whole coupled-run deck in ONE directory "
+                                      "(out-dir/figures/ + out-dir/index.html); with --coupled-run only")
     ap.add_argument("--fig-dir", help="output dir for figures (viz-local)")
     ap.add_argument("--gbd-csv", help="IHME GBD burden CSV for health age-profile figures")
     ap.add_argument("--headline-step", help="reform step for transition/welfare/dashboard figures "
@@ -444,6 +451,7 @@ def main(argv=None):
     if coupled:
         build_deck_from_coupled_run(
             coupled, country,
+            out_dir=_resolve(args.out_dir, "OGCLEWS_OUT_DIR", None),
             fig_dir=_resolve(args.fig_dir, "OGCLEWS_FIG_DIR", None),
             gbd_csv=_resolve(args.gbd_csv, "OGCLEWS_GBD_CSV", None),
             note=_resolve(args.note, "OGCLEWS_NOTE", None),
