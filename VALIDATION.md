@@ -2,7 +2,9 @@
 
 Three independent challengers reviewed the channels against (1) economics, (2) OG-Core/CLEWS
 model theory and code, (3) the implementation. Below: what they found, and what changed.
-All transform tests (14) pass after the fixes; nothing has been solved/run yet.
+All transform tests pass after the fixes. Since this review the model has been solved end-to-end: the
+full coupled PHL M=8 run converges on ogcore 0.16.3, and the results are captured in the committed golden
+regression baseline (`results/golden.json`). Follow the README walkthrough to reproduce.
 
 ## Fixed
 

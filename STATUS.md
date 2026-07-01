@@ -6,12 +6,20 @@ only repo access, **read this top-to-bottom first** — it carries the context t
 obvious from the code. Keep it current: update the *Current state*, *Work plan*, and
 *Changelog* as you go.
 
-- **Last updated:** 2026-06-17
+- **Last updated:** 2026-06-17 · run instructions corrected 2026-07-01 (see banner)
 - **Code repo (this one):** `~/Projects/ogclews-link` (git). The orchestrator + channels live here.
 - **Docs repo:** `~/Projects/ogclews-schema` (NOT git) — the de novo analysis & correspondence.
 - **Note on the name "ogclews-integration":** there is no such directory locally; the integration
   code is *this* repo (`ogclews-link`). If a separate `ogclews-integration` repo is intended,
   this doc + the code move trivially.
+
+> ⚠️ **To RUN the coupled model, follow [`README.md`](README.md)** — the authoritative, current end-to-end
+> walkthrough (`ogclews-link run coupled`). This is a historical coordination doc: several sections below
+> **predate the current cross-env architecture** and are superseded. The link now runs in its OWN venv and
+> subprocesses the OG model's interpreter via a model **registry** (ogcore **0.16.3**, M=8, `run coupled`) —
+> not "inside the OG-PHL venv via PYTHONPATH". In particular §2's in-process/in-venv driving, §3/§6's
+> `Runner` class and "6 channels" framing, and §7's `PYTHONPATH … run_across_steps.py` method are out of
+> date; §7 has been corrected to point at the current command.
 
 ---
 
@@ -209,21 +217,20 @@ Status: `[x]` done · `[>]` next · `[ ]` todo
 - `experiments/run_across_steps.py` — the 4-step batch. `experiments/regen_figures.py` — figures only.
 - `tests/test_channels.py` — transform tests (numpy-only, no solve).
 
-## 7. How to run (env)
+## 7. How to run
 
-OG-PHL provides the venv (ogcore 0.16.1 + ogphl). Run ogclews-link inside it via PYTHONPATH —
-this touches nothing in OG-PHL:
+**Authoritative, current instructions live in [`README.md`](README.md)** (the end-to-end coupled-run
+walkthrough). The link now runs in its OWN venv and subprocesses the OG model's interpreter via the model
+registry — you no longer run it "inside the OG-PHL venv via PYTHONPATH":
 
 ```bash
-PY=/Users/mlafleur/Projects/OG-PHL/.venv/bin/python
-PP=/Users/mlafleur/Projects/ogclews-link
-PYTHONPATH=$PP $PY -m ogclews_link channels                 # list channels
-PYTHONPATH=$PP $PY tests/test_channels.py                   # transform tests (no solve)
-PYTHONPATH=$PP $PY experiments/run_across_steps.py          # full 4-step solve (~minutes, multiprocess)
-PYTHONPATH=$PP $PY experiments/regen_figures.py             # rebuild figures from existing pickles
+uv run ogclews-link models register --path ../OG-PHL     # once per machine (writes og_model_registry.json)
+export OGCLEWS_CLEWS_CASE=Philippines_v9 OGCLEWS_CLEWS_BASE_RUN=Base_v9 OGCLEWS_CLEWS_REFORM_RUN=PEP_v9
+uv run ogclews-link run coupled --out ./ogclews_runs      # full coupled solve (first run several min; baseline cached)
+uv run pytest tests/                                      # transform + unit tests (no solve)
 ```
-**Dask gotcha:** use multiprocess (`num_workers=7`); the single-process threaded client starves
-the event loop under numba → serial fallback. Never `--workers 1` for real runs.
+**Dask gotcha:** the OG solve uses multiprocess workers (`--workers`, default 7); never `--workers 1`
+(the single-process threaded client starves the event loop under numba → serial fallback).
 
 ## 8. Open questions / decisions pending
 

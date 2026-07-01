@@ -1,15 +1,17 @@
-# Data the health channel needs (not yet on disk)
+# Data the health channel needs (present on disk + calibrated for PHL)
 
 The health channel applies pollution mortality via the **disease_pop method** from
 DeBacker, Evans & LaFleur, *The Macroeconomic Returns to Public Health Investments*
 (the `CostOfDisease` repo): an age-specific shock `rho(s,t) = rho0 + kappa·g_t·h(s)`,
-phased in, then the population is recomputed. Two inputs must come from data; both are
-PLACEHOLDERS today (loudly flagged in `health_profile.py` and the channel's `validate()`).
+phased in, then the population is recomputed. Two inputs come from data. **For PHL both are now present
+and calibrated:** the GBD burden CSV is on disk at `IHME-GBD_2023_DATA/` (covers PHL + IDN/ZAF/ETH), and
+the emissions→deaths dose-response multiplier is calibrated (`M = 0.082` for the Philippines, in
+`ogclews_link/data/pm25_health.json`). The recipe below documents how to (re)produce it or add a country.
 
 ## 1. The age profile h(s) — IHME GBD (required)
 
-No air-pollution mortality-by-age data is on disk (only a CLEWS PM2.5 *emissions* file).
-Download it from the IHME GBD Results tool and point the channel at it.
+The PHL GBD extract is already on disk at `IHME-GBD_2023_DATA/`. To refresh it or add another country,
+download from the IHME GBD Results tool as below and point the channel at it.
 
 - Portal: https://vizhub.healthdata.org/gbd-results/
 - GBD round: **GBD 2023** (to match the HIV extract used in CostOfDisease)

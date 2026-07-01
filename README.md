@@ -150,16 +150,18 @@ The link resolves the **base** and **reform** scenario dirs from config / your M
 
 ```bash
 export OGCLEWS_CLEWS_CASE=Philippines_v9        # a case in your MUIOGO DataStorage
-export OGCLEWS_CLEWS_BASE_RUN=Base_v8           # the baseline caserun
-export OGCLEWS_CLEWS_REFORM_RUN=<your reform caserun>
+export OGCLEWS_CLEWS_BASE_RUN=Base_v9           # the baseline caserun
+export OGCLEWS_CLEWS_REFORM_RUN=PEP_v9          # the reform caserun
 ```
 The run prints the resolved scenario dirs (and a `NOT FOUND` notice + guidance if unset). The
-emissions/capex channels read MUIOGO's raw OSeMOSYS CSVs directly.
+emissions/capex channels read MUIOGO's raw OSeMOSYS CSVs directly. (`Base_v9`/`PEP_v9` is the
+base/reform pair the committed M=8 golden was regenerated on.)
 
-> **Energy-price source caveat.** The `coupled` experiment's `energy_price` currently reads a curated
-> *Cost of electricity generation* workbook (a CLEWS-OG artifact that MUIOGO's raw output does not
-> include). On a pure-MUIOGO scenario that signal needs the OSeMOSYS **dual** (`EBb4…`) instead — a
-> follow-up. The path resolution above is country/install-agnostic regardless.
+> **Energy-price source.** The `coupled` experiment's `energy_price` uses the `"auto"` source: it reads a
+> curated *Cost of electricity generation* workbook if one ships beside the scenario, else it falls back to
+> the OSeMOSYS commodity-balance **dual** (`EBb4…`). A pure-MUIOGO scenario has no workbook, so it uses the
+> dual — and for PHL that dual is **near-flat**, so the energy-price channel contributes ≈ 0 and the coupled
+> result is driven by the investment + health legs. The path resolution above is country/install-agnostic.
 
 ### Step 5 — run the coupled scenario
 ```bash
@@ -189,6 +191,15 @@ Under `./ogclews_runs/coupled/`:
 The solved baseline is cached at `./ogclews_runs/_og_baseline_cache/og-phl-<version>-<calibration>/`
 and reused by any later run against the same model/version/calibration (the continuation runs once).
 
+### Step 7 — build the browser portal (optional)
+`run coupled` writes the OG-native pickles + CSVs above. A separate step turns them into a figure deck and
+a self-contained `index.html` portal (no re-solve). It runs under the **OG model's interpreter** (it reads
+OG-Core pickles, so it needs `ogcore`) — use the `env_python` shown by `uv run ogclews-link models list`:
+```bash
+PYTHONPATH=$PWD <OG-model-venv-python> -m ogclews_link.viz --coupled-run ./ogclews_runs/coupled --country phl
+```
+Then open `./ogclews_runs/coupled/index.html`. A pre-built example is at `ogclews_runs/coupled_phl_m8/index.html`.
+
 ### What to expect (PHL M=8 coupled)
 - **6 channels fire**: `energy_price` (active — electricity is isolated), `investment`, `emit_carbon_penalty`,
   `health` (≈ −279 deaths via the calibrated PM2.5 dose-response), `emit_discount_rate`, `emit_energy_demand`.
@@ -212,7 +223,7 @@ and reused by any later run against the same model/version/calibration (the cont
 
 ## Test (no solve)
 ```bash
-uv run pytest tests/        # 101 pass / 4 skip — the 4 skip when ogcore/ogphl aren't installed
+uv run pytest tests/        # 132 pass / 3 skip — the skips need ogcore/ogphl installed
 ```
 The transform, boundary (`serde`), discovery, and registry tests run numpy-only in seconds; the few
 country-integration tests skip gracefully without the OG packages.
