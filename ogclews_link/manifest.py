@@ -31,7 +31,7 @@ def _json_default(o):
 
 
 def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_model=None,
-                       filename="ogclews_manifest.json") -> str:
+                       baseline_dir=None, gbd_csv=None, filename="ogclews_manifest.json") -> str:
     """Write ``<out_dir>/<filename>`` describing this run; return its path.
 
     ``experiment`` is the experiment FUNCTION (or its name); its description is the docstring's
@@ -39,6 +39,12 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_mod
     its own 'channel' id). ``country`` needs .name/.scenario; ``ctx`` needs .provenance. ``og_model``
     is the registry entry's OG-model provenance (package/versions); the link env has no ogcore, so the
     actual solver version comes from the registry, not a local import.
+
+    ``baseline_dir`` (the OG baseline pickle cache, separate from the CLEWS scenario dirs) and
+    ``gbd_csv`` (the burden CSV the health channel used) are recorded so a downstream reader (the viz
+    deck) can resolve EVERY input from the manifest alone -- no external flags. Both optional and
+    additive: absent -> the key is null and readers fall back to discovery, so this never breaks an
+    existing manifest consumer.
     """
     import dataclasses
     import inspect
@@ -52,6 +58,10 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_mod
         "country": country.name,
         "un_code": str(getattr(country, "un_code", "")),
         "scenario": {"name": sc.name, "base_dir": sc.base_dir, "reform_dir": sc.reform_dir},
+        # input paths the viz needs but can't derive from out_dir: the OG baseline pickle cache
+        # (separate dir) and the GBD burden CSV. Recorded so `--coupled-run <dir>` resolves them.
+        "baseline_dir": baseline_dir,
+        "gbd_csv": gbd_csv,
         # the per-run energy-port concordance the OG runner discovered (None / ports None -> the country
         # could not be coupled on energy, so the energy channels skipped)
         "concordance": dataclasses.asdict(con) if dataclasses.is_dataclass(con) else None,

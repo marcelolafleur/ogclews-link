@@ -189,8 +189,10 @@ def main(argv=None):
         if ctx.clews_inputs:
             written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")
             print("Wrote CLEWS inputs:", written)
+        baseline_dir = runtime._cache_dir(args.out, entry, country, cfg)  # OG baseline cache this run used
         manifest = write_run_manifest(f"{args.out}/{args.experiment}", exp, country, ctx,
-                                      clews_run=args.clews_run, og_model=og_model)
+                                      clews_run=args.clews_run, og_model=og_model,
+                                      baseline_dir=baseline_dir, gbd_csv=country.gbd_burden_csv)
         print("Wrote run manifest:", manifest)
         return
 
