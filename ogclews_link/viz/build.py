@@ -417,7 +417,10 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_bas
             except Exception:  # noqa: BLE001 -- immutable scenario: energy/emissions figures skip loudly
                 pass
     reform_dir = os.path.join(coupled_dir, "reform")
-    base_dir = _discover_baseline_cache(coupled_dir, manifest)
+    # Prefer a baseline dir the manifest records (forward-compatible: once the runner writes it, no
+    # discovery needed); else fall back to locating the cache under the run root.
+    _mb = manifest.get("baseline_dir")
+    base_dir = _mb if (_mb and os.path.isdir(_mb)) else _discover_baseline_cache(coupled_dir, manifest)
     if not os.path.isdir(reform_dir):
         raise SystemExit(f"no reform/ under {coupled_dir}")
     if base_dir is None:
@@ -443,7 +446,8 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_bas
 
     out_dir = os.path.abspath(out_dir) if out_dir else coupled_dir  # one dir for the whole sim deck
     fig_dir = fig_dir or os.path.join(out_dir, "figures")
-    gbd_csv = gbd_csv or _default_gbd_csv(coupled_dir, country)
+    # explicit arg > a path the manifest records > search upward from the run for the burden CSV
+    gbd_csv = gbd_csv or manifest.get("gbd_csv") or _default_gbd_csv(coupled_dir, country)
     note = _note_from_manifest(manifest) if note is None else note
     print(f"coupled-deck: read {coupled_dir}\n       baseline {base_dir}\n       write {out_dir}")
     _render_deck(country, dir_of, layered, fig_dir, os.path.join(out_dir, "index.html"),

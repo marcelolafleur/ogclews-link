@@ -1068,10 +1068,30 @@ def demographic_transition_by_age(base_params, reform_params, out_dir, *, note=N
     style.zero_line(ax)
     colors = style.SEQUENTIAL[-len(idx):] if len(idx) <= len(style.SEQUENTIAL) else \
         [style.SEQUENTIAL[-1]] * len(idx)
-    ends, peak_abs = [], 0.0
-    for c, t in zip(colors, idx):
-        d = 100.0 * (orf[t] - ob[t])                     # change in population share (% points) by age
-        peak_abs = max(peak_abs, float(np.abs(d).max()))
+    # Noise guard (honest-by-construction): reform vs baseline population shares can differ by less
+    # than the residual between the two demographic computations. Row t=0 precedes any reform effect,
+    # so its |difference| IS the numerical noise floor; if no plotted year rises clearly above it, the
+    # curves are just zoomed-in noise -- say so rather than draw a spurious jagged "pattern".
+    diffs = [(t, 100.0 * (orf[t] - ob[t])) for t in idx]   # change in population share (pp) by age
+    noise0 = 100.0 * float(np.abs(orf[0] - ob[0]).max())
+    peak_abs = max((float(np.abs(d).max()) for _, d in diffs), default=0.0)
+    if peak_abs < 3.0 * noise0:
+        ax.plot(ages, np.zeros_like(ages, dtype=float), color=style.MUTE, lw=1.2, zorder=3)
+        ax.set_ylim(-1.0, 1.0)
+        ax.text(0.5, 0.60, "Reform and baseline age distributions differ by less than the numerical\n"
+                f"resolution (~{noise0:.3g} pp): the health-mortality effect on the population's age\n"
+                "structure is negligible at this calibration.",
+                transform=ax.transAxes, ha="center", va="center", color=style.SUB, fontsize=10)
+        ax.set_xlim(ages[0], ages[-1] + 8)
+        ax.set_xlabel("age")
+        ax.set_ylabel("change in population share")
+        style.title_block(
+            fig, title="Change in population share by age, over time",
+            subtitle="Reform vs baseline  ·  effect negligible at this calibration (below the numerical resolution)",
+            source=style.source_line(note), kicker="health: demography", top=0.965)
+        return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+    ends = []
+    for c, (t, d) in zip(colors, diffs):
         lab = str(start + t) if start else f"t={t}"
         ax.plot(ages, d, color=c, lw=2.0, zorder=3)
         ends.append((ages[-1], float(d[-1]), lab, c))
