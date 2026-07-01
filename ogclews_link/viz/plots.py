@@ -1076,20 +1076,13 @@ def demographic_transition_by_age(base_params, reform_params, out_dir, *, note=N
     noise0 = 100.0 * float(np.abs(orf[0] - ob[0]).max())
     peak_abs = max((float(np.abs(d).max()) for _, d in diffs), default=0.0)
     if peak_abs < 3.0 * noise0:
-        ax.plot(ages, np.zeros_like(ages, dtype=float), color=style.MUTE, lw=1.2, zorder=3)
-        ax.set_ylim(-1.0, 1.0)
-        ax.text(0.5, 0.60, "Reform and baseline age distributions differ by less than the numerical\n"
-                f"resolution (~{noise0:.3g} pp): the health-mortality effect on the population's age\n"
-                "structure is negligible at this calibration.",
-                transform=ax.transAxes, ha="center", va="center", color=style.SUB, fontsize=10)
-        ax.set_xlim(ages[0], ages[-1] + 8)
-        ax.set_xlabel("age")
-        ax.set_ylabel("change in population share")
-        style.title_block(
-            fig, title="Change in population share by age, over time",
-            subtitle="Reform vs baseline  ·  effect negligible at this calibration (below the numerical resolution)",
-            source=style.source_line(note), kicker="health: demography", top=0.965)
-        return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
+        # Signal at/below the numerical noise floor -> SKIP the figure entirely rather than render a
+        # blank/near-noise page (a lean deck has no null-result pages). Loud, not silent: the portal
+        # links only files that exist, so a skipped figure just doesn't appear.
+        plt.close(fig)
+        print(f"  (skip {name}: reform-vs-baseline age distribution below the numerical resolution "
+              f"~{noise0:.3g} pp -- the health-mortality demographic effect is negligible at this calibration)")
+        return []
     ends = []
     for c, (t, d) in zip(colors, diffs):
         lab = str(start + t) if start else f"t={t}"

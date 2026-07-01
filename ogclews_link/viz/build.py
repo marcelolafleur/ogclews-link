@@ -170,7 +170,7 @@ def _run_concordance(base_dir):
 
 
 def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step=None,
-                 gbd_csv=None, note=DEFAULT_NOTE, illustrative=True):
+                 gbd_csv=None, note=DEFAULT_NOTE, illustrative=True, og_appendix=False):
     """Render the full figure deck + index, resolving each role (``"baseline"`` and the step
     labels) to a solved-pickle directory through the ``dir_of(label) -> dir`` callable. This is
     the layout-agnostic core: the across-steps driver and the coupled-run bridge differ only in
@@ -194,16 +194,19 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
     print(f"       gbd  {gbd_csv if gbd_csv and os.path.isfile(gbd_csv) else '(none -- health profiles skipped)'}")
 
     # --- top-level figures (across steps) ---------------------------------------
+    _multi = len([r for r in layered if "macro" in r]) >= 2   # layered views need >=2 scenarios
     _try(plots.across_steps_waterfall, layered, fig_dir, note=note)
     _try(plots.energy_physical, country, fig_dir, illustrative=illustrative)
-    _try(tables.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
-    _try(report.write_html_report, layered, os.path.join(fig_dir, "report.html"))
+    if _multi:  # the step-decomposition CSV is redundant for a single coupled run (see results.csv)
+        _try(tables.across_steps_table, layered, os.path.join(fig_dir, "across_steps_summary.csv"))
+    # index.html (written at the end) is the SINGLE entry point -- no separate CDN-dependent report.html.
 
-    # --- OG-Core's own canonical suite (free reference set) for the headline reform ----
+    # --- OG-Core's own canonical ~31-plot suite: OPT-IN appendix (default off -> lean deck) --------
     headline_dir = dir_of(headline_step)
-    if headline_dir and os.path.isdir(headline_dir):
+    if og_appendix and headline_dir and os.path.isdir(headline_dir):
         _try(plots.og_default_outputs, base_dir, headline_dir,
              os.path.join(fig_dir, "og_suite"), plots=True)
+        print(f"  (OG-Core standard suite -> {os.path.join(fig_dir, 'og_suite')}/  [opt-in appendix])")
 
     base_tpi = _tpi(base_dir)
     base_ss = _ss(base_dir)  # also feeds the CEV/distribution/composition figures below
@@ -288,7 +291,14 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
     # >=2 layered scenarios, so it is skipped for a single coupled run (where it would be one row).
     if base_tpi is not None and headline_tpi is not None:
         _try(tables.macro_table_figure, base_tpi, headline_tpi, start_year, fig_dir, note=note)
-    if len([r for r in layered if "macro" in r]) >= 2:
+        # ONE authoritative CSV of the headline numbers in the deck root -- the source of truth behind
+        # the rendered macro_table.png (not an image-only table; copyable, re-analysable, like OG's).
+        try:
+            og_report.macro_table(base_tpi, headline_tpi, start_year).to_csv(
+                os.path.join(os.path.dirname(index_path) or ".", "results.csv"))
+        except Exception as e:  # noqa: BLE001 -- the CSV is a convenience; never abort the deck
+            print(f"  (results.csv skipped: {type(e).__name__})")
+    if _multi:
         _try(tables.summary_table, layered, fig_dir, note=note)
     # The cover carries the FULL caveat + the plain-language scenario description.
     _try(tables.cover_page, layered, country, _DECK_SECTIONS, fig_dir, note=full_note,
@@ -322,17 +332,18 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
 
 
 def build_figures(country, run_dir, fig_dir, gbd_csv, *, headline_step=None, note=DEFAULT_NOTE,
-                  illustrative=True):
+                  illustrative=True, og_appendix=False):
     """Rebuild the full figure set from a solved ACROSS-STEPS tree under `run_dir` (``baseline/`` +
     per-step dirs + ``layered_results.json``), writing to `fig_dir`. A thin wrapper over
     `_render_deck` that just resolves the on-disk across-steps layout; `headline_step` None ->
-    auto-detect (last layered step)."""
+    auto-detect (last layered step). `og_appendix` opt-in adds OG-Core's ~31-plot suite."""
     with open(os.path.join(run_dir, "layered_results.json"), encoding="utf-8") as f:
         layered = json.load(f)
     print(f"regen: read {run_dir}\n       write {fig_dir}")
     _render_deck(country, lambda label: os.path.join(run_dir, label) if label else None,
                  layered, fig_dir, os.path.join(run_dir, "index.html"),
-                 headline_step=headline_step, gbd_csv=gbd_csv, note=note, illustrative=illustrative)
+                 headline_step=headline_step, gbd_csv=gbd_csv, note=note, illustrative=illustrative,
+                 og_appendix=og_appendix)
 
 
 def _read_manifest(coupled_dir):
@@ -382,7 +393,7 @@ def _note_from_manifest(manifest):
 
 def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_base=None,
                                 clews_reform=None, fig_dir=None, gbd_csv=None,
-                                step_label=None, note=None, illustrative=True):
+                                step_label=None, note=None, illustrative=True, og_appendix=False):
     """Build the full rich deck from ONE solved `run coupled` output dir, with NO new solve.
 
     `out_dir` collects the whole simulation deck in ONE directory -- `out_dir/figures/` + `out_dir/
@@ -451,7 +462,8 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_bas
     note = _note_from_manifest(manifest) if note is None else note
     print(f"coupled-deck: read {coupled_dir}\n       baseline {base_dir}\n       write {out_dir}")
     _render_deck(country, dir_of, layered, fig_dir, os.path.join(out_dir, "index.html"),
-                 headline_step=label, gbd_csv=gbd_csv, note=note, illustrative=illustrative)
+                 headline_step=label, gbd_csv=gbd_csv, note=note, illustrative=illustrative,
+                 og_appendix=og_appendix)
 
 
 def main(argv=None):
@@ -479,6 +491,9 @@ def main(argv=None):
     ap.add_argument("--note", help="honest caveat caption stamped on every figure")
     ap.add_argument("--calibrated", action="store_true",
                     help="drop the illustrative/model-units caveats (use once results are real)")
+    ap.add_argument("--og-appendix", action="store_true",
+                    help="also render OG-Core's ~31-plot standard suite into figures/og_suite/ "
+                         "(off by default -> a lean deck of only the curated coupling figures)")
     args = ap.parse_args(argv)
 
     country = _resolve_country(_resolve(args.country, "OGCLEWS_COUNTRY", DEFAULT_COUNTRY),
@@ -498,7 +513,7 @@ def main(argv=None):
             fig_dir=_resolve(args.fig_dir, "OGCLEWS_FIG_DIR", None),
             gbd_csv=_resolve(args.gbd_csv, "OGCLEWS_GBD_CSV", None),
             note=_resolve(args.note, "OGCLEWS_NOTE", None),
-            illustrative=illustrative)
+            illustrative=illustrative, og_appendix=args.og_appendix)
         return
 
     run_dir = _resolve(args.run_dir, "OGCLEWS_RUN_DIR", SHARED_RUN)
@@ -510,7 +525,7 @@ def main(argv=None):
     headline_step = _resolve(args.headline_step, "OGCLEWS_HEADLINE_STEP", None)  # None -> auto-detect
 
     build_figures(country, run_dir, fig_dir, gbd_csv, headline_step=headline_step, note=note,
-                  illustrative=illustrative)
+                  illustrative=illustrative, og_appendix=args.og_appendix)
 
 
 if __name__ == "__main__":
