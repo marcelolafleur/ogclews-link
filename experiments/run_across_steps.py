@@ -57,12 +57,11 @@ def main():
     health_row = next((r for r in layered if r.get("step") == "+ health" and "macro" in r), None)
     if health_row is not None and base_tpi is not None:
         def _mortonly(ctx, solve):
-            c, p = ctx.country, ctx.og_reform
-            channels.energy_price(ctx, price_ratio=1.20)
-            channels.investment(ctx, signals.public_capex_pct_gdp(
-                c.scenario.base_dir, c.scenario.reform_dir, c, og_start_year=c.scenario.og_start_year,
-                T=p.T, scale=0.3, smooth_years=5))
-            channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.002)
+            # mirror the real +health layer (experiments._across_health) but health = mortality-only
+            from ogclews_link.experiments import _apply_energy_composite, _auto_price_ratio, _public_capex
+            _apply_energy_composite(ctx, _auto_price_ratio(ctx))
+            channels.investment(ctx, _public_capex(ctx))
+            channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
             channels.health(ctx, enable_mortality=True, enable_morbidity=False)
             solve(ctx)
         try:

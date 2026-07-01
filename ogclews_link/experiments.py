@@ -80,11 +80,23 @@ def _apply_energy_composite(ctx, elec_price_ratio):
     return None
 
 
+def _auto_price_ratio(ctx):
+    """PHL's ACTUAL electricity reform/base price-ratio path from CLEWS ('auto': the cost-of-electricity
+    workbook if present, else the OSeMOSYS commodity-balance dual on raw MUIOGO output). UN-diluted
+    (share=1.0). This is the real price change (near-flat for PHL), NOT an illustrative stimulus -- the
+    single source of the electricity price used by ``coupled`` and every real energy result here."""
+    c, p = ctx.country, ctx.og_reform
+    return signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir, reform_dir=c.scenario.reform_dir,
+                                      share=1.0, og_start_year=c.scenario.og_start_year,
+                                      n=np.asarray(p.tau_c).shape[0], fuel=c.electricity_fuel)
+
+
 # --- single-channel experiments -------------------------------------------------
 
 def energy_price(ctx, solve):
-    """Controlled +20% energy price; the demand-response mechanism (no recycling, c_min=0)."""
-    channels.energy_price(ctx, price_ratio=1.20)
+    """The energy-price demand-response channel at PHL's REAL electricity price (CLEWS 'auto' dual), via
+    the consumption-tax wedge (no recycling, c_min=0). PHL's real price is near-flat, so a small effect."""
+    channels.energy_price(ctx, price_ratio=_auto_price_ratio(ctx))
     solve(ctx)
 
 
@@ -124,9 +136,9 @@ def energy_full(ctx, solve):
 
 
 def clean_incidence(ctx, solve):
-    """Energy price with revenue recycled + energy a necessity (c_min>0): the textbook regressive
-    incidence. NB energy_cmin must be below every group's baseline energy consumption."""
-    channels.energy_price(ctx, price_ratio=1.20, recycle_revenue_to_transfers=True,
+    """The regressive incidence of PHL's REAL electricity price (CLEWS 'auto' dual): revenue recycled +
+    energy a necessity (c_min>0). NB energy_cmin must be below every group's baseline energy consumption."""
+    channels.energy_price(ctx, price_ratio=_auto_price_ratio(ctx), recycle_revenue_to_transfers=True,
                           energy_subsistence_floor=0.005)
     solve(ctx)
 
@@ -202,14 +214,7 @@ def coupled(ctx, solve):
     output) transmitted via the ENERGY_FULL COMPOSITE (inter-industry cost-push + recycled household
     wedge -- the defensible transmission; see docs/design/energy-price-transmission.md) + public
     investment + carbon on the CLEWS side + GBD health, then OG rate/activity emitted back."""
-    c, p = ctx.country, ctx.og_reform
-    # the UN-diluted electricity price ratio path (share=1.0 -> no dilution); the composite applies the
-    # per-industry phi_j to the cost-push leg and the energy-good share to the recycled wedge itself.
-    elec = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir,
-                                      reform_dir=c.scenario.reform_dir, share=1.0,
-                                      og_start_year=c.scenario.og_start_year, n=np.asarray(p.tau_c).shape[0],
-                                      fuel=c.electricity_fuel)
-    _apply_energy_composite(ctx, elec)
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))    # PHL's real CLEWS electricity price (near-flat)
     channels.investment(ctx, _public_capex(ctx))
     channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)    # carbon priced on the CLEWS side only here
     channels.health(ctx)
@@ -219,32 +224,31 @@ def coupled(ctx, solve):
 
 
 # --- cumulative "across steps": each step adds one channel on top of the last ----
-# Steps 2-4 use ILLUSTRATIVE magnitudes (investment scaled, small carbon intensity) -- the point is the
-# composition, not calibrated policy numbers.
+# The layers REPRODUCE the real ``coupled`` run cumulatively -- identical channel treatments (real CLEWS
+# 'auto' electricity price via the composite, real public investment, the $50 CLEWS-side carbon penalty,
+# GBD health) -- so the top layer EQUALS ``coupled`` and the decomposition attributes the ACTUAL PHL result.
 
 def _across_energy(ctx, solve):
-    channels.energy_price(ctx, price_ratio=1.20)
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))
     solve(ctx)
 
 
 def _across_investment(ctx, solve):
-    channels.energy_price(ctx, price_ratio=1.20)
-    channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))
+    channels.investment(ctx, _public_capex(ctx))
     solve(ctx)
 
 
 def _across_carbon(ctx, solve):
-    channels.energy_price(ctx, price_ratio=1.20)
-    channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
-    channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.002)
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))
+    channels.investment(ctx, _public_capex(ctx))
     channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
     solve(ctx)
 
 
 def _across_health(ctx, solve):
-    channels.energy_price(ctx, price_ratio=1.20)
-    channels.investment(ctx, _public_capex(ctx, scale=0.3, smooth_years=5))
-    channels.carbon_tax(ctx, carbon_price_usd_per_tco2=50.0, carbon_per_energy_unit=0.002)
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))
+    channels.investment(ctx, _public_capex(ctx))
     channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
     channels.health(ctx)
     solve(ctx)
