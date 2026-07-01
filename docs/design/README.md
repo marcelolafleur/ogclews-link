@@ -10,6 +10,7 @@ imports them.
 | [ogcore-clews-integration-worklog.md](ogcore-clews-integration-worklog.md) | The running log of the integration effort — decisions, dead ends, findings. |
 | [ogcore-clews-integration-synthesis-report.md](ogcore-clews-integration-synthesis-report.md) | A synthesis of the integration findings. |
 | [energy-price-transmission.md](energy-price-transmission.md) | How a CLEWS electricity-price change reaches OG-Core: the four transmissions (`tau_c` / own-`Z` / cost-push / the `energy_full` composite), why their GDP signs disagree, the 4-way PHL result, country-generality, and the link-side ceiling vs. the [energy-as-production-input-spec.md](energy-as-production-input-spec.md) endpoint. |
+| [viz-style-guide.md](viz-style-guide.md) | **The house style for every figure.** An FT / Nature / Quanta synthesis: the honest-by-construction rule, three modes (FT results · Nature detail · Quanta mechanism), the committed colourblind-safe palette, typography, the annotation layer, the neutral-title resolution, a pre-ship checklist, and the guide↔`style.py` map. |
 
 ## Provenance
 
