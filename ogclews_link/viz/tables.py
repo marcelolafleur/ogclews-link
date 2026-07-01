@@ -67,7 +67,7 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
         return []
     os.makedirs(out_dir, exist_ok=True)
 
-    col_labels = ["step", "Output %", "Consumption %", "Capital %", "Labor %",
+    col_labels = ["scenario", "Output %", "Consumption %", "Capital %", "Labor %",
                   "Energy demand %", "Consumption-tax revenue %"]
 
     def _cumvals(r):
@@ -76,16 +76,21 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
         return [macro.get("Y"), macro.get("C"), macro.get("K"), macro.get("L"),
                 r.get("energy_demand_pct"), fiscal.get("cons_tax_revenue_pct")]
 
+    single = len(solved) == 1  # one coupled scenario -> its marginal IS the total; no redundant row
     cum = [_cumvals(r) for r in solved]
     rows, prev = [], [0.0] * len(col_labels[1:])
     for r, cv in zip(solved, cum):
         rows.append([str(r.get("step", ""))] + [_fmt_pct(v) for v in _marginal(cv, prev)])
         prev = cv
-    # Total = the full-reform cumulative (the last step's stored values; equals the marginal sum).
-    total_idx = len(rows) + 1  # +1 for the header row
-    rows.append(["All scenarios (total)"] + [_fmt_pct(v) for v in cum[-1]])
+    # Multi-scenario: a Total row restating the full-reform cumulative (== the marginal sum). For a
+    # single scenario that row would just duplicate the one data row, so it is omitted.
+    total_idx = (len(rows) + 1) if not single else -1  # +1 for the header; -1 = no Total row present
+    if not single:
+        rows.append(["All scenarios (total)"] + [_fmt_pct(v) for v in cum[-1]])
 
-    fig, ax = plt.subplots(figsize=(10.0, 1.4 + 0.62 * (len(rows) + 1)))
+    # Height floor so the title block (kicker + title + subtitle) always has room above the table --
+    # a 1-2 row table would otherwise be too short and the subtitle would ride into the title.
+    fig, ax = plt.subplots(figsize=(10.0, max(3.9, 1.4 + 0.62 * (len(rows) + 1))))
     fig.subplots_adjust(top=0.74, bottom=0.10, left=0.045, right=0.965)
     ax.set_axis_off()
 
@@ -128,23 +133,26 @@ def summary_table(layered, out_dir, *, note=None, name="summary_table"):
             for cc in range(ncols):
                 table[(rr, cc)].set_facecolor("#FAFAFA")
 
-    style.title_block(
-        fig, title="Contribution of each scenario over the first 10 years (2026-2035)",
-        subtitle="Average % change vs baseline  ·  each row is that scenario's own (marginal) "
-                 "contribution; the last line is all scenarios combined",
-        source=style.source_line(note), kicker="summary table", top=0.965)
+    if single:
+        title = "Macro impact of the coupled scenario over the first 10 years"
+        subtitle = "Average % change vs baseline over the first 10 transition years"
+    else:
+        title = "Contribution of each scenario over the first 10 years"
+        subtitle = ("Average % change vs baseline  ·  each row is that scenario's own (marginal) "
+                    "contribution; the last line is all scenarios combined")
+    style.title_block(fig, title=title, subtitle=subtitle,
+                      source=style.source_line(note), kicker="summary table", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
 
 
 def cover_page(layered, country, fig_titles, out_dir, *, note=None, illustrative=True, name="cover"):
     """The deck's title page: country name + scenario headline, a plain-language statement of the
-    scenario (the four layered changes with their magnitudes, and what the health channel is), and
-    a contents list of the section titles in `fig_titles`. `illustrative` gates the
-    "illustrative/assumed/stand-in" qualifiers on the magnitudes. States no result."""
+    scenario (the four changes described by MECHANISM, and what the health channel is), and a
+    contents list of the section titles in `fig_titles`. Magnitudes are NOT asserted here -- they
+    are scenario-specific and ride in the source note -- so the cover is honest and general across
+    runs; `illustrative` only tags the deck as illustrative. States no result."""
     cname = getattr(country, "name", None) or "country"
     titles = [str(t) for t in (fig_titles or []) if str(t).strip()]
-    a = "an assumed " if illustrative else "a "          # illustrative qualifiers, gated
-    standin = " (a flat stand-in for the energy model's own price path)" if illustrative else ""
     tag = "  (illustrative magnitudes)" if illustrative else ""
 
     def draw(fig, ax):
@@ -165,15 +173,17 @@ def cover_page(layered, country, fig_titles, out_dir, *, note=None, illustrative
                 y -= 0.031
             y -= gap
 
-        # Plain-language statement of the scenario: the four layered changes WITH their magnitudes,
-        # and what the health channel is. (Illustrative qualifiers gated by `illustrative`.)
+        # Plain-language statement of the scenario -- the changes described by MECHANISM. The actual
+        # magnitudes ride in the source note (scenario-specific), so the cover is honest and general:
+        # it never asserts a "+20%"/"$50" a given run may not use.
         para("The scenario", bold=True, size=11.5, color=style.INK)
-        para(f"Four changes are layered onto the economy, one at a time{tag}:")
-        para(f"1.  Energy price -- {a}+20% rise in the price of the energy good{standin}.",
+        para(f"The coupled scenario changes the economy in four ways{tag}; "
+             "this run's specific magnitudes are in the note below:")
+        para("1.  Energy price -- a change in the price of the energy good, taken from the energy model.",
              color=style.INK)
         para("2.  Clean-energy investment -- the energy model's grid and generation capex, "
              "added to public investment.", color=style.INK)
-        para(f"3.  Carbon tax -- {a}$50 per tonne of CO2, charged on the energy good.",
+        para("3.  Carbon tax -- a price on CO2 emissions, charged on the energy good.",
              color=style.INK)
         para("4.  Health -- cleaner air means fewer pollution deaths and less illness, so people "
              "live and work longer; derived from the emissions change.", color=style.INK)

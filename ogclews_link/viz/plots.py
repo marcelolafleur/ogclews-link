@@ -1214,7 +1214,7 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     style.zero_line(ax)
     ax.bar(range(J), cev, width=0.66, color=style.signed(cev), zorder=2)
     for j, v in enumerate(cev):
-        ax.annotate(f"{v:+.2f}%", (j, v), xytext=(0, -11 if v < 0 else 6),
+        ax.annotate(style.signed_pct(v, cev), (j, v), xytext=(0, -11 if v < 0 else 6),
                     textcoords="offset points", ha="center", va="top" if v < 0 else "bottom",
                     fontsize=9, fontweight="bold", color=style.LOSS if v < 0 else style.GAIN)
     ax.set_xticks(range(J))
@@ -1228,7 +1228,7 @@ def cev_by_group(base_ss, reform_ss, base_params, reform_params, out_dir, *, not
     style.title_block(
         fig, title="Lifetime welfare effect by income group",
         subtitle=f"By income group, poorest to richest (negative = worse off)  ·  consumption-equivalent: "
-                 f"the % of lifetime spending that leaves a household equally well off  ·  mean {np.nanmean(cev):+.2f}%",
+                 f"the % of lifetime spending that leaves a household equally well off  ·  mean {style.signed_pct(np.nanmean(cev), cev)}",
         source=style.source_line(note, extra=_BEQ_NOTE),
         kicker="welfare: CEV by group", top=0.965)
     return [style.save(fig, os.path.join(out_dir, f"{name}.png"))]
@@ -1266,11 +1266,13 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
            edgecolor="white", linewidth=0.6)
     ax.bar(x + bw / 2, cev_n, width=bw, color=style.signed(cev_n), zorder=2,
            edgecolor="white", linewidth=0.6, hatch="////")
+    allcev = np.concatenate([cev_c[np.isfinite(cev_c)], cev_n[np.isfinite(cev_n)]])  # one shared precision
     for off, vals in ((-bw / 2, cev_c), (bw / 2, cev_n)):
         for j, v in enumerate(vals):
             if not np.isfinite(v):
                 continue
-            ax.annotate(f"{v:+.2f}", (x[j] + off, v), xytext=(0, -10 if v < 0 else 5),
+            ax.annotate(style.signed_pct(v, allcev, unit=""), (x[j] + off, v),
+                        xytext=(0, -10 if v < 0 else 5),
                         textcoords="offset points", ha="center", va="top" if v < 0 else "bottom",
                         fontsize=9, fontweight="bold", color=style.LOSS if v < 0 else style.GAIN)
     # A two-swatch legend ABOVE the plot states the fill convention outright (solid = spending,
@@ -1289,13 +1291,13 @@ def cev_decomposition(base_ss, reform_ss, base_params, reform_params, out_dir, *
     fin_c, fin_n = cev_c[np.isfinite(cev_c)], cev_n[np.isfinite(cev_n)]
     parts = []
     if fin_c.size:
-        parts.append(f"spending mean {np.mean(fin_c):+.2f}%")
+        parts.append(f"spending mean {style.signed_pct(np.mean(fin_c), allcev)}")
     if fin_n.size:
-        parts.append(f"work mean {np.mean(fin_n):+.2f}%")
+        parts.append(f"work mean {style.signed_pct(np.mean(fin_n), allcev)}")
     means = "  ·  ".join(parts)
     work_mean = float(np.mean(fin_n)) if fin_n.size else float("nan")
     work_note = ("Note: the work-channel effect is about "
-                 f"{work_mean:+.2f}%, so its bars sit close to zero."
+                 f"{style.signed_pct(work_mean, allcev)}, so its bars sit close to zero."
                  if np.isfinite(work_mean) else
                  "Note: the work-channel effect sits close to zero, so its bars are hard to see.")
     fig.text(0.045, 0.055, work_note, fontsize=8.5, color=style.SUB, ha="left", va="bottom", wrap=True)
@@ -1870,8 +1872,24 @@ def _panel_macro(ax, base_tpi, reform_tpi, start_year, params=None, n_years=80):
 
 def _panel_waterfall(ax, layered):
     solved = [r for r in layered if "macro" in r]
-    if len(solved) < 2:  # a bridge needs at least two solved steps to span
-        ax.set_title("3 · Each scenario's contribution to GDP")
+    if len(solved) < 2:  # single scenario: no bridge to span -> show ITS macro impact bars instead
+        m = (solved[0].get("macro") if solved else {}) or {}
+        keys = [("Y", "GDP"), ("C", "consumption"), ("K", "capital"), ("L", "labor")]
+        vals = [m.get(k) for k, _ in keys]
+        fin = [float(v) for v in vals if v is not None]
+        style.zero_line(ax)
+        ax.bar(range(len(vals)), [float(v) if v is not None else 0.0 for v in vals],
+               color=style.signed([float(v) if v is not None else 0.0 for v in vals]), width=0.6, zorder=2)
+        for i, v in enumerate(vals):
+            if v is not None:
+                ax.annotate(style.signed_pct(v, fin), (i, v), xytext=(0, -11 if v < 0 else 6),
+                            textcoords="offset points", ha="center", va="top" if v < 0 else "bottom",
+                            fontsize=9, fontweight="bold", color=style.LOSS if v < 0 else style.GAIN)
+        ax.set_xticks(range(len(keys)))
+        ax.set_xticklabels([lab for _, lab in keys])
+        ax.margins(y=0.22)
+        ax.set_ylabel("change vs baseline (%)")
+        ax.set_title("3 · Macro impact of the coupled scenario  ·  first 10 years")
         return
     labels = [r["step"].replace("+ ", "") for r in solved]
     yvals = [r["macro"]["Y"] for r in solved]
@@ -1920,10 +1938,12 @@ def headline_dashboard(layered, base_tpi, reform_tpi, base_ss, reform_ss, base_p
 
     try:
         _panel_emissions(axes[0, 0], country, illustrative=illustrative)
-    except Exception as e:  # noqa: BLE001 -- emissions needs the external CLEWS dir; degrade gracefully
+    except Exception:  # noqa: BLE001 -- emissions needs the external CLEWS dir; degrade gracefully + LOUDLY
+        print("  (dashboard panel 1: emissions path unavailable -- CLEWS scenario files not found)")
         axes[0, 0].set_title("1 · Emissions: baseline vs reform")
-        axes[0, 0].text(0.5, 0.5, f"(emissions unavailable:\n{type(e).__name__})", ha="center",
-                        va="center", transform=axes[0, 0].transAxes, color=style.MUTE, fontsize=9)
+        axes[0, 0].text(0.5, 0.5, "Emissions path not available\n(needs the CLEWS scenario files)",
+                        ha="center", va="center", transform=axes[0, 0].transAxes,
+                        color=style.MUTE, fontsize=9.5)
     _panel_macro(axes[0, 1], base_tpi, reform_tpi, start_year, base_params)
     _panel_waterfall(axes[1, 0], layered)
     _panel_cev(axes[1, 1], base_ss, reform_ss, base_params, reform_params)

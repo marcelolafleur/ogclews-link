@@ -100,11 +100,20 @@ def _default_headline(layered):
 
 
 def _default_gbd_csv(run_dir, country):
-    """The GBD burden CSV next to the run (../.. from the across-steps tree), else the country's own."""
-    repo = os.path.normpath(os.path.join(run_dir, "..", ".."))
-    hits = [h for h in glob.glob(os.path.join(repo, "IHME-GBD_2023_DATA", "*.csv"))
-            if "citation" not in os.path.basename(h).lower()]
-    return sorted(hits)[0] if hits else (getattr(country, "gbd_burden_csv", None) or None)
+    """The GBD burden CSV for the run: search UPWARD from `run_dir` for an IHME-GBD_2023_DATA/ dir
+    (a run may sit several levels below the repo root, e.g. a battery/<exp>/<exp> layout), else fall
+    back to the country's own configured file. General -- no fixed directory depth is assumed."""
+    d = os.path.abspath(run_dir)
+    for _ in range(5):
+        hits = [h for h in glob.glob(os.path.join(d, "IHME-GBD_2023_DATA", "*.csv"))
+                if "citation" not in os.path.basename(h).lower()]
+        if hits:
+            return sorted(hits)[0]
+        parent = os.path.dirname(d)
+        if parent == d:
+            break
+        d = parent
+    return getattr(country, "gbd_burden_csv", None) or None
 
 
 def _tpi(d):
@@ -218,13 +227,17 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
     # applied -- not the headline's cumulative energy+carbon wedge.
     ep_params = _params(dir_of(layered[0]["step"])) if layered else None
     ep_ref = ep_params if ep_params is not None else headline_params
+    energy_linkage = []  # these read the CLEWS scenario/cost files; capture so a skip is never silent
     if base_params is not None and ep_ref is not None:
-        _try(plots.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir, note=note,
-             concordance=conc, illustrative=illustrative)
-    _try(plots.capex_by_technology, country, fig_dir, note=note, illustrative=illustrative)
+        energy_linkage.append(_try(plots.clews_signal_vs_applied, country, base_params, ep_ref, fig_dir,
+                                   note=note, concordance=conc, illustrative=illustrative))
+    energy_linkage.append(_try(plots.capex_by_technology, country, fig_dir, note=note,
+                               illustrative=illustrative))
     if base_tpi is not None:
-        _try(plots.channel_inputs_over_time, country, base_tpi, fig_dir, note=note,
-             illustrative=illustrative)
+        energy_linkage.append(_try(plots.channel_inputs_over_time, country, base_tpi, fig_dir, note=note,
+                                   illustrative=illustrative))
+    if not any(energy_linkage):  # never silent (design guide): say why the "how it's built" figures are absent
+        print("  (energy-linkage figures skipped: this run's CLEWS scenario/cost files were not found)")
 
     # --- health-channel visuals -------------------------------------------------
     if gbd_csv and os.path.isfile(gbd_csv):

@@ -107,19 +107,28 @@ def title_block(fig, title, subtitle=None, source=None, kicker=None,
     key tell vs suptitle): a colored kicker rule + UPPERCASE category tag, a bold claim
     headline, a grey dek, and a grey source line bottom-left. Call after laying out axes;
     reserve room with fig.subplots_adjust(top=~0.78) so it sits in the gap above the plot."""
+    # Vertical gaps are in TYPOGRAPHIC POINTS (converted to figure fraction via the figure height),
+    # so title->subtitle spacing is constant on the page for ANY figure height -- it neither
+    # collapses/overlaps on a short figure (e.g. a 1-2 row table) nor over-spaces on a tall one
+    # (e.g. the dashboard). At the common ~5in editorial height these match the old fixed fractions.
+    h = float(fig.get_figheight()) or 5.0
+
+    def _pt(p):
+        return (p / 72.0) / h
+
     y = top
     if kicker:
         fig.add_artist(plt.Line2D([x, x + 0.06], [y, y], color=kicker_color, lw=3,
                                   solid_capstyle="butt", transform=fig.transFigure))
-        fig.text(x, y - 0.016, kicker.upper(), color=kicker_color, fontsize=9,
+        fig.text(x, y - _pt(6), kicker.upper(), color=kicker_color, fontsize=9,
                  fontweight="bold", ha="left", va="top")
-        y -= 0.050
+        y -= _pt(18)
     fig.text(x, y, title, fontsize=15, fontweight="bold", color=INK, ha="left", va="top")
     # wrap=True wraps long deks/source notes to the figure width instead of overflowing the
     # canvas -- with savefig.bbox="tight" an unwrapped line would stretch the saved image far
     # wider than the plot, leaving the chart marooned in a thin, over-wide frame.
     if subtitle:
-        fig.text(x, y - 0.046, subtitle, fontsize=11, color=SUB, ha="left", va="top", wrap=True)
+        fig.text(x, y - _pt(17), subtitle, fontsize=11, color=SUB, ha="left", va="top", wrap=True)
     if source:
         fig.text(x, 0.008, source, fontsize=8, color=MUTE, ha="left", va="bottom", wrap=True)
 
@@ -168,6 +177,21 @@ def label_ends(ax, points, dx=6, min_gap=None):
 def signed(vals, gain=GAIN, loss=LOSS):
     """Diverging color per value sign (gains vs losses)."""
     return [loss if v < 0 else gain for v in vals]
+
+
+def signed_pct(v, vals=None, *, unit="%"):
+    """Signed label for `v` with precision ADAPTIVE to the series magnitude, and no negative-zero.
+    Pass `vals` (the whole series) so every label in a chart shares one precision: tiny real effects
+    (~0.01%) then read as +0.007 / +0.015 instead of all collapsing to '+0.01', and a value that
+    rounds to zero reads '0%' rather than a misleading '-0.00'. This is the design guide's
+    "magnitude as a computed number" rule made flexible to ANY result magnitude (tiny real or large
+    illustrative); reuse it wherever a bar/point value is stamped so the deck stays legible either way."""
+    ref = np.ravel(vals if vals is not None else [v])
+    finite = [abs(float(x)) for x in ref if x is not None and np.isfinite(x)]
+    m = max(finite, default=0.0)
+    d = 2 if m >= 0.1 else 3 if m >= 0.01 else 4 if m > 0 else 2
+    r = round(float(v), d)
+    return f"0{unit}" if r == 0 else f"{r:+.{d}f}{unit}"
 
 
 # --- honest, scenario-portable wording -------------------------------------------
