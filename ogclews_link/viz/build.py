@@ -70,7 +70,7 @@ _INDEX_SECTIONS = [
       "public_investment"]),
     ("Health channel",
      ["health_age_profiles", "health_mortality_by_age", "health_morbidity_by_age",
-      "health_demography", "health_gdp_split"]),
+      "health_gdp_split"]),
     ("Welfare -- who wins and loses",
      ["welfare_cev_by_group", "welfare_cev_decomposition", "welfare_cev_by_age"]),
     ("Distribution & composition",
@@ -248,7 +248,11 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
     if base_params is not None and headline_params is not None:
         _try(plots.mortality_by_age, base_params, headline_params, fig_dir, note=note)
         _try(plots.morbidity_by_age, base_params, headline_params, fig_dir, note=note)
-        _try(plots.demographic_transition_by_age, base_params, headline_params, fig_dir, note=note)
+        # No population-share-by-age chart: reform omega (disease_pop, infer_pop=True, single seed) and
+        # baseline omega (baseline_pop, infer_pop=False, observed UN pop) come from DIFFERENT get_pop_objs
+        # windows, so their difference is ~99.9% construction artifact (single-age heaping + a window
+        # kink), not the health signal. The real mortality effect on the age structure is smooth and
+        # ~3e-4 pp -- negligible; the health story is carried by lives-saved + mortality_by_age above.
     _try(plots.gdp_split, layered, fig_dir, note=note, illustrative=illustrative)
 
     # --- welfare: consumption-equivalent variation (CEV) ------------------------
