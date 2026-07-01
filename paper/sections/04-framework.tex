@@ -1,0 +1,292 @@
+\section{The Coupling Framework}
+\label{sec:framework}
+
+The framework reduces the coupling to two primitive objects and a discipline for
+combining them. A \emph{signal} is a quantity carried out of a solved \CLEWS{}
+scenario; a \emph{wedge} is a parameter of \OGCore{} that a signal sets; a
+\emph{channel} is a named, guard-railed map from a signal to a wedge. The remainder of
+this section defines these objects (\Cref{sec:signals-wedges}), identifies the
+privileged signal---the dual on the energy-balance constraint
+(\Cref{sec:dual})---enumerates the routes by which an energy-cost signal can enter a
+core that contains no energy in production (\Cref{sec:routes}), describes the staged
+orchestration and the interface contract that make the mapping auditable
+(\Cref{sec:architecture}), and states the accounting principles that keep a single
+signal from being counted twice (\Cref{sec:discipline}).
+
+\subsection{Signals and wedges}
+\label{sec:signals-wedges}
+
+The two models meet across an asymmetry. \OGCore{} is rich in behaviour, public
+finance, and household heterogeneity but blind to energy technology; \CLEWS{} is rich
+in technology, dispatch, and emissions but blind to behaviour, the fiscal sector, and
+distribution. The information that usefully crosses the seam therefore differs by
+direction: from the macro side flow \emph{quantities}---sectoral activity and final
+demand; from the energy side flow \emph{prices and physical outcomes}---marginal
+costs, capital requirements, and emissions. The two primitives formalise the two
+directions.
+
+\begin{definition}[Signal]
+A \emph{signal} is a scalar or time path extracted from a solved \CLEWS{} scenario:
+the dual on a commodity-balance constraint (a marginal cost), the capital investment
+required by a build-out, the emissions of a fuel or period, or the dual on an
+emissions constraint (an implied carbon price).
+\end{definition}
+
+\begin{definition}[Wedge]
+A \emph{wedge} is a parameter of \OGCore{} whose perturbation expresses a signal as a
+change in household or firm behaviour or in the government budget: the
+consumption-tax vector $\tauc$, an industry total-factor-productivity level $\TFP_m$,
+the public-investment share $\alphaI$, or the demographic objects---the age-specific
+mortality rate $\rho(s,t)$ and effective-labour profile $e(t,s,j)$.
+\end{definition}
+
+The term is used in its public-finance sense: the simplest channel
+(\Cref{sec:routes}) literally inserts a tax wedge between the producer and consumer
+price of energy. A channel is then the composition of an extractor and an applicator,
+together with the validation that fires when a mapping is large or ill-posed.
+
+\begin{remark}[Realisation]
+The channels are plain functions in \texttt{channels.py} (those that run
+\OGCore{}$\to$\CLEWS{} carry an \texttt{emit\_} prefix and execute after the reform
+solves); extraction lives in \texttt{signals.py}, application in \texttt{og\_wedge.py},
+the per-run interface and sector concordance in \texttt{contract.py}/\texttt{discovery.py},
+orchestration in \texttt{framework.py}, and the cross-environment solve---which runs the
+country's \OGCore{} model in its own interpreter and exchanges data files---in
+\texttt{registry.py}/\texttt{models.py}/\texttt{og\_runner.py}. Everything is
+country-agnostic: no hard-coded country, industry index, or industry count are baked in;
+those are read from the calibration and the declared concordance (\Cref{sec:architecture}).
+\end{remark}
+
+\subsection{The dual as the load-bearing signal}
+\label{sec:dual}
+
+Among the signals, the shadow price on the energy-balance constraint is privileged.
+In the \OSeMOSYS{} program \citep{howells_osemosys_2011} each commodity carries a
+balance constraint requiring supply to meet demand in every timeslice and year; the
+dual on that constraint is the marginal cost to the least-cost system of delivering
+one additional unit of the commodity. Under the usual competitive interpretation it
+is the price that would clear that quantity, and it is therefore the natural object to
+hand to a demand system. Two properties make it load-bearing.
+
+First, it closes an elasticity gap. Inside the energy optimiser, demand is an
+exogenous datum.
+
+\begin{assumption}[Price-inelastic energy demand in \CLEWS{}]
+\label{ass:inelastic}
+\CLEWS{}/\OSeMOSYS{} solves for the least-cost system that meets a \emph{fixed} energy-
+service demand; quantity demanded does not respond to the commodity price within the
+optimiser.
+\end{assumption}
+
+\noindent The behavioural response must therefore come from the macro side. Feeding
+the dual to \OGCore{} households---whose multi-good demand is unit-elastic above a
+Stone--Geary subsistence floor \citep{stone_1954}, see \Cref{sec:og}---makes the
+quantity of energy demanded respond to its price, supplying the elasticity the
+optimiser lacks.
+
+Second, it reveals incidence. A single program-level ``cost'' is silent on who bears
+it. \OGCore{}'s households, indexed by $\Ngen$ age and $\Jinc$ lifetime-income groups,
+distribute the burden of an energy-price change; because energy is a partial
+necessity, the burden is generally regressive---an object a single-agent core cannot
+produce.
+
+These two roles define what it means for the coupling to be internally consistent.
+
+\begin{definition}[Soft-link equilibrium]
+\label{def:fixedpoint}
+Let $D_{\text{OG}}(\pi)$ be the energy demand \OGCore{} implies when households (and,
+under \Cref{sec:routes} Route~C, firms) face energy price $\pi$, and let
+$\pi_{\text{C}}(D)$ be the \CLEWS{} balance-constraint dual when the system is built to
+deliver $D$. A \emph{consistent} coupling is a pair $(\pi^\star, D^\star)$ with
+\[
+  D^\star = D_{\text{OG}}(\pi^\star)
+  \qquad\text{and}\qquad
+  \pi^\star = \pi_{\text{C}}(D^\star).
+\]
+\end{definition}
+
+\noindent A single \CLEWS{}$\to$\OGCore{} pass evaluates $\pi_{\text{C}}(D^{b})$ at
+\emph{baseline} demand and applies it once; iterating the two maps to the fixed point
+of \Cref{def:fixedpoint} is \emph{loop closure} (\Cref{sec:architecture}). The
+present work validates the single pass; the loop is the principal unbuilt piece.
+
+\subsection{Three routes for an energy-cost shock}
+\label{sec:routes}
+
+The shipped \OGCore{} contains no energy as a produced, priced input to firms:
+households consume an ``energy good,'' but the firm's technology combines only private
+capital, public capital, and labour (\Cref{sec:og}). An energy-cost signal therefore
+has no native door into production, and must enter through one of three routes that
+trade structural fidelity against the cost of building it.
+
+\paragraph{Route A: a demand-side tax wedge.}
+The energy-price signal enters as a consumption-tax wedge on the energy good $i_e$.
+Writing $g_t \equiv \pi^{r}_t/\pi^{b}_t$ for the reform-to-baseline energy-price ratio
+delivered by \CLEWS{}, the wedge is set so the gross-of-tax price multiplier inherits
+that ratio,
+\begin{equation}
+  1 + \tau^{c,r}_{t,i_e} \;=\; g_t\,\bigl(1 + \tau^{c,b}_{t,i_e}\bigr),
+  \qquad\text{i.e.}\qquad
+  \tau^{c,r}_{t,i_e} \;=\; g_t\bigl(1+\tau^{c,b}_{t,i_e}\bigr) - 1 .
+  \label{eq:routeA}
+\end{equation}
+Households then face $(1+\tauc_{t,i_e})\,p_{i_e,t}$ in the demand system: the quantity
+of energy falls and the composite price rises. Route~A reuses existing model
+structure and is the only route that delivers heterogeneous incidence directly, but it
+carries two liabilities. It taxes only \emph{household} energy and never reaches firm
+decisions; and, because $\tauc$ is a fiscal instrument, the mapping mechanically
+credits the government with consumption-tax revenue that is economically a resource
+cost, not income---``phantom revenue'' that must be neutralised
+(\Cref{sec:discipline}). Empirically Route~A is close to output-neutral: the wedge
+largely reshuffles consumption rather than shrinking it (\Cref{sec:results}).
+
+\paragraph{Route B: a supply-side productivity haircut, input--output calibrated.}
+A cost shock ought to reach firms. Lacking energy in production, Route~B proxies it as
+a per-industry productivity loss whose size is fixed by input--output cost
+pass-through. Let $\boldsymbol\theta=(\theta_1,\dots,\theta_{\Mind})$ be the direct
+energy cost shares and $A$ the matrix of interindustry input coefficients. A
+proportional energy-price increase $\hat p_E$ raises industry $m$'s unit cost directly
+by $\theta_m\hat p_E$ and, through purchased intermediates, indirectly; summing the
+Leontief series gives the total cost-push
+\begin{equation}
+  \hat{\mathbf c} \;=\; (I - A^{\!\top})^{-1}\,\boldsymbol\theta\,\hat p_E ,
+  \label{eq:routeB}
+\end{equation}
+which Route~B applies as a haircut $\TFP^{r}_m = \TFP^{b}_m\,(1-\kappa_m)$, with
+$\kappa_m$ the gross-output cost increase of industry $m$. The amplification
+$(I-A^{\!\top})^{-1}$ is a moderate multiple of the direct shares, calibrated per
+aggregation from the country's SAM (\Cref{sec:calibration}).
+Route~B gives the right sign---a cost increase contracts output---and, unlike
+Route~A, is materially contractionary (\Cref{sec:results}). But a productivity loss is
+not an input cost: firms do not substitute away from energy, no energy market clears,
+and mapping a gross-output cost onto value-added productivity makes the magnitude a
+conservative proxy rather than an exact accounting of the shock.
+
+\begin{remark}[The route is a first-order modelling choice]
+\label{rem:ab-contrast}
+Routes~A and~B are two representations of the \emph{same} physical energy-cost signal,
+yet they deliver opposite macro verdicts---approximately neutral versus sharply
+contractionary (\Cref{sec:results}). The divergence is not a calibration detail: it is
+the choice of door. This is precisely why a structurally faithful, dual-consistent
+representation is the target rather than a refinement.
+\end{remark}
+
+\paragraph{Route C: energy as a priced production input (the structural ideal).}
+The faithful representation nests energy with value added in the firm's technology,
+\begin{equation}
+  Y^{\text{gross}}_m
+  \;=\; \TFP_m\Bigl[\,\omega_m\, VA_m^{\frac{\sigma_{E,m}-1}{\sigma_{E,m}}}
+        + (1-\omega_m)\, E_m^{\frac{\sigma_{E,m}-1}{\sigma_{E,m}}}\Bigr]
+        ^{\frac{\sigma_{E,m}}{\sigma_{E,m}-1}},
+  \label{eq:routeC}
+\end{equation}
+where $VA_m$ is the existing capital--labour aggregate and $E_m$ is energy purchased
+from the energy industry $m_e$ at the dual price $p_{m_e}$. Cost minimisation yields
+the energy demand
+\begin{equation}
+  E_m \;=\; \theta_m\Bigl(\frac{p_{m_e}}{MC_m}\Bigr)^{-\sigma_{E,m}} Y^{\text{gross}}_m ,
+  \label{eq:routeC-foc}
+\end{equation}
+the energy industry clears a resource constraint
+$Y_{m_e} = (\text{final demand}) + \sum_{m\ne m_e} E_m$, output is measured as value
+added net of energy purchases, and the energy price feeds firm cost endogenously so
+that the dual of \Cref{def:fixedpoint} closes the loop on quantities as well as
+prices. The substitution elasticities $\sigma_{E,m}\in[0.3,0.8]$ are available from the
+energy-CGE literature and the cost shares $\theta_m$ are already calibrated from the
+Philippine social accounting matrix (\Cref{sec:calibration}); what Route~C requires is
+a production-side extension to \OGCore{} itself, which is out of scope here.
+
+\begin{remark}[A maturity ladder]
+The three routes form a ladder: Route~A is cheapest and weakest (existing structure,
+household-only, phantom revenue); Route~B is right-signed with a proxy magnitude;
+Route~C is structurally correct and dual-consistent but unbuilt. The channels of
+\Cref{sec:channels} sit on rungs~A--B, with~C as the stated destination---the same
+ladder organises the maturity assessment of \Cref{sec:discussion}.
+\end{remark}
+
+\subsection{Architecture: a staged soft link}
+\label{sec:architecture}
+
+A simultaneous (``hard'') link is ruled out on structural, not practical, grounds.
+
+\begin{assumption}[Incompatible solution concepts]
+\label{ass:hardlink}
+\OGCore{} solves an overlapping-generations transition path period by period under
+foresight; \OSeMOSYS{} is a single perfect-foresight linear program over all years at
+once. \OGCore{} exposes no scalar welfare into which the program could be folded, and
+no shock can be injected mid-solve.
+\end{assumption}
+
+\noindent The models therefore stay separate and exchange a few signals---a soft link,
+in the tradition of iteratively coupled energy--macro models
+\citep{messner_schrattenholzer_2000,manne_merge_1995,loulou_times_2008}, but with a
+behaviourally and fiscally rich overlapping-generations core in place of a
+representative agent. The orchestration (\Cref{fig:architecture}) runs in stages:
+(i)~solve the \OGCore{} baseline in steady state and along the transition;
+(ii)~solve the \CLEWS{} scenario and extract its signals; (iii)~apply the channel
+wedges to the reform parameters and solve the reform transition; (iv)~read the
+\OGCore{}$\to$\CLEWS{} signals (the equilibrium return $\rp$ and sectoral activity);
+and, in the closed loop, (v)~re-solve \CLEWS{} and repeat to the fixed point of
+\Cref{def:fixedpoint}.
+
+\diagramfig{architecture}{The structural seam. The two models stay separate and pass
+signals across a contract; a hard link is precluded by \Cref{ass:hardlink}.}{fig:architecture}
+
+What makes the exchange auditable is an explicit interface contract
+(\texttt{contract.py}): a \emph{scenario pair} naming the baseline and reform runs, the
+\CLEWS{} scenario, and the country; a \emph{concordance} mapping \OGCore{} industries
+$m$ and goods $i$ to \CLEWS{} commodities, technologies, and demands---supplied by the
+country configuration, since \OGCore{} has no native notion of a resource; and a
+\emph{unit map} (real versus nominal, base year, deflator) that bridges \CLEWS{}'s bare
+numbers to \OGCore{}'s real numéraire. The contract is what lets the same machinery be
+re-pointed at another country without touching the channels.
+
+Loop closure is constrained by \Cref{ass:inelastic}. Because energy demand is
+price-inelastic inside the optimiser, naïve price feedback can oscillate; convergence
+to \Cref{def:fixedpoint} requires damping and a baseline-anchored demand calibration.
+The \OGCore{}$\to$\CLEWS{} emitters are built and produce well-formed \CLEWS{} inputs;
+what is not yet wired is the outer loop that re-solves \CLEWS{} on them and repeats. Until
+it runs, the two \OGCore{}$\to$\CLEWS{} channels (\Cref{sec:ch-discount,sec:ch-demand}) emit
+well-formed signals but have no feedback effect on the macro economy.
+
+\subsection{No-double-counting discipline}
+\label{sec:discipline}
+
+Because several signals can be expressed through more than one wedge---and because a
+fiscal instrument used as a price wedge also moves the budget---the framework needs
+explicit accounting rules. We state them as principles; each is enforced by a guard in
+the corresponding channel.
+
+\begin{principle}[One carbon price]
+A carbon price enters the system once: as an emissions penalty in \CLEWS{} and as a
+tax wedge in \OGCore{} along the same path. It is never \emph{also} inferred a second
+time from a \CLEWS{} shadow price.
+\end{principle}
+
+\begin{principle}[One view of an energy-cost shock]
+The routes of \Cref{sec:routes} are alternative representations of one cost. A run
+applies at most one of them to a given cost: a $\tauc$ price wedge, a carbon $\tauc$,
+and a $\TFP$ haircut are never stacked on the same energy cost.
+\end{principle}
+
+\begin{principle}[One view of generation capital]
+The capital cost of a generation build-out is represented once---through a cost-push
+($\TFP$) \emph{or} an investment incentive (an ITC), not both. The capital-share lever
+($\gammam$) is \emph{not} a third interchangeable view: in the Cobb--Douglas core it
+does not crowd capital in at all but instead lowers the energy price and sheds capital,
+a distinct factor-income object (\Cref{sec:ch-capint,sec:discussion}). Conflating it
+with the cost-of-capital representations is itself a double-counting error.
+\end{principle}
+
+\begin{principle}[Revenue must be routed]
+A $\tauc$ wedge mechanically generates consumption-tax revenue. That revenue must be
+recycled (as transfers or public investment) or explicitly financed (as deficit), or
+the run silently embeds an unmodelled fiscal expansion alongside the price shock.
+\end{principle}
+
+\begin{principle}[Public and private capital are distinct]
+Public-grid capital (reaching \OGCore{} through the public-investment share $\alphaI$
+and the public-capital stock $\Kg$) and private-generation capital (reaching the
+firm's own capital) touch different objects. Coupling both is complementary, not double
+counting.
+\end{principle}

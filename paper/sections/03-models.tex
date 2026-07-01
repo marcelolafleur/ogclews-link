@@ -1,0 +1,104 @@
+\section{The Two Models}
+\label{sec:models}
+
+\subsection{OG-Core: an overlapping-generations general-equilibrium model}
+\label{sec:og}
+
+We take \OGCore{} \citep{debacker_evans_ogcore} as given and describe only what the
+channels touch; readers fluent in the Auerbach--Kotlikoff tradition
+\citep{auerbach_kotlikoff_1987} can skim. It is an overlapping-generations
+general-equilibrium model with households indexed by $\Ngen$ ages and $\Jinc$
+lifetime-income groups, $\Mind$ production industries, $\Igood$ consumption goods, and a
+government that closes its budget each period.
+
+\paragraph{Households.}
+A household's demand for good $i$ is unit-elastic above a Stone--Geary subsistence floor
+\citep{stone_1954},
+\begin{equation}
+  c_{i,j,s,t} \;=\; \alpha_i\Bigl(\tfrac{(1+\tauc_{i,t})\,p_{i,t}}{\tilde p_t}\Bigr)^{-1}
+                    c_{j,s,t} \;+\; c_{\min,i},
+  \label{eq:hhdemand}
+\end{equation}
+where $\tilde p_t$ is the composite price and $c_{j,s,t}$ total real consumption from the
+life-cycle saving problem. This is the entry point for the energy channels: the
+consumption-tax wedge $\tauc_{i_e}$ raises the effective price of the energy good, and the
+$\Ngen\times\Jinc$ structure turns a single price change into a distribution of incidence.
+
+\paragraph{Firms.}
+Each industry produces with a CES function of private capital, public capital, and
+labour,
+\begin{equation}
+  Y_{m,t} = Z_{m,t}\Bigl[\gammam^{\frac1\varepsilon}K_{m,t}^{\frac{\varepsilon-1}\varepsilon}
+    + \gamma_{g,m}^{\frac1\varepsilon}K_{g,t}^{\frac{\varepsilon-1}\varepsilon}
+    + (1-\gammam-\gamma_{g,m})^{\frac1\varepsilon}L_{m,t}^{\frac{\varepsilon-1}\varepsilon}\Bigr]
+    ^{\frac\varepsilon{\varepsilon-1}},
+  \label{eq:prod}
+\end{equation}
+which collapses to Cobb--Douglas, $Y_{m,t}=Z_{m,t}K_{m,t}^{\gammam}K_{g,t}^{\gamma_{g,m}}
+L_{m,t}^{1-\gammam-\gamma_{g,m}}$, when $\varepsilon=1$ (the case in our calibration,
+\Cref{sec:calibration}). The capital first-order condition defines a cost of capital
+\begin{equation}
+  \rho_m \;=\; \frac{r+\delta-\taub_m\delta^{\tau}_m-\tau^{\mathrm{inv}}_m\delta}{1-\taub_m},
+  \label{eq:rho}
+\end{equation}
+so that (at $\varepsilon=1$) capital demand is $K_m=\gammam p_m Y_m/\rho_m$ --- the relation
+the worked example of \Cref{sec:ch-capint} turns on. Note that the capital \emph{share}
+$\gammam$ enters factor \emph{demand} but is absent from the cost of capital $\rho_m$;
+the investment incentives ($\tau^{\mathrm{inv}}$, $\delta^{\tau}$, $\taub$) enter $\rho_m$
+but not the production exponents. This separation is what makes \chan{capital\_intensity}
+and \chan{energy\_capex} genuinely distinct instruments.
+
+\paragraph{Government and solution.}
+The government levies a consumption tax $\tauc$, a business tax $\taub$, and capital and
+labour taxes; issues debt; pays transfers; and invests a share $\alphaI$ of output in
+public capital $\Kg$. \OGCore{} is solved both in steady state (SS) and along a
+transition path (TPI); the channels write parameters before a solve and read prices
+($r$, $w$, $p_m$), quantities ($Y$, $C$, $K$, $L$, and sectoral $Y_m$, $K_m$), fiscal
+accounts, and the full $\Ngen\times\Jinc$ distribution afterward.
+
+\subsection{CLEWS / OSeMOSYS: a least-cost energy-systems optimizer}
+\label{sec:clews}
+
+\CLEWS{} \citep{howells_clews_2013} is built on the open-source \OSeMOSYS{} optimiser
+\citep{howells_osemosys_2011}. For an economics audience the cleanest way to read it is as
+a linear program that chooses capacity and dispatch to meet exogenous energy-service
+demand at least discounted system cost:
+\begin{equation}
+  \min_{\{\text{NewCapacity},\,\text{Activity}\}}
+    \sum_{t}\beta_t\bigl(\text{capital}+\text{fixed O\&M}+\text{variable O\&M}+\text{fuel}\bigr)_t
+  \label{eq:lp}
+\end{equation}
+subject to engineering and policy constraints: a \emph{commodity-balance} constraint
+requiring supply to meet demand for each fuel or carrier in every intra-year timeslice and
+year; capacity-adequacy and capacity-factor limits; fuel-availability limits; and
+emissions caps or penalties. Timeslices capture the intra-annual load shape (peak versus
+off-peak) that a single annual figure would hide.
+
+The object that makes the coupling work is the \emph{dual} of the commodity-balance
+constraint. In the LP, that multiplier is the marginal system cost of delivering one more
+unit of the carrier; under the competitive interpretation it is exactly the price that
+would clear that quantity --- the energy price the macro model should face
+(\Cref{sec:dual}, \Cref{def:fixedpoint}). The dual of a binding emissions cap is, likewise,
+the implied carbon price. These shadow prices, not the bare cost figures, are the
+load-bearing signals.
+
+Two features matter for the coupling. First, the program optimises against a \emph{fixed}
+demand: quantity demanded does not respond to the carrier price within \OSeMOSYS{}
+(\Cref{ass:inelastic}), so the price elasticity must be supplied by \OGCore{}. Second, the
+LP is a single perfect-foresight optimisation over all years at once, with no household,
+no government budget, and no distribution --- the complements \OGCore{} provides. Its
+outputs are the technology and fuel mix, capital requirements, emissions, and (when the
+solver is configured to expose marginals) the commodity and emissions duals.
+
+\subsection{The structural mismatch}
+\label{sec:mismatch}
+
+The two solution concepts do not compose into one optimisation (\Cref{ass:hardlink}):
+\OGCore{} traces an overlapping-generations transition through time while \OSeMOSYS{}
+plans all years simultaneously under perfect foresight, and \OGCore{} exposes no scalar
+welfare into which the energy LP could be folded. A simultaneous (``hard'') link is
+therefore not available, and the staged soft link of \Cref{sec:framework} --- baseline,
+extract signals, apply wedges, optionally iterate --- is the appropriate object. The
+asymmetry is also complementary: \OGCore{} supplies the behaviour, fiscal closure, and
+heterogeneity \OSeMOSYS{} lacks, while \OSeMOSYS{} supplies the technology, dispatch, and
+emissions detail \OGCore{} lacks.

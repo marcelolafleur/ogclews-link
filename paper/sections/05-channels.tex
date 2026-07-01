@@ -1,0 +1,196 @@
+\section{The Channels}
+\label{sec:channels}
+
+The coupling is realised as eight channels (\Cref{tab:channel-map}): four carry
+\CLEWS{} signals into \OGCore{} (\chan{energy\_price}, \chan{investment},
+\chan{capital\_intensity}, \chan{health}), two are policy instruments applied to both
+models (\chan{carbon}, \chan{energy\_capex}), and two read \OGCore{} outputs back to
+\CLEWS{} (\chan{discount\_rate}, \chan{demand}). Each is the composition of an
+extractor and a wedge (\Cref{sec:signals-wedges}); we give, for each, the signal it
+reads, the \OGCore{} object it moves, the first-order effect, and its maturity. The
+\chan{capital\_intensity}/\chan{energy\_capex} pair (\Cref{sec:ch-capint}) is treated
+at length, because verifying it cleanly against the model's own equilibrium conditions
+both corrects a natural mislabeling and illustrates the discipline of
+\Cref{sec:discipline}.
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{The eight channels. Direction: \textsc{c$\to$o} \CLEWS$\to$\OGCore{};
+\textsc{p} policy (both sides); \textsc{o$\to$c} \OGCore$\to$\CLEWS{}.}
+\label{tab:channel-map}
+\begin{tabularx}{\linewidth}{@{}l c L L L@{}}
+\toprule
+\textbf{Channel} & \textbf{Dir.} & \textbf{\CLEWS{} signal} & \textbf{\OGCore{} object} & \textbf{First-order effect} \\
+\midrule
+\chan{energy\_price} & c$\to$o & energy-balance dual / cost ratio & $\tauc$ on energy good & demand $\downarrow$; regressive incidence \\
+\chan{carbon} & p & carbon price (\$/tCO$_2$) & $\tauc$ + emissions penalty & demand $\downarrow$; emissions $\downarrow$ \\
+\chan{investment} & c$\to$o & public grid/T\&D capex & $\alphaI \to \Kg$ & public capital $\uparrow$; crowding-out, debt \\
+\chan{capital\_intensity} & c$\to$o & power-fleet capital-cost share & $\gammam$ (energy exponent) & energy price $\downarrow$; energy $K\downarrow$; labour share $\downarrow$ \\
+\chan{energy\_capex} & p & ITC rate (policy response) & cost of capital (\texttt{inv\_tax\_credit}) & capital reallocates into energy ($K\uparrow$) \\
+\chan{health} & c$\to$o & PM\textsubscript{2.5} emissions ratio & $\rho(s,t)$, $e(t,s,j)$ & mortality $\approx0$; morbidity $\uparrow$ labour \\
+\chan{discount\_rate} & o$\to$c & --- & reads $\rp$ $\to$ DiscountRate & shifts build mix (via loop) \\
+\chan{demand} & o$\to$c & --- & reads $Y_m/C_i$ $\to$ demand & more capacity (via loop) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Energy price}\label{sec:ch-energy}
+The \chan{energy\_price} function applies the consumption-tax wedge of
+\Cref{eq:routeA} on the energy good $i_e$; households then face
+$(1+\tauc_{t,i_e})p_{i_e,t}$, so energy demand falls and the composite price rises. The
+channel is now fed the Philippines' \emph{real} \CLEWS{} electricity price---the
+``auto'' source: the cost-of-electricity index where a curated workbook exists,
+otherwise the \OSeMOSYS{} commodity-balance dual on the raw run---rather than an
+illustrative shock. That price is near-flat for the Philippine scenario, so the
+standalone effect is small; a controlled $+20\%$ stress is retained only for the
+transmission comparison of \Cref{sec:routes}. Incidence is the channel's distinctive
+output: with energy a partial necessity ($\cmin>0$), a recycled price change (the
+\chan{clean\_incidence} variant) is regressive---the lowest-income group bears more of
+it. Maturity: rung~A (\Cref{sec:routes}), now on the real dual.
+
+\subsection{Carbon price}\label{sec:ch-carbon}
+A single carbon price is applied once on both sides (\Cref{sec:discipline}, one-price
+principle): in \OGCore{} as an add-on to the energy-good wedge,
+$\Delta\tauc_{i_e}=\text{(carbon price)}\times\text{deflator}\times\text{carbon
+intensity}/p^{b}_{i_e}$, and in \CLEWS{} as an emissions-penalty path. Because \OGCore{}
+has no energy in production, only \emph{household} energy carbon is priced on the macro
+side; industrial carbon is priced only in \CLEWS{}. Revenue is recyclable through
+transfers. Magnitudes are illustrative until the unit/deflator bridge and the carbon
+intensity are calibrated (\Cref{sec:calibration}).
+
+\subsection{Investment (public capital)}\label{sec:ch-investment}
+Public grid and transmission capex enters as an increment to the public-investment
+share $\alphaI$ (as a fraction of GDP, on a finite ramp), accumulating into the public
+capital stock $\Kg$ through its law of motion; $\Kg$ is productive via the public-capital
+share $\gamma_{g}$. This is the channel in which crowding-out legitimately lives: if the
+spending is debt-financed it competes for the savings pool, raising $r$ and displacing
+private investment. In the Philippine scenario the public grid-capex delta is near zero
+(the transition is generation-side), so the channel is close to inert here; its mechanics
+are validated and its magnitude scales with a non-zero public delta.
+
+\subsection{Capital intensity vs.\ capital demand: a worked example in channel discipline}
+\label{sec:ch-capint}
+
+Two channels represent the capital side of a capex-heavy generation build-out, and
+separating them cleanly is instructive. The temptation is to read ``a clean power system
+is capital-intensive'' as ``it pulls capital in.'' \OGCore{}'s own equilibrium conditions
+show these are two structurally different instruments---the natural lever for the first
+reading need not deliver the second---and give the framework a way to \emph{attribute},
+rather than assert, the capital response.
+
+\paragraph{The factor-share lever (\chan{capital\_intensity}).}
+This channel (\texttt{channels.capital\_intensity}) raises the energy industry's capital
+exponent $\gammam$ by the \CLEWS{} reform/base ratio of the power fleet's capital-cost
+share. Under the calibration's Cobb--Douglas technology ($\varepsilon=1$), capital's
+revenue share \emph{is} $\gammam$, so the firm's capital demand is
+\begin{equation}
+  K_m \;=\; \frac{(1-\taub_{m})\,\gammam\, p_m\, Y_m}
+                 {\,r+\delta-\taub_{m}\delta^{\tau}_{m}-\tau^{\mathrm{inv}}_{m}\delta\,},
+  \label{eq:Kfoc}
+\end{equation}
+an exact rearrangement of the capital first-order condition. Because the channel scales
+$\gammam$ and nothing else, the entire user-cost wedge and the $(1-\taub)$ factor cancel
+in the reform/base ratio---the lever leaves them, and the numeraire-pinned return $r$,
+unchanged---leaving the identity
+\begin{equation}
+  \hat K_E \;=\; \hat\gamma_E \,\cdot\, \hat p_E \,\cdot\, \hat Y_E .
+  \label{eq:Khat}
+\end{equation}
+The identity is the tool for \emph{reading} the result. On the M=8 Philippine solve
+(\Cref{tab:capital-pair}), raising the energy capital exponent by $12.2\%$ turns out to
+\emph{shed} energy capital, by $22.4\%$: the higher exponent cuts the sector's unit cost,
+so under zero profit the electricity price collapses $42.8\%$; demand is elastic enough
+that energy output \emph{rises} $20.9\%$; but the price fall shrinks the sector's revenue
+$p_m Y_m$ by more than the exponent and output together add back, so capital---its
+$\gammam$ share of that revenue---falls. The identity
+$\hat K_E=\hat\gamma_E\hat p_E\hat Y_E$ reproduces the $-22.4\%$ to within $0.03\%$. The
+sign is thus not obvious a priori---raising the capital \emph{share} does not draw capital
+in---and the framework attributes the response exactly. \chan{capital\_intensity} is a
+factor-share and energy-price lever, not a capital-draw-in.
+
+\paragraph{The capital-demand lever (\chan{energy\_capex}).}
+The capital-draw-in force is a structurally different instrument
+(\texttt{channels.energy\_capex}, a defined channel not exercised as a standalone run in
+the present battery): an investment tax credit lowers the energy sector's \emph{cost of
+capital}---it enters the user-cost denominator of \cref{eq:Kfoc} through
+$\tau^{\mathrm{inv}}$, where $\gammam$ is \emph{absent}---shifting capital demand outward
+at the prevailing $r$. That $\gammam$ moves factor \emph{demand} while the ITC moves the
+\emph{cost of capital} is a structural fact of the firm block (\Cref{sec:og}), independent
+of calibration: they are genuinely different levers, and the no-double-counting principle
+(\Cref{sec:discipline}) forbids treating them as substitutes.
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{The \chan{capital\_intensity} channel decomposed via the firm identity
+\cref{eq:Khat}, measured on the M=8 Philippine solve (energy industry $m_e=2$). Raising
+the capital exponent collapses the electricity price and, despite higher output, sheds
+capital; the identity reproduces the observed capital response to $0.03\%$. Source: the
+solved steady states behind \texttt{results/golden.json}.}
+\label{tab:capital-pair}
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+ & $\hat\gamma_E$ & $\hat p_E$ & $\hat Y_E$ & $\hat K_E$ (obs.) & identity $\hat\gamma_E\hat p_E\hat Y_E$ \\
+\midrule
+energy industry & $+12.2\%$ & $-42.8\%$ & $+20.9\%$ & $-22.4\%$ & $-22.4\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{The lesson.}
+The two levers act on different objects---a production exponent versus the cost of
+capital---so they are not interchangeable ``views of one capex,'' and the
+no-double-counting principle
+(\Cref{sec:discipline}) forbids treating them as substitutes or stacking them. More
+broadly, this is the value of coupling to a structural general-equilibrium core: the
+model's own first-order condition, \cref{eq:Kfoc}, is what exposes the mislabeling that a
+partial-equilibrium intuition (``a higher capital share pulls capital in'') would
+otherwise smuggle into the results.
+
+\subsection{Health: emissions to demography and labour}\label{sec:ch-health}
+The \chan{health} channel maps the reform/base PM\textsubscript{2.5} emissions ratio,
+through external Global Burden of Disease age profiles, onto two demographic objects.
+\emph{Mortality}: a shock to age-specific mortality $\rho(s,t)$, with the scale calibrated
+to hit a signed excess-deaths target (a cleaner reform implies a negative target---lives
+saved), after which the population is recomputed. Because PM\textsubscript{2.5} mortality
+skews elderly, saved lives are mostly retirees, so the long-run output effect is near
+zero. \emph{Morbidity}: the effective-labour profile $e(t,s,j)$ is scaled by a
+working-age disability shape, so a cleaner reform raises labour productivity---the main
+macro gain. The sign of the GDP effect therefore depends on horizon (a near-term morbidity
+gain, a steady-state composition that adds retirees). The demographic inputs are
+real: the Philippine ambient-PM\textsubscript{2.5} burden and its age profile come from
+the Global Burden of Disease export ($43{,}951$ attributable deaths), scaled by a
+calibrated per-country dose-response $M\approx0.082$ (an energy mass-share $\times$
+concentration-response elasticity). The lives effect is
+$\Delta\text{deaths}=\text{total}\times M\times\Delta\text{emissions}$, so the reform's
+$-7.7\%$ emissions change saves about $279$ lives---the dose-response $M$ is what
+separates this from the naive $43{,}951\times\Delta\text{emissions}\approx-3{,}400$. What
+remains a modelling assumption---and keeps the channel reduced-form---is the
+\emph{linearity} of that mapping and the size of the morbidity productivity elasticity,
+not the burden or the dose-response. The mechanism itself---endogenous demography driven
+by an emissions signal---is distinctively what an overlapping-generations core adds.
+
+\subsection{Discount rate (\OGCore{} to \CLEWS{})}\label{sec:ch-discount}
+After the reform solves, this channel reads \OGCore{}'s equilibrium market return $\rp$
+(a multi-period mean) and writes it to \CLEWS{}'s \texttt{DiscountRate}, so that energy
+planning uses the model-consistent cost of capital: a lower $\rp$ favours capital-heavy,
+long-lived assets. The effect on the macro economy returns only once the soft link
+iterates (\Cref{sec:architecture}); standalone, it is inert by construction.
+
+\subsection{Demand (\OGCore{} to \CLEWS{})}\label{sec:ch-demand}
+Symmetrically, this channel reads a reform/base activity ratio (industry output $Y_m$ or
+consumption $C_i$, raised to an elasticity) and scales \CLEWS{}'s annual demand. In a
+single pass the ratio is $\approx1$, so the channel is latent; it becomes a genuine driver
+only inside the iterated loop---the macro-to-energy quantity link in the
+\textsc{message-macro}/\textsc{times-macro} tradition
+\citep{messner_schrattenholzer_2000,loulou_times_2008}.
+
+\subsection{Policy levers}\label{sec:levers}
+Channels couple the energy system; \emph{policy levers} are the generic, country-agnostic
+primitives that vary a scenario, all using existing \OGCore{} parameters: an investment
+incentive (the ITC behind \chan{energy\_capex}; sets \texttt{inv\_tax\_credit},
+\texttt{delta\_tau}, $\taub$), a capital-share shift (the $\gammam$ behind
+\chan{capital\_intensity}), revenue routing (to transfers $\alphaT$, public investment
+$\alphaI$, government consumption, or deficit), and an industry registry derived from the
+onboarded model rather than hard-coded. The capital pair of \Cref{sec:ch-capint} is the
+clearest illustration: two levers ($\gammam$ and the ITC) instantiate two distinct
+channels for one physical build-out, and the framework keeps them separate.

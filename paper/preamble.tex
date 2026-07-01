@@ -1,0 +1,112 @@
+% ==========================================================================
+% Shared preamble for the OG-Core x CLEWS integration paper.
+% Packages, palette, theorem-like environments, and notation macros.
+% ==========================================================================
+
+% ---- encoding & fonts -------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ---- math -------------------------------------------------------------------
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+
+% ---- layout -----------------------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{parskip}
+
+% ---- tables & figures -------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{threeparttable}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X} % left-aligned auto-width (tabularx)
+
+% reuse the presentation's diagram PDFs and figure PNGs once they are built
+% (see ../presentation/build.sh); local paper figures take precedence.
+\graphicspath{{figures/}{../results/figures/}{../presentation/diagrams/}{../presentation/figures/}}
+
+% ---- color palette (mirrored from ogclews_link/style.py / presentation theme)
+\usepackage{xcolor}
+\definecolor{ink}{HTML}{222222}     % primary text / heavy rules
+\definecolor{sub}{HTML}{555555}     % secondary text
+\definecolor{mute}{HTML}{888888}    % tertiary / source lines
+\definecolor{ogc}{HTML}{0F5499}     % OG-Core (oxford blue)
+\definecolor{clews}{HTML}{0D7680}   % CLEWS / OSeMOSYS (teal)
+\definecolor{policy}{HTML}{E3120B}  % policy lever
+\definecolor{claret}{HTML}{990F3D}  % accent rule
+\definecolor{gain}{HTML}{2166AC}    % positive change
+\definecolor{loss}{HTML}{B2182B}    % negative change
+
+% ---- citations & links -----------------------------------------------------
+\usepackage[round,authoryear]{natbib}
+\usepackage[hidelinks,breaklinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=ogc, citecolor=ogc, urlcolor=clews}
+\usepackage{cleveref}
+
+% ---- theorem-like environments ---------------------------------------------
+\theoremstyle{definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{definition}{Definition}
+\newtheorem{principle}{Principle}      % the no-double-counting disciplines
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+% editorial caveat box for "illustrative, not calibrated" flags
+\newcommand{\caveat}[1]{\par\noindent{\color{claret}\small\textbf{Caveat.}~#1}\par}
+
+% Graceful figure helpers: insert the reused presentation asset if it has been built,
+% otherwise a labelled placeholder box -- so the paper always compiles.
+% \diagramfig{file-no-ext}{caption}{label}  (pulls ../presentation/diagrams/<file>.pdf)
+\newcommand{\diagramfig}[3]{%
+  \begin{figure}[t]\centering
+  \IfFileExists{../presentation/diagrams/#1.pdf}%
+    {\includegraphics[width=\linewidth,height=0.5\textheight,keepaspectratio]{#1}}%
+    {\fbox{\parbox{0.85\linewidth}{\centering\color{mute}\small
+      [diagram \texttt{\detokenize{#1}}: build \texttt{../presentation} first --- \texttt{./build.sh}]\\[3pt]
+      \itshape #2}}}%
+  \caption{#2}\label{#3}\end{figure}}
+% \figurefig{file-no-ext}{caption}{label}  (pulls ../presentation/figures/<file>.png)
+\newcommand{\figurefig}[3]{%
+  \begin{figure}[t]\centering
+  \IfFileExists{../presentation/figures/#1.png}%
+    {\includegraphics[width=\linewidth,height=0.5\textheight,keepaspectratio]{#1}}%
+    {\fbox{\parbox{0.85\linewidth}{\centering\color{mute}\small
+      [figure \texttt{\detokenize{#1}}: build \texttt{../presentation} first --- \texttt{./build.sh}]\\[3pt]
+      \itshape #2}}}%
+  \caption{#2}\label{#3}\end{figure}}
+
+% ---- notation macros (keep math consistent across sections) ----------------
+\newcommand{\OGCore}{\textsc{OG-Core}}
+\newcommand{\CLEWS}{\textsc{CLEWS}}
+\newcommand{\OSeMOSYS}{\textsc{OSeMOSYS}}
+\newcommand{\link}{\texttt{ogclews-link}}
+
+\newcommand{\tauc}{\tau^{c}}            % consumption-tax wedge
+\newcommand{\taub}{\tau^{b}}            % business-income tax
+\newcommand{\alphaI}{\alpha_{I}}        % public-investment share
+\newcommand{\alphaT}{\alpha_{T}}        % transfers share
+\newcommand{\Kg}{K_{g}}                 % public capital
+\newcommand{\gammam}{\gamma_{m}}        % capital exponent, industry m
+\newcommand{\TFP}{Z}                    % total factor productivity
+\newcommand{\rp}{r_{p}}                 % market portfolio return
+\newcommand{\Ngen}{S}                   % ages
+\newcommand{\Jinc}{J}                   % lifetime-income groups
+\newcommand{\Mind}{M}                   % industries
+\newcommand{\Igood}{I}                  % consumption goods
+\newcommand{\cmin}{c_{\min}}            % Stone-Geary subsistence floor
+
+% consistent short labels for the channels
+\newcommand{\chan}[1]{\texttt{#1}}

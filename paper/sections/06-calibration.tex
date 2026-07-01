@@ -1,0 +1,53 @@
+\section{Calibration and Data}
+\label{sec:calibration}
+
+\paragraph{The economy.}
+The macro side is the \texttt{ogphl} multi-sector calibration of \OGCore{}: $\Mind=8$
+industries and $\Igood=5$ consumption goods, built from the country package's own
+production and consumption structure (its \texttt{PROD\_DICT}/\texttt{CONS\_DICT} and
+social accounting matrix). The link does not hard-code this structure: it is
+\emph{discovered} per run in the \OGCore{} environment and exported to the link through a
+\texttt{baseline\_meta.json} concordance, which records how many industries and goods the
+country resolves and which of them is electricity---here industry $m_e=2$ and energy good
+$i_e=1$. Where a country's aggregation cannot isolate electricity as its own industry and
+good, the energy channels report a skip rather than mis-target (\Cref{sec:signals-wedges}).
+Production is Cobb--Douglas ($\varepsilon=1$), with the public-capital share
+$\gamma_{g}$ carved out of each industry's capital share so that labour's residual share
+is well defined.
+
+\paragraph{The energy price.}
+The electricity price handed to the macro side is the country's \emph{real} \CLEWS{}
+price---the ``auto'' source: a curated cost-of-electricity index where available,
+otherwise the \OSeMOSYS{} commodity-balance dual on the raw run---taken as a reform/base
+ratio so the (uncalibrated) money units cancel. For the Philippine scenario pair this
+ratio is near-flat. It is transmitted through the composite of \Cref{sec:routes}: an
+inter-industry cost-push weighted by electricity's input-cost share $\phi_j$ across
+industries (read from the SAM), with electricity's own self-use carried instead by a
+recycled household wedge on the electricity value-share of the energy good. The direct
+and indirect cost-push follows the standard input--output logic of \Cref{eq:routeB}; the
+specific pass-through magnitudes are calibration-dependent and re-derived with the SAM
+(the earlier M=4 figures are retired with that aggregation).
+
+\paragraph{Health.}
+The health channel uses \emph{real} epidemiological data: the ambient-PM\textsubscript{2.5}
+attributable burden and its age profile from the IHME Global Burden of Disease export
+(covering several countries; for the Philippines $43{,}951$ attributable deaths, with real
+deaths-by-age and years-lived-with-disability-by-age profiles), scaled by a calibrated
+dose-response $M\approx0.082$ (an energy mass-share $\times$ concentration-response
+elasticity). The lives effect is
+$\Delta\text{deaths}=\text{total}\times M\times\Delta\text{emissions}$, so the reform's
+$-7.7\%$ emissions change saves about $279$ lives (the $\times M$ dose-response separates
+this from the naive $43{,}951\times\Delta\text{emissions}\approx-3{,}400$). The remaining
+modelling assumptions are the \emph{linearity} of that mapping and the morbidity
+productivity elasticity, not the burden or the dose-response.
+
+\paragraph{Units.}
+The one uncalibrated bridge is the deflator that maps \CLEWS{} money to the \OGCore{} real
+numéraire, currently set to unity. It affects the \emph{levels} of the carbon and
+investment channels (and any revenue figure), though not the ratio-based energy price or
+the demographic health inputs.
+
+\caveat{Magnitudes for the carbon and investment channels are illustrative until the
+unit/deflator bridge is calibrated; the \emph{mechanics} are validated (\Cref{sec:results})
+and the \emph{sizes} scale with the bridge. The energy-price and health inputs are real
+(a \CLEWS{} price ratio and the GBD burden).}
