@@ -204,6 +204,32 @@ def cost_of_electricity_ratio(base_xlsx: str, reform_xlsx: str, *, sheet=0,
     return _ratio_over_common(_read(base_xlsx), _read(reform_xlsx))
 
 
+class EmissionsSpeciesAbsent(ValueError):
+    """The CLEWS case cannot supply the requested emission species: the export lacks it (or lacks a
+    species column entirely). Distinct from a PARSE failure of a present file (which stays a raw
+    pandas error) so callers -- the health channel -- can SKIP on absence without swallowing
+    corruption."""
+
+
+def emission_species(scenario_dir) -> list | None:
+    """The species codes present in the scenario's AnnualTechnologyEmission* export, or None when the
+    export / its species column is unavailable. Best-effort (never raises) -- a validation/provenance
+    helper for the write-back artifacts, not a data path."""
+    try:
+        try:
+            path = _find(scenario_dir, "AnnualTechnologyEmissionByMode")
+        except FileNotFoundError:
+            path = _find(scenario_dir, "AnnualTechnologyEmission")
+        df = pd.read_csv(path)
+        cols = {c.lower(): c for c in df.columns}
+        ecol = next((cols[k] for k in ("e", "emission") if k in cols), None)
+        if ecol is None:
+            return None
+        return sorted(df[ecol].dropna().astype(str).unique())
+    except Exception:  # noqa: BLE001 -- advisory helper; the read paths do their own loud failing
+        return None
+
+
 def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
     """Total emissions of `species` (default ``country.co2_emission``, e.g. CO2e; the health channel
     passes ``country.health_emission`` = PM2.5) by year. Prefers the *ByMode variant, which is present
@@ -216,24 +242,26 @@ def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
     df = read_clews_long(path)
     cols = {c.lower(): c for c in df.columns}
     ycol = cols.get("y") or next(c for c in df.columns if df[c].astype(str).str.fullmatch(r"\d{4}").all())
-    ecol = cols.get("e")
+    ecol = next((cols[k] for k in ("e", "emission") if k in cols), None)   # same names read_clews_matrix accepts
     vcol = df.columns[-1]
     want = species or country.co2_emission
-    if ecol is not None:
-        # EXACT species code (case-insensitive) -- a substring match would silently SUM overlapping
-        # codes (e.g. 'CO2' + 'CO2EQ') into one number. A zero match is a config/export mismatch: say
-        # which species ARE present rather than return an empty series.
-        present = sorted(df[ecol].astype(str).unique())
-        df = df[df[ecol].astype(str).str.upper() == str(want).upper()]
-        if df.empty:
-            raise ValueError(
-                f"emissions_by_year: species {want!r} not in {path}; species present: {present}. "
-                "Set CountryConfig.co2_emission / health_emission to the exact code your CLEWS "
-                "model exports.")
-    else:
-        print(f"[guardrail] emissions_by_year: {path} has no 'e' (species) column -- ALL species are "
-              f"summed together; wanted {want!r}. Check the export if the case tracks several species.")
-    return df.groupby(ycol)[vcol].sum().sort_index()
+    if ecol is None:
+        # No species column at all: summing every species would misattribute (e.g. an all-GHG total fed
+        # to the PM2.5 health channel), so this is ABSENCE, not a default -- callers skip or configure.
+        raise EmissionsSpeciesAbsent(
+            f"emissions_by_year: {path} has no species column (looked for 'e'/'emission'; columns: "
+            f"{list(df.columns)}); cannot select species {want!r}.")
+    # EXACT species code (case-insensitive) -- a substring match would silently SUM overlapping
+    # codes (e.g. 'CO2' + 'CO2EQ') into one number. A zero match is a config/export mismatch: say
+    # which species ARE present rather than return an empty series.
+    matched = df[df[ecol].astype(str).str.upper() == str(want).upper()]
+    if matched.empty:
+        present = sorted(df[ecol].dropna().astype(str).unique())   # dropna: a blank cell must not
+        raise EmissionsSpeciesAbsent(                              # TypeError the diagnostic itself
+            f"emissions_by_year: species {want!r} not in {path}; species present: {present}. "
+            "Set CountryConfig.co2_emission / health_emission to the exact code your CLEWS "
+            "model exports.")
+    return matched.groupby(ycol)[vcol].sum().sort_index()
 
 
 def emissions_ratio(base_dir, reform_dir, country, species=None) -> pd.Series:
@@ -438,7 +466,7 @@ def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=Non
         present = sorted(df[fcol].astype(str).unique())
         raise ValueError(f"commodity_shadow_price: no rows for fuel={fuel!r} in {path}; "
                          f"fuels present: {present[:15]}{'...' if len(present) > 15 else ''}")
-    matched = sorted(sub[fcol].astype(str).unique())
+    matched = sorted(sub[fcol].dropna().astype(str).unique())
     if fuel is None and len(matched) > 1:
         # Averaging DISTINCT commodities' duals (e.g. ELC001 transmission + ELC002 distribution) would
         # silently blend different prices into "the" electricity price -- an economically material
@@ -447,7 +475,7 @@ def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=Non
             f"commodity_shadow_price: the generic 'ELC*' fallback matched {len(matched)} distinct "
             f"commodities in {path}: {matched}. Averaging their duals would blend different prices. "
             "Set CountryConfig.electricity_fuel to the commodity households face (or pass fuel=...).")
-    regions = sorted(sub[rcol].astype(str).unique())
+    regions = sorted(sub[rcol].dropna().astype(str).unique())
     if len(regions) > 1:
         print(f"[guardrail] commodity_shadow_price: {len(regions)} regions {regions} present for "
               f"fuel(s) {matched} in {path} -- the dual is AVERAGED across regions (year-level mean). "

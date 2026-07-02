@@ -277,7 +277,7 @@ The fields, and what goes wrong if they're wrong (everything mis-set fails **lou
 | `public_power_markers` | substrings marking grid/T&D (public) techs | loud warning + zero public capex |
 | `electricity_fuel` | the commodity whose EBb4 dual is the household electricity price | unset with several `ELC*` commodities → **error** listing them |
 | `clews_region` | the case's OSeMOSYS region code (write-back artifacts address it) | artifacts name a nonexistent region (CLEWS merge no-ops) |
-| `co2_emission`, `health_emission` | **exact** species codes in your `AnnualTechnologyEmission*` export | **error** listing the species present / recorded health skip |
+| `co2_emission`, `health_emission` | **exact** species codes in your `AnnualTechnologyEmission*` export | read paths **error** listing the species present; health records a skip; the EmissionsPenalty write-back warns |
 | `units`, `scenario`, `gbd_burden_csv`, `pm25_dose_response`, `mindist_tpi`, `rc_ss` | optional/advanced (see `country.py` docstrings) | defaults documented in-code |
 
 Scenario dirs normally come from the MUIOGO-install env vars (Step 4 above), not the JSON — the same
@@ -302,7 +302,7 @@ MUIOGO `/updateData` → new caserun loop) is the external step today.
 
 ## Test (no solve)
 ```bash
-uv run pytest tests/        # 132 pass / 3 skip — the skips need ogcore/ogphl installed
+uv run pytest tests/        # 170 pass / 3 skip — the skips need ogcore/ogphl installed
 ```
 The transform, boundary (`serde`), discovery, and registry tests run numpy-only in seconds; the few
 country-integration tests skip gracefully without the OG packages.

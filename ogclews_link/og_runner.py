@@ -414,7 +414,10 @@ def _apply_health(p, health):
     target = float(health["excess_deaths"])
     profile = np.asarray(health["profile"], dtype=float)
     ny = int(health.get("phase_years", 5))
-    un = getattr(p, "_un_code", None) or "608"
+    un = getattr(p, "_un_code", None)
+    if not un:   # _build_baseline_specs always sets it; a bare Specifications must not silently get PHL's
+        raise ValueError("health shock: Specifications lacks _un_code (the country's UN code); build the "
+                         "baseline via _build_baseline_specs so demographics know which country this is.")
     if target < 0:
         p.RC_SS = float(health.get("rc_ss", 1e-6))
     pop_dict, scale = health_pop.disease_pop(p, aux, target, profile, phase_years=ny, un_country_code=un)

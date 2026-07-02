@@ -87,6 +87,13 @@ def _auto_price_ratio(ctx):
     illustrative stimulus -- the single source of the electricity price used by ``coupled`` and every
     real energy result here. The RESOLVED source (workbook vs dual, and which files) is logged into the
     run's provenance/manifest -- 'auto' must never leave the choice invisible."""
+    con = ctx.concordance
+    if con is None or con.energy_good_index is None:
+        # Electricity not isolable for this country -> every consumer of this ratio skips anyway, so do
+        # NOT read the CLEWS price source at all: it is evaluated EAGERLY at the call sites (before the
+        # channels' own gates), and a messy-but-irrelevant EBb4 (e.g. several ELC* commodities with
+        # electricity_fuel unset) must not crash a run whose energy legs are skipping.
+        return None
     c, p = ctx.country, ctx.og_reform
     resolved = {}
     ratio = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir, reform_dir=c.scenario.reform_dir,
@@ -94,8 +101,8 @@ def _auto_price_ratio(ctx):
                                        n=np.asarray(p.tau_c).shape[0], fuel=c.electricity_fuel,
                                        resolved=resolved)
     if resolved:
-        ctx.log("energy_price_source", note="price-source resolution (provenance, not a channel)",
-                **resolved)
+        ctx.log("energy_price_source", provenance_only=True,
+                note="price-source resolution (provenance, not a channel)", **resolved)
     return ratio
 
 

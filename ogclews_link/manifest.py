@@ -55,7 +55,8 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_mod
         # the per-run energy-port concordance the OG runner discovered (None / ports None -> the country
         # could not be coupled on energy, so the energy channels skipped)
         "concordance": dataclasses.asdict(con) if dataclasses.is_dataclass(con) else None,
-        "channels": [{"id": pr.get("channel")} for pr in ctx.provenance],
+        "channels": [{"id": pr.get("channel")} for pr in ctx.provenance
+                     if not pr.get("provenance_only")],   # e.g. the energy_price_source record
         "clews_run": clews_run,
         "og_model": og_model or {"ogcore_version": _ogcore_version()},
         "timestamp": datetime.now(timezone.utc).isoformat(),

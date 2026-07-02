@@ -34,7 +34,6 @@ import os
 
 from ogclews_link.viz import plots, report, tables  # noqa: F401
 from ogclews_link import country as _country_mod
-from ogclews_link.country import CountryConfig
 
 
 def safe_read_pickle(path):
@@ -85,26 +84,12 @@ def _resolve(cli_val, env_key, default):
     return cli_val or os.environ.get(env_key) or default
 
 
-def _country_registry():
-    """Every CountryConfig instance defined in ogclews_link.country, keyed (lowercased) by its
-    module attribute, .name, and .un_code -- so 'phl'/'philippines'/'608' all resolve to PHL.
-    Auto-includes any country added to country.py later; this driver never hardcodes the instance."""
-    reg = {}
-    for attr, obj in vars(_country_mod).items():
-        if isinstance(obj, CountryConfig):
-            for key in (attr, obj.name, obj.un_code):
-                if key:
-                    reg[str(key).lower()] = obj
-    return reg
-
-
-def _resolve_country(selector):
-    reg = _country_registry()
-    obj = reg.get(str(selector).lower())
-    if obj is None:
-        avail = sorted({c.name for c in reg.values()})
-        raise SystemExit(f"unknown country {selector!r}; available: {avail}")
-    return obj
+def _resolve_country(selector, config_file=None):
+    """Delegate to the canonical registry (country.resolve_country): module-defined instances PLUS
+    countries-JSON entries (--countries / $OGCLEWS_COUNTRIES / ./ogclews_countries.json), keyed by
+    attr/name/un-code/og-repo -- the SAME resolution `run` uses, so a JSON-onboarded country (and the
+    'og-phl'-style selectors) reach the portal build too."""
+    return _country_mod.resolve_country(selector, config_file=config_file)
 
 
 def _default_headline(layered):
@@ -430,6 +415,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--country", help="country model to visualize (default: phl)")
+    ap.add_argument("--countries", default=None,
+                    help="countries JSON defining your own CountryConfig entries (default: "
+                         "$OGCLEWS_COUNTRIES, else ./ogclews_countries.json if present) -- the same "
+                         "file `run --countries` reads")
     src = ap.add_mutually_exclusive_group()   # one input layout or the other, not both
     src.add_argument("--run-dir", help="input solved across-steps tree (read-only)")
     src.add_argument("--coupled-run", help="build the deck from a single solved `run coupled` output "
@@ -443,7 +432,8 @@ def main(argv=None):
                     help="drop the illustrative/model-units caveats (use once results are real)")
     args = ap.parse_args(argv)
 
-    country = _resolve_country(_resolve(args.country, "OGCLEWS_COUNTRY", DEFAULT_COUNTRY))
+    country = _resolve_country(_resolve(args.country, "OGCLEWS_COUNTRY", DEFAULT_COUNTRY),
+                               config_file=args.countries)
     illustrative = not args.calibrated
 
     # A single coupled run (the live `run coupled` output): build the deck off its cached baseline +

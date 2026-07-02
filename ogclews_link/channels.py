@@ -402,10 +402,21 @@ def emit_carbon_penalty(ctx, *, carbon_price_usd_per_tco2=50.0):
     c = ctx.country
     p = ctx.og_reform
     cp = _fit(carbon_price_usd_per_tco2, p.T)
+    # Validate the species the artifact will name against what the case actually exports (best-effort:
+    # None when the export is unreadable). The read path fails loudly on a species mismatch; this WRITE
+    # path otherwise wouldn't -- a wrong code would merge into CLEWS as a penalty on a nonexistent
+    # species and silently no-op.
+    present = signals.emission_species(c.scenario.base_dir) if getattr(c.scenario, "base_dir", "") else None
+    known = None if present is None else any(str(s).upper() == str(c.co2_emission).upper() for s in present)
+    if known is False:
+        print(f"[guardrail] emit_carbon_penalty: species {c.co2_emission!r} is not in the CLEWS "
+              f"emissions export (present: {present}) -- the EmissionsPenalty artifact would target a "
+              "nonexistent species when merged. Set CountryConfig.co2_emission.")
     ctx.clews_inputs["EmissionsPenalty"] = {
         "region": getattr(c, "clews_region", "RE1"), "emission": c.co2_emission,
         "start_year": c.scenario.og_start_year, "value_by_period": cp.tolist()}
-    return ctx.log("emit_carbon_penalty", carbon_price_mean=float(cp.mean()))
+    return ctx.log("emit_carbon_penalty", carbon_price_mean=float(cp.mean()),
+                   species_in_export=known)
 
 
 # --- #4 OG equilibrium rate -> CLEWS DiscountRate · og->clews (post-solve) -------
@@ -483,13 +494,13 @@ def health(ctx, *, enable_mortality=True, enable_morbidity=True, mortality_targe
     p = ctx.og_reform
     species = getattr(c, "health_emission", None)
     # SKIP (recorded, loud), don't crash, when this CLEWS case cannot drive the health channel at all:
-    # no emissions export, or no species matching country.health_emission (e.g. a case that tracks only
-    # GHGs and no PM2.5-type pollutant). Mirrors _skip_if_unavailable -- `coupled` then still runs the
-    # other channels. Data that IS present but non-finite still raises below (that's corruption, not
-    # absence).
+    # no emissions export (FileNotFoundError), or no species matching country.health_emission
+    # (EmissionsSpeciesAbsent -- e.g. a case that tracks only GHGs and no PM2.5-type pollutant).
+    # Mirrors _skip_if_unavailable -- `coupled` then still runs the other channels. ONLY absence is
+    # caught: a file that exists but is malformed/truncated still raises (corruption, not absence).
     try:
         er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, species=species)
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, signals.EmissionsSpeciesAbsent) as e:
         reason = (f"health-emissions source unavailable (species {species!r}): {e}")
         print(f"[skip] health: {reason}")
         return ctx.log("health", skipped=True, reason=reason)
@@ -584,11 +595,17 @@ def emit_energy_demand(ctx, activity_ratio, *, og_activity="sector_output", og_i
         port = "energy_industry_index" if driver == "Y_m" else "energy_good_index"
         if (skip := _skip_if_unavailable(ctx, "emit_energy_demand", port)) is not None:
             return skip
-    default_idx = (ctx.concordance.energy_industry_index if driver == "Y_m"
-                   else ctx.concordance.energy_good_index)
-    idx = og_index_override if og_index_override is not None else default_idx
+    # only consult the concordance when no explicit override -- the override path is documented to
+    # bypass discovery entirely (and must not require a concordance to exist)
+    idx = og_index_override if og_index_override is not None else (
+        ctx.concordance.energy_industry_index if driver == "Y_m"
+        else ctx.concordance.energy_good_index)
     if clews_fuel is None:
         clews_fuel = getattr(c, "electricity_fuel", None)
+    if clews_fuel is None:
+        print("[guardrail] emit_energy_demand: no CLEWS fuel code (clews_fuel arg and "
+              "CountryConfig.electricity_fuel both unset) -- the demand artifact names NO target "
+              "commodity, so a CLEWS-side merge cannot apply it. Set electricity_fuel.")
     ratio = np.asarray(activity_ratio, dtype=float)
     mr = float(ratio[:10].mean())
     ctx.clews_inputs["Demand"] = {

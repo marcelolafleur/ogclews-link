@@ -250,3 +250,149 @@ def test_write_demand_addresses_spec_region_and_fuel(tmp_path):
     path = clews_io.write_demand(spec, str(tmp_path))
     df = pd.read_csv(path)
     assert set(df["REGION"]) == {"REGA"} and set(df["CLEWS_FUEL"]) == {"TST_HOU_ELE"}
+
+
+# --- review fixes: countries-file robustness ----------------------------------------
+
+def test_cwd_countries_file_bad_entry_does_not_break_phl(tmp_path, monkeypatch, capsys):
+    """A half-drafted ./ogclews_countries.json (typo'd entry) must not take down resolve_country('phl')."""
+    bad = {"countries": [{"name": "Draftland", "power_prefx": "TYPO"}]}
+    (tmp_path / "ogclews_countries.json").write_text(json.dumps(bad))
+    monkeypatch.chdir(tmp_path)
+    assert resolve_country("phl") is PHL                  # survives; the bad entry is skipped...
+    assert "[guardrail]" in capsys.readouterr().out       # ...loudly
+
+
+def test_cwd_countries_file_invalid_json_does_not_break_phl(tmp_path, monkeypatch, capsys):
+    (tmp_path / "ogclews_countries.json").write_text("{not json")
+    monkeypatch.chdir(tmp_path)
+    assert resolve_country("phl") is PHL
+    assert "not valid JSON" in capsys.readouterr().out
+
+
+def test_cwd_foreign_config_file_ignored(tmp_path, monkeypatch, capsys):
+    (tmp_path / "ogclews_countries.json").write_text(json.dumps({"some_other_project": True}))
+    monkeypatch.chdir(tmp_path)
+    assert resolve_country("phl") is PHL
+    assert "no 'countries' list" in capsys.readouterr().out
+
+
+def test_explicit_countries_file_bad_entry_raises(tmp_path):
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"countries": [{"name": "Draftland"}]}))
+    with pytest.raises(ValueError, match="c.json"):
+        country_registry(config_file=str(f))
+
+
+def test_env_countries_file_missing_raises(tmp_path, monkeypatch):
+    monkeypatch.setenv("OGCLEWS_COUNTRIES", str(tmp_path / "nope.json"))
+    with pytest.raises(FileNotFoundError, match="OGCLEWS_COUNTRIES"):
+        country_registry()
+
+
+def test_json_shadow_captures_module_attr_key(tmp_path):
+    """A user's own 'Philippines' entry must also capture the CLI's default selector 'phl'."""
+    mine = {**ENTRY, "name": "Philippines", "un_code": "608", "og_repo": "og-phl", "gdp_musd": 999.0}
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"countries": [mine]}))
+    assert resolve_country("phl", config_file=str(f)).gdp_musd == 999.0
+    assert resolve_country("og-phl", config_file=str(f)).gdp_musd == 999.0
+
+
+def test_nested_unknown_keys_rejected():
+    with pytest.raises(ValueError, match="scenario key"):
+        config_from_dict({**ENTRY, "scenario": {"base_dirs": "/x"}})
+    with pytest.raises(ValueError, match="units key"):
+        config_from_dict({**ENTRY, "units": {"money": "USD"}})
+
+
+# --- review fixes: emissions species robustness --------------------------------------
+
+def test_emissions_blank_species_cell_no_typeerror(tmp_path):
+    """A blank 'e' cell (totals row) must not TypeError the missing-species diagnostic."""
+    d = tmp_path / "s"; d.mkdir()
+    path = d / "AnnualTechnologyEmissionByMode.csv"
+    pd.DataFrame([
+        {"r": "RE1", "t": "T1", "e": "CO2e", "m": 1, "y": 2026, "v": 5.0},
+        {"r": "RE1", "t": "T1", "e": None, "m": 1, "y": 2026, "v": 99.0},
+    ]).to_csv(path, index=False)
+    cc = config_from_dict({**ENTRY, "co2_emission": "CO2e"})
+    assert float(signals.emissions_by_year(str(d), cc).loc[2026]) == pytest.approx(5.0)
+    with pytest.raises(signals.EmissionsSpeciesAbsent, match="CO2e"):   # diagnostic renders cleanly
+        signals.emissions_by_year(str(d), cc, species="PM2_5")
+
+
+def test_emissions_emission_column_name_recognized(tmp_path):
+    d = tmp_path / "s"; d.mkdir()
+    pd.DataFrame([{"r": "RE1", "t": "T1", "EMISSION": "CO2", "y": 2026, "v": 7.0},
+                  {"r": "RE1", "t": "T1", "EMISSION": "CH4", "y": 2026, "v": 1.0}]).to_csv(
+        d / "AnnualTechnologyEmissionByMode.csv", index=False)
+    cc = config_from_dict({**ENTRY, "co2_emission": "CO2"})
+    assert float(signals.emissions_by_year(str(d), cc).loc[2026]) == pytest.approx(7.0)
+
+
+def test_emissions_no_species_column_is_absence(tmp_path):
+    d = tmp_path / "s"; d.mkdir()
+    pd.DataFrame([{"r": "RE1", "t": "T1", "y": 2026, "v": 7.0}]).to_csv(
+        d / "AnnualTechnologyEmissionByMode.csv", index=False)
+    cc = config_from_dict(ENTRY)
+    with pytest.raises(signals.EmissionsSpeciesAbsent, match="no species column"):
+        signals.emissions_by_year(str(d), cc)
+
+
+def test_health_does_not_swallow_corrupt_emissions(tmp_path):
+    """An emissions file that EXISTS but is unparseable is corruption, not absence -> raises."""
+    ctx = _fake_ctx(config_from_dict(ENTRY), tmp_path)
+    for d in (ctx.country.scenario.base_dir, ctx.country.scenario.reform_dir):
+        open(os.path.join(d, "AnnualTechnologyEmissionByMode.csv"), "w").close()   # 0-byte file
+    with pytest.raises(Exception) as e:
+        channels.health(ctx)
+    assert not isinstance(e.value, (FileNotFoundError, signals.EmissionsSpeciesAbsent))
+
+
+# --- review fixes: eager price ratio + write-back validation -------------------------
+
+def test_auto_price_ratio_gated_on_couplability():
+    from ogclews_link import experiments
+    ctx = SimpleNamespace(concordance=None)
+    assert experiments._auto_price_ratio(ctx) is None     # no CLEWS read, no crash
+    ctx = SimpleNamespace(concordance=SimpleNamespace(energy_good_index=None))
+    assert experiments._auto_price_ratio(ctx) is None
+
+
+def test_emit_carbon_penalty_warns_on_absent_species(tmp_path, capsys):
+    ctx = _fake_ctx(config_from_dict({**ENTRY, "co2_emission": "CO2e"}), tmp_path)
+    _write_emissions(ctx.country.scenario.base_dir, species=(("CO2", 1.0), ("CH4", 1.0)))
+    ctx.og_reform = SimpleNamespace(T=5)
+    rec = channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)
+    assert rec["species_in_export"] is False
+    assert "nonexistent species" in capsys.readouterr().out
+
+
+def test_emit_energy_demand_warns_on_blank_fuel(tmp_path, capsys):
+    cc = config_from_dict({k: v for k, v in ENTRY.items() if k != "electricity_fuel"})
+    ctx = _fake_ctx(cc, tmp_path)
+    channels.emit_energy_demand(ctx, np.ones(5), og_index_override=2)
+    assert "names NO target commodity" in capsys.readouterr().out
+    assert ctx.clews_inputs["Demand"]["clews_fuel"] is None
+
+
+def test_manifest_excludes_provenance_only_records(tmp_path):
+    from ogclews_link.manifest import write_run_manifest
+    cc = config_from_dict(ENTRY)
+    ctx = _fake_ctx(cc, tmp_path)
+    ctx.log("investment", pct_gdp=0.1)
+    ctx.log("energy_price_source", provenance_only=True, kind="dual")
+    def fake_exp(ctx, solve):
+        """A fake experiment."""
+    path = write_run_manifest(str(tmp_path), fake_exp, cc, ctx)
+    m = json.load(open(path))
+    assert {c["id"] for c in m["channels"]} == {"investment"}
+    assert any(p.get("channel") == "energy_price_source" for p in m["provenance"])
+
+
+def test_viz_resolver_sees_json_countries(tmp_path):
+    build = pytest.importorskip("ogclews_link.viz.build")
+    f = tmp_path / "c.json"
+    f.write_text(json.dumps({"countries": [ENTRY]}))
+    assert build._resolve_country("og-tst", config_file=str(f)).name == "Testland"

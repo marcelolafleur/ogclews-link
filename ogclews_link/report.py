@@ -108,8 +108,9 @@ def print_report(ctx):
     con = ctx.concordance
     i_e = con.energy_good_index if con is not None else None
     b, r = ctx.base_tpi, ctx.reform_tpi
+    n_channels = sum(1 for pr in ctx.provenance if not pr.get("provenance_only"))
     print("\n" + "=" * 70)
-    print(f"REPORT: {ctx.country.name}  ({len(ctx.provenance)} channel(s) applied)")
+    print(f"REPORT: {ctx.country.name}  ({n_channels} channel(s) applied)")
     print("=" * 70)
     print("\nChannels + provenance:")
     for rec in ctx.provenance:

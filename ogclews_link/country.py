@@ -186,12 +186,21 @@ def config_from_dict(d: dict) -> CountryConfig:
                          f"required key(s) {missing}; required: {list(_REQUIRED_COUNTRY_KEYS)}. "
                          f"{COUNTRY_CONFIG_HELP}")
     units_d = d.pop("units", {}) or {}
+    _unit_keys = {"clews_money_unit", "clews_energy_unit", "base_year", "deflator", "notes"}
+    if set(units_d) - _unit_keys:   # a typo'd nested key must not be silently dropped
+        raise ValueError(f"country entry {d.get('name')!r}: unknown units key(s) "
+                         f"{sorted(set(units_d) - _unit_keys)}; valid: {sorted(_unit_keys)}")
     units = UnitMap(clews_money_unit=units_d.get("clews_money_unit", "MUSD"),
                     clews_energy_unit=units_d.get("clews_energy_unit", "PJ"),
                     base_year=int(units_d.get("base_year", 2020)),
                     deflator=float(units_d.get("deflator", 1.0)),
                     notes=units_d.get("notes", ""))
     scen_d = d.pop("scenario", {}) or {}
+    _scen_keys = {"name", "base_dir", "reform_dir", "years"}
+    if set(scen_d) - _scen_keys:
+        raise ValueError(f"country entry {d.get('name')!r}: unknown scenario key(s) "
+                         f"{sorted(set(scen_d) - _scen_keys)}; valid: {sorted(_scen_keys)} "
+                         "(og_start_year is a TOP-LEVEL key)")
     y = scen_d.get("years")     # optional [first, last] (informational; not consumed by the channels)
     scenario = ScenarioPair(
         name=scen_d.get("name", f"{d['name']} reform_vs_base"),
@@ -215,20 +224,28 @@ def config_from_dict(d: dict) -> CountryConfig:
 
 def _countries_file(config_file=None):
     """The countries JSON to load: explicit arg > $OGCLEWS_COUNTRIES > ./ogclews_countries.json; None
-    when nothing resolves (code-defined countries are still available)."""
-    for cand in (config_file, os.environ.get("OGCLEWS_COUNTRIES"),
-                 os.path.join(os.getcwd(), "ogclews_countries.json")):
-        if cand and os.path.isfile(cand):
-            return cand
-        if cand and cand is config_file:      # an EXPLICIT file that doesn't exist is an error, not a fallthrough
-            raise FileNotFoundError(f"countries file {cand!r} not found")
-    return None
+    when nothing resolves (code-defined countries are still available). Returns ``(path, explicit)``.
+    A file the user NAMED (arg or env var) that does not exist raises -- a typo'd path must not silently
+    fall through to a different file; only the implicit cwd default may be absent."""
+    for cand, src in ((config_file, "--countries"), (os.environ.get("OGCLEWS_COUNTRIES"), "$OGCLEWS_COUNTRIES")):
+        if cand:
+            cand = os.path.expanduser(cand)
+            if not os.path.isfile(cand):
+                raise FileNotFoundError(f"countries file {cand!r} (from {src}) not found")
+            return cand, True
+    cwd_default = os.path.join(os.getcwd(), "ogclews_countries.json")
+    return (cwd_default, False) if os.path.isfile(cwd_default) else (None, False)
 
 
 def country_registry(config_file=None) -> dict:
     """Every available CountryConfig, keyed (lowercased) by module attribute, .name, .un_code and
     .og_repo -- so 'phl'/'Philippines'/'608'/'og-phl' all resolve to the same instance. Code-defined
-    instances in this module first, then countries-JSON entries (which may shadow)."""
+    instances in this module first, then countries-JSON entries (which may shadow).
+
+    Error posture: a file the user NAMED (--countries / $OGCLEWS_COUNTRIES) fails HARD on any bad
+    entry; the implicit ./ogclews_countries.json cwd fallback fails SOFT (loud [guardrail] print, bad
+    entry skipped) -- a half-drafted or foreign file in the working directory must not take down the
+    code-defined countries (e.g. the packaged PHL default)."""
     reg = {}
     def _add(keys, obj):
         for k in keys:
@@ -237,14 +254,45 @@ def country_registry(config_file=None) -> dict:
     for attr, obj in list(globals().items()):
         if isinstance(obj, CountryConfig):
             _add((attr, obj.name, obj.un_code, obj.og_repo), obj)
-    path = _countries_file(config_file)
+    path, explicit = _countries_file(config_file)
     if path:
-        with open(path) as f:
-            data = json.load(f)
-        entries = data.get("countries", data) if isinstance(data, dict) else data
-        for entry in entries:
-            obj = config_from_dict(entry)
+        def _bad(msg, cause=None):
+            if explicit:
+                raise ValueError(msg) from cause
+            print(f"[guardrail] {msg} -- skipped")
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            _bad(f"countries file {path!r} is not valid JSON: {e}", e)
+            return reg
+        if isinstance(data, dict):
+            entries = data.get("countries")
+            if entries is None:
+                _bad(f"countries file {path!r} has no 'countries' list (expected "
+                     "{'countries': [...]} or a bare list of entries)")
+                entries = []
+        else:
+            entries = data
+        for entry in entries if isinstance(entries, list) else []:
+            try:
+                if not isinstance(entry, dict):
+                    raise ValueError(f"entry {entry!r} is not an object")
+                obj = config_from_dict(entry)
+            except ValueError as e:
+                _bad(f"countries file {path!r}: {e}", e)
+                continue
+            # Shadowing: re-point EVERY key that resolves to a config this entry identifies with, so a
+            # user's own 'Philippines' entry also captures the module-attribute key 'phl' (the CLI's
+            # default selector) -- shadowing by name/code/og-repo must be total, not partial.
+            ident = {str(k).lower() for k in (obj.name, obj.un_code, obj.og_repo)}
+            for k, v in list(reg.items()):
+                if {str(v.name).lower(), str(v.un_code).lower(), str(v.og_repo).lower()} & ident:
+                    reg[k] = obj
             _add((obj.name, obj.un_code, obj.og_repo), obj)
+        if not isinstance(entries, list):
+            _bad(f"countries file {path!r}: 'countries' must be a LIST of entries, got "
+                 f"{type(entries).__name__}")
     return reg
 
 

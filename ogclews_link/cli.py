@@ -135,14 +135,38 @@ def main(argv=None):
             country.scenario.base_dir = args.clews_base
         if args.clews_reform:
             country.scenario.reform_dir = args.clews_reform
+        pre = {}
         for side, d in (("base", country.scenario.base_dir), ("reform", country.scenario.reform_dir)):
             status = "ok" if d and os.path.isdir(d) else "NOT FOUND -- CLEWS-reading channels will fail"
             print(f"CLEWS {side:6} scenario: {d or '(unset)'}  [{status}]")
             if not (d and os.path.isdir(d)):
                 print(f"  {CLEWS_SCENARIO_HELP}")
             else:
-                preflight(d, label=side)    # loud export checklist BEFORE the expensive baseline solve
+                pre[side] = preflight(d, label=side)   # loud export checklist BEFORE the expensive solve
         entry = registry.lookup(country)    # OG-model provenance for the manifest (and fail-fast)
+        # FAIL-FAST, not warn-then-burn: an experiment that unconditionally sources the energy price
+        # (its source calls _auto_price_ratio) needs the cost workbook or the EBb4 dual in BOTH scenario
+        # dirs. If neither exists -- and the registered calibration is couplable, so the energy legs
+        # won't just skip -- the run is GUARANTEED to die after the multi-minute baseline solve; refuse
+        # now with the fix instead. (calibration None -> single-industry -> energy legs skip -> no gate.)
+        import inspect
+
+        from . import signals as _signals
+        try:
+            needs_price = "_auto_price_ratio" in inspect.getsource(exp)
+        except (OSError, TypeError):        # no source (frozen/builtin) -> can't tell -> don't gate
+            needs_price = False
+        if needs_price and entry.calibration and len(pre) == 2:
+            ebb4 = all(v.get("EBb4_EnergyBalanceEachYear4_ICR") for v in pre.values())
+            workbook = all(_signals._has_cost_xlsx(d) for d in
+                           (country.scenario.base_dir, country.scenario.reform_dir))
+            if not (ebb4 or workbook):
+                raise SystemExit(
+                    f"experiment {args.experiment!r} needs an energy-price source, but neither the "
+                    "cost-of-electricity workbook nor the EBb4 commodity-balance dual is present in "
+                    "both scenario dirs (see the export checklist above). Re-solve the CLEWS case with "
+                    "CBC and '-printing all' (produces the EBb4 export), or point --clews-base/"
+                    "--clews-reform at run dirs that carry a price source.")
         og_model = {"repo": entry.key, "package": entry.package, "version": entry.version,
                     "env_python": entry.env_python}
         ctx = framework.run(
