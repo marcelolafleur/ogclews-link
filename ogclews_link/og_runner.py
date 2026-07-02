@@ -126,7 +126,7 @@ def _update_demographics(p, un_code, cache_dir):
 
 
 def _build_baseline_specs(og_package, params_resource, og_start_year, num_workers, out_dir,
-                          calibration=None):
+                          calibration=None, demog_override=None):
     """Build the country baseline by LOADING the country model's OWN calibration -- the link no longer
     authors any aggregation or sector factors. Load the single-industry DEFAULT (``params_resource``) as
     the base, then OVERLAY the chosen multisector ``calibration`` if any. Country packages ship their
@@ -136,7 +136,9 @@ def _build_baseline_specs(og_package, params_resource, og_start_year, num_worker
     own load order (see ogphl examples/run_og_phl_multi_industry_calibrated). When ``calibration`` is None
     the baseline stays single-industry (the energy channels skip). Demographics are UPDATED via the
     country's own mechanism (ogcore.demographics: UN portal -> github backup -> the country's built-in
-    JSON), never the link's own copy; the UN code is the package's own (ogphl.UN_COUNTRY_CODE)."""
+    JSON), never the link's own copy; the UN code is the package's own (ogphl.UN_COUNTRY_CODE). A reform
+    passes ``demog_override`` -- the baseline's saved ``(demog_spec, pop_aux)`` -- to INHERIT the baseline's
+    exact demographics (persist+load) instead of re-fetching (see solve_reform)."""
     from ogcore.parameters import Specifications
 
     pkg = importlib.import_module(og_package)
@@ -150,7 +152,23 @@ def _build_baseline_specs(og_package, params_resource, og_start_year, num_worker
             else f"{params_resource} (single-industry -> energy channels skip)")
     print(f"[og_runner] {og_package}: loaded {kind} (M={p.M}, I={p.I})", file=sys.stderr)
     p._un_code = un_code
-    _update_demographics(p, un_code, out_dir)
+    if demog_override is None:
+        # BASELINE (or a reform whose baseline predates demographic persistence): fetch once via the
+        # country's own mechanism, caching under out_dir/_demog_cache.
+        _update_demographics(p, un_code, out_dir)
+    else:
+        # REFORM inherits the baseline's demographics (persist+load): re-apply the baseline's EXACT saved
+        # overlay -- NO re-fetch -- so reform-vs-baseline omega is identical and differs ONLY by the
+        # reform's channels. demog_override = (spec, aux); both are None when the baseline used its
+        # BUILT-IN demographics (leave the JSON-baked values; the health mortality shock then skips).
+        spec, aux = demog_override
+        if spec is not None:
+            p.update_specifications(spec)
+        p._demog_spec = spec
+        p._pop_aux = aux
+        msg = ("INHERITED from baseline (no re-fetch)" if spec is not None
+               else "INHERITED baseline's BUILT-IN (no re-fetch; health shock will skip)")
+        print(f"[og_runner] demographics: {msg} for country {un_code}", file=sys.stderr)
     if int(getattr(p, "start_year", og_start_year)) != og_start_year:
         print(f"[og_runner] WARNING: OG start_year {p.start_year} != scenario og_start_year {og_start_year}; "
               "CLEWS year-alignment will be off.", file=sys.stderr)
@@ -451,6 +469,11 @@ def export_baseline(a):
         with contextlib.suppress(Exception):
             serde.save_solution_npz(os.path.join(a.out_dir, "baseline_solution_ss.npz"),
                                     _read_solution(a.out_dir, ss=True))
+    # Persist the baseline's fetched demographics so a reform INHERITS them (persist+load) rather than
+    # re-fetching: ogcore's get_pop_objs always re-downloads (download_path is a write-sink), so a shared
+    # cache dir would neither avoid a fetch nor guarantee identical data -- the saved overlay does.
+    serde.save_demographics_npz(os.path.join(a.out_dir, "baseline_demographics.npz"),
+                                getattr(p, "_demog_spec", None), getattr(p, "_pop_aux", None))
     # NB: we do NOT pickle the baseline Specifications. cloudpickle can serialize it but CORRUPTS
     # paramtools' validation schema on reload (update_specifications then fails), which the reform's
     # health re-solve needs. solve-reform rebuilds a FRESH baseline instead (deterministic, clean
@@ -474,8 +497,15 @@ def solve_reform(a):
     # than reloading a pickle -- a fresh object has clean paramtools state, so the health re-solve's
     # update_specifications works (a cloudpickled one's doesn't). baseline_dir points at the solved
     # baseline solution on disk, which OG-Core reads for the reform.
+    # REFORM inherits the baseline's demographics (persist+load): load the EXACT population overlay the
+    # baseline fetched+applied and pass it as demog_override so the reform re-applies it WITHOUT a fetch.
+    # (ogcore's get_pop_objs treats download_path as a write-sink and always re-fetches, so sharing a
+    # cache dir would neither avoid a second fetch nor guarantee identical data.) File absent -> a
+    # baseline solved before persistence -> fall back to the fetch, preserving the old behavior.
+    demog_override = serde.load_demographics_npz(os.path.join(a.baseline_dir, "baseline_demographics.npz"))
     r = _build_baseline_specs(a.og_package, a.params_resource, a.og_start_year,
-                              a.num_workers, a.reform_dir, calibration=a.calibration)
+                              a.num_workers, a.reform_dir, calibration=a.calibration,
+                              demog_override=demog_override)
     gamma_base = np.array(r.gamma, dtype=float)  # calibrated baseline gamma, BEFORE any channel override
     demog_spec = getattr(r, "_demog_spec", None)
     r.baseline = False

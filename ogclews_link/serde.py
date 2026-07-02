@@ -10,6 +10,7 @@ env -- never by the link.
 from __future__ import annotations
 
 import json
+import os
 import types
 
 import numpy as np
@@ -78,6 +79,46 @@ def save_solution_npz(path, solution: dict) -> None:
                             "across the env boundary -- the runner must hand back numeric arrays only.")
         out[k] = arr
     np.savez(path, **out)
+
+
+def save_demographics_npz(path, demog_spec, pop_aux) -> None:
+    """Persist the baseline's fetched demographics (runner-side, OG env) so a REFORM can INHERIT them
+    instead of re-fetching. ``demog_spec`` is the get_pop_objs overlay the baseline passed to
+    update_specifications; ``pop_aux`` is the rate aux the health channel needs. Either may be None when
+    the baseline fell back to its BUILT-IN (baked) demographics -- ``has_live=0`` then tells the reform to
+    use the built-in too (NOT re-fetch). Numeric-only (loaded with allow_pickle=False); a ragged/object
+    value fails loudly here rather than silently pickling."""
+    out = {"has_live": np.asarray(1 if demog_spec is not None else 0)}
+    for tag, d in (("spec", demog_spec), ("aux", pop_aux)):
+        for k, v in (d or {}).items():
+            arr = np.asarray(v)
+            if arr.dtype == object:
+                raise TypeError(f"save_demographics_npz: '{tag}.{k}' is object-dtype (ragged?); refusing "
+                                "to pickle -- demographics must persist as numeric arrays only.")
+            out[f"{tag}.{k}"] = arr
+    np.savez(path, **out)
+
+
+def load_demographics_npz(path):
+    """Load persisted baseline demographics (runner-side, OG env). Returns:
+      * ``None`` when the file is ABSENT -- an older baseline solved before persistence; the caller then
+        re-fetches (preserving the pre-persist behavior),
+      * ``(None, None)`` when the baseline used its BUILT-IN demographics (caller must NOT re-fetch),
+      * ``(demog_spec, pop_aux)`` reproducing EXACTLY what the baseline fetched+applied (float64 arrays
+        preserved; 0-d arrays restored to scalars) so the reform's omega equals the baseline's."""
+    if not os.path.exists(path):
+        return None
+    with np.load(path, allow_pickle=False) as z:
+        if not int(z["has_live"]):
+            return (None, None)
+        spec, aux = {}, {}
+        for f in z.files:
+            if f == "has_live":
+                continue
+            tag, _, k = f.partition(".")
+            v = z[f]
+            (spec if tag == "spec" else aux)[k] = v.item() if v.ndim == 0 else v
+    return (spec, aux or None)
 
 
 # --- link side (numpy-only): load exports, diff, write the override/health specs ------------------
