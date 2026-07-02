@@ -200,24 +200,103 @@ PYTHONPATH=$PWD <OG-model-venv-python> -m ogclews_link.viz --coupled-run ./ogcle
 ```
 Then open `./ogclews_runs/coupled/index.html`. A pre-built example is at `ogclews_runs/coupled_phl_m8/index.html`.
 
-### What to expect (PHL M=8 coupled)
-- **6 channels fire**: `energy_price` (active — electricity is isolated), `investment`, `emit_carbon_penalty`,
+### What to expect (PHL M=8 coupled — the committed golden, real CLEWS prices)
+- **Channels fire**: the `energy_full` composite (cost-push + recycled wedge at the real near-flat PHL
+  electricity price — its contribution is ≈ 0 by construction), `investment`, `emit_carbon_penalty`,
   `health` (≈ −279 deaths via the calibrated PM2.5 dose-response), `emit_discount_rate`, `emit_energy_demand`.
-- **Small macro effects** — electricity is a small, recycled share of household spending: roughly
-  `+0.005%` on `Y` over the 10-yr window in the macro table.
-- **Energy-good demand response ≈ 2%**, with incidence by income group (the route-A "energy" good is
-  ≈ 39% electricity, so the wedge is diluted — flagged at registration).
+- **Small macro effects, real signs** (reform vs baseline, from `results/golden.json`): `Y` **−0.017%**
+  at the steady state, **+0.165%** at t0 and **+0.396%** at t10 (transition stimulus from the
+  investment leg, a small long-run cost); `C` +0.47% at t10.
+- The run prints `[provenance] energy price source: 'auto' resolved to 'dual'` (a pure-MUIOGO case has
+  no cost workbook) and records the resolved source in the manifest.
 - The baseline steady state solves cleanly via continuation (resource-constraint error ≈ 1e-13).
 
-> **Illustrative magnitudes.** The energy-price path here is a stand-in until the CLEWS cost path is fully
-> wired, and the `carbon_tax`→OG ad-valorem conversion is illustrative until its deflator is calibrated
-> (flagged in-code). The *mechanism* is validated end-to-end; treat the levels as illustrative.
+> **One remaining illustrative conversion.** The `carbon_tax`→OG ad-valorem conversion uses an
+> uncalibrated deflator (flagged in-code); everything else in `coupled` runs on the real CLEWS signals.
 
 ### Notes / fail-safe behavior
 - **Offline / no UN data**: demographics fall back to the model's built-in calibrated values, and the
   `health` mortality shock skips (the baseline still solves).
 - **A country whose calibration can't isolate electricity** (single-industry, or electricity fused with
   water): the energy channels skip with a recorded reason; the non-energy channels still run.
+- **A CLEWS case without a PM2.5-type emission species**: the `health` channel skips with a recorded
+  reason (it will not misapply the PM2.5 dose-response to a GHG); the other channels still run.
+
+---
+
+# Onboarding your own country / MUIOGO case
+
+The walkthrough above reproduces the **PHL reference instance**; the link itself is country-agnostic.
+Connecting your own MUIOGO CLEWS case + OG country model takes three declarative pieces — none of them
+edits link source:
+
+### 1. Your CLEWS case (MUIOGO) — the export contract
+The channels read MUIOGO's standard result CSVs from `<MUIOGO>/WebAPP/DataStorage/<case>/res/<run>/csv`.
+`run` pre-checks both scenario dirs and prints a checklist **before** the expensive OG solve. The stems
+it looks for, and what each one drives:
+
+| CSV stem | drives |
+|---|---|
+| `EBb4_EnergyBalanceEachYear4_ICR` | the energy price (`auto`/`dual` source). **Only exported when the case is solved with CBC and `-printing all`.** |
+| `Demand` | the demand write-back baseline (`emit_energy_demand`) |
+| `CapitalInvestment` | the public-investment channel (power capex delta) |
+| `AnnualizedInvestmentCost`, `AnnualFixedOperatingCost`, `AnnualVariableOperatingCost` | the capital-intensity channel |
+| `AnnualTechnologyEmission(ByMode)` | the carbon + health channels |
+
+A missing stem is a warning, not a wall: the channel that needs it skips or fails loudly at its point
+of use, and the rest of the run proceeds.
+
+### 2. Your OG country model — register it
+```bash
+uv run ogclews-link models register --path ../OG-XXX
+```
+The model must be an OG-Core country package (like OG-PHL/OG-ZAF) exposing `UN_COUNTRY_CODE` and
+`PROD_DICT`/`CONS_DICT`, with its own `.venv`. Registration discovers the couplable multisector
+calibration link-side (no solve) — energy coupling needs the calibration to isolate electricity as its
+own production group; otherwise the energy channels skip with a recorded reason and the non-energy
+channels still run.
+
+### 3. Your country entry — a countries JSON (no source edit)
+Copy [`ogclews_countries.example.json`](ogclews_countries.example.json) to `ogclews_countries.json`
+(or point `$OGCLEWS_COUNTRIES` / `--countries` at it), fill in your entry, then:
+```bash
+uv run ogclews-link run coupled --country og-xxx --out ./ogclews_runs
+```
+(`--country` also accepts the country name or UN code; `$OGCLEWS_COUNTRY` sets a default.)
+
+The fields, and what goes wrong if they're wrong (everything mis-set fails **loudly** — no silent zeros):
+
+| field | meaning | if wrong |
+|---|---|---|
+| `name` | country name; also keys the shared GBD/PM2.5 data lookups (IHME location name) | health falls back to placeholders / M=1 guardrail |
+| `un_code` | UN M49 code (provenance; demographics use the OG package's own `UN_COUNTRY_CODE`) | cosmetic |
+| `og_repo` | **must equal the registry key** from `models register` | `ModelNotInstalledError` naming the key |
+| `gdp_musd` | nominal GDP, USD millions | mis-scales the investment shock (%GDP conversion) |
+| `og_start_year` | OG-Core start year (CLEWS↔OG year alignment) | loud year-alignment warning |
+| `power_prefix` | prefix of ALL power-tech codes in your CLEWS export | **error** naming the prefix + the tech codes present |
+| `public_power_markers` | substrings marking grid/T&D (public) techs | loud warning + zero public capex |
+| `electricity_fuel` | the commodity whose EBb4 dual is the household electricity price | unset with several `ELC*` commodities → **error** listing them |
+| `clews_region` | the case's OSeMOSYS region code (write-back artifacts address it) | artifacts name a nonexistent region (CLEWS merge no-ops) |
+| `co2_emission`, `health_emission` | **exact** species codes in your `AnnualTechnologyEmission*` export | **error** listing the species present / recorded health skip |
+| `units`, `scenario`, `gbd_burden_csv`, `pm25_dose_response`, `mindist_tpi`, `rc_ss` | optional/advanced (see `country.py` docstrings) | defaults documented in-code |
+
+Scenario dirs normally come from the MUIOGO-install env vars (Step 4 above), not the JSON — the same
+resolution applies to every country.
+
+### Orchestrating from MUIOGO (programmatic use)
+Everything the CLI does is a plain function call — the intended deployment is MUIOGO (or a driver
+script) invoking the link directly:
+```python
+from ogclews_link import country, experiments, framework, runtime
+cc  = country.resolve_country("og-xxx", config_file="ogclews_countries.json")
+ctx = framework.run(experiments.get("coupled"), cc,
+                    export_baseline=runtime.export_baseline, solve_reform=runtime.solve_reform,
+                    out_root="./ogclews_runs")
+```
+The og→clews artifacts (`clews_inputs/`: `EmissionsPenalty.csv`, `DiscountRate.csv`,
+`demand_scaling.csv`) address the case's `clews_region` and name their target commodity
+(`electricity_fuel`) — the return path a CLEWS-side merge consumes. Invoking OSeMOSYS on them (the
+MUIOGO `/updateData` → new caserun loop) is the external step today.
 
 ---
 
@@ -232,9 +311,13 @@ country-integration tests skip gracefully without the OG packages.
 The cross-env solve runs end-to-end and the full PHL M=8 coupled stack has been validated through the
 intended install → register → run flow. The link discovers and uses each country's own calibration and
 demographics (or skips), solves hard multisector baselines by continuation, and reports an OG-Core-style
-macro table. `health` is calibrated (country PM2.5 dose-response M; PHL ≈ 0.082). The CLEWS scenario
-location is now config-driven (resolved from the MUIOGO install / env / CLI — no hardcoded paths). Open
-items: a few PHL-specific CLEWS codes still live in `country.py`; the `coupled` energy-price reads a
-curated cost-of-electricity workbook rather than MUIOGO's raw OSeMOSYS dual (a follow-up); the
-loop-closure (emit a CLEWS scenario patch → MUIOGO re-solves → iterate) is the next architectural piece;
-the link's legacy vendored `demographic_data/` CSVs are now unused.
+macro table. `health` is calibrated (country PM2.5 dose-response M; PHL ≈ 0.082). Everything
+country-specific is declarative: the OG model via the registry (`models register`), the country via a
+countries JSON (`--country`, no source edit), the CLEWS scenario location via the MUIOGO install / env /
+CLI (no hardcoded paths). The `coupled` energy price runs on the real CLEWS signal (`auto`: workbook if
+present, else the raw MUIOGO EBb4 dual) and records which source it used in the manifest. Config
+mismatches fail loudly (power prefix, emission species, electricity fuel) instead of producing silent
+zeros. Open items: the `carbon_tax`→OG ad-valorem deflator is uncalibrated (illustrative); the
+loop-closure (emit a CLEWS scenario patch → MUIOGO re-solves → iterate) is the next architectural piece —
+the og→clews artifacts already address the case's region/commodity for it; the link's legacy vendored
+`demographic_data/` CSVs are now unused.
