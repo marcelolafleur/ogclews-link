@@ -19,6 +19,13 @@ def main(argv=None):
 
     rp = sub.add_parser("run", help="run a named experiment")
     rp.add_argument("experiment")
+    rp.add_argument("--country", default=None,
+                    help="country to run (name / UN code / og-repo key, e.g. 'phl' or 'og-zaf'); "
+                         "default: $OGCLEWS_COUNTRY, else the packaged PHL example")
+    rp.add_argument("--countries", default=None,
+                    help="countries JSON defining your own CountryConfig entries (default: "
+                         "$OGCLEWS_COUNTRIES, else ./ogclews_countries.json if present; see "
+                         "ogclews_countries.example.json)")
     rp.add_argument("--workers", type=int, default=7, help="OG-Core J-loop worker processes (use multiprocess; avoid 1)")
     rp.add_argument("--out", default="./ogclews_runs")
     rp.add_argument("--no-progress", action="store_true")
@@ -110,27 +117,36 @@ def main(argv=None):
         import os
 
         from . import framework, registry, runtime
-        from .country import CLEWS_SCENARIO_HELP, PHL
+        from .country import CLEWS_SCENARIO_HELP, resolve_country
         from .manifest import write_run_manifest
+        from .muiogo_run import preflight
 
         exp = experiments.get(args.experiment)
+        # Country: CLI flag > $OGCLEWS_COUNTRY > the packaged PHL example. Countries beyond the packaged
+        # ones are defined declaratively in a countries JSON (--countries / $OGCLEWS_COUNTRIES /
+        # ./ogclews_countries.json) -- onboarding never edits link source.
+        country = resolve_country(args.country or os.environ.get("OGCLEWS_COUNTRY") or "phl",
+                                  config_file=args.countries)
+        print(f"Country: {country.name} (un {country.un_code}, OG model {country.og_repo})")
         cfg = runtime.RunnerConfig(num_workers=args.workers, show_progress=not args.no_progress,
                                    rebuild=args.rebuild_baseline)
         # CLEWS scenario source: CLI flag > env / MUIOGO-install resolution (country.clews_scenario_dir)
         if args.clews_base:
-            PHL.scenario.base_dir = args.clews_base
+            country.scenario.base_dir = args.clews_base
         if args.clews_reform:
-            PHL.scenario.reform_dir = args.clews_reform
-        for side, d in (("base", PHL.scenario.base_dir), ("reform", PHL.scenario.reform_dir)):
+            country.scenario.reform_dir = args.clews_reform
+        for side, d in (("base", country.scenario.base_dir), ("reform", country.scenario.reform_dir)):
             status = "ok" if d and os.path.isdir(d) else "NOT FOUND -- CLEWS-reading channels will fail"
             print(f"CLEWS {side:6} scenario: {d or '(unset)'}  [{status}]")
             if not (d and os.path.isdir(d)):
                 print(f"  {CLEWS_SCENARIO_HELP}")
-        entry = registry.lookup(PHL)        # OG-model provenance for the manifest (and fail-fast)
+            else:
+                preflight(d, label=side)    # loud export checklist BEFORE the expensive baseline solve
+        entry = registry.lookup(country)    # OG-model provenance for the manifest (and fail-fast)
         og_model = {"repo": entry.key, "package": entry.package, "version": entry.version,
                     "env_python": entry.env_python}
         ctx = framework.run(
-            exp, PHL,
+            exp, country,
             export_baseline=partial(runtime.export_baseline, cfg=cfg),
             solve_reform=partial(runtime.solve_reform, cfg=cfg),
             out_root=args.out)
@@ -142,14 +158,14 @@ def main(argv=None):
             mt_path = os.path.join(args.out, args.experiment, "macro_table.csv")
             try:
                 os.makedirs(os.path.dirname(mt_path), exist_ok=True)
-                macro_table(ctx.base_tpi, ctx.reform_tpi, PHL.scenario.og_start_year).to_csv(mt_path)
+                macro_table(ctx.base_tpi, ctx.reform_tpi, country.scenario.og_start_year).to_csv(mt_path)
                 print("Wrote macro table:", mt_path)
             except Exception as e:  # noqa: BLE001 -- the CSV is a convenience; never fail the run for it
                 print(f"(macro table CSV skipped: {type(e).__name__})")
         if ctx.clews_inputs:
             written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")
             print("Wrote CLEWS inputs:", written)
-        manifest = write_run_manifest(f"{args.out}/{args.experiment}", exp, PHL, ctx,
+        manifest = write_run_manifest(f"{args.out}/{args.experiment}", exp, country, ctx,
                                       clews_run=args.clews_run, og_model=og_model)
         print("Wrote run manifest:", manifest)
         return

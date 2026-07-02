@@ -25,12 +25,20 @@ class CountryConfig:
     # the baseline actually solved at rather than a hand-set assumption.
     units: UnitMap
     scenario: ScenarioPair
-    power_prefix: str = "PHL_POW"           # all power-sector technologies
+    # Prefix identifying ALL power-sector technology codes in the CLEWS export (e.g. "PHL_POW").
+    # REQUIRED for the investment / capital-intensity channels: None (unset) fails loudly at first use
+    # rather than silently matching zero technologies and reporting a zero capex delta as an economics fact.
+    power_prefix: str | None = None
     public_power_markers: tuple = ("_TD",)  # techs treated as public infrastructure (T&D)
     # the CLEWS commodity code whose OSeMOSYS commodity-balance dual is the household electricity price
     # (drives the energy_price channel's 'dual'/'auto' source). None -> the dual's generic 'ELC*' default,
     # which is wrong for country-prefixed fuels (PHL uses PHL_*_ELE), so set it per country.
     electricity_fuel: str | None = None
+    # the OSeMOSYS region code of the CLEWS case -- addressed by every OG->CLEWS write-back artifact
+    # (EmissionsPenalty / DiscountRate / demand scaling), which MUIOGO merges back into the case's
+    # inputs. "RE1" is MUIOGO's single-region convention; a differently-named or multi-region case must
+    # set it or the merged artifacts would target a nonexistent region.
+    clews_region: str = "RE1"
     co2_emission: str = "CO2e"        # carbon-policy / climate species (carbon channel + emissions chart)
     health_emission: str = "PM2_5"    # the ambient pollutant the GBD health burden is attributed to; the
                                       # health channel scales its PM2.5 dose-response by THIS species'
@@ -61,6 +69,11 @@ class CountryConfig:
     pm25_dose_response: float | None = None
 
     def is_power(self, tech: str) -> bool:
+        if not self.power_prefix:
+            raise ValueError(
+                f"CountryConfig({self.name!r}).power_prefix is unset -- the link cannot identify this "
+                "country's power-sector technologies in the CLEWS export. Set power_prefix to the "
+                "technology-code prefix your CLEWS model uses (e.g. 'PHL_POW').")
         return tech.startswith(self.power_prefix)
 
     def is_public(self, tech: str) -> bool:
@@ -129,6 +142,7 @@ PHL = CountryConfig(
     name="Philippines",
     un_code="608",
     og_repo="og-phl",
+    power_prefix="PHL_POW",           # all PHL power-sector technology codes in the CLEWS export
     electricity_fuel="PHL_HOU_ELE",   # household electricity commodity (its EBb4 dual = the price route A faces)
     gdp_musd=461_600.0,  # 2024 nominal GDP, USD millions (World Bank)
     units=UnitMap(clews_money_unit="MUSD", clews_energy_unit="PJ", base_year=2020,
@@ -143,3 +157,102 @@ PHL = CountryConfig(
     gbd_burden_csv=_resolve_gbd_csv(),  # IHME-GBD_2023_DATA/*.csv if present, else None (placeholders)
     pm25_dose_response=_resolve_dose_response("Philippines"),  # M ~= 0.082 (energy 9.8% x CRF elast 0.84)
 )
+
+
+# --- declarative country onboarding: define YOUR country as data, not a source edit -------------------
+# A countries JSON file holds one entry per country/case (see ogclews_countries.example.json at the repo
+# root). Resolution order mirrors the OG-model registry: explicit file arg > $OGCLEWS_COUNTRIES >
+# ./ogclews_countries.json (cwd). Code-defined instances in this module (PHL, the worked example) are
+# always available; JSON entries ADD to them (and may shadow by key).
+
+COUNTRY_CONFIG_HELP = (
+    "Define your country in a countries JSON file (see ogclews_countries.example.json): pass "
+    "--countries <file>, set $OGCLEWS_COUNTRIES, or place ogclews_countries.json in the working "
+    "directory. Select it with --country <name|un-code|og-repo> or $OGCLEWS_COUNTRY.")
+
+_REQUIRED_COUNTRY_KEYS = ("name", "un_code", "og_repo", "gdp_musd", "og_start_year", "power_prefix")
+
+
+def config_from_dict(d: dict) -> CountryConfig:
+    """Build a CountryConfig from one countries-JSON entry. Required keys: name, un_code, og_repo,
+    gdp_musd, og_start_year, power_prefix (the silent-zero trap fields are deliberately NOT defaultable
+    from JSON). Scenario dirs default to the MUIOGO-install resolution (env vars / --clews-* flags),
+    exactly like the packaged PHL; explicit base_dir/reform_dir entries override. gbd_burden_csv and
+    pm25_dose_response default to the repo's shared data resolved by country name."""
+    d = dict(d)
+    missing = [k for k in _REQUIRED_COUNTRY_KEYS if d.get(k) in (None, "")]
+    if missing:
+        raise ValueError(f"country entry {d.get('name') or d.get('og_repo') or '?'!r} is missing "
+                         f"required key(s) {missing}; required: {list(_REQUIRED_COUNTRY_KEYS)}. "
+                         f"{COUNTRY_CONFIG_HELP}")
+    units_d = d.pop("units", {}) or {}
+    units = UnitMap(clews_money_unit=units_d.get("clews_money_unit", "MUSD"),
+                    clews_energy_unit=units_d.get("clews_energy_unit", "PJ"),
+                    base_year=int(units_d.get("base_year", 2020)),
+                    deflator=float(units_d.get("deflator", 1.0)),
+                    notes=units_d.get("notes", ""))
+    scen_d = d.pop("scenario", {}) or {}
+    y = scen_d.get("years")     # optional [first, last] (informational; not consumed by the channels)
+    scenario = ScenarioPair(
+        name=scen_d.get("name", f"{d['name']} reform_vs_base"),
+        base_dir=scen_d.get("base_dir") or clews_scenario_dir("base"),
+        reform_dir=scen_d.get("reform_dir") or clews_scenario_dir("reform"),
+        years=tuple(range(int(y[0]), int(y[1]) + 1)) if y else (),
+        og_start_year=int(d.pop("og_start_year")))
+    name = d["name"]
+    known = {f for f in CountryConfig.__dataclass_fields__}
+    unknown = [k for k in d if k not in known]
+    if unknown:
+        raise ValueError(f"country entry {name!r} has unknown key(s) {unknown}; "
+                         f"valid fields: {sorted(known - {'units', 'scenario'})}")
+    if "public_power_markers" in d:
+        d["public_power_markers"] = tuple(d["public_power_markers"])
+    d.setdefault("gbd_burden_csv", _resolve_gbd_csv())
+    d.setdefault("pm25_dose_response", _resolve_dose_response(name))
+    d["gdp_musd"] = float(d["gdp_musd"])
+    return CountryConfig(units=units, scenario=scenario, **d)
+
+
+def _countries_file(config_file=None):
+    """The countries JSON to load: explicit arg > $OGCLEWS_COUNTRIES > ./ogclews_countries.json; None
+    when nothing resolves (code-defined countries are still available)."""
+    for cand in (config_file, os.environ.get("OGCLEWS_COUNTRIES"),
+                 os.path.join(os.getcwd(), "ogclews_countries.json")):
+        if cand and os.path.isfile(cand):
+            return cand
+        if cand and cand is config_file:      # an EXPLICIT file that doesn't exist is an error, not a fallthrough
+            raise FileNotFoundError(f"countries file {cand!r} not found")
+    return None
+
+
+def country_registry(config_file=None) -> dict:
+    """Every available CountryConfig, keyed (lowercased) by module attribute, .name, .un_code and
+    .og_repo -- so 'phl'/'Philippines'/'608'/'og-phl' all resolve to the same instance. Code-defined
+    instances in this module first, then countries-JSON entries (which may shadow)."""
+    reg = {}
+    def _add(keys, obj):
+        for k in keys:
+            if k:
+                reg[str(k).lower()] = obj
+    for attr, obj in list(globals().items()):
+        if isinstance(obj, CountryConfig):
+            _add((attr, obj.name, obj.un_code, obj.og_repo), obj)
+    path = _countries_file(config_file)
+    if path:
+        with open(path) as f:
+            data = json.load(f)
+        entries = data.get("countries", data) if isinstance(data, dict) else data
+        for entry in entries:
+            obj = config_from_dict(entry)
+            _add((obj.name, obj.un_code, obj.og_repo), obj)
+    return reg
+
+
+def resolve_country(selector, config_file=None) -> CountryConfig:
+    """The CountryConfig for ``selector`` (name / UN code / og-repo key, case-insensitive)."""
+    reg = country_registry(config_file)
+    obj = reg.get(str(selector).lower())
+    if obj is None:
+        avail = sorted({c.name for c in reg.values()})
+        raise SystemExit(f"unknown country {selector!r}; available: {avail}. {COUNTRY_CONFIG_HELP}")
+    return obj
