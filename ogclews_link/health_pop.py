@@ -114,9 +114,19 @@ def disease_pop(p, aux, excess_deaths, profile, phase_years=5, *, un_country_cod
 
     The get_pop_objs call passes the SHOCKED mortality (so it stays a pass-rates inference), aligned to
     ogcore's convention: ``initial_data_year = start_year - 1`` (the pre-period), ``final_data_year =
-    start_year + ny - 1``, giving ``T0 = ny + 1`` data rows -- exactly the leading pre-period row plus
-    the ``ny`` model years. The rate arrays are extrapolated to that T0; ``calibrate_shock_scale``
-    leaves the pre-period row unshocked and ramps the ny model years."""
+    start_year + ny - 1``, giving ``T0 = ny + 1`` data rows -- the leading pre-period row plus the ``ny``
+    model years. The rate arrays are extrapolated to that T0; ``calibrate_shock_scale`` leaves the
+    pre-period row unshocked and ramps the ny model years.
+
+    IMPORTANT -- this omega is NOT comparable to :func:`ogclews_link._demog.baseline_pop`'s omega. This
+    call uses ``infer_pop=True`` seeded from a SINGLE population row with ``final_data_year =
+    start_year + ny - 1`` (T0 = ny+1); ``baseline_pop`` uses ``infer_pop=False`` with ``final_data_year =
+    start_year + 1`` (T0 = 3), letting ogcore fetch the OBSERVED multi-year UN population. Differencing
+    the two omegas is dominated by that construction mismatch (single-age age-heaping + a window kink),
+    ~1000x larger than and orthogonal to the mortality signal. The CLEAN mortality marginal is THIS
+    shocked omega minus a ZERO-shock ``disease_pop`` omega (same window, same seed, same inference -- only
+    ``mort_rates`` differs); that difference is smooth and tracks the age profile. Never diff the shocked
+    omega against ``baseline_pop``'s omega."""
     from ogcore import demographics
 
     ny = int(phase_years)
@@ -136,11 +146,11 @@ def disease_pop(p, aux, excess_deaths, profile, phase_years=5, *, un_country_cod
         float(excess_deaths), pop_dist, fert, mort, infmort, imm, h, ny, total_deaths)
 
     # ogcore convention: initial_data_year = start_year - 1 (the pre-period row), final_data_year =
-    # start_year + ny - 1 -> T0 = ny + 1 = the leading pre-period row plus the ny model years -- the
-    # SAME window baseline_pop uses, extended over the shock phase. Seed the inference with pop_dist's
-    # leading (start_year-1) row, identical to baseline_pop's seed, and feed the SHOCKED mort path; the
-    # baseline-vs-shock marginal stays a pure mortality difference (same window, same seed, only
-    # mort_rates differs -- and only on the ny model rows, since the pre-period row 0 is unshocked).
+    # start_year + ny - 1 -> T0 = ny + 1 = the leading pre-period row plus the ny model years. Seed the
+    # infer_pop recursion with pop_dist's leading (start_year-1) row and feed the SHOCKED mort path. The
+    # clean mortality marginal is THIS omega minus a ZERO-shock disease_pop omega (SAME window/seed/
+    # inference, only mort_rates differs on the ny model rows -- the pre-period row 0 is unshocked). NB:
+    # this is NOT baseline_pop's window/inference (see the docstring); do not diff against that omega.
     pop_dict = demographics.get_pop_objs(
         p.E, p.S, p.T, 0, 99, country_id=un_country_code,
         fert_rates=fert, mort_rates=alt_mort, infmort_rates=infmort, imm_rates=imm,
