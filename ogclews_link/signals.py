@@ -93,10 +93,31 @@ def read_clews_long(path: str, value_col: str | None = None) -> pd.DataFrame:
 
 def power_capex_increment(base_dir, reform_dir, country, public_only=False) -> pd.Series:
     """Reform-minus-base CLEWS CapitalInvestment summed over power technologies, by year.
-    This is the extra capital the transition requires -- the investment-channel signal."""
+    This is the extra capital the transition requires -- the investment-channel signal.
+
+    GUARDRAIL: zero technologies matching ``country.power_prefix`` is a CONFIG mismatch, not an
+    economics fact -- summing an empty set would report a plausible-looking zero capex delta -- so it
+    raises, naming the prefix and the technology codes actually present. When the prefix DOES match but
+    none of the matched techs carries a ``public_power_markers`` marker (``public_only=True``), that may
+    be a real case shape (no grid/T&D techs), so it warns loudly and returns zeros instead."""
     def _sum(folder):
         m = read_clews_matrix(_find(folder, "CapitalInvestment"))
-        keep = [t for t in m.index if (country.is_public(t) if public_only else country.is_power(t))]
+        power = [t for t in m.index if country.is_power(t)]
+        if not power:
+            sample = list(map(str, m.index[:12]))
+            raise ValueError(
+                f"power_capex_increment: NO technology in {folder!r} matches "
+                f"CountryConfig({country.name!r}).power_prefix={country.power_prefix!r} -- a config "
+                f"mismatch, not a zero capex delta. Technology codes present include: {sample}"
+                f"{'...' if len(m.index) > 12 else ''}. Set power_prefix to your CLEWS power-tech prefix.")
+        keep = [t for t in power if country.is_public(t)] if public_only else power
+        if public_only and not keep:
+            print(f"[guardrail] power_capex_increment: {len(power)} techs match power_prefix="
+                  f"{country.power_prefix!r} but NONE carries a public marker "
+                  f"{country.public_power_markers!r} in {folder!r} -- treating PUBLIC (grid/T&D) capex "
+                  "as zero. If your grid techs use different markers, set "
+                  "CountryConfig.public_power_markers.")
+            return pd.Series(0.0, index=m.columns)
         return m.loc[keep].sum(axis=0)
     base, reform = _sum(base_dir), _sum(reform_dir)
     years = sorted(set(base.index) & set(reform.index))
@@ -197,8 +218,21 @@ def emissions_by_year(scenario_dir, country, species=None) -> pd.Series:
     ycol = cols.get("y") or next(c for c in df.columns if df[c].astype(str).str.fullmatch(r"\d{4}").all())
     ecol = cols.get("e")
     vcol = df.columns[-1]
+    want = species or country.co2_emission
     if ecol is not None:
-        df = df[df[ecol].astype(str).str.contains(species or country.co2_emission, case=False, na=False)]
+        # EXACT species code (case-insensitive) -- a substring match would silently SUM overlapping
+        # codes (e.g. 'CO2' + 'CO2EQ') into one number. A zero match is a config/export mismatch: say
+        # which species ARE present rather than return an empty series.
+        present = sorted(df[ecol].astype(str).unique())
+        df = df[df[ecol].astype(str).str.upper() == str(want).upper()]
+        if df.empty:
+            raise ValueError(
+                f"emissions_by_year: species {want!r} not in {path}; species present: {present}. "
+                "Set CountryConfig.co2_emission / health_emission to the exact code your CLEWS "
+                "model exports.")
+    else:
+        print(f"[guardrail] emissions_by_year: {path} has no 'e' (species) column -- ALL species are "
+              f"summed together; wanted {want!r}. Check the export if the case tracks several species.")
     return df.groupby(ycol)[vcol].sum().sort_index()
 
 
@@ -275,7 +309,8 @@ def _has_cost_xlsx(scenario_dir: str) -> bool:
 
 # --- channel sourcing helpers: turn a CLEWS source choice into the ready value a channel applies ---
 
-def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, fuel=None) -> np.ndarray:
+def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, fuel=None,
+                       resolved=None) -> np.ndarray:
     """The energy GOOD's reform/base price-ratio path from CLEWS, diluted by electricity's value-share
     of the OG energy good and aligned to og_start_year (length n). ``kind``:
       'cost_index' -- the curated cost-of-electricity index PROXY (a CLEWS-OG workbook);
@@ -285,22 +320,34 @@ def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, f
                       scenario, which has no workbook but does have EBb4, works without configuration).
     The controlled +20% case does NOT go through here -- a caller passes that scalar straight to
     energy_price(), undiluted. ``share is None`` (the country can't isolate electricity's value-share)
-    returns None -- the dependent energy_price channel then skips, so this path is never consumed."""
+    returns None -- the dependent energy_price channel then skips, so this path is never consumed.
+
+    ``resolved`` (optional dict) is filled with the price-source PROVENANCE -- the resolved kind and the
+    files it read -- so the run can record WHICH source ('cost_index' workbook vs the EBb4 'dual') drove
+    the result; with 'auto' the choice is otherwise invisible."""
     if share is None:
         return None
+    requested = kind
     if kind == "auto":
         kind = "cost_index" if (_has_cost_xlsx(base_dir) and _has_cost_xlsx(reform_dir)) else "dual"
+        print(f"[provenance] energy price source: 'auto' resolved to '{kind}' "
+              f"({'cost-of-electricity workbook found in both scenario dirs' if kind == 'cost_index' else 'no workbook -> EBb4 commodity-balance dual'})")
     if kind == "dual":
         ratio = commodity_shadow_price_ratio(base_dir, reform_dir, fuel=fuel)
+        files = {"base": _DUAL_CONSTRAINT, "reform": _DUAL_CONSTRAINT, "fuel": fuel}
         if ratio.dropna().empty:
             raise ValueError(
                 "energy_price_ratio kind='dual': commodity-balance dual ratio is empty / all-NaN -- no "
                 "overlapping base/reform years, or a zero baseline shadow price for the matched fuel. "
                 "Check the EBb4 export, the fuel code, and the run years.")
     elif kind == "cost_index":
-        ratio = cost_of_electricity_ratio(_cost_xlsx(base_dir), _cost_xlsx(reform_dir))
+        bx, rx = _cost_xlsx(base_dir), _cost_xlsx(reform_dir)
+        ratio = cost_of_electricity_ratio(bx, rx)
+        files = {"base": os.path.basename(bx), "reform": os.path.basename(rx)}
     else:
         raise ValueError(f"energy_price_ratio: unknown kind {kind!r} (use 'cost_index' or 'dual')")
+    if resolved is not None:
+        resolved.update({"requested": requested, "kind": kind, **files})
     return _align_to_start(1.0 + share * (ratio - 1.0), og_start_year, n)
 
 
@@ -391,6 +438,20 @@ def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=Non
         present = sorted(df[fcol].astype(str).unique())
         raise ValueError(f"commodity_shadow_price: no rows for fuel={fuel!r} in {path}; "
                          f"fuels present: {present[:15]}{'...' if len(present) > 15 else ''}")
+    matched = sorted(sub[fcol].astype(str).unique())
+    if fuel is None and len(matched) > 1:
+        # Averaging DISTINCT commodities' duals (e.g. ELC001 transmission + ELC002 distribution) would
+        # silently blend different prices into "the" electricity price -- an economically material
+        # choice the user must make, not a default.
+        raise ValueError(
+            f"commodity_shadow_price: the generic 'ELC*' fallback matched {len(matched)} distinct "
+            f"commodities in {path}: {matched}. Averaging their duals would blend different prices. "
+            "Set CountryConfig.electricity_fuel to the commodity households face (or pass fuel=...).")
+    regions = sorted(sub[rcol].astype(str).unique())
+    if len(regions) > 1:
+        print(f"[guardrail] commodity_shadow_price: {len(regions)} regions {regions} present for "
+              f"fuel(s) {matched} in {path} -- the dual is AVERAGED across regions (year-level mean). "
+              "For a region-specific price, filter the EBb4 export to one region first.")
     if undiscount and dr_col is not None:
         dr = pd.to_numeric(sub[dr_col], errors="coerce").fillna(0.0)
         sy = int(start_year) if start_year is not None else int(sub[ycol].min())

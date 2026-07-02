@@ -81,14 +81,22 @@ def _apply_energy_composite(ctx, elec_price_ratio):
 
 
 def _auto_price_ratio(ctx):
-    """PHL's ACTUAL electricity reform/base price-ratio path from CLEWS ('auto': the cost-of-electricity
-    workbook if present, else the OSeMOSYS commodity-balance dual on raw MUIOGO output). UN-diluted
-    (share=1.0). This is the real price change (near-flat for PHL), NOT an illustrative stimulus -- the
-    single source of the electricity price used by ``coupled`` and every real energy result here."""
+    """The country's ACTUAL electricity reform/base price-ratio path from CLEWS ('auto': the
+    cost-of-electricity workbook if present, else the OSeMOSYS commodity-balance dual on raw MUIOGO
+    output). UN-diluted (share=1.0). This is the real price change (near-flat for PHL), NOT an
+    illustrative stimulus -- the single source of the electricity price used by ``coupled`` and every
+    real energy result here. The RESOLVED source (workbook vs dual, and which files) is logged into the
+    run's provenance/manifest -- 'auto' must never leave the choice invisible."""
     c, p = ctx.country, ctx.og_reform
-    return signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir, reform_dir=c.scenario.reform_dir,
-                                      share=1.0, og_start_year=c.scenario.og_start_year,
-                                      n=np.asarray(p.tau_c).shape[0], fuel=c.electricity_fuel)
+    resolved = {}
+    ratio = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir, reform_dir=c.scenario.reform_dir,
+                                       share=1.0, og_start_year=c.scenario.og_start_year,
+                                       n=np.asarray(p.tau_c).shape[0], fuel=c.electricity_fuel,
+                                       resolved=resolved)
+    if resolved:
+        ctx.log("energy_price_source", note="price-source resolution (provenance, not a channel)",
+                **resolved)
+    return ratio
 
 
 # --- single-channel experiments -------------------------------------------------

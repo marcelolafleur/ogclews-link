@@ -13,14 +13,17 @@ def _years(start_year, n):
     return list(range(start_year, start_year + n))
 
 
-def write_demand(spec: dict, out_dir: str, region="RE1") -> str:
+def write_demand(spec: dict, out_dir: str, region=None) -> str:
     """Demand-scaling artifact: per-year multiplier on the base CLEWS SpecifiedAnnualDemand.
     (A full writer would multiply the country's base demand file by this; the multiplier +
-    its concordance target are written so the CLEWS side can apply it deterministically.)"""
+    its concordance target are written so the CLEWS side can apply it deterministically.)
+    ``region`` defaults to the spec's own (the country's clews_region, put there by
+    emit_energy_demand) so the artifact addresses the case's real OSeMOSYS region."""
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "demand_scaling.csv")
     ratio = spec["ratio_by_period"]
     years = _years(spec["start_year"], len(ratio))
+    region = region or spec.get("region", "RE1")
     with open(path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["REGION", "OG_ACTIVITY", "OG_INDEX", "CLEWS_FUEL", "YEAR", "DEMAND_RATIO"])

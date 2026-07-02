@@ -75,3 +75,34 @@ def verify_run(csv_dir: str, required=(_EBB4, "Demand")) -> dict:
     prefixed OSeMOSYS exports (e.g. ``RE1_EBb4_..._2050.csv``) still register as present --
     consistent with how _ebb4_path locates the dual."""
     return {stem: bool(glob.glob(os.path.join(csv_dir, f"*{stem}*.csv"))) for stem in required}
+
+
+# The MUIOGO export contract the channels consume -- stem -> which channel needs it. The EBb4 dual only
+# exists when the case was solved with CBC and '-printing all'; the rest are standard MUIOGO result CSVs.
+PREFLIGHT_STEMS = {
+    _EBB4: "energy price 'auto'/'dual' source (needs a CBC solve with '-printing all')",
+    "Demand": "demand write-back baseline (emit_energy_demand)",
+    "CapitalInvestment": "public-investment channel (power capex delta)",
+    "AnnualizedInvestmentCost": "capital-intensity channel (capital cost share)",
+    "AnnualFixedOperatingCost": "capital-intensity channel (O&M denominator)",
+    "AnnualVariableOperatingCost": "capital-intensity channel (O&M denominator)",
+    "AnnualTechnologyEmission": "carbon + health channels (matches the ...ByMode variant too)",
+}
+
+
+def preflight(scenario_dir: str, *, label: str = "", out=print) -> dict:
+    """Loud pre-run checklist of the MUIOGO export contract for one scenario dir, BEFORE any expensive
+    OG solve: report which expected CSV stems are present and what each missing one disables. Missing
+    stems are a WARNING, not an error -- experiments differ in which exports they need, and the channels
+    themselves fail/skip loudly at the point of use."""
+    found = verify_run(scenario_dir, required=tuple(PREFLIGHT_STEMS))
+    missing = [s for s, ok in found.items() if not ok]
+    tag = f" ({label})" if label else ""
+    if not missing:
+        out(f"  CLEWS export check{tag}: all {len(found)} expected CSV stems present")
+    else:
+        out(f"  CLEWS export check{tag}: {len(found) - len(missing)}/{len(found)} expected stems present; missing:")
+        for s in missing:
+            out(f"    - {s}  [{PREFLIGHT_STEMS[s]}]")
+        out("    channels that need a missing export will skip or fail loudly at that point.")
+    return found

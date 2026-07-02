@@ -403,7 +403,7 @@ def emit_carbon_penalty(ctx, *, carbon_price_usd_per_tco2=50.0):
     p = ctx.og_reform
     cp = _fit(carbon_price_usd_per_tco2, p.T)
     ctx.clews_inputs["EmissionsPenalty"] = {
-        "region": "RE1", "emission": c.co2_emission,
+        "region": getattr(c, "clews_region", "RE1"), "emission": c.co2_emission,
         "start_year": c.scenario.og_start_year, "value_by_period": cp.tolist()}
     return ctx.log("emit_carbon_penalty", carbon_price_mean=float(cp.mean()))
 
@@ -414,7 +414,7 @@ _OG_RATE_SERIES = {"market_return": "r_p", "firm_rate": "r"}
 
 
 def emit_discount_rate(ctx, *, og_rate_series="market_return", rate_form="first_decade_mean",
-                       clews_region="RE1"):
+                       clews_region=None):
     """OG equilibrium rate -> CLEWS DiscountRate (og->clews; run AFTER the reform solve).
 
     Harmonizes the energy model's discount rate to OG's market cost of capital -- not a separate social
@@ -424,13 +424,16 @@ def emit_discount_rate(ctx, *, og_rate_series="market_return", rate_form="first_
         ctx (CouplingState): reads reform_tpi (REQUIRED, post-solve); writes clews_inputs['DiscountRate'].
         og_rate_series (str): 'market_return' (the household portfolio return r_p) or 'firm_rate' (r).
         rate_form (str): 'first_decade_mean' (a scalar) or 'full_path' (the per-period series).
-        clews_region (str): the CLEWS region the rate is written for.
+        clews_region (str or None): the CLEWS region the rate is written for; None -> the country's
+            ``clews_region`` (the case's OSeMOSYS region code).
     Returns:
         dict: provenance -- og_rate_series, clews_discount_rate (scalar) or 'path'.
     """
     if ctx.reform_tpi is None:
         raise ValueError("emit_discount_rate is post-solve and needs ctx.reform_tpi (the reform "
                          "equilibrium rate); it was None -- call it after the reform solve.")
+    if clews_region is None:
+        clews_region = getattr(ctx.country, "clews_region", "RE1")
     rate_key = _OG_RATE_SERIES.get(og_rate_series, og_rate_series)
     r = signals.og_interest_rate(ctx.reform_tpi, rate_key)
     scalar = (rate_form == "first_decade_mean")
@@ -479,7 +482,17 @@ def health(ctx, *, enable_mortality=True, enable_morbidity=True, mortality_targe
     c = ctx.country
     p = ctx.og_reform
     species = getattr(c, "health_emission", None)
-    er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, species=species)
+    # SKIP (recorded, loud), don't crash, when this CLEWS case cannot drive the health channel at all:
+    # no emissions export, or no species matching country.health_emission (e.g. a case that tracks only
+    # GHGs and no PM2.5-type pollutant). Mirrors _skip_if_unavailable -- `coupled` then still runs the
+    # other channels. Data that IS present but non-finite still raises below (that's corruption, not
+    # absence).
+    try:
+        er = signals.emissions_ratio(c.scenario.base_dir, c.scenario.reform_dir, c, species=species)
+    except (FileNotFoundError, ValueError) as e:
+        reason = (f"health-emissions source unavailable (species {species!r}): {e}")
+        print(f"[skip] health: {reason}")
+        return ctx.log("health", skipped=True, reason=reason)
     demis = float(np.nanmean(er.values[:10])) - 1.0       # <0 == reform is cleaner
     if not np.isfinite(demis):
         raise ValueError(f"health: emissions_ratio gave a non-finite change ({demis}); "
@@ -558,7 +571,9 @@ def emit_energy_demand(ctx, activity_ratio, *, og_activity="sector_output", og_i
             (``signals.activity_ratio``).
         og_activity (str): which OG series drives demand -- 'sector_output' (Y_m) or 'consumption_good' (C_i).
         og_index_override (int or None): override the sliced OG index; None -> the energy index per the concordance.
-        clews_fuel (str or None): the CLEWS fuel code the demand maps to (recorded on the artifact).
+        clews_fuel (str or None): the CLEWS fuel code the demand maps to (recorded on the artifact);
+            None -> the country's ``electricity_fuel`` -- the artifact must name its target commodity
+            or the CLEWS-side merge cannot apply it.
     Returns:
         dict: provenance -- og_activity, mean_ratio (plus a note if inert).
     """
@@ -572,10 +587,13 @@ def emit_energy_demand(ctx, activity_ratio, *, og_activity="sector_output", og_i
     default_idx = (ctx.concordance.energy_industry_index if driver == "Y_m"
                    else ctx.concordance.energy_good_index)
     idx = og_index_override if og_index_override is not None else default_idx
+    if clews_fuel is None:
+        clews_fuel = getattr(c, "electricity_fuel", None)
     ratio = np.asarray(activity_ratio, dtype=float)
     mr = float(ratio[:10].mean())
     ctx.clews_inputs["Demand"] = {
         "og_activity": og_activity, "og_index": idx, "clews_fuel": clews_fuel,
+        "region": getattr(c, "clews_region", "RE1"),
         "start_year": c.scenario.og_start_year, "ratio_by_period": ratio.tolist()}
     prov = {"og_activity": og_activity, "mean_ratio": mr}
     if abs(mr - 1.0) < 1e-3:
