@@ -11,6 +11,12 @@ environment as a subprocess, so the link, MUIOGO, and each OG model stay indepen
 ## Before you start
 Assumes you already have **MUIOGO** installed.
 
+Pick a working folder — the two things you clone below (OG-PHL and the link) go here, side by side (the
+Run step's outputs land here too; the CLEWS data stays in your MUIOGO install):
+```bash
+mkdir -p ~/ogclews-test && cd ~/ogclews-test
+```
+
 **The Philippine CLEWS data** must sit in `MUIOGO/WebAPP/DataStorage/` — the `Philippines_v9` case with a
 solved baseline (`Base_v9`) and reform (`PEP_v9`). If you don't have it, drop it in (`<MUIOGO>` = your
 MUIOGO folder):
