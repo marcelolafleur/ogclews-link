@@ -1,43 +1,25 @@
 # Try the OG↔CLEWS coupling (temporary dev test)
 
-Copy-paste for **macOS / Linux**. ~15 min of setup + one solve (a few minutes). This is a throwaway
-developer test to try the coupling **today** — not the final flow (that will be one-click modules inside
-MUIOGO). No GitHub account needed; every source below is public.
+Copy-paste, **macOS / Linux**. A throwaway developer test to try the coupling **today** — not the final
+flow (that will be one-click modules inside MUIOGO). Everything below is public; no GitHub account needed.
+**Each block is paste-ready as-is** — what it does is described in the line just above it.
 
-You install three things side by side under one folder, then run one command. **Each block is
-paste-ready as-is** — what it does is described in the line just above it.
+Assumes you already have **git** and **uv** (the Python environment manager) — testers do.
 
-## 1. One-time tools
-Installs **uv**, the Python environment manager the projects use. The first command downloads and runs
-uv's **official installer from Astral** (the makers of `uv`/`ruff`) at `astral.sh/uv/install.sh` — the
-standard uv install, the same one MUIOGO and OG-Core use; it just adds `uv` to your PATH. (Prefer not to
-pipe to a shell? `brew install uv` or `pip install uv` are equivalent.) The second command makes a working
-folder to keep everything in.
+> Don't have `uv`? Install it once — this runs uv's official installer from Astral (the makers of
+> `uv`/`ruff`); or use `brew install uv` / `pip install uv`:
+> `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+Make one folder to hold everything:
 ```
-curl -LsSf https://astral.sh/uv/install.sh | sh
 mkdir -p ~/ogclews-test && cd ~/ogclews-test
 ```
 
-## 2. The Philippine CLEWS scenario data
-Downloads MUIOGO's Philippine CLEWS case — already solved (a baseline `Base_v9` and a reform `PEP_v9`) —
-and unzips it into `muiogo-data/`. The link reads these files directly, so you do **not** need to install
-or run MUIOGO.
-
-> ⚠️ **This is a ~76 MB download.** If you already have the `Philippines_v9` case (from an earlier test or
-> a MUIOGO install), **skip this step** and instead point Step 6's `--clews-base` / `--clews-reform` at your
-> existing `.../Philippines_v9/res/Base_v9/csv` and `.../res/PEP_v9/csv` folders.
-
-```
-curl -L -o phl-clews.zip "https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip"
-unzip -q phl-clews.zip -d muiogo-data
-```
-
-## 3. OG-PHL (the economic model, M=8 multi-industry calibration)
+## 1. OG-PHL (the economic model, M=8 multi-industry calibration)
 Clones the public OG-PHL repository, switches it to the multi-industry (M=8) calibration branch via its
-public pull-request ref (OG-PHL PR #63), and builds OG-PHL's own isolated environment. `uv sync` downloads
-a matching Python for you if needed.
+public pull-request ref (OG-PHL PR #63), and builds OG-PHL's own isolated environment (`uv sync` fetches a
+matching Python for you if needed).
 ```
-cd ~/ogclews-test
 git clone https://github.com/EAPD-DRB/OG-PHL.git OG-PHL
 cd OG-PHL
 git fetch origin pull/63/head:m8
@@ -46,39 +28,75 @@ uv sync
 cd ..
 ```
 
-## 4. The link + register the model
+## 2. The link + register the model
 Clones the coupling tool and runs its installer, which builds the link's own environment, checks the
-`ogclews-link` command works, and registers the OG-PHL model you built in Step 3. You should see a line
-ending `[x] og-phl ... couplable=1`.
+`ogclews-link` command works, and registers the OG-PHL model from Step 1. You should see a line ending
+`[x] og-phl ... couplable=1`.
 ```
 git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
 ./scripts/setup.sh --og-path ../OG-PHL
 ```
 
-## 5. (optional) Add the health data
-Downloads the GBD health dataset (1.4 MB) so the health channel runs. **Skip this** and the health channel
-simply prints `[skip]` — energy + investment + carbon still run. Run these from inside `ogclews-link`; it
-places the file in the folder the link looks in.
+## 3. The Philippine CLEWS scenario data — only if you don't already have it
+The run needs a solved PHL CLEWS case: a baseline (`Base_v9`) and a reform (`PEP_v9`). **If you already
+have this case** (e.g. from a MUIOGO install), skip this download and point Step 4 at your existing
+`.../Philippines_v9/res/Base_v9/csv` and `.../res/PEP_v9/csv` folders instead. Otherwise download the
+pre-solved case (**~76 MB**) and unzip it — the link reads these files directly, so no MUIOGO needed:
 ```
-mkdir -p IHME-GBD_2023_DATA
-curl -L -o IHME-GBD_2023_DATA/IHME-GBD_2023_DATA-a20a92ea-1.csv "https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/IHME-GBD_2023_DATA-a20a92ea-1.csv"
+cd ~/ogclews-test
+curl -L -o phl-clews.zip "https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip"
+unzip -q phl-clews.zip -d muiogo-data
 ```
 
-## 6. Run the coupled scenario
-Runs the coupling: it solves the Philippine economy against the baseline and reform CLEWS scenarios and
-writes the results. Run from inside `ogclews-link`. The first run solves the baseline (a few minutes).
-Results land in `./ogclews_runs/coupled/`; the headline table is `macro_table.csv`.
+## 4. Run the coupled scenario
+From inside `ogclews-link`, solve the Philippine economy against the baseline and reform CLEWS scenarios.
+The two paths point at the case from Step 3 (or your own copy). The first run solves the baseline (a few
+minutes); later runs reuse it.
 ```
+cd ~/ogclews-test/ogclews-link
 uv run ogclews-link run coupled \
   --clews-base   ../muiogo-data/WebAPP/DataStorage/Philippines_v9/res/Base_v9/csv \
   --clews-reform ../muiogo-data/WebAPP/DataStorage/Philippines_v9/res/PEP_v9/csv \
   --out ./ogclews_runs
 ```
 
-## Did it work?
-- Step 4 printed `couplable=1`.
-- Step 6 finished without error and wrote `ogclews_runs/coupled/macro_table.csv`.
-- If you skipped Step 5, the health channel prints `[skip]` — that is expected.
+## 5. (optional) Include the health channel — only if you don't already have the GBD file
+Without a GBD health file the health channel just prints `[skip]` and the run still completes (energy +
+investment + carbon). To include health, put the GBD CSV where the link looks for it, **then re-run Step 4**.
+Skip the download if you already have a copy — just place it under `ogclews-link/IHME-GBD_2023_DATA/`.
+```
+cd ~/ogclews-test/ogclews-link
+mkdir -p IHME-GBD_2023_DATA
+curl -L -o IHME-GBD_2023_DATA/IHME-GBD_2023_DATA-a20a92ea-1.csv "https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/IHME-GBD_2023_DATA-a20a92ea-1.csv"
+```
 
-Please send back: the last ~20 lines of Step 6's output, plus `ogclews_runs/coupled/macro_table.csv`.
+## Where the results are
+The run prints a macro summary to the screen at the end, and writes everything under
+**`ogclews-link/ogclews_runs/coupled/`**:
+
+- **`macro_table.csv`** — the headline. % change of the reform vs the baseline for GDP (`Y`), consumption
+  (`C`), capital (`K`), labour (`L`), interest rate (`r`), wage (`w`) — by year, plus a 10-year point and
+  the long-run steady state. Open it in any spreadsheet.
+- **`ogclews_manifest.json`** — what actually ran: the country, which channels fired (and which skipped and
+  why), the scenarios used, and the model versions. Open in a text editor.
+- **`clews_inputs/`** — the values the link would feed back to CLEWS (`EmissionsPenalty.csv`,
+  `DiscountRate.csv`, `demand_scaling.csv`).
+- **`reform/`** — the raw solved model output (for deeper inspection).
+
+### (optional) A browser page of charts
+Turns the run into a self-contained figures page (no re-solve). Runs under OG-PHL's Python; then open the
+page in your browser:
+```
+cd ~/ogclews-test/ogclews-link
+PYTHONPATH="$PWD" ../OG-PHL/.venv/bin/python -m ogclews_link.viz --coupled-run ./ogclews_runs/coupled --country phl
+```
+Then open `ogclews-link/ogclews_runs/coupled/index.html` (double-click it, or `open` on macOS /
+`xdg-open` on Linux).
+
+## Did it work?
+- Step 2 printed `couplable=1`.
+- Step 4 finished without error and wrote `ogclews_runs/coupled/macro_table.csv`.
+- If you didn't add the GBD file, the health channel printed `[skip]` — that is expected.
+
+Please send back: the last ~20 lines of Step 4's output, plus `ogclews_runs/coupled/macro_table.csv`.
