@@ -18,12 +18,14 @@ order for every input is CLI flag > env var > default:
                                   figures (default: the last step in layered_results.json)
     --note    / OGCLEWS_NOTE      honest caveat caption stamped on every figure
 
-Defaults: read from the shared health-lane run, write figures into that run's own figures/ subdir,
-find the GBD CSV next to the run. The default --note describes THIS experiment's assumptions; pass
---note for a different scenario. A MUIOGO-OG run saves results in a scenario directory; point
---run-dir at it and the visuals land alongside the results, organized under figures/.
+Defaults: figures are written into the run's own figures/ subdir and the GBD CSV is found next to the
+run. There is NO built-in run path -- name the run to visualize (--run-dir / $OGCLEWS_RUN_DIR, or
+--coupled-run). The default --note describes THIS experiment's assumptions; pass --note for a different
+scenario. A MUIOGO-OG run saves results in a scenario directory; point --run-dir at it and the visuals
+land alongside the results, organized under figures/. Runs under the OG model's interpreter (it reads
+OG-Core pickles, so it needs ogcore) -- use the env_python from `ogclews-link models list`:
 
-    PYTHONPATH=$PWD /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/regen_plots.py
+    PYTHONPATH=. <og-model-venv-python> -m ogclews_link.viz --run-dir <solved-run>
 """
 from __future__ import annotations
 
@@ -42,9 +44,6 @@ def safe_read_pickle(path):
     runs under the OG model's interpreter (where ogcore lives); the link env imports viz without it."""
     from ogcore.utils import safe_read_pickle as _srp
     return _srp(path)
-
-# The shared, solved across-steps tree (health lane). Read-only for the viz lane.
-SHARED_RUN = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/across_steps"
 
 DEFAULT_COUNTRY = "phl"
 # Caveats for the SHARED PHL run's assumptions. Override with --note for any other scenario.
@@ -520,7 +519,10 @@ def main(argv=None):
             illustrative=illustrative, og_appendix=args.og_appendix)
         return
 
-    run_dir = _resolve(args.run_dir, "OGCLEWS_RUN_DIR", SHARED_RUN)
+    run_dir = _resolve(args.run_dir, "OGCLEWS_RUN_DIR", None)
+    if not run_dir:                       # no machine-specific default -- the run to visualize must be named
+        raise SystemExit("no run to visualize: pass --run-dir <solved across-steps tree> (or "
+                         "$OGCLEWS_RUN_DIR), or --coupled-run <run coupled output dir>.")
     # Default: write figures INTO the run/scenario directory (organized under figures/), so a
     # MUIOGO-OG run's results and its visuals live together. Override --fig-dir for viz iteration.
     fig_dir = _resolve(args.fig_dir, "OGCLEWS_FIG_DIR", os.path.join(run_dir, "figures"))

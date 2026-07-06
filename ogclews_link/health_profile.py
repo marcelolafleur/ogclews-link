@@ -56,7 +56,7 @@ def build_profile_from_gbd(csv_path: str, location_name: str, year: int,
 
     labels = {g[0] for g in GBD_GROUPS}
     anchor = {}
-    with open(csv_path, newline="") as f:
+    with open(csv_path, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             if (row.get("location_name") == location_name and row.get("sex_name") == "Both"
                     and int(row["year"]) == year and row.get("measure_name") == "Deaths"
@@ -89,7 +89,7 @@ def total_deaths_from_gbd(csv_path: str, location_name: str, year: int,
     """
     bin_labels = {g[0] for g in GBD_GROUPS}
     all_ages, bin_total, seen = None, 0.0, set()
-    with open(csv_path, newline="") as f:
+    with open(csv_path, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             if not (row.get("location_name") == location_name and row.get("sex_name") == "Both"
                     and int(row["year"]) == year and row.get("measure_name") == "Deaths"
@@ -125,7 +125,7 @@ def _morbidity_anchor(csv_path, location_name, year, key_col, key_value, causes)
     labels = {g[0] for g in GBD_GROUPS}
     causes = set(causes) if causes else None
     anchor = {}
-    with open(csv_path, newline="") as f:
+    with open(csv_path, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             if (row.get("location_name") == location_name and row.get("sex_name") == "Both"
                     and int(row["year"]) == year and str(row.get("measure_name", "")).startswith("YLDs")
@@ -183,7 +183,7 @@ def total_yld_from_gbd(csv_path: str, location_name: str, year: int,
     wa = {g[0] for g in GBD_GROUPS if lo <= g[1] < hi}
     causes = set(causes) if causes else None
     total, seen = 0.0, set()
-    with open(csv_path, newline="") as f:
+    with open(csv_path, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             if not (row.get("location_name") == location_name and row.get("sex_name") == "Both"
                     and int(row["year"]) == year and str(row.get("measure_name", "")).startswith("YLDs")

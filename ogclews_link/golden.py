@@ -16,7 +16,7 @@ import os
 import numpy as np
 
 AGG_KEYS = ("Y", "C", "K", "L", "r", "w")
-DEFAULT_PATH = "results/golden.json"
+DEFAULT_PATH = os.path.join("results", "golden.json")
 
 
 def aggregates(result) -> dict:
@@ -70,7 +70,7 @@ def from_context(name: str, ctx) -> dict:
 def load(path: str = DEFAULT_PATH) -> dict:
     if not os.path.exists(path):
         return {}
-    with open(path) as f:
+    with open(path, encoding="utf-8-sig") as f:
         return json.load(f)
 
 
@@ -79,7 +79,7 @@ def save(record: dict, path: str = DEFAULT_PATH) -> dict:
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     table = load(path)
     table[record["run"]] = record
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(table, f, indent=2, sort_keys=True)
     return table
 

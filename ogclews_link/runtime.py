@@ -46,10 +46,14 @@ def _run(entry, args, label, log_path=None):
     env["PYTHONUNBUFFERED"] = "1"
     if log_path:
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    logf = open(log_path, "w") if log_path else None
+    logf = open(log_path, "w", encoding="utf-8") if log_path else None
     try:
+        # encoding+errors pin the child stream to UTF-8 (Windows would otherwise decode the OG env's
+        # stdout under the ANSI codepage); errors="replace" guarantees an odd byte from a child library
+        # can never abort an otherwise-successful solve mid-stream.
         proc = subprocess.Popen([entry.env_python, "-m", "ogclews_link.og_runner", *args], env=env,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                encoding="utf-8", errors="replace")
         for line in proc.stdout:                           # surface runner diagnostics (progress, RC_SS) live
             sys.stderr.write(line)
             if logf:
@@ -86,7 +90,7 @@ def _cache_current(cache, params_npz):
     if not (os.path.exists(params_npz) and os.path.exists(meta_path)):
         return False
     try:
-        with open(meta_path) as f:
+        with open(meta_path, encoding="utf-8-sig") as f:
             meta = json.load(f)
     except (OSError, ValueError):
         return False

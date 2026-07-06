@@ -156,13 +156,13 @@ def diff_against_baseline(og_reform, baseline_arrays: dict) -> dict:
 
 
 def write_overrides_json(diff: dict, path) -> None:
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(diff, f)
 
 
 def read_overrides_json(path) -> dict:
     """Runner-side: load overrides, casting the lists back to float64 arrays for update_specifications."""
-    with open(path) as f:
+    with open(path, encoding="utf-8-sig") as f:
         raw = json.load(f)
     return {k: np.asarray(v, dtype=float) for k, v in raw.items()}
 
@@ -172,12 +172,12 @@ def write_health_json(health_shock: dict, path) -> None:
     out = dict(health_shock)
     if "profile" in out:
         out["profile"] = np.asarray(out["profile"], dtype=float).tolist()
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f)
 
 
 def read_health_json(path) -> dict:
-    with open(path) as f:
+    with open(path, encoding="utf-8-sig") as f:
         out = json.load(f)
     if "profile" in out:
         out["profile"] = np.asarray(out["profile"], dtype=float)

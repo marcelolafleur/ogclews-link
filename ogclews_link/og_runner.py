@@ -442,7 +442,7 @@ def inprocess_callables(og_package, params_resource, og_start_year, *,
                                   num_workers, base_dir, calibration, ss, show_progress)
         # Export the discovered concordance next to the baseline (same file the subprocess path writes),
         # so framework._load_concordance + the viz driver find the run's energy ports either way.
-        with open(os.path.join(base_dir, "baseline_meta.json"), "w") as f:
+        with open(os.path.join(base_dir, "baseline_meta.json"), "w", encoding="utf-8") as f:
             json.dump({"schema_version": serde.BASELINE_META_SCHEMA,
                        "og_package": og_package, "M": int(p.M), "I": int(p.I),
                        "concordance": _discover_concordance(og_package, p.M)}, f)
@@ -490,7 +490,7 @@ def export_baseline(a):
             "S": int(p.S), "start_year": int(getattr(p, "start_year", a.og_start_year)),
             "ogcore_version": getattr(ogcore, "__version__", None), "ss_only": bool(a.ss),
             "concordance": _discover_concordance(a.og_package, p.M)}
-    with open(os.path.join(a.out_dir, "baseline_meta.json"), "w") as f:
+    with open(os.path.join(a.out_dir, "baseline_meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f)
     print(f"[og_runner] exported baseline -> {a.out_dir}", file=sys.stderr)
 

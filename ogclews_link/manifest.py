@@ -73,6 +73,6 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_mod
         "provenance": ctx.provenance,
     }
     path = os.path.join(out_dir, filename)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, default=_json_default)  # tolerate numpy/Path values
     return path

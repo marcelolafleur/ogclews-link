@@ -56,7 +56,7 @@ def _load_concordance(base_dir):
     meta_path = os.path.join(base_dir, "baseline_meta.json")
     con = None
     if os.path.exists(meta_path):
-        with open(meta_path) as f:
+        with open(meta_path, encoding="utf-8-sig") as f:
             con = json.load(f).get("concordance")
     if not con:
         why = f"no exported concordance in {base_dir}/baseline_meta.json"

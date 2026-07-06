@@ -74,7 +74,7 @@ const lineOpts={{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{di
 new Chart(c_welfare,{{type:'line',data:{{labels:D.jlabels,datasets:lineSets('welfare')}},options:lineOpts}});
 new Chart(c_energyJ,{{type:'line',data:{{labels:D.jlabels,datasets:lineSets('energyJ')}},options:lineOpts}});
 </script></body></html>"""
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
     return out_path
 
@@ -158,6 +158,6 @@ def write_index(fig_dir, out_path, sections, *, country=None, note=None, title=N
 {''.join(blocks)}
 <footer>Open this file in a browser. Figures are in <code>{_html.escape(rel)}/</code>.</footer>
 </body></html>"""
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(page)
     return out_path

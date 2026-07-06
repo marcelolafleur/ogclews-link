@@ -131,7 +131,7 @@ def _resolve_dose_response(name: str):
     """Per-country emissions->deaths multiplier M from data/pm25_health.json, or None if absent."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pm25_health.json")
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             row = json.load(f).get("countries", {}).get(name)
         return float(row["multiplier_M"]) if row and row.get("multiplier_M") is not None else None
     except (OSError, ValueError, KeyError):
@@ -261,7 +261,7 @@ def country_registry(config_file=None) -> dict:
                 raise ValueError(msg) from cause
             print(f"[guardrail] {msg} -- skipped")
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8-sig") as f:
                 data = json.load(f)
         except json.JSONDecodeError as e:
             _bad(f"countries file {path!r} is not valid JSON: {e}", e)

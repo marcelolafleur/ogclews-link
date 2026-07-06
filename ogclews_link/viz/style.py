@@ -13,6 +13,8 @@ and auto-upgrade if Source Sans 3 / Inter are dropped into ~/Library/Fonts.
 """
 from __future__ import annotations
 
+import os
+import platform
 from pathlib import Path
 
 import matplotlib as mpl
@@ -37,16 +39,34 @@ _FONT_STACK = ["Source Sans 3", "Source Sans Pro", "Inter", "Roboto",
                "Helvetica Neue", "Arial", "DejaVu Sans"]
 
 
+def _user_font_dirs():
+    """Per-OS user font directories (MUIOGO convention: branch on ``platform.system()``). Windows fonts
+    live under %LOCALAPPDATA% / %WINDIR%, macOS under ~/Library/Fonts, Linux under ~/.local/share/fonts."""
+    sysname = platform.system()
+    if sysname == "Windows":
+        local, windir = os.environ.get("LOCALAPPDATA", ""), os.environ.get("WINDIR", "")
+        dirs = []
+        if local:
+            dirs.append(Path(local) / "Microsoft" / "Windows" / "Fonts")
+        if windir:
+            dirs.append(Path(windir) / "Fonts")
+        return dirs
+    if sysname == "Darwin":
+        return [Path.home() / "Library" / "Fonts"]
+    return [Path.home() / ".local" / "share" / "fonts", Path.home() / ".fonts"]   # Linux/other
+
+
 def _register_local_fonts():
-    """Make matplotlib see editorial fonts without rebuilding its global cache: user-installed
-    (~/Library/Fonts) and any bundled with the package (assets/fonts)."""
-    home = Path.home() / "Library" / "Fonts"
+    """Make matplotlib see editorial fonts without rebuilding its global cache: user-installed (the
+    per-OS user font dirs) and any bundled with the package (assets/fonts). Fonts are optional -- the
+    _FONT_STACK falls back to DejaVu Sans -- so a dir that isn't there is simply skipped."""
     pats = ("SourceSans3-*.[ot]tf", "SourceSansPro-*.[ot]tf", "Inter-*.[ot]tf",
             "Inter*.[ot]tf", "IBMPlexSans-*.[ot]tf", "Roboto-*.ttf")
     paths = []
-    if home.is_dir():
-        for pat in pats:
-            paths += home.glob(pat)
+    for fdir in _user_font_dirs():
+        if fdir.is_dir():
+            for pat in pats:
+                paths += fdir.glob(pat)
     bundled = Path(__file__).with_name("assets") / "fonts"
     if bundled.is_dir():
         paths += list(bundled.glob("*.ttf")) + list(bundled.glob("*.otf"))
