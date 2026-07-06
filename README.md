@@ -9,25 +9,24 @@ The link is its own environment and imports no OG-Core: to solve, it drives the 
 environment as a subprocess, so the link, MUIOGO, and each OG model stay independently installed.
 
 ## Before you start
-Assumes you already have **MUIOGO** installed.
+1) Assumes you already have **MUIOGO** installed.
 
-Pick a working folder — the two things you clone below (OG-PHL and the link) go here, side by side (the
-Run step's outputs land here too; the CLEWS data stays in your MUIOGO install):
+2) Pick a working folder (here its `ogclews-test`) to keep OG-PHL and the ogclews-link. The results 
+land here too; the CLEWS data stays in your MUIOGO install):
 ```bash
 mkdir -p ~/ogclews-test && cd ~/ogclews-test
 ```
 
-**The Philippine CLEWS data** must sit in `MUIOGO/WebAPP/DataStorage/` — the `Philippines_v9` case with a
+3) **The Philippine CLEWS data** must sit in `MUIOGO/WebAPP/DataStorage/` — the `Philippines_v9` case with a
 solved baseline (`Base_v9`) and reform (`PEP_v9`). If you don't have it, download it here:
 [**Philippines_v9_250116.zip**](https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip)
 — then unzip it and move the resulting `Philippines_v9` folder into your MUIOGO's `WebAPP/DataStorage/`.
 
-**OG-PHL on the M=8 (multi-industry) calibration.** If you don't already have OG-PHL, clone it (next to
-where you'll clone the link):
+4) **OG-PHL on the M=8 (multi-industry) calibration.** If you don't already have OG-PHL, clone it in the working folder (`ogclews-test`):
 ```bash
 git clone https://github.com/EAPD-DRB/OG-PHL.git OG-PHL
 ```
-Then, from inside it, switch to the M=8 calibration this test uses and build its environment:
+5) Then, from inside it, switch to the M=8 calibration this test uses and build its environment:
 ```bash
 cd OG-PHL
 git fetch origin pull/63/head:m8 && git checkout m8
@@ -35,7 +34,7 @@ uv sync
 cd ..
 ```
 
-## Install the link
+6) ## Install the link
 ```bash
 git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
@@ -44,7 +43,7 @@ cd ogclews-link
 Builds the link's own environment, checks the CLI, and registers OG-PHL. Look for a line ending
 `[x] og-phl … couplable=1`.
 
-## Run the example
+7) ## Run the example
 Point it at your CLEWS baseline and reform:
 ```bash
 uv run ogclews-link run coupled \
@@ -54,7 +53,7 @@ uv run ogclews-link run coupled \
 ```
 The first run solves the baseline (a few minutes), then applies the channels and solves the reform.
 
-## Results
+8) ## Results
 Under `./ogclews_runs/coupled/`:
 - **`macro_table.csv`** — the headline: % change (reform vs baseline) in GDP, consumption, capital, labour,
   interest rate, and wage — by year and at the steady state.
