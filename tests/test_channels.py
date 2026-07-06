@@ -325,6 +325,23 @@ def test_health_dose_response_multiplier():
     assert dflt["dose_response_M"] == PHL.pm25_dose_response and PHL.pm25_dose_response < 0.2
 
 
+def test_health_skips_when_no_gbd_data(monkeypatch):
+    # A fresh clone has no IHME GBD export (it is gitignored). With VALID emissions but no GBD (and no
+    # explicit target), health() must SKIP cleanly -- not raise -- so a bare install runs the coupling
+    # (energy+investment+carbon) with no health data. (Corrupt/absent emissions are handled earlier, so
+    # we feed a valid emissions ratio to reach the GBD guard.)
+    import dataclasses
+    import pandas as pd
+    monkeypatch.setattr(channels.signals, "emissions_ratio", lambda *a, **k: pd.Series([0.9] * 10))
+    c = dataclasses.replace(PHL, gbd_burden_csv=None)
+    ctx = ExperimentContext(country=c, concordance=CONCORDANCE, og_reform=_params(), base_tpi=_tpi(1.0))
+    e0 = np.asarray(ctx.og_reform.e).copy()
+    rec = channels.health(ctx)                                # enable_mortality defaults True; no explicit target
+    assert rec.get("skipped") is True and "GBD" in rec.get("reason", "")   # skipped, not ValueError
+    assert ctx.extras.get("health_shock") is None             # no mortality shock staged
+    assert np.allclose(np.asarray(ctx.og_reform.e), e0)       # morbidity path left untouched
+
+
 def test_health_profile_shape():
     from ogclews_link import health_profile
     h = health_profile.placeholder_profile()
