@@ -9,7 +9,7 @@ The link is its own environment and imports no OG-Core: to solve, it drives the 
 environment as a subprocess, so the link, MUIOGO, and each OG model stay independently installed.
 
 ## Before you start
-Assumes you already have **MUIOGO** installed, plus `git` and `uv`.
+Assumes you already have **MUIOGO** installed.
 
 **The Philippine CLEWS data** must sit in `MUIOGO/WebAPP/DataStorage/` — the `Philippines_v9` case with a
 solved baseline (`Base_v9`) and reform (`PEP_v9`). If you don't have it, drop it in (`<MUIOGO>` = your
