@@ -47,25 +47,30 @@ def _write_target(registry_file: str | None) -> str:
 
 
 def register(install_dir: str, *, key: str | None = None, registry_file: str | None = None,
-             calibration: str | None = None, run_discovery: bool = True) -> dict:
+             calibration: str | None = None, run_discovery: bool = True,
+             python: str | None = None, source_dir: str | None = None) -> dict:
     """Record an installed OG model into the register by introspecting its checkout dir. Resolves the
-    env interpreter (``<dir>/.venv/bin/python`` -- the uv convention the installer produces), the
-    package name + version (from its pyproject), and the repo key (``--key`` or the dir name, e.g.
+    env interpreter cross-platform via ``registry.venv_python`` (``.venv/Scripts/python.exe`` on Windows,
+    ``.venv/bin/python`` on POSIX -- the uv convention the installer produces; both layouts are probed),
+    the package name + version (from its pyproject), and the repo key (``--key`` or the dir name, e.g.
     OG-PHL -> og-phl). Then DISCOVERS the package's calibration choices (running og_runner in that env)
     and records the chosen one: ``calibration`` if given, else the lone couplable multisector candidate
     (auto-pick), else None (single-industry -> energy channels skip). Returns the written record (+ the
-    discovery findings, so the caller can display them)."""
+    discovery findings, so the caller can display them).
+
+    Escape hatches for non-uv installs: ``python`` (an explicit conda/system interpreter, bypassing the
+    ``.venv`` probe) and ``source_dir`` (the package source dir, when it is not ``<install>/<package>`` --
+    required when ``python`` points outside ``<install>/.venv``, since the source can't be derived from it)."""
     install_dir = os.path.abspath(install_dir)
-    env_python = os.path.join(install_dir, ".venv", "bin", "python")
-    if not os.path.exists(env_python):
-        raise FileNotFoundError(
-            f"no model interpreter at {env_python}. Build the model's env first "
-            f"(the OG installer runs `uv sync` in {install_dir}), then register.")
+    env_python = registry.venv_python(install_dir, override=python)
     proj = _read_pyproject(install_dir)
     package = proj.get("name") or os.path.basename(install_dir).lower().replace("-", "")
     key = key or os.path.basename(install_dir).lower()      # OG-PHL -> og-phl (matches repos.json)
     version = proj.get("version")
-    source_dir = os.path.join(install_dir, package)         # the package's source (the checkout convention)
+    # package source: explicit override (needed when --python is outside <install>/.venv), else the
+    # checkout convention <install>/<package>.
+    source_dir = (os.path.abspath(os.path.expanduser(source_dir)) if source_dir
+                  else os.path.join(install_dir, package))
 
     findings = None
     if run_discovery:
@@ -80,7 +85,7 @@ def register(install_dir: str, *, key: str | None = None, registry_file: str | N
     rf = _write_target(registry_file)
     data = {"schema_version": 1, "models": {}}
     if os.path.exists(rf):
-        with open(rf) as f:
+        with open(rf, encoding="utf-8-sig") as f:   # tolerate a BOM if hand-edited on Windows
             data = json.load(f)
     entry = {"package": package, "env_python": env_python, "version": version, "source_dir": source_dir}
     if chosen is not None:
@@ -88,7 +93,7 @@ def register(install_dir: str, *, key: str | None = None, registry_file: str | N
     if findings is not None:
         entry["discovered"] = _discovered_block(findings)   # the durable, user-inspectable status record
     data.setdefault("models", {})[key] = entry
-    with open(rf, "w") as f:
+    with open(rf, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     return {"registry": rf, "key": key, "package": package, "env_python": env_python,
             "version": version, "calibration": chosen, "source_dir": source_dir, "findings": findings}
@@ -117,11 +122,11 @@ def _save_discovered(key: str, findings: dict, registry_file: str | None) -> Non
     rf = registry.registry_path(registry_file)
     if not os.path.exists(rf):
         return
-    with open(rf) as f:
+    with open(rf, encoding="utf-8-sig") as f:
         data = json.load(f)
     if key in data.get("models", {}):
         data["models"][key]["discovered"] = _discovered_block(findings)
-        with open(rf, "w") as f:
+        with open(rf, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
 
