@@ -89,6 +89,12 @@ port it needs.
 This drives the whole stack the way it is meant to be used: the energy side (MUIOGO/CLEWS), the OG
 country model (OG-PHL with its multi-industry calibration), and the link that couples them.
 
+> **Temporary developer setup.** This wires the three pieces together **by hand** so you can run the
+> coupling *today*. It is not the final flow — that will be one-click **modules inside MUIOGO** (energy /
+> OG-country / link, each with its own installer). Two things still live outside a release and matter for
+> the steps below: the PHL **CLEWS case** must be loaded in MUIOGO (it is not part of MUIOGO's demo data),
+> and the PHL **multi-industry (M=8) calibration** is still on a **branch** (OG-PHL PR #63), not a tag.
+
 ### Prerequisites
 - `git`, and [`uv`](https://docs.astral.sh/uv/) (the package/venv manager all three projects use)
 - Python 3.11 (3.10–3.12 supported)
@@ -107,9 +113,10 @@ cd MUIOGO
 ./scripts/setup.sh      # macOS/Linux: venv + GLPK/CBC solvers + demo data   (Windows: scripts\setup.bat)
 ./scripts/start.sh      # launch the app to build/run CLEWS scenarios        (Windows: scripts\start.bat)
 ```
-MUIOGO runs OSeMOSYS/CLEWS and writes a scenario folder per run (the OSeMOSYS output CSVs plus a
-`Cost of electricity generation_*.xlsx` workbook). You need **two**: a baseline and a reform. See
-MUIOGO's own README for details.
+MUIOGO runs OSeMOSYS/CLEWS and writes a scenario folder per run (the OSeMOSYS output CSVs). **You need the
+Philippine CLEWS case** — MUIOGO ships only a generic *CLEWs Demo*, so load the `Philippines_v9` case (your
+PHL dataset) and produce **two runs**: a baseline (`Base_v9`) and a reform (`PEP_v9`). The link reads their
+raw CSVs under `WebAPP/DataStorage/Philippines_v9/res/<run>/csv`. See MUIOGO's own README for building a case.
 
 ### Step 2 — OG-PHL at PR #63 (multi-industry, M=8)
 ```bash
@@ -123,22 +130,26 @@ uv run python -c "import ogphl; print(ogphl.UN_COUNTRY_CODE, list(ogphl.PROD_DIC
 This PR ships `ogphl_multisector_default_parameters.json` (M=8, I=5, with `alpha_c` + `io_matrix`) and
 isolates electricity as its own production group — the thing that makes PHL couplable on energy.
 
-### Step 3 — the link: install and register the OG model
+### Step 3 — the link: install it and register the OG model
 ```bash
-git clone https://github.com/SeaCelo/ogclews-link.git
+git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
-uv sync
-uv run ogclews-link models register --path ../OG-PHL
+# (until the installer is on main, check out its branch first: git checkout feature/link-installer)
+./scripts/setup.sh --og-path ../OG-PHL      # builds the link's venv, verifies the CLI, registers OG-PHL
 ```
-`register` discovers the calibrations **link-side** (no solve) and auto-picks the couplable one. Expect:
+`setup.sh` creates the link's own **ogcore-free** venv, verifies the `ogclews-link` CLI, then registers the
+OG model — discovering its calibrations **link-side** (no solve) and auto-picking the couplable one. Expect:
 ```
-registered og-phl (ogphl 0.1.0) -> .../OG-PHL/.venv/bin/python
-  calibration: ogphl_multisector_default_parameters.json
+  ok link venv ready ... (ogcore-free)
+  ok CLI runs
+registered og-phl (ogphl 0.1.0) -> ../OG-PHL/.venv/bin/python
    * ogphl_multisector_default_parameters.json  M=8 I=5  [energy industry=2 good=1]
-        route-A good is 39% electricity  -- DILUTED (mostly non-electricity; demand-side wedge is approximate)
         electricity isolated as its own industry -- couplable on energy
+  [x] og-phl     ogphl   ... couplable=1
 ```
 Inspect any time with `uv run ogclews-link models list` and `uv run ogclews-link models calibrations og-phl`.
+(If instead you installed the OG model through **MUIOGO's** OG tab, the link finds it automatically from
+MUIOGO's register — run `./scripts/setup.sh` with no `--og-path`.)
 
 ### Step 4 — point the link at your CLEWS scenarios (from your MUIOGO install — no hardcoded paths)
 The link resolves the **base** and **reform** scenario dirs from config / your MUIOGO installation
