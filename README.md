@@ -18,12 +18,9 @@ mkdir -p ~/ogclews-test && cd ~/ogclews-test
 ```
 
 **The Philippine CLEWS data** must sit in `MUIOGO/WebAPP/DataStorage/` — the `Philippines_v9` case with a
-solved baseline (`Base_v9`) and reform (`PEP_v9`). If you don't have it, drop it in (`<MUIOGO>` = your
-MUIOGO folder):
-```bash
-curl -L -o phl-clews.zip "https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip"
-unzip -q phl-clews.zip -d <MUIOGO>
-```
+solved baseline (`Base_v9`) and reform (`PEP_v9`). If you don't have it, download it here:
+[**Philippines_v9_250116.zip**](https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip)
+— then unzip it and move the resulting `Philippines_v9` folder into your MUIOGO's `WebAPP/DataStorage/`.
 
 **OG-PHL on the M=8 (multi-industry) calibration.** If you don't already have OG-PHL, clone it (next to
 where you'll clone the link):
