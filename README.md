@@ -12,13 +12,16 @@ The link is its **own environment** and imports no OG-Core: to solve, it drives 
 **skips** the channels it can't support.
 
 ## Install
-Needs `git` and [`uv`](https://docs.astral.sh/uv/):
+Needs `git`, [`uv`](https://docs.astral.sh/uv/), and an **OG country model already installed** — its own
+repo cloned and built with its own `uv sync` (so it has a `.venv`), e.g. OG-PHL on its multi-industry
+(M=8) calibration. Then:
 ```bash
 git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
-./scripts/setup.sh --og-path <path-to-an-OG-country-model>
+./scripts/setup.sh --og-path <path-to-that-OG-model>
 ```
-`setup.sh` builds the link's own environment, verifies the CLI, and registers the OG model.
+`setup.sh` builds the link's own environment, verifies the CLI, and registers the OG model. For the full
+Philippine setup — which OG-PHL branch to use, and the CLEWS data — see [TESTING.md](TESTING.md).
 
 ## Run
 Point it at a CLEWS baseline + reform scenario and solve the coupled result:
