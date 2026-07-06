@@ -18,9 +18,10 @@
 #                                          (use --dev on a dev checkout: plain `uv sync` removes extras)
 #   ./scripts/setup.sh --og-path <dir>     register an already-installed OG model checkout
 #        [--key <k>]                       registry key (default: dir basename; use for worktrees, e.g. og-phl)
-#   ./scripts/setup.sh --install-og <key>  fetch+install an OG country model via the upstream
-#                                          OG-Core installer, then register it
-#                                          keys: og-phl | og-eth | og-zaf | og-idn
+#   ./scripts/setup.sh --install-og <key>  STANDALONE convenience (no MUIOGO): fetch+install an OG country
+#                                          model via the upstream OG-Core installer, then register it.
+#                                          Under MUIOGO, install OG models via its OG tab instead (the link
+#                                          then finds them automatically). keys: og-phl|og-eth|og-zaf|og-idn
 #        [--og-dest <dir>]                 where to install it (default: the link repo's parent)
 #
 # Respects $OGCLEWS_MODEL_REGISTRY (registry file location; default ./og_model_registry.json).
