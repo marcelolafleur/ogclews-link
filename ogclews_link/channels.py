@@ -514,6 +514,14 @@ def health(ctx, *, enable_mortality=True, enable_morbidity=True, mortality_targe
     gyr = int(getattr(c, "gbd_year", 2023))
     prov = {"emissions_change": demis, "emissions_species": species or c.co2_emission,
             "dose_response_M": M, "gbd_source": bool(gbd)}
+    # No GBD export and no explicit deaths target -> nothing real to drive mortality. Skip the whole
+    # channel cleanly (honest: no data -> no effect) rather than erroring or fabricating -- placed AFTER
+    # the emissions read above so a CORRUPT emissions file still raises and an ABSENT one still skips with
+    # its own reason (GBD-absence must not mask those). Supply gbd_burden_csv or an explicit target.
+    if enable_mortality and gbd is None and mortality_target_deaths is None and total_attributable_deaths is None:
+        reason = "no GBD export on disk (country.gbd_burden_csv is None; see DATA.md) -- health channel skipped"
+        print(f"[skip] health: {reason}")
+        return ctx.log("health", skipped=True, reason=reason)
     if enable_mortality:
         if gbd and mortality_profile_path is None:
             profile = health_profile.build_profile_from_gbd(
