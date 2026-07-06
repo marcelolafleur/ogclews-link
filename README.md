@@ -19,11 +19,17 @@ curl -L -o phl-clews.zip "https://github.com/marcelolafleur/ogclews-link/release
 unzip -q phl-clews.zip -d <MUIOGO>
 ```
 
-**OG-PHL on the M=8 (multi-industry) calibration** — clone it and build its environment (put it next to
+**OG-PHL on the M=8 (multi-industry) calibration.** If you don't already have OG-PHL, clone it (next to
 where you'll clone the link):
 ```bash
 git clone https://github.com/EAPD-DRB/OG-PHL.git OG-PHL
-cd OG-PHL && git fetch origin pull/63/head:m8 && git checkout m8 && uv sync && cd ..
+```
+Then, from inside it, switch to the M=8 calibration this test uses and build its environment:
+```bash
+cd OG-PHL
+git fetch origin pull/63/head:m8 && git checkout m8
+uv sync
+cd ..
 ```
 
 ## Install the link
