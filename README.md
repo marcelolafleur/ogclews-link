@@ -9,12 +9,22 @@ The link is its own environment and imports no OG-Core: to solve, it drives the 
 environment as a subprocess, so the link, MUIOGO, and each OG model stay independently installed.
 
 ## Before you start
-Have these already installed:
-- **MUIOGO with the Philippine CLEWS data** — the `Philippines_v9` case under `MUIOGO/WebAPP/DataStorage/`,
-  with a solved baseline (`Base_v9`) and reform (`PEP_v9`).
-- **OG-PHL on the M=8 (multi-industry) calibration** — cloned on the PR #63 branch and built with its own
-  `uv sync` (so it has a `.venv`).
-- **`git`** and **`uv`**.
+Assumes you already have **MUIOGO** installed, plus `git` and `uv`.
+
+**The Philippine CLEWS data** must sit in `MUIOGO/WebAPP/DataStorage/` — the `Philippines_v9` case with a
+solved baseline (`Base_v9`) and reform (`PEP_v9`). If you don't have it, drop it in (`<MUIOGO>` = your
+MUIOGO folder):
+```bash
+curl -L -o phl-clews.zip "https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip"
+unzip -q phl-clews.zip -d <MUIOGO>
+```
+
+**OG-PHL on the M=8 (multi-industry) calibration** — clone it and build its environment (put it next to
+where you'll clone the link):
+```bash
+git clone https://github.com/EAPD-DRB/OG-PHL.git OG-PHL
+cd OG-PHL && git fetch origin pull/63/head:m8 && git checkout m8 && uv sync && cd ..
+```
 
 ## Install the link
 ```bash
