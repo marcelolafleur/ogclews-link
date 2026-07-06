@@ -88,7 +88,12 @@ def write_index(fig_dir, out_path, sections, *, country=None, note=None, title=N
     interactive Chart.js view) exists in `fig_dir`, it is linked. Works offline -- the images are
     local files alongside the page."""
     out_dir = os.path.dirname(os.path.abspath(out_path))
-    rel = os.path.relpath(fig_dir, out_dir).replace(os.sep, "/")  # e.g. "figures"
+    try:
+        rel = os.path.relpath(fig_dir, out_dir).replace(os.sep, "/")  # e.g. "figures"
+    except ValueError:
+        # Windows: relpath raises across drive letters (e.g. --fig-dir on D: while index.html is on C:).
+        # Fall back to an absolute file path so the <img> links still resolve.
+        rel = os.path.abspath(fig_dir).replace(os.sep, "/")
     cname = getattr(country, "name", None) or "Scenario"
     title = title or f"{cname}: coupled OG-Core x CLEWS scenario"
 

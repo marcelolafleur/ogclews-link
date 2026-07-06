@@ -280,7 +280,7 @@ def across_steps_table(layered, path):
     # isolated energy good (energy channels skipped); write the macro/fiscal-only table in that case.
     has_energy = all("consumption_by_J" in r for r in solved)
     lab = style.income_labels(len(solved[0]["consumption_by_J"])) if has_energy else []
-    with open(path, "w", newline="") as f:
+    with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["step"] + (["energy_demand_pct"] if has_energy else [])
                    + ["Y_pct", "C_pct", "K_pct", "L_pct", "govt_revenue_pct"]

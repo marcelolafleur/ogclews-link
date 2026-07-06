@@ -44,13 +44,15 @@ def _run(entry, args, label, log_path=None):
     env = dict(os.environ)
     env["PYTHONPATH"] = _LINK_ROOT + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"      # make the CHILD emit UTF-8 (else Windows encodes stdout as cp1252)
     if log_path:
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
     logf = open(log_path, "w", encoding="utf-8") if log_path else None
     try:
-        # encoding+errors pin the child stream to UTF-8 (Windows would otherwise decode the OG env's
-        # stdout under the ANSI codepage); errors="replace" guarantees an odd byte from a child library
-        # can never abort an otherwise-successful solve mid-stream.
+        # Pin BOTH ends to UTF-8: PYTHONIOENCODING (above) makes the child ENCODE stdout as UTF-8, and
+        # encoding= makes THIS parent DECODE it as UTF-8 -- otherwise on Windows the child would write
+        # cp1252 and the parent mis-read it. errors="replace" guarantees an odd byte can never abort an
+        # otherwise-successful solve mid-stream.
         proc = subprocess.Popen([entry.env_python, "-m", "ogclews_link.og_runner", *args], env=env,
                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
                                 encoding="utf-8", errors="replace")
