@@ -34,7 +34,7 @@ uv sync
 cd ..
 ```
 
-6) ## Install the link
+6) ## Install the ogclews-link
 ```bash
 git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
