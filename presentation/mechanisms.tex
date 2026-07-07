@@ -1,0 +1,604 @@
+% ==========================================================================
+% OG-Core x CLEWS/OSeMOSYS — THE COUPLING MECHANISMS.
+% A focused deck: how the two models connect — the economic channels and how
+% each is represented in the model (signal -> wedge -> behaviour).
+% Companion to the paper (../paper); numbers are the committed M=8 golden
+% record (results/golden.json + solved steady states), nothing illustrative
+% except where flagged.
+% Build: latexmk -pdf mechanisms.tex   (in this directory)
+% Reuses: theme/ogclews-colors.tex, diagrams/{architecture,loop}.pdf,
+%         ../results/figures/*.png (committed golden figures).
+% ==========================================================================
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usefonttheme{professionalfonts}
+
+\input{theme/ogclews-colors}
+\graphicspath{{diagrams/}{../results/figures/}}
+
+% ---- the editorial theme (same as slides.tex) --------------------------------
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{normal text}{fg=ink}
+\setbeamercolor{frametitle}{fg=ink}
+\setbeamercolor{structure}{fg=ogc}
+\setbeamercolor{itemize item}{fg=ogc}
+\setbeamercolor{itemize subitem}{fg=clews}
+\setbeamercolor{block title}{fg=white,bg=ogc}
+\setbeamercolor{block body}{fg=ink,bg=ogc!6}
+\setbeamercolor{block title alerted}{fg=white,bg=claret}
+\setbeamercolor{block body alerted}{fg=ink,bg=claret!6}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+\setbeamerfont{title}{series=\bfseries}
+\setbeamertemplate{itemize item}{\small\raise0.5pt\hbox{\textbullet}}
+\setbeamertemplate{itemize subitem}{\footnotesize\raise0.5pt\hbox{--}}
+
+\setbeamertemplate{frametitle}{%
+  \vspace{0.42cm}%
+  {\color{claret}\rule{0.62cm}{2.2pt}}\par\vspace{2.5pt}%
+  \usebeamerfont{frametitle}\insertframetitle\par}
+
+\setbeamertemplate{footline}{%
+  \hbox to\paperwidth{\hspace{0.5cm}%
+    {\color{mute}\scriptsize OG-Core\,$\times$\,CLEWS · coupling mechanisms}%
+    \hfill{\color{mute}\scriptsize\insertframenumber\,/\,\inserttotalframenumber}%
+    \hspace{0.5cm}}%
+  \vspace{3pt}}
+
+\AtBeginSection[]{%
+  \begin{frame}[plain]
+    \vfill\centering
+    {\color{claret}\rule{1.1cm}{2.5pt}}\par\vspace{6pt}
+    {\usebeamerfont{title}\Large\color{ink}\insertsectionhead}\par
+    \vfill
+  \end{frame}}
+
+% titled diagram frame
+\newcommand{\dgmframe}[3]{%
+  \begin{frame}{#1}%
+    \centering
+    \includegraphics[width=\linewidth,height=0.67\textheight,keepaspectratio]{diagrams/#2.pdf}\par
+    \vspace{3pt}{\scriptsize\color{mute}#3}%
+  \end{frame}}
+% full-bleed golden-figure frame (figures are self-titling)
+\newcommand{\figframe}[2]{%
+  \begin{frame}[plain]%
+    \vfill\centering
+    \includegraphics[width=\linewidth,height=0.84\textheight,keepaspectratio]{#1.png}\par
+    \vspace{3pt}{\scriptsize\color{mute}#2}%
+    \vfill
+  \end{frame}}
+
+% ---- notation (consistent with the paper) ------------------------------------
+\newcommand{\OGCore}{\textsc{OG-Core}}
+\newcommand{\CLEWS}{\textsc{CLEWS}}
+\newcommand{\OSeMOSYS}{\textsc{OSeMOSYS}}
+\newcommand{\tauc}{\tau^{c}}
+\newcommand{\taub}{\tau^{b}}
+\newcommand{\alphaI}{\alpha_{I}}
+\newcommand{\Kg}{K_{g}}
+\newcommand{\gammam}{\gamma_{m}}
+\newcommand{\rp}{r_{p}}
+\newcommand{\chan}[1]{\texttt{#1}}
+
+% tiny inline signal->wedge chain pieces
+\tikzset{
+  sig/.style={draw=clews, fill=clews!8, rounded corners=2pt, inner sep=5pt,
+              font=\footnotesize, align=center, text=ink},
+  wdg/.style={draw=ogc, fill=ogc!8, rounded corners=2pt, inner sep=5pt,
+              font=\footnotesize, align=center, text=ink},
+  eff/.style={draw=slate, fill=grid!40, rounded corners=2pt, inner sep=5pt,
+              font=\footnotesize, align=center, text=ink},
+  pol/.style={draw=policy, fill=policy!6, rounded corners=2pt, inner sep=5pt,
+              font=\footnotesize, align=center, text=ink},
+  ch/.style={-{Stealth[length=2.2mm]}, thick, draw=sub},
+}
+\newcommand{\chainrow}[3]{% {signal}{wedge}{effect} — one horizontal chain
+  \begin{tikzpicture}[node distance=7mm]
+    \node[sig] (a) {#1};
+    \node[wdg, right=of a] (b) {#2};
+    \node[eff, right=of b] (c) {#3};
+    \draw[ch] (a) -- (b); \draw[ch] (b) -- (c);
+  \end{tikzpicture}}
+
+\title{How the Two Models Connect}
+\subtitle{The economic channels of the OG-Core\,$\times$\,CLEWS soft link ---
+and how each is represented in the model}
+\date{\today}
+
+\begin{document}
+
+% ---- title -------------------------------------------------------------------
+\begin{frame}[plain]
+  \vfill
+  {\color{claret}\rule{1.2cm}{2.5pt}}\par\vspace{10pt}
+  {\bfseries\LARGE\color{ink}How the Two Models Connect}\par\vspace{8pt}
+  {\large\color{sub}The economic channels of the OG-Core\,$\times$\,CLEWS soft link ---\\
+   and how each is represented in the model}\par\vspace{18pt}
+  {\footnotesize\color{mute}numbers: the committed M=8 OG-PHL golden record ·
+   \texttt{ogclews-link} · \today}\par
+  \vfill
+\end{frame}
+
+% ===========================================================================
+\section{The coupling problem}
+
+\begin{frame}{Two models, complementary blind spots}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\color{clews}\bfseries CLEWS / OSeMOSYS}\par\smallskip
+      {\small a linear program: choose capacity \& dispatch to meet energy demand
+       at least discounted system cost}\par\smallskip
+      {\small\begin{itemize}
+        \item \textbf{rich:} technology, sub-annual dispatch, emissions, land \& water
+        \item \textbf{blind:} demand is \emph{fixed} --- no price response, no households,
+              no government budget, no distribution
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\color{ogc}\bfseries OG-Core}\par\smallskip
+      {\small overlapping-generations general equilibrium: households by age $S$
+       $\times$ lifetime income $J$, $M$ industries, a government that closes its
+       budget each period}\par\smallskip
+      {\small\begin{itemize}
+        \item \textbf{rich:} behaviour, saving, fiscal policy, incidence, demography
+        \item \textbf{blind:} no energy technology --- energy is not a priced input
+              to production
+      \end{itemize}}
+    \end{column}
+  \end{columns}
+  \medskip
+  \centering{\color{sub}\small Each is detailed exactly where the other is blank ---
+  so what usefully crosses the seam differs by direction:\\
+  \textbf{quantities} flow from the economy, \textbf{prices and physical outcomes}
+  flow from the energy system.}
+\end{frame}
+
+\dgmframe{The structural seam}{architecture}{%
+  Quantities flow right (energy demand, the interest rate); prices and physical
+  outcomes flow left (the energy price, build cost, emissions). The models stay
+  separate and pass a few auditable signals.}
+
+\begin{frame}{Why a \emph{staged soft} link, not one big model}
+  \textbf{A hard link is ruled out structurally, not practically:}
+  {\small\begin{itemize}
+    \item \OGCore{} solves an OLG \emph{transition path} period by period;
+          \OSeMOSYS{} is one perfect-foresight LP over all years at once
+    \item \OGCore{} exposes no scalar welfare into which the LP could be folded;
+          no shock can be injected mid-solve
+  \end{itemize}}
+  \medskip
+  \textbf{So the models stay separate and the link runs in stages:}
+  \smallskip
+  \begin{center}\small
+  \begin{tikzpicture}[node distance=4mm]
+    \node[wdg] (a) {solve \OGCore{}\\baseline};
+    \node[sig, right=of a] (b) {solve \CLEWS{},\\extract signals};
+    \node[wdg, right=of b] (c) {apply wedges,\\solve reform};
+    \node[sig, right=of c] (d) {emit signals\\back to \CLEWS{}};
+    \node[eff, right=of d] (e) {iterate to a\\fixed point};
+    \draw[ch] (a) -- (b); \draw[ch] (b) -- (c); \draw[ch] (c) -- (d);
+    \draw[ch, dashed] (d) -- (e);
+  \end{tikzpicture}
+  \end{center}
+  \smallskip
+  {\color{sub}\small Validated today: the single pass (solid). The iterated loop
+  (dashed) is designed --- the emitters already produce well-formed \CLEWS{} inputs
+  --- but not yet wired.}
+\end{frame}
+
+% ===========================================================================
+\section{Signals, wedges, and the load-bearing dual}
+
+\begin{frame}{The vocabulary: signal $\to$ wedge $\to$ channel}
+  \begin{description}[<+->]
+    \item[{\color{clews}Signal}] a quantity carried out of a \emph{solved} \CLEWS{}
+      scenario: the dual on a commodity balance (a marginal cost), the capex a
+      build-out requires, emissions, the dual on an emissions cap (an implied
+      carbon price).
+    \item[{\color{ogc}Wedge}] the \OGCore{} parameter that expresses it: the
+      consumption-tax vector $\tauc$, an industry productivity $Z_m$, the
+      public-investment share $\alphaI$, mortality $\rho(s,t)$, effective labour
+      $e(t,s,j)$. (``Wedge'' in the public-finance sense --- the simplest channel
+      literally inserts a tax wedge between producer and consumer price.)
+    \item[Channel] a named, guard-railed map from one signal to one wedge ---
+      plus the validation that fires when the mapping is large or ill-posed.
+  \end{description}
+  \medskip
+  \onslide<3->{%
+  {\color{sub}\small In code: plain functions in \texttt{channels.py}
+  (\OGCore$\to$\CLEWS{} ones carry \texttt{emit\_} and run after the reform
+  solves). Country-agnostic: industry indices and counts are \emph{discovered}
+  per run from the country's own calibration, never hard-coded.}}
+\end{frame}
+
+\begin{frame}{The load-bearing signal: the LP dual}
+  \small In the energy program every commodity carries a balance constraint ---
+  supply must meet demand in every timeslice and year. Its \textbf{dual} is the
+  marginal system cost of delivering one more unit; under the competitive
+  reading, \emph{the price that would clear that quantity}.
+  \smallskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\small\bfseries 1. It closes an elasticity gap}\par
+      {\footnotesize \CLEWS{} demand is price-\emph{inelastic} by construction.
+      Handing the dual to \OGCore{} households --- Stone--Geary demand, unit-elastic
+      above a subsistence floor --- supplies the demand response the optimiser lacks.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small\bfseries 2. It reveals incidence}\par
+      {\footnotesize A single ``cost'' is silent on who bears it. $S\times J$ households
+      distribute the burden; because energy is a partial necessity, an energy-price
+      change is \emph{regressive} --- invisible to a single-agent core.}
+    \end{column}
+  \end{columns}
+  \smallskip
+  \begin{block}{Soft-link equilibrium (the target)}
+    \centering\small $D^\star = D_{\text{OG}}(\pi^\star) \quad\text{and}\quad
+    \pi^\star = \pi_{\text{C}}(D^\star)$ ---
+    one pass evaluates $\pi_{\text{C}}$ at \emph{baseline} demand;
+    iterating to the fixed point is loop closure
+  \end{block}
+\end{frame}
+
+\begin{frame}{Three doors for one energy cost}
+  \small\OGCore{} production has no energy input --- an energy-cost signal must
+  enter through one of three routes:
+  \smallskip
+  {\footnotesize
+  \begin{itemize}\setlength\itemsep{4pt}
+    \item[\textbf{A}] \textbf{demand-side tax wedge} ---
+      $1+\tau^{c,r}_{t,i_e} = g_t\,(1+\tau^{c,b}_{t,i_e})$, $g_t$ the
+      reform/base price ratio. Reuses existing structure, delivers incidence;
+      but household-only, and the ``revenue'' is phantom. Empirically
+      $\approx$ output-neutral.
+    \item[\textbf{B}] \textbf{supply-side productivity haircut, I--O calibrated} ---
+      cost-push $\hat{\mathbf c} = (I - A^{\!\top})^{-1}\boldsymbol\theta\,\hat p_E$
+      applied as per-industry $Z_m$ haircuts. Right sign, materially
+      contractionary; but firms cannot substitute away and the magnitude is a proxy.
+    \item[\textbf{C}] \textbf{energy as a priced production input} --- a CES nest of
+      value added and purchased energy; dual-consistent, closes the loop on
+      quantities. The structural ideal; requires a core extension (unbuilt).
+  \end{itemize}}
+  \smallskip
+  \begin{alertblock}{The route is a first-order modelling choice}
+    \footnotesize Routes A and B carry the \emph{same} physical cost to opposite macro
+    verdicts --- roughly neutral vs.\ sharply contractionary. That is why the
+    dual-consistent representation is the target, not a refinement.
+  \end{alertblock}
+\end{frame}
+
+% ===========================================================================
+\section{The eight channels}
+
+\begin{frame}{The map}
+  \centering\scriptsize
+  \renewcommand{\arraystretch}{1.02}
+  \begin{tabularx}{\textwidth}{@{}l c >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+  \toprule
+  \textbf{Channel} & \textbf{Dir.} & \textbf{\CLEWS{} signal} & \textbf{\OGCore{} object} & \textbf{First-order effect} \\
+  \midrule
+  \chan{energy\_price} & {\color{clews}c$\to$o} & energy-balance dual / cost ratio & $\tauc$ on the energy good & demand $\downarrow$; regressive incidence \\
+  \chan{carbon} & {\color{policy}pol} & carbon price (\$/tCO$_2$) & $\tauc$ add-on + \CLEWS{} emissions penalty & demand $\downarrow$; emissions $\downarrow$ \\
+  \chan{investment} & {\color{clews}c$\to$o} & public grid/T\&D capex & $\alphaI \to \Kg$ & public capital $\uparrow$; crowding-out, debt \\
+  \chan{capital\_intensity} & {\color{clews}c$\to$o} & power-fleet capital-cost share & $\gammam$ (energy capital exponent) & energy price $\downarrow$; energy $K$ $\downarrow$ \\
+  \chan{energy\_capex} & {\color{policy}pol} & ITC rate (policy response) & cost of capital (\texttt{inv\_tax\_credit}) & capital reallocates into energy \\
+  \chan{health} & {\color{clews}c$\to$o} & PM$_{2.5}$ emissions ratio & $\rho(s,t)$, $e(t,s,j)$ & mortality $\approx 0$; morbidity $\uparrow$ labour \\
+  \chan{discount\_rate} & {\color{ogc}o$\to$c} & --- & reads $\rp$ $\to$ \texttt{DiscountRate} & shifts the build mix (via the loop) \\
+  \chan{demand} & {\color{ogc}o$\to$c} & --- & reads $Y_m/C_i$ $\to$ demand & more capacity (via the loop) \\
+  \bottomrule
+  \end{tabularx}
+  \par\smallskip
+  {\color{sub}\scriptsize four \CLEWS$\to$\OGCore{} · two policy levers applied once
+   to both sides · two \OGCore$\to$\CLEWS{}}
+\end{frame}
+
+\begin{frame}{\chan{energy\_price} --- the dual reaches household budgets}
+  \centering
+  \chainrow{electricity dual,\\reform/base ratio $g_t$}{consumption-tax wedge\\
+    $1+\tau^{c,r}_{i_e}=g_t(1+\tau^{c,b}_{i_e})$}{demand $\downarrow$ ·
+    composite price $\uparrow$\\incidence \emph{regressive}}
+  \medskip
+  \begin{itemize}\small
+    \item households face $(1+\tauc_{i_e})\,p_{i_e}$; energy quantity responds ---
+          the elasticity \CLEWS{} lacks
+    \item with a subsistence floor ($c_{\min}>0$), poorer households spend a larger
+          energy share $\Rightarrow$ they bear more of a price change, even when the
+          revenue is recycled (\chan{clean\_incidence}: $C_{ss}=-0.087\%$ under
+          full recycling)
+    \item the price is the country's \emph{real} \CLEWS{} price (``auto'': curated
+          cost-of-electricity index, else the \OSeMOSYS{} commodity dual) --- for the
+          Philippine pair it is \textbf{near-flat}, so the standalone effect is
+          $Y_{ss}=-0.0005\%$: honestly transmitted, the data does little
+    \item the earlier $\pm20\%$ stress runs proved the \emph{transmission};
+          they are retained only for the route comparison
+  \end{itemize}
+  \smallskip
+  {\raggedright\color{sub}\small maturity: Route A on the real dual; the coupled run
+   transmits the same price through the composite (next section).\par}
+\end{frame}
+
+\begin{frame}{\chan{carbon} --- one price, two sides, counted once}
+  \centering
+  \begin{tikzpicture}[node distance=7mm]
+    \node[pol] (p) {carbon price\\\$50/tCO$_2$};
+    \node[sig, above right=1mm and 9mm of p] (c) {\CLEWS{}: emissions-penalty path\\$\Rightarrow$ the build mix decarbonises};
+    \node[wdg, below right=1mm and 9mm of p] (o) {\OGCore{}: $\Delta\tauc_{i_e}=$ price $\times$ deflator\\$\times$ carbon intensity $/\,p^{b}_{i_e}$};
+    \draw[ch] (p) -- (c); \draw[ch] (p) -- (o);
+  \end{tikzpicture}
+  \smallskip
+  \begin{itemize}\footnotesize
+    \item one exogenous price enters \emph{both} models along the same path ---
+          never inferred a second time from a \CLEWS{} shadow price
+    \item \OGCore{} firms buy no energy, so only \emph{household} energy carbon is
+          priced on the macro side; industrial carbon is priced in \CLEWS{}
+    \item revenue is recyclable (transfers); standalone it is the clearest
+          contraction: $Y_{ss}=-0.040\%$
+  \end{itemize}
+  \smallskip
+  {\raggedright\color{sub}\footnotesize the \emph{level} rides on the uncalibrated
+   unit/deflator bridge --- mechanics validated, magnitude illustrative.\par}
+\end{frame}
+
+\begin{frame}{\chan{investment} --- public grid capital}
+  \centering
+  \chainrow{grid \& T\&D capex\\(\% of GDP, finite ramp)}{public-investment share
+    $\alphaI$\\$\to$ $\Kg$ law of motion}{$\Kg$ productive via $\gamma_g$\\
+    crowding-out if debt-financed}
+  \medskip
+  \begin{itemize}\small
+    \item this is where crowding-out \emph{legitimately} lives: debt-financed
+          spending competes for the savings pool, raises $r$, displaces private
+          investment
+    \item public-grid capital and private-generation capital touch different
+          objects --- coupling both is complementary, not double counting
+    \item Philippine scenario: the \emph{public} grid-capex delta is $\approx 0$
+          (the transition is generation-side) $\Rightarrow$ the channel is inert
+          here ($Y_{ss}=+0.000\%$); its mechanics are validated and scale with a
+          non-zero delta
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{The capital pair I: \chan{capital\_intensity} --- a worked example}
+  \footnotesize
+  \textbf{Signal:} reform/base ratio of the power fleet's capital-cost share
+  $\;\Rightarrow\;$ scales the energy industry's capital exponent $\gammam$
+  (here $+12.2\%$).\par\smallskip
+  \textbf{The model's own first-order condition} (Cobb--Douglas, $\varepsilon=1$):
+  the user cost $\rho_m$ and taxes cancel in the reform/base ratio, leaving an
+  exact identity ---
+  \[\textstyle
+    K_m=\dfrac{\gammam\,p_m Y_m}{\rho_m}
+    \qquad\Rightarrow\qquad
+    \hat K_E=\hat\gamma_E\cdot\hat p_E\cdot\hat Y_E
+  \]
+  \centering
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}lrrrrr@{}}
+  \toprule
+   & $\hat\gamma_E$ & $\hat p_E$ & $\hat Y_E$ & $\hat K_E$ (obs.) & identity \\
+  \midrule
+  energy industry ($m_e=2$) & $+12.2\%$ & $-42.8\%$ & $+20.9\%$ & $-22.4\%$ & $-22.4\%$ \\
+  \bottomrule
+  \end{tabular}
+  \par\smallskip
+  \begin{itemize}
+    \item the higher exponent cuts the sector's unit cost $\to$ under zero profit
+          the electricity price \textbf{collapses} $-42.8\%$
+    \item demand is elastic enough that output \textbf{rises} $+20.9\%$ --- but
+          revenue $p_mY_m$ shrinks by more than $\hat\gamma$ and $\hat Y$ add back
+          $\Rightarrow$ capital \textbf{falls} $-22.4\%$ (identity closes to $0.03\%$)
+  \end{itemize}
+  \smallskip
+  {\raggedright\color{claret}Raising the capital \emph{share} sheds capital: this is
+  a factor-share and energy-price lever, \emph{not} a capital draw-in.\par}
+\end{frame}
+
+\begin{frame}{The capital pair II: \chan{energy\_capex} --- the actual draw-in lever}
+  \small
+  The capital-\emph{attraction} force is a structurally different instrument: an
+  \textbf{investment tax credit} on the energy industry.
+  \[
+    \rho_m=\frac{r+\delta-\taub_m\delta^{\tau}_m-
+      {\color{policy}\tau^{\mathrm{inv}}_m}\delta}{1-\taub_m}
+  \]
+  \centering{\footnotesize the ITC enters the \emph{user-cost denominator}, where
+  $\gammam$ is absent $\;\Rightarrow\;$ capital demand shifts \emph{out} at given $r$}
+  \par\smallskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\small\bfseries $\gammam$ (\chan{capital\_intensity})}\par
+      {\footnotesize moves factor \emph{demand} through the production exponent;
+       absent from $\rho_m$. Result: cheaper electricity, \emph{less} energy capital.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small\bfseries ITC (\chan{energy\_capex})}\par
+      {\footnotesize moves the \emph{cost of capital}; absent from the exponents.
+       Result: capital reallocates \emph{into} energy. (Defined channel; not run
+       standalone in the present battery.)}
+    \end{column}
+  \end{columns}
+  \smallskip
+  \begin{alertblock}{The lesson}
+    \footnotesize Two levers, two different objects --- \emph{not} two views of one
+    capex. The model's own FOC exposes the mislabeling that partial-equilibrium
+    intuition (``capital-intensive $\Rightarrow$ pulls capital in'') would smuggle
+    into the results; the no-double-counting discipline forbids stacking them.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{\chan{health} --- emissions to demography and labour}
+  \centering
+  \begin{tikzpicture}[node distance=5mm, every node/.append style={font=\scriptsize}]
+    \node[sig] (e) {PM$_{2.5}$ emissions\\$-7.7\%$};
+    \node[eff, right=of e] (m) {dose-response\\$M\approx0.082$};
+    \node[eff, right=of m] (d) {$43{,}951\times M\times\Delta$em\\$\approx -279$ lives};
+    \node[wdg, above right=-1mm and 7mm of d] (mo) {mortality $\rho(s,t)$\\$+$ recomputed pop.};
+    \node[wdg, below right=-1mm and 7mm of d] (mb) {morbidity: effective\\labour $e(t,s,j)$};
+    \draw[ch] (e) -- (m); \draw[ch] (m) -- (d);
+    \draw[ch] (d) -- (mo); \draw[ch] (d) -- (mb);
+  \end{tikzpicture}
+  \begin{itemize}\footnotesize
+    \item real inputs: the IHME GBD ambient-PM$_{2.5}$ burden ($43{,}951$
+          attributable deaths, PHL 2023) with real age profiles; $M$ = energy
+          mass-share $\times$ concentration--response elasticity --- the $\times M$
+          is what separates $-279$ from the naive $-3{,}400$
+    \item \textbf{mortality}: PM$_{2.5}$ deaths skew elderly $\to$ saved lives are
+          mostly retirees $\to$ long-run output $\approx 0$
+    \item \textbf{morbidity}: working-age disability falls $\to$ effective labour
+          rises --- \emph{the} macro gain ($+0.19\%$ near-term; $Y_{ss}=-0.003\%$)
+  \end{itemize}
+  \smallskip
+  {\raggedright\color{claret}\footnotesize The signature: a small negative steady
+  state, a larger positive transition --- endogenous demography from an emissions
+  signal, invisible to a static core. Remaining assumptions: linearity of the mapping,
+  the morbidity elasticity.\par}
+\end{frame}
+
+\begin{frame}{The back-channels: \chan{discount\_rate} and \chan{demand}}
+  Both run \emph{after} the reform solves (\texttt{emit\_} prefix) and write
+  well-formed \CLEWS{} inputs:
+  \medskip
+  \begin{itemize}\small\setlength\itemsep{6pt}
+    \item \chan{discount\_rate}: reads the equilibrium market return $\rp$ (a
+          multi-period mean) $\to$ \CLEWS{} \texttt{DiscountRate}. Energy planning at
+          the \emph{model-consistent} cost of capital: a lower $\rp$ favours
+          capital-heavy, long-lived assets.
+    \item \chan{demand}: reads a reform/base activity ratio ($Y_m$ or $C_i$, raised
+          to an elasticity) $\to$ scales \CLEWS{} annual demand. In a single pass the
+          ratio is $\approx 1$ --- latent by construction.
+  \end{itemize}
+  \medskip
+  {\color{sub}\small They move the macro economy only once the loop iterates --- the
+  quantity link of the \textsc{message-macro}/\textsc{times-macro} tradition, but
+  feeding an OLG core instead of a representative agent.}
+\end{frame}
+
+\dgmframe{Closing the loop}{loop}{%
+  Re-solve the two models in turn until energy demand stops changing. Validated today:
+  the single pass; naive price feedback can oscillate, so the loop needs damping.}
+
+% ===========================================================================
+\section{Counting each signal once}
+
+\begin{frame}{Five principles, each enforced by a guard}
+  \small
+  \begin{enumerate}\setlength\itemsep{6pt}
+    \item \textbf{One carbon price.} It enters once --- a \CLEWS{} penalty and an
+          \OGCore{} wedge on the same path --- never \emph{also} inferred from a
+          \CLEWS{} shadow price.
+    \item \textbf{One view of an energy-cost shock.} A $\tauc$ wedge, a carbon
+          $\tauc$, and a $Z_m$ haircut are alternative doors for the \emph{same}
+          cost --- never stacked.
+    \item \textbf{One view of generation capital.} Cost-push \emph{or} an ITC ---
+          and $\gammam$ is \emph{not} a third interchangeable view: it is a
+          factor-income object that sheds capital (the worked example).
+    \item \textbf{Revenue must be routed.} A $\tauc$ wedge mechanically raises
+          consumption-tax revenue; recycle it (transfers, public investment) or
+          finance it explicitly --- else a hidden fiscal expansion rides along.
+    \item \textbf{Public and private capital are distinct.} $\alphaI\to\Kg$ and the
+          firm's own $K$ touch different objects; coupling both is complementary.
+  \end{enumerate}
+\end{frame}
+
+% ===========================================================================
+\section{Does it behave? The Philippine coupled run}
+
+\begin{frame}{Anatomy of the flagship \chan{coupled} run}
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}[node distance=4.5mm and 4.5mm]
+    \node[sig] (a) {real electricity price (``auto'' dual)\\via the \textbf{composite}: I--O cost-push\\$+$ recycled household wedge};
+    \node[wdg, right=of a] (b) {\chan{investment}\\public capex $\to\alphaI$};
+    \node[pol, right=of b] (c) {\chan{carbon}\\\$50/tCO$_2$ penalty\\(\CLEWS{} side)};
+    \node[wdg, right=of c] (d) {\chan{health}\\GBD $\to\rho,\,e$};
+    \node[eff, right=of d] (s) {\textbf{SOLVE}\\reform\\transition};
+    \node[sig, right=of s] (f) {\texttt{emit\_}\\$\rp$, $Y_m$\\$\to$ \CLEWS{}};
+    \draw[ch] (a) -- (b); \draw[ch] (b) -- (c); \draw[ch] (c) -- (d);
+    \draw[ch] (d) -- (s); \draw[ch] (s) -- (f);
+    \node[font=\scriptsize\bfseries\color{sub}, above=2.5mm of a.north] {PRE-SOLVE};
+    \node[font=\scriptsize\bfseries\color{sub}, above=2.5mm of f.north] {POST-SOLVE};
+  \end{tikzpicture}}
+  \smallskip
+  \begin{itemize}\footnotesize
+    \item the Philippine electricity price is near-flat $\Rightarrow$ the energy
+          channels contribute almost nothing (electricity output moves $-0.18\%$);
+          \textbf{the macro response is carried by health}
+    \item the carbon price rides the \CLEWS{} side here (one-price principle); the
+          $-0.040\%$ on the previous slides is its \emph{standalone} \OGCore{} wedge
+  \end{itemize}
+  \smallskip
+  \centering
+  \renewcommand{\arraystretch}{1.1}\footnotesize
+  \begin{tabular}{@{}lrrr@{}}
+  \toprule
+  \% change from baseline & steady state & $t_0$ & $t_{10}$ \\
+  \midrule
+  output $Y$ & $-0.017$ & $+0.165$ & $+0.395$ \\
+  consumption $C$ & $+0.008$ & $+0.195$ & $+0.467$ \\
+  \bottomrule
+  \end{tabular}
+\end{frame}
+
+\figframe{golden_channel_impact}{%
+  Per-channel steady-state output impact, standalone reforms on the M=8 Philippine
+  calibration. energy\_price $\approx 0$ on the near-flat real dual; carbon $-0.040\%$
+  is the clearest contraction; capital\_intensity $-0.027\%$ aggregate (but reshapes the
+  energy sector); health $-0.003\%$ at steady state yet $+0.19\%$ near-term.}
+
+\figframe{coupled_transition}{%
+  The coupled transition: steady state $-0.017\%$, but $+0.165\%$ at $t_0$ rising to
+  $+0.395\%$ by $t_{10}$ --- the working-age morbidity gain along the path, added
+  retirees in the long run. The horizon split is the health channel's signature, and
+  it is invisible to a static core.}
+
+\figframe{coupled_decomposition}{%
+  Cumulative decomposition: channels layered so the top layer \emph{equals} the coupled
+  run --- every effect attributable to a named mechanism. That auditability is the point
+  of the channel architecture.}
+
+% ===========================================================================
+\section{Status}
+
+\begin{frame}{Where the coupling stands}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\small\bfseries Validated today}\par\smallskip
+      {\footnotesize\begin{itemize}
+        \item eight channels, each one signal $\to$ one wedge, guard-railed
+        \item single \CLEWS$\to$\OGCore{} pass on \emph{real} inputs: the real
+              electricity dual, the real GBD burden
+        \item cross-environment solve (the link orchestrates; the country's
+              \OGCore{} runs in its own interpreter)
+        \item regression-locked golden record; signs and mechanics as theory
+              predicts
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small\bfseries Open, in order}\par\smallskip
+      {\footnotesize\begin{itemize}
+        \item \textbf{loop closure} --- the emitters are ready; the outer
+              re-solve-and-iterate is not wired
+        \item \textbf{the unit/deflator bridge} --- carbon and investment
+              \emph{levels} are illustrative until it is calibrated
+        \item \textbf{Route C} --- energy as a priced production input: the
+              structural destination
+      \end{itemize}}
+    \end{column}
+  \end{columns}
+  \medskip
+  \centering{\color{claret}\small\bfseries One line:} \small A small, auditable
+  library of economic mechanisms --- each signal counted once, each effect
+  attributable --- rather than one opaque coupling.
+\end{frame}
+
+\end{document}
