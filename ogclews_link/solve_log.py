@@ -24,7 +24,7 @@ def summarize(log_path: str) -> dict:
     """Return ``{phase, outcome, iters, last_distances, min_distance, error}`` for a solve log, or ``{}``
     if it can't be read. ``outcome`` is a plain verdict; ``phase`` names the solve that was running."""
     try:
-        with open(log_path) as f:
+        with open(log_path, encoding="utf-8-sig") as f:
             lines = f.read().splitlines()
     except OSError:
         return {}

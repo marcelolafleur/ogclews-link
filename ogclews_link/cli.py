@@ -46,6 +46,12 @@ def main(argv=None):
     msub = mp.add_subparsers(dest="models_cmd")
     mr = msub.add_parser("register", help="record an installed OG model by its checkout dir")
     mr.add_argument("--path", required=True, help="the OG model's checkout dir (must contain .venv/)")
+    mr.add_argument("--python", default=None,
+                    help="explicit interpreter for a non-uv env (conda/system); bypasses the "
+                         ".venv/{bin,Scripts} probe. Pair with --source-dir if it lives outside <path>/.venv")
+    mr.add_argument("--source-dir", default=None,
+                    help="the package source dir, if not <path>/<package> (needed when --python points "
+                         "outside <path>/.venv, since the source can't be derived from the interpreter)")
     mr.add_argument("--key", default=None, help="repo key (default: the dir name, e.g. OG-PHL -> og-phl)")
     mr.add_argument("--calibration", default=None,
                     help="multisector param file to use (default: auto-pick the lone couplable one, "
@@ -85,7 +91,8 @@ def main(argv=None):
         from . import discovery, models
         if args.models_cmd == "register":
             rec = models.register(args.path, key=args.key, registry_file=args.registry,
-                                  calibration=args.calibration, run_discovery=not args.no_discovery)
+                                  calibration=args.calibration, run_discovery=not args.no_discovery,
+                                  python=args.python, source_dir=args.source_dir)
             print(f"registered {rec['key']} ({rec['package']} {rec['version'] or '?'}) -> {rec['env_python']}")
             cal = rec.get("calibration")
             print(f"  calibration: {cal if cal else '(single-industry -- energy channels skip)'}")
@@ -187,10 +194,10 @@ def main(argv=None):
             except Exception as e:  # noqa: BLE001 -- the CSV is a convenience; never fail the run for it
                 print(f"(macro table CSV skipped: {type(e).__name__})")
         if ctx.clews_inputs:
-            written = clews_io.write_all(ctx, f"{args.out}/{args.experiment}/clews_inputs")
+            written = clews_io.write_all(ctx, os.path.join(args.out, args.experiment, "clews_inputs"))
             print("Wrote CLEWS inputs:", written)
         baseline_dir = runtime._cache_dir(args.out, entry, country, cfg)  # OG baseline cache this run used
-        manifest = write_run_manifest(f"{args.out}/{args.experiment}", exp, country, ctx,
+        manifest = write_run_manifest(os.path.join(args.out, args.experiment), exp, country, ctx,
                                       clews_run=args.clews_run, og_model=og_model,
                                       baseline_dir=baseline_dir, gbd_csv=country.gbd_burden_csv)
         print("Wrote run manifest:", manifest)

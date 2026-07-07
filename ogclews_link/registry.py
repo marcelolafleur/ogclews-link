@@ -18,9 +18,41 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 from dataclasses import dataclass
 
 ENV_VAR = "OGCLEWS_MODEL_REGISTRY"
+
+# Platform constant, computed once (MUIOGO convention: `SYSTEM = platform.system()`, e.g.
+# scripts/setup_dev.py:50). Used only to ORDER the interpreter-layout probe below.
+_IS_WINDOWS = platform.system() == "Windows"
+
+
+def venv_python(install_dir: str, *, override: str | None = None) -> str:
+    """Resolve an OG model checkout's venv interpreter, cross-platform.
+
+    Mirrors MUIOGO's bin-vs-Scripts idiom (``scripts/setup_dev.py`` ``_venv_python``): a uv/venv puts the
+    interpreter at ``.venv/Scripts/python.exe`` on Windows and ``.venv/bin/python`` on POSIX. But the link
+    RESOLVES an already-built env (it does not create it), so rather than branch on the OS alone it PROBES
+    BOTH layouts (the platform-preferred one first) -- so an env copied between machines, or a
+    non-standard build, still resolves. ``override`` (``--python``) short-circuits the probe for a
+    conda/system interpreter. Returns the existing interpreter path; raises FileNotFoundError listing what
+    was tried (fail loud with an actionable message, as MUIOGO's solver resolver does)."""
+    if override:
+        p = os.path.abspath(os.path.expanduser(override))
+        if os.path.exists(p):
+            return p
+        raise FileNotFoundError(f"--python interpreter {override!r} does not exist (resolved to {p}).")
+    venv = os.path.join(install_dir, ".venv")
+    win = os.path.join(venv, "Scripts", "python.exe")
+    posix = os.path.join(venv, "bin", "python")
+    for cand in ((win, posix) if _IS_WINDOWS else (posix, win)):
+        if os.path.exists(cand):
+            return cand
+    raise FileNotFoundError(
+        f"no model interpreter under {venv} (looked for {os.path.join('Scripts', 'python.exe')} and "
+        f"{os.path.join('bin', 'python')}). Build the model's env first (the OG installer runs "
+        f"`uv sync` in {install_dir}), or pass --python <interpreter> for a conda/system env.")
 
 
 class ModelNotInstalledError(RuntimeError):
@@ -69,7 +101,7 @@ def registry_path(path: str | None = None) -> str:
 def load_registry(path: str | None = None) -> dict[str, ModelEntry]:
     """Parse the installed register into {repo_key: ModelEntry}."""
     rp = registry_path(path)
-    with open(rp) as f:
+    with open(rp, encoding="utf-8-sig") as f:   # utf-8-sig: tolerate a BOM if the registry was hand-edited on Windows
         data = json.load(f)
     out: dict[str, ModelEntry] = {}
     for key, e in data.get("models", {}).items():
@@ -81,11 +113,15 @@ def load_registry(path: str | None = None) -> dict[str, ModelEntry]:
 
 def package_source_dir(entry: ModelEntry) -> str:
     """The package's source dir (for link-side reading of PROD_DICT/CONS_DICT + calibrations). The stored
-    ``source_dir`` if present, else derived from the env interpreter: ``<install>/.venv/bin/python`` ->
-    ``<install>/<package>`` (the checkout convention the installer produces)."""
+    ``source_dir`` if present, else derived from the env interpreter by walking up 3 levels to the install
+    dir, then joining the package name. That walk is depth-correct on BOTH platforms -- ``.venv/bin/python``
+    (POSIX) and ``.venv/Scripts/python.exe`` (Windows) each sit exactly 3 levels below the install dir --
+    so no OS branch is needed here once ``register`` stored the right interpreter. NB: an arbitrary
+    ``--python`` interpreter (conda/system) will NOT sit under ``<install>/.venv``, so ``register`` records
+    an explicit ``source_dir`` in that case rather than relying on this derivation."""
     if entry.source_dir:
         return entry.source_dir
-    install = os.path.dirname(os.path.dirname(os.path.dirname(entry.env_python)))   # .venv/bin/python -> install
+    install = os.path.dirname(os.path.dirname(os.path.dirname(entry.env_python)))   # .venv/{bin|Scripts}/py -> install
     return os.path.join(install, entry.package)
 
 

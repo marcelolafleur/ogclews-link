@@ -24,7 +24,7 @@ def write_demand(spec: dict, out_dir: str, region=None) -> str:
     ratio = spec["ratio_by_period"]
     years = _years(spec["start_year"], len(ratio))
     region = region or spec.get("region", "RE1")
-    with open(path, "w", newline="") as f:
+    with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["REGION", "OG_ACTIVITY", "OG_INDEX", "CLEWS_FUEL", "YEAR", "DEMAND_RATIO"])
         for y, x in zip(years, ratio):
@@ -37,7 +37,7 @@ def write_emissions_penalty(spec: dict, out_dir: str) -> str:
     path = os.path.join(out_dir, "EmissionsPenalty.csv")
     vals = spec["value_by_period"]
     years = _years(spec["start_year"], len(vals))
-    with open(path, "w", newline="") as f:
+    with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["REGION", "EMISSION", "YEAR", "VALUE"])
         for y, v in zip(years, vals):
@@ -48,7 +48,7 @@ def write_emissions_penalty(spec: dict, out_dir: str) -> str:
 def write_discount_rate(spec: dict, out_dir: str) -> str:
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "DiscountRate.csv")
-    with open(path, "w", newline="") as f:
+    with open(path, "w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         w.writerow(["REGION", "VALUE", "NOTE"])
         rate = spec["rate"]
