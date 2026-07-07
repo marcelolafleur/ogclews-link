@@ -368,6 +368,22 @@ def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, f
                 "energy_price_ratio kind='dual': commodity-balance dual ratio is empty / all-NaN -- no "
                 "overlapping base/reform years, or a zero baseline shadow price for the matched fuel. "
                 "Check the EBb4 export, the fuel code, and the run years.")
+        # GUARDRAIL: the EBb4 dual is a SHORT-RUN marginal that is degenerate/sparse -- it binds (nonzero)
+        # in scattered years that differ between base and reform, so the base/reform overlap can collapse
+        # to a single year. _align_to_start would then BROADCAST that one point into a permanent economy-
+        # wide price shock (observed on PHL: one 2029 point = +32%). A single/near-single overlap is not a
+        # credible price PATH, so refuse it loudly rather than ship a spurious permanent shock. The fix is
+        # a levelized price: ship the cost-of-electricity workbook (kind='cost_index') or use kind='lcoe'
+        # (levelized cost from the raw CSVs), both of which are dense + smooth.
+        n_overlap = int(ratio.dropna().shape[0])
+        if n_overlap < _DUAL_MIN_OVERLAP_YEARS:
+            raise ValueError(
+                f"energy_price_ratio kind='dual': the commodity-balance dual for fuel={fuel!r} overlaps in "
+                f"only {n_overlap} year(s) between base and reform (need >= {_DUAL_MIN_OVERLAP_YEARS}). The "
+                "EBb4 dual is a sparse/degenerate short-run marginal (it binds in different years per "
+                "scenario), so a single overlapping year would broadcast to a spurious PERMANENT price "
+                "shock. Use a levelized price instead: a cost-of-electricity workbook (kind='cost_index') "
+                "or kind='lcoe' (levelized cost reconstructed from the CLEWS cost/production CSVs).")
     elif kind == "cost_index":
         bx, rx = _cost_xlsx(base_dir), _cost_xlsx(reform_dir)
         ratio = cost_of_electricity_ratio(bx, rx)
@@ -418,6 +434,11 @@ _DUAL_CONSTRAINT = "EBb4_EnergyBalanceEachYear4_ICR"  # OSeMOSYS annual commodit
 
 
 _DUAL_ZERO_ATOL = 1e-3   # CBC dual reporting resolution: |dual| at/below this is slack/noise, not a price
+
+# Minimum base/reform overlapping years for the sparse EBb4 dual to be a credible price PATH. Below this,
+# _align_to_start would broadcast a near-single point into a spurious permanent shock (see the guardrail in
+# energy_price_ratio); the levelized 'cost_index'/'lcoe' sources are dense and are the right fallback.
+_DUAL_MIN_OVERLAP_YEARS = 3
 
 
 def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=None,
