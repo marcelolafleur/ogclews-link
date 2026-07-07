@@ -245,32 +245,30 @@ and how each is represented in the model}
   the loop, later, drives toward.)\par}
 \end{frame}
 
-\begin{frame}{Getting that price into the economy --- three routes}
+\begin{frame}{The energy channel: electricity's two uses}
   \footnotesize We have the signal --- the energy price. But there is a catch: in
   \OGCore{}, firms produce with only \textbf{capital and labour; energy is not a line in
-  their costs}. So a change in the energy price has no direct way in, and we must
-  \emph{choose} how to represent it. Three routes, in rising fidelity:
+  their costs}. So the channel represents an electricity-price change by the \emph{two
+  ways electricity is used}, and applies \textbf{both} as one transmission:
   \smallskip
   {\footnotesize
   \begin{itemize}\setlength\itemsep{4pt}
-    \item[\textbf{A}] \textbf{tax the energy households buy} --- raise the price
-      households pay by the reform/baseline ratio. Reuses existing structure and shows
-      incidence; but it touches only household energy, and its ``revenue'' is phantom.
-      Empirically $\approx$ output-neutral.
-    \item[\textbf{B}] \textbf{raise firms' costs} (a cost-push) --- lift each industry's
-      cost by the energy it uses, directly and through what it buys from others, as a
-      productivity cut. Right sign and materially contractionary; but firms cannot
-      substitute away, so the size is only a proxy.
-    \item[\textbf{C}] \textbf{make energy a real input firms buy} --- alongside capital
-      and labour, so the price feeds their costs directly and the loop closes on
-      quantities too. The faithful version --- but it needs an extension of \OGCore{}
-      (unbuilt).
+    \item[\textbf{1}] \textbf{as an input to firms} --- the bulk of electricity
+      ($\sim$3/4 in the Philippine accounts): a cost-push, raising each industry's cost
+      by the electricity it uses (directly and through what it buys). The contractionary,
+      wage-bearing side --- it sets the output sign.
+    \item[\textbf{2}] \textbf{as final consumption by households} --- the rest: a recycled
+      consumption wedge on the energy good. The regressive cost-of-living side.
   \end{itemize}}
   \smallskip
-  {\raggedright\color{claret}\footnotesize\textbf{Which route you pick changes the
-  answer:} A and B carry the \emph{same} price to opposite verdicts --- roughly neutral
-  vs.\ sharply contractionary. C is the destination, not a refinement. (Ahead: the
-  energy-price channel uses A; the coupled run adds B.)\par}
+  Electricity's own self-use is netted out, so the two sides do not double-count. Neither
+  alone is the channel: the household wedge is $\approx$ output-neutral, the cost-push is
+  contractionary --- only together do they carry the price into both the cost of living
+  \emph{and} the cost of production.
+  \smallskip
+  {\raggedright\color{claret}\footnotesize The input side is a reduced-form proxy
+  (\OGCore{} has no energy in production); the fully-structural version --- energy as a
+  real priced input --- is the destination, not yet built.\par}
 \end{frame}
 
 % ===========================================================================
@@ -283,7 +281,7 @@ and how each is represented in the model}
   \toprule
   \textbf{Channel} & \textbf{Dir.} & \textbf{\CLEWS{} signal} & \textbf{\OGCore{} object} & \textbf{First-order effect} \\
   \midrule
-  Energy price & {\color{clews}c$\to$o} & electricity marginal cost (reform/baseline) & price wedge ($\tauc$) on the energy good & demand $\downarrow$; regressive incidence \\
+  Energy price & {\color{clews}c$\to$o} & electricity price (marginal cost / index) & cost-push on firms + consumption wedge & output $\downarrow$; regressive incidence \\
   Carbon price & {\color{policy}pol} & carbon price (\$/tCO$_2$) & energy-wedge add-on + emissions penalty & demand $\downarrow$; emissions $\downarrow$ \\
   Public investment & {\color{clews}c$\to$o} & grid \& transmission build cost & public-investment share $\to$ public capital & public capital $\uparrow$; crowding-out, debt \\
   Capital intensity & {\color{clews}c$\to$o} & power-fleet capital-cost share & energy industry's capital share ($\gammam$) & energy price $\downarrow$; energy $K$ $\downarrow$ \\
@@ -298,26 +296,22 @@ and how each is represented in the model}
    to both sides · two \OGCore$\to$\CLEWS{}}
 \end{frame}
 
-\begin{frame}{Energy price --- the system's marginal cost reaches household budgets}
-  \centering
-  \chainrow{electricity marginal cost,\\reform/baseline ratio $g_t$}{price wedge on energy\\
-    $1+\tau^{c,r}_{i_e}=g_t(1+\tau^{c,b}_{i_e})$}{demand $\downarrow$ ·
-    composite price $\uparrow$\\incidence \emph{regressive}}
+\begin{frame}{Energy price --- the composite channel}
+  \footnotesize The channel applies the \CLEWS{} electricity price as the composite of
+  the previous slide: a cost-push on firms that use electricity as an input (the output
+  sign) \emph{plus} a recycled consumption wedge on households (the incidence), with
+  electricity's self-use netted out.
   \medskip
   \begin{itemize}\small
-    \item households face $(1+\tauc_{i_e})\,p_{i_e}$, so energy demand responds ---
-          the price response \CLEWS{} lacks
-    \item poorer households spend more of their budget on energy, so they bear more
-          of the change --- even when the revenue is returned (recycled variant:
-          $C_{ss}=-0.087\%$)
-    \item the price is the scenario's \emph{real} electricity price, which for the
-          Philippines is \textbf{near-flat} --- so the standalone effect is tiny
-          ($Y_{ss}=-0.0005\%$): transmitted honestly, the data does little
-    \item the earlier $\pm20\%$ runs only stress-tested the \emph{transmission}
+    \item households face $(1+\tauc_{i_e})\,p_{i_e}$, so demand responds --- the response
+          \CLEWS{} lacks; and with energy a partial necessity the burden is
+          \emph{regressive}: poorer households bear more even when the revenue is returned
+          (recycled variant: $C_{ss}=-0.087\%$)
+    \item the price is the scenario's \emph{real} electricity price, \textbf{near-flat}
+          for the Philippines --- so the channel's effect is small ($Y_{ss}=-0.0005\%$,
+          household side alone): transmitted honestly, the data does little
+    \item the $\pm20\%$ and single-mechanism runs only stress-test the \emph{transmission}
   \end{itemize}
-  \smallskip
-  {\raggedright\color{sub}\small maturity: route A, on the real price; the coupled
-   run transmits the same price through the composite (later).\par}
 \end{frame}
 
 \begin{frame}{Carbon price --- one price, two sides, counted once}
@@ -589,8 +583,8 @@ and how each is represented in the model}
               re-solve-and-iterate is not wired
         \item \textbf{the unit/deflator bridge} --- carbon and investment
               \emph{levels} are illustrative until it is calibrated
-        \item \textbf{Route C} --- energy as a priced production input: the
-              structural destination
+        \item \textbf{energy as a priced input} --- a real production input feeding
+              firm cost: the structural destination for the energy channel
       \end{itemize}}
     \end{column}
   \end{columns}

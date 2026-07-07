@@ -74,13 +74,13 @@ year; capacity-adequacy and capacity-factor limits; fuel-availability limits; an
 emissions caps or penalties. Timeslices capture the intra-annual load shape (peak versus
 off-peak) that a single annual figure would hide.
 
-The object that makes the coupling work is the \emph{dual} of the commodity-balance
-constraint. In the LP, that multiplier is the marginal system cost of delivering one more
-unit of the carrier; under the competitive interpretation it is exactly the price that
-would clear that quantity --- the energy price the macro model should face
-(\Cref{sec:dual}, \Cref{def:fixedpoint}). The dual of a binding emissions cap is, likewise,
-the implied carbon price. These shadow prices, not the bare cost figures, are the
-load-bearing signals.
+The object that makes the coupling work is the \emph{marginal cost} on the
+commodity-balance constraint --- what it would cost the least-cost system to supply one
+more unit of the carrier. Under the competitive interpretation this is exactly the price
+that would clear that quantity --- the energy price the macro model should face
+(\Cref{sec:dual}, \Cref{def:fixedpoint}). The marginal cost of a binding emissions cap
+is, likewise, the implied carbon price. These marginal costs, not the bare cost figures,
+are the load-bearing signals.
 
 Two features matter for the coupling. First, the program optimises against a \emph{fixed}
 demand: quantity demanded does not respond to the carrier price within \OSeMOSYS{}
@@ -88,7 +88,7 @@ demand: quantity demanded does not respond to the carrier price within \OSeMOSYS
 LP is a single perfect-foresight optimisation over all years at once, with no household,
 no government budget, and no distribution --- the complements \OGCore{} provides. Its
 outputs are the technology and fuel mix, capital requirements, emissions, and (when the
-solver is configured to expose marginals) the commodity and emissions duals.
+solver is configured to expose them) the commodity and emissions marginal costs.
 
 \subsection{The structural mismatch}
 \label{sec:mismatch}
