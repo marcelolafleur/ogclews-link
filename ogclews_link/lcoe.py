@@ -39,29 +39,69 @@ Reads (raw long CSVs, NOT signals.read_clews_matrix which loses the fuel dim):
 """
 from __future__ import annotations
 
+import glob
 import os
+import re
+
 import pandas as pd
 
-COST_FILES = (
-    ("AnnualizedInvestmentCost.csv", "AnnualizedInvestmentCost"),
-    ("AnnualFixedOperatingCost.csv", "AnnualFixedOperatingCost"),
-    ("AnnualVariableOperatingCost.csv", "AnnualVariableOperatingCost"),
-)
-PROD_FILE = ("ProductionByTechnologyByMode.csv", "ProductionByTechnologyByMode")
-USE_FILE = ("UseByTechnologyByMode.csv", "UseByTechnologyByMode")
+# Stem == value-column name for each CLEWS CSV the reconstruction reads.
+COST_STEMS = ("AnnualizedInvestmentCost", "AnnualFixedOperatingCost", "AnnualVariableOperatingCost")
+PROD_STEM = "ProductionByTechnologyByMode"
+USE_STEM = "UseByTechnologyByMode"
+INPUT_STEMS = (PROD_STEM, USE_STEM) + COST_STEMS
+
+
+def _find(csv_dir: str, stem: str) -> str | None:
+    """Path to the CLEWS CSV for ``stem``, tolerating region/year decoration (``RE1_<stem>_2050.csv``)
+    the way the rest of the link's readers glob -- but WITHOUT matching a longer sibling that merely
+    contains the stem (e.g. ``RateOfProductionByTechnologyByMode`` for ``ProductionByTechnologyByMode``,
+    or ``RateOfUseByTechnologyByMode`` for ``UseByTechnologyByMode`` -- which would silently read the
+    rate variable instead of the level). Returns None if absent. The anchored pattern allows only a
+    leading ``<REGION>_`` and a trailing ``_<year>`` around the exact stem."""
+    pat = re.compile(rf"^(?:[A-Za-z0-9]+_)?{re.escape(stem)}(?:_\d{{4}})?\.csv$")
+    hits = sorted(h for h in glob.glob(os.path.join(csv_dir, f"*{stem}*.csv"))
+                  if pat.match(os.path.basename(h)))
+    return hits[0] if hits else None
+
+
+def _require(csv_dir: str, stem: str) -> str:
+    path = _find(csv_dir, stem)
+    if path is None:
+        raise FileNotFoundError(f"lcoe: no '{stem}(.csv)' in {csv_dir}")
+    return path
 
 
 def _load_costs(csv_dir: str) -> pd.DataFrame:
     """tech x year cost = Inv + FixedO&M + VarO&M (all annual $-flows on the same basis)."""
     frames = []
-    for fname, col in COST_FILES:
-        df = pd.read_csv(os.path.join(csv_dir, fname))[["t", "y", col]].rename(columns={col: "cost"})
+    for stem in COST_STEMS:
+        df = pd.read_csv(_require(csv_dir, stem))[["t", "y", stem]].rename(columns={stem: "cost"})
         frames.append(df)
     return pd.concat(frames, ignore_index=True).groupby(["t", "y"], as_index=False)["cost"].sum()
 
 
-def _read_long(csv_dir, fname, col):
-    return pd.read_csv(os.path.join(csv_dir, fname)).rename(columns={col: "v"})
+def _read_long(csv_dir: str, stem: str) -> pd.DataFrame:
+    return pd.read_csv(_require(csv_dir, stem)).rename(columns={stem: "v"})
+
+
+def has_inputs(csv_dir: str) -> bool:
+    """Whether this scenario dir ships all CSVs the LCOE reconstruction reads (glob-resolved, so it
+    agrees with the sibling readers and the preflight checklist rather than demanding exact names)."""
+    return all(_find(csv_dir, s) is not None for s in INPUT_STEMS)
+
+
+def has_busbar_producers(csv_dir: str, busbar: str) -> bool:
+    """Whether ``busbar`` actually appears as a produced commodity in this scenario's production export
+    -- a cheap pre-solve check that the configured busbar code identifies a real generation fleet (a
+    present-but-wrong code otherwise fails only after the multi-minute baseline solve)."""
+    path = _find(csv_dir, PROD_STEM)
+    if path is None:
+        return False
+    try:
+        return busbar in set(pd.read_csv(path, usecols=["f"])["f"].unique())
+    except (ValueError, KeyError):
+        return False
 
 
 def lcoe_by_year(csv_dir: str, busbar: str, *, supply_predicate=None,
@@ -71,8 +111,8 @@ def lcoe_by_year(csv_dir: str, busbar: str, *, supply_predicate=None,
     restricts which non-generation techs may carry allocated fuel cost (default: any positive-cost
     tech whose output flows to generation). ``cost_floor``: techs with total cost below this are
     dropped as credits (default 0.0 -> drop net-negative)."""
-    prod = _read_long(csv_dir, *PROD_FILE)
-    use = _read_long(csv_dir, *USE_FILE)
+    prod = _read_long(csv_dir, PROD_STEM)
+    use = _read_long(csv_dir, USE_STEM)
     costs = _load_costs(csv_dir)
     cost_ty = {(t, y): c for t, y, c in costs.itertuples(index=False)}
     cost_total = costs.groupby("t")["cost"].sum().to_dict()

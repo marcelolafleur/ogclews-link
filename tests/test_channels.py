@@ -621,6 +621,32 @@ def test_lcoe_ratio_from_csvs():
             os.rmdir(dd)
 
 
+def test_lcoe_find_tolerates_decoration_and_avoids_rate_collision():
+    # region/year-decorated exports (RE1_<stem>_2050.csv) must resolve like the sibling readers glob,
+    # WITHOUT grabbing a longer sibling that merely CONTAINS the stem (RateOfProductionByTechnologyByMode
+    # -> the rate variable, not the level). Also exercises the pre-solve busbar-producer check.
+    import tempfile
+
+    from ogclews_link import lcoe
+    d = tempfile.mkdtemp()
+    try:
+        _write_lcoe_csvs(d, gen_inv={2026: 100.}, supply_vom={2026: 100.}, gen_out={2026: 200.})
+        os.rename(os.path.join(d, "ProductionByTechnologyByMode.csv"),
+                  os.path.join(d, "RE1_ProductionByTechnologyByMode_2050.csv"))
+        with open(os.path.join(d, "RateOfProductionByTechnologyByMode.csv"), "w") as f:
+            f.write("f,t,y,RateOfProductionByTechnologyByMode\nELC,GEN,2026,999\n")   # decoy
+        found = lcoe._find(d, "ProductionByTechnologyByMode")
+        assert found and os.path.basename(found) == "RE1_ProductionByTechnologyByMode_2050.csv"
+        assert lcoe.has_inputs(d)                                    # glob-resolved presence check
+        assert lcoe.has_busbar_producers(d, "ELC")                  # busbar names a real produced commodity
+        assert not lcoe.has_busbar_producers(d, "NOPE")             # present-but-wrong busbar -> False (fail fast)
+        assert lcoe.lcoe_by_year(d, "ELC") == {2026: 1.0}           # reader computes on the decorated name
+    finally:
+        for f in os.listdir(d):
+            os.remove(os.path.join(d, f))
+        os.rmdir(d)
+
+
 def test_cost_of_electricity_ratio_reads_workbook():
     # The cost-index source (the curated workbook) is the REAL production path for a calibrated
     # country; exercise the reader + the fail-loud missing-row guard (no fixture existed before).

@@ -343,11 +343,11 @@ def _has_cost_xlsx(scenario_dir: str) -> bool:
 
 def _has_lcoe_inputs(scenario_dir: str) -> bool:
     """Whether a scenario dir ships the raw CSVs the LCOE reconstruction reads (the production/use
-    topology + the three annual cost files). Present in every real MUIOGO/OSeMOSYS export -- the
-    same CBC solve that emits the EBb4 marginal co-produces these, so 'lcoe' is available whenever
-    the 'marginal' would be, and denser."""
-    stems = (lcoe.PROD_FILE[0], lcoe.USE_FILE[0]) + tuple(f for f, _ in lcoe.COST_FILES)
-    return all(os.path.isfile(os.path.join(scenario_dir, s)) for s in stems)
+    topology + the three annual cost files). Present in every real MUIOGO/OSeMOSYS export -- the same
+    CBC solve that emits the EBb4 marginal co-produces these, so 'lcoe' is available whenever the
+    'marginal' would be, and denser. Glob-resolved (via lcoe.has_inputs) so it agrees with the sibling
+    readers and the preflight checklist rather than demanding exact, un-decorated filenames."""
+    return lcoe.has_inputs(scenario_dir)
 
 
 # --- channel sourcing helpers: turn a CLEWS source choice into the ready value a channel applies ---
@@ -426,7 +426,7 @@ def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, f
                 "CountryConfig.busbar_electricity (e.g. 'PHL_POW_ELE') or pass busbar=...; it is the LCOE "
                 "denominator and identifies the generation fleet (the producers of that commodity).")
         ratio = lcoe.lcoe_ratio(base_dir, reform_dir, busbar)
-        files = {"base": lcoe.PROD_FILE[0], "reform": lcoe.PROD_FILE[0], "busbar": busbar}
+        files = {"base": lcoe.PROD_STEM, "reform": lcoe.PROD_STEM, "busbar": busbar}
         if ratio.dropna().empty:
             raise ValueError(
                 f"energy_price_ratio kind='lcoe': the levelized-cost ratio for busbar={busbar!r} is empty "

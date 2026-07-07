@@ -160,6 +160,7 @@ def main(argv=None):
         # instead. (calibration None -> single-industry -> energy legs skip -> no gate.)
         import inspect
 
+        from . import lcoe as _lcoe
         from . import signals as _signals
         try:
             needs_price = "_auto_price_ratio" in inspect.getsource(exp)
@@ -168,8 +169,11 @@ def main(argv=None):
         if needs_price and entry.calibration and len(pre) == 2:
             dirs = (country.scenario.base_dir, country.scenario.reform_dir)
             workbook = all(_signals._has_cost_xlsx(d) for d in dirs)
-            lcoe_ok = bool(getattr(country, "busbar_electricity", None)) and \
-                all(_signals._has_lcoe_inputs(d) for d in dirs)
+            busbar = getattr(country, "busbar_electricity", None)
+            # LCOE needs the input CSVs AND a busbar code that names a real produced commodity -- a
+            # present-but-wrong busbar would otherwise fail only AFTER the multi-minute baseline solve.
+            lcoe_ok = bool(busbar) and all(_signals._has_lcoe_inputs(d) for d in dirs) and \
+                all(_lcoe.has_busbar_producers(d, busbar) for d in dirs)
             if not (workbook or lcoe_ok):
                 raise SystemExit(
                     f"experiment {args.experiment!r} needs an energy-price source, but 'auto' has neither "

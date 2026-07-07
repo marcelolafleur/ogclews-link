@@ -1,12 +1,12 @@
 """Adapt a MUIOGO run-output directory into the sources the channels/signals consume.
 
-MUIOGO's CBC solve writes per-variable CSVs (and the EBb4 commodity-balance dual) under
+MUIOGO's CBC solve writes per-variable CSVs (and the EBb4 commodity-balance shadow price) under
 ``<DataStorage>/<case>/res/<caserun>/csv/``. This module locates that csv dir, lists the
-electricity commodity codes present in the dual export, and checks the expected files are
-there -- so ``signals.commodity_shadow_price`` (and the energy_price ``price_source="dual"``
-option) can be pointed straight at a real run. It does NOT re-extract the dual; reading the
-EBb4 marginal is ``signals.commodity_shadow_price``'s job. This is the discovery/validation
-seam between a MUIOGO run on disk and the OG-side channels.
+electricity commodity codes present in the marginal export, and checks the expected files are
+there -- so ``signals.commodity_shadow_price`` (the energy_price ``kind="marginal"`` opt-in source)
+can be pointed straight at a real run. It does NOT re-extract the marginal; reading the EBb4 shadow
+price is ``signals.commodity_shadow_price``'s job. This is the discovery/validation seam between a
+MUIOGO run on disk and the OG-side channels.
 """
 from __future__ import annotations
 
