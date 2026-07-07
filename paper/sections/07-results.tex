@@ -13,7 +13,7 @@ like the quantities, as percent changes from baseline.
 \subsection{The flagship coupled run}
 \label{sec:coupled}
 The \chan{coupled} experiment applies, in one reform: the real \CLEWS{} electricity price
-(the ``auto'' source---cost-of-electricity index or \OSeMOSYS{} commodity-balance dual)
+(the ``auto'' source---cost-of-electricity index or \OSeMOSYS{} commodity-balance marginal cost)
 through the composite transmission of \Cref{sec:routes} (inter-industry cost-push plus a
 recycled household wedge); public grid investment; a \$50/tCO\textsubscript{2} carbon
 price on the \CLEWS{} side; and the Global Burden of Disease health channel; then it emits
@@ -66,7 +66,7 @@ Table~\ref{tab:phl-channels} runs each channel as a standalone reform;
 \Cref{fig:decomposition} the cumulative decomposition that layers the channels to
 reproduce the coupled run. Four things stand out, all as \Cref{sec:channels} anticipates.
 The \emph{energy-price} channel is negligible ($Y_{ss}=-0.0005\%$): the real Philippine
-dual is near-flat, so, honestly transmitted, it does little---the illustrative $+20\%$
+electricity price is near-flat, so, honestly transmitted, it does little---the illustrative $+20\%$
 shocks of earlier work were doing the work, not the data. \emph{Carbon} is the clearest
 contraction ($Y_{ss}=-0.040\%$): a resource cost that shrinks capital and labour.
 \emph{Capital intensity} moves output only slightly at the aggregate ($-0.027\%$) but
@@ -85,7 +85,7 @@ reforms on the M=8 Philippine calibration. Source: \texttt{results/golden.json}.
 \toprule
 channel & $Y$ & $C$ & $K$ & $L$ & $r$ \\
 \midrule
-\chan{energy\_price} (real dual)      & $-0.001$ & $-0.006$ & $-0.001$ & $+0.001$ & $+0.000$ \\
+\chan{energy\_price} (real price)      & $-0.001$ & $-0.006$ & $-0.001$ & $+0.001$ & $+0.000$ \\
 \chan{clean\_incidence} (recycled)    & $+0.018$ & $-0.087$ & $+0.017$ & $+0.026$ & $+0.023$ \\
 \chan{carbon}                         & $-0.040$ & $+0.019$ & $-0.048$ & $-0.045$ & $-0.045$ \\
 \chan{capital\_intensity}             & $-0.027$ & $+0.602$ & $-0.002$ & $-0.073$ & $-0.046$ \\

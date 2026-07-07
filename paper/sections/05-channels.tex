@@ -22,7 +22,7 @@ both corrects a natural mislabeling and illustrates the discipline of
 \toprule
 \textbf{Channel} & \textbf{Dir.} & \textbf{\CLEWS{} signal} & \textbf{\OGCore{} object} & \textbf{First-order effect} \\
 \midrule
-\chan{energy\_price} & c$\to$o & energy-balance dual / cost ratio & $\tauc$ on energy good & demand $\downarrow$; regressive incidence \\
+\chan{energy\_price} & c$\to$o & electricity price (marginal cost / index) & cost-push + consumption wedge & output $\downarrow$; regressive incidence \\
 \chan{carbon} & p & carbon price (\$/tCO$_2$) & $\tauc$ + emissions penalty & demand $\downarrow$; emissions $\downarrow$ \\
 \chan{investment} & c$\to$o & public grid/T\&D capex & $\alphaI \to \Kg$ & public capital $\uparrow$; crowding-out, debt \\
 \chan{capital\_intensity} & c$\to$o & power-fleet capital-cost share & $\gammam$ (energy exponent) & energy price $\downarrow$; energy $K\downarrow$; labour share $\downarrow$ \\
@@ -35,18 +35,20 @@ both corrects a natural mislabeling and illustrates the discipline of
 \end{table}
 
 \subsection{Energy price}\label{sec:ch-energy}
-The \chan{energy\_price} function applies the consumption-tax wedge of
-\Cref{eq:routeA} on the energy good $i_e$; households then face
-$(1+\tauc_{t,i_e})p_{i_e,t}$, so energy demand falls and the composite price rises. The
-channel is now fed the Philippines' \emph{real} \CLEWS{} electricity price---the
-``auto'' source: the cost-of-electricity index where a curated workbook exists,
-otherwise the \OSeMOSYS{} commodity-balance dual on the raw run---rather than an
-illustrative shock. That price is near-flat for the Philippine scenario, so the
-standalone effect is small; a controlled $+20\%$ stress is retained only for the
-transmission comparison of \Cref{sec:routes}. Incidence is the channel's distinctive
-output: with energy a partial necessity ($\cmin>0$), a recycled price change (the
+The energy-price channel is the composite of \Cref{sec:routes}: it carries the \CLEWS{}
+electricity price into the economy through both of electricity's uses---a cost-push on
+the industries that buy it as an input (the contractionary, wage-bearing side) and a
+recycled consumption-tax wedge on households (the regressive, cost-of-living side), with
+electricity's self-use netted out so the two do not overlap. The price is the
+Philippines' \emph{real} \CLEWS{} value---the ``auto'' source: a cost-of-electricity
+index where a curated workbook exists, otherwise the \OSeMOSYS{} commodity-balance marginal cost
+on the raw run---not an illustrative shock; it is near-flat for the Philippine scenario,
+so the channel's effect is small. Incidence is the channel's distinctive output: with
+energy a partial necessity ($\cmin>0$), the recycled price change (the
 \chan{clean\_incidence} variant) is regressive---the lowest-income group bears more of
-it. Maturity: rung~A (\Cref{sec:routes}), now on the real dual.
+it. The standalone \chan{energy\_price} function applies only the household wedge
+(\Cref{eq:routeA}), used to isolate the demand response and incidence; the controlled
+$+20\%$ stress runs serve the transmission comparison.
 
 \subsection{Carbon price}\label{sec:ch-carbon}
 A single carbon price is applied once on both sides (\Cref{sec:discipline}, one-price
