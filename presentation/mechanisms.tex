@@ -217,60 +217,60 @@ and how each is represented in the model}
   industries there are, is read from the country's own model at run time.}}
 \end{frame}
 
-\begin{frame}{The load-bearing signal: the system's own marginal cost}
-  \footnotesize The energy model must balance supply and demand for every fuel, in
-  every year and season. Ask how much total system cost would rise if one more unit
-  had to be supplied, and you get that fuel's \textbf{marginal cost} --- under the
-  usual competitive reading, \emph{the price that quantity would fetch in a market}.
+\begin{frame}{The signal that links the two models: the energy price}
+  \footnotesize Of everything the energy model produces, \textbf{one number} does the
+  real work across the seam --- the \textbf{price of energy}. (The model sets it by
+  balancing supply and demand for every fuel in every season; what one more unit would
+  cost to supply \emph{is} that price.) It is the right hand-off because it does two
+  things the energy model, on its own, cannot:
   \smallskip
   \begin{columns}[T]
     \begin{column}{0.48\textwidth}
-      {\small\bfseries 1. It supplies the missing price response}\par
-      {\footnotesize Inside the energy model, demand is fixed. Hand the price to
-      \OGCore{} households --- whose energy use responds to price, down to a
-      subsistence floor --- and you get the response the optimiser lacks.}
+      {\small\bfseries 1. It lets demand respond}\par
+      {\footnotesize Inside the energy model, demand is a \emph{fixed} input. Hand the
+      price to \OGCore{} households --- whose energy use responds to price, down to a
+      subsistence floor --- and demand finally reacts.}
     \end{column}
     \begin{column}{0.48\textwidth}
-      {\small\bfseries 2. It reveals incidence}\par
-      {\footnotesize A single ``cost'' is silent on who bears it. $S\times J$ households
-      distribute the burden; because energy is a partial necessity, an energy-price
-      change is \emph{regressive} --- invisible to a single-agent model.}
+      {\small\bfseries 2. It shows who pays}\par
+      {\footnotesize A single ``system cost'' is silent on who bears it. \OGCore{}'s
+      households, by age and income, split the burden --- and because energy is a
+      partial necessity, a price rise falls hardest on the poor.}
     \end{column}
   \end{columns}
   \smallskip
-  \begin{block}{When are the two models consistent? (the target)}
-    \centering\footnotesize $D^\star = D_{\text{OG}}(\pi^\star)$ and
-    $\pi^\star = \pi_{\text{C}}(D^\star)$: the economy demands $D^\star$ at price
-    $\pi^\star$, and $\pi^\star$ is the system's marginal cost of delivering
-    $D^\star$. A single pass uses the price at \emph{baseline} demand; iterating
-    to the fixed point closes the loop.
-  \end{block}
+  {\raggedright\color{sub}\footnotesize So the energy price is the hand-off: the economy
+  reacts to it, and reveals who it hits. (The two models fully \emph{agree} once that
+  price also equals the cost of supplying what the economy then demands --- what closing
+  the loop, later, drives toward.)\par}
 \end{frame}
 
-\begin{frame}{Three routes for one energy cost}
-  \footnotesize\OGCore{} production has no energy input --- an energy-cost signal
-  must enter through one of three routes:
+\begin{frame}{Getting that price into the economy --- three routes}
+  \footnotesize We have the signal --- the energy price. But there is a catch: in
+  \OGCore{}, firms produce with only \textbf{capital and labour; energy is not a line in
+  their costs}. So a change in the energy price has no direct way in, and we must
+  \emph{choose} how to represent it. Three routes, in rising fidelity:
   \smallskip
   {\footnotesize
   \begin{itemize}\setlength\itemsep{4pt}
-    \item[\textbf{A}] \textbf{a tax wedge on household energy} --- raise the price
-      households pay by the reform/baseline ratio. Reuses existing structure and
-      shows incidence; but it touches only household energy, and its ``revenue'' is
-      phantom. Empirically $\approx$ output-neutral.
-    \item[\textbf{B}] \textbf{a supply-side cost-push} --- raise each industry's cost
-      by the energy it uses, directly and through what it buys from others, as a
+    \item[\textbf{A}] \textbf{tax the energy households buy} --- raise the price
+      households pay by the reform/baseline ratio. Reuses existing structure and shows
+      incidence; but it touches only household energy, and its ``revenue'' is phantom.
+      Empirically $\approx$ output-neutral.
+    \item[\textbf{B}] \textbf{raise firms' costs} (a cost-push) --- lift each industry's
+      cost by the energy it uses, directly and through what it buys from others, as a
       productivity cut. Right sign and materially contractionary; but firms cannot
       substitute away, so the size is only a proxy.
-    \item[\textbf{C}] \textbf{energy as a priced input to production} --- firms buy
-      energy alongside capital and labour, so the price feeds their costs directly
-      and the loop closes on quantities too. The structural ideal --- needs an
-      extension of \OGCore{} (unbuilt).
+    \item[\textbf{C}] \textbf{make energy a real input firms buy} --- alongside capital
+      and labour, so the price feeds their costs directly and the loop closes on
+      quantities too. The faithful version --- but it needs an extension of \OGCore{}
+      (unbuilt).
   \end{itemize}}
   \smallskip
-  {\raggedright\color{claret}\footnotesize\textbf{The route is a first-order
-  modelling choice:} routes A and B carry the \emph{same} physical cost to opposite
-  macro verdicts --- roughly neutral vs.\ sharply contractionary. The structurally
-  faithful route (C) is therefore the target, not a refinement.\par}
+  {\raggedright\color{claret}\footnotesize\textbf{Which route you pick changes the
+  answer:} A and B carry the \emph{same} price to opposite verdicts --- roughly neutral
+  vs.\ sharply contractionary. C is the destination, not a refinement. (Ahead: the
+  energy-price channel uses A; the coupled run adds B.)\par}
 \end{frame}
 
 % ===========================================================================
