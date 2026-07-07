@@ -2,12 +2,16 @@
 channels consume. Handles the two CLEWS CSV layouts (the 'Sum of ...' pivot and plain
 long r,t,*,y,value) and the 999999 sentinel.
 
-Two energy-price signals live here: the cost-index PROXY (cost_of_electricity_ratio) and
-the RIGOROUS one -- the dual of the OSeMOSYS commodity-balance constraint (the marginal
-energy price). MUIOGO's CBC solve (`-printing all`) already exports that dual to
-`res/<run>/csv/EBb4_EnergyBalanceEachYear4_ICR.csv` (columns r,f,y,dual,DiscountRate),
-indexed by (region, fuel, year); read it via commodity_shadow_price() /
-commodity_shadow_price_ratio().
+Three energy-price signals live here (all consumed as a reform/base RATIO on the electricity
+unit-cost/retail-price the OG channels scale): the curated cost-index workbook PROXY
+(cost_of_electricity_ratio); the LEVELIZED cost reconstructed from the raw CLEWS cost/production
+CSVs (ogclews_link.lcoe, the dense workbook-less default); and the MARGINAL price -- the shadow
+price (LP dual) of the OSeMOSYS commodity-balance constraint. MUIOGO's CBC solve (`-printing all`)
+exports that marginal to `res/<run>/csv/EBb4_EnergyBalanceEachYear4_ICR.csv` (columns
+r,f,y,dual,DiscountRate); read it via commodity_shadow_price() / commodity_shadow_price_ratio().
+The marginal is a short-run scarcity price and is degenerate in OSeMOSYS (it binds in scattered,
+scenario-specific years), so it is an EXPLICIT opt-in (kind='marginal'), never the auto default --
+see energy_price_ratio.
 """
 from __future__ import annotations
 
@@ -16,6 +20,8 @@ import os
 
 import numpy as np
 import pandas as pd
+
+from ogclews_link import lcoe
 
 # cost_of_electricity_ratio + _ratio_over_common are defined below (moved from clews_signal.py)
 
@@ -335,61 +341,104 @@ def _has_cost_xlsx(scenario_dir: str) -> bool:
                  if not os.path.basename(h).startswith("~$")])
 
 
+def _has_lcoe_inputs(scenario_dir: str) -> bool:
+    """Whether a scenario dir ships the raw CSVs the LCOE reconstruction reads (the production/use
+    topology + the three annual cost files). Present in every real MUIOGO/OSeMOSYS export -- the
+    same CBC solve that emits the EBb4 marginal co-produces these, so 'lcoe' is available whenever
+    the 'marginal' would be, and denser."""
+    stems = (lcoe.PROD_FILE[0], lcoe.USE_FILE[0]) + tuple(f for f, _ in lcoe.COST_FILES)
+    return all(os.path.isfile(os.path.join(scenario_dir, s)) for s in stems)
+
+
 # --- channel sourcing helpers: turn a CLEWS source choice into the ready value a channel applies ---
 
 def energy_price_ratio(kind, *, base_dir, reform_dir, share, og_start_year, n, fuel=None,
-                       resolved=None) -> np.ndarray:
+                       busbar=None, resolved=None) -> np.ndarray:
     """The energy GOOD's reform/base price-ratio path from CLEWS, diluted by electricity's value-share
     of the OG energy good and aligned to og_start_year (length n). ``kind``:
       'cost_index' -- the curated cost-of-electricity index PROXY (a CLEWS-OG workbook);
-      'dual'       -- the rigorous OSeMOSYS commodity-balance shadow price (the EBb4 dual; works on raw
-                      MUIOGO output), for the commodity ``fuel`` (the country's household electricity code);
-      'auto'       -- 'cost_index' when both scenario dirs ship the workbook, else 'dual' (so a pure-MUIOGO
-                      scenario, which has no workbook but does have EBb4, works without configuration).
+      'lcoe'       -- the LEVELIZED cost of electricity reconstructed from the raw CLEWS cost/production
+                      CSVs (dense + smooth; works on pure-MUIOGO output that ships no workbook), for the
+                      busbar electricity commodity ``busbar`` (the country's generation-output code);
+      'marginal'   -- the OSeMOSYS commodity-balance shadow price (the LP dual of EBb4) for the commodity
+                      ``fuel`` (the country's household electricity code). A SHORT-RUN scarcity price,
+                      degenerate in OSeMOSYS (it binds in scattered, scenario-specific years), so it is an
+                      EXPLICIT opt-in, guarded against broadcasting a single binding year (see below). The
+                      right object for a marginal/scarcity study (welfare cost, a binding cap/RPS), NOT the
+                      retail tariff the OG channels actually scale.
+      'auto'       -- 'cost_index' when both scenario dirs ship the workbook, else 'lcoe' when a busbar code
+                      is set and the cost/production CSVs are present (the pure-MUIOGO case). The marginal
+                      is NEVER selected automatically -- a levelized price is a better fit for OG's unit-
+                      cost/retail-price channels and is computable whenever the marginal is; if no levelized
+                      source is available 'auto' fails loudly rather than fall to the degenerate marginal.
     The controlled +20% case does NOT go through here -- a caller passes that scalar straight to
     energy_price(), undiluted. ``share is None`` (the country can't isolate electricity's value-share)
     returns None -- the dependent energy_price channel then skips, so this path is never consumed.
 
     ``resolved`` (optional dict) is filled with the price-source PROVENANCE -- the resolved kind and the
-    files it read -- so the run can record WHICH source ('cost_index' workbook vs the EBb4 'dual') drove
-    the result; with 'auto' the choice is otherwise invisible."""
+    files it read -- so the run can record WHICH source drove the result; with 'auto' the choice is
+    otherwise invisible."""
     if share is None:
         return None
     requested = kind
     if kind == "auto":
-        kind = "cost_index" if (_has_cost_xlsx(base_dir) and _has_cost_xlsx(reform_dir)) else "dual"
-        print(f"[provenance] energy price source: 'auto' resolved to '{kind}' "
-              f"({'cost-of-electricity workbook found in both scenario dirs' if kind == 'cost_index' else 'no workbook -> EBb4 commodity-balance dual'})")
-    if kind == "dual":
+        if _has_cost_xlsx(base_dir) and _has_cost_xlsx(reform_dir):
+            kind, why = "cost_index", "cost-of-electricity workbook found in both scenario dirs"
+        elif busbar and _has_lcoe_inputs(base_dir) and _has_lcoe_inputs(reform_dir):
+            kind, why = "lcoe", "no workbook -> levelized cost from the CLEWS cost/production CSVs"
+        else:
+            raise ValueError(
+                "energy_price_ratio kind='auto': no levelized price source is available -- neither a "
+                "cost-of-electricity workbook (in both scenario dirs) nor the LCOE inputs (a busbar "
+                "electricity code AND the ProductionByTechnologyByMode / UseByTechnologyByMode / cost "
+                "CSVs). Set CountryConfig.busbar_electricity to enable the 'lcoe' source, ship a workbook, "
+                "or request kind='marginal' explicitly (the marginal/shadow-price source is degenerate and "
+                "is never selected automatically).")
+        print(f"[provenance] energy price source: 'auto' resolved to '{kind}' ({why})")
+    if kind == "marginal":
         ratio = commodity_shadow_price_ratio(base_dir, reform_dir, fuel=fuel)
-        files = {"base": _DUAL_CONSTRAINT, "reform": _DUAL_CONSTRAINT, "fuel": fuel}
+        files = {"base": _MARGINAL_CONSTRAINT, "reform": _MARGINAL_CONSTRAINT, "fuel": fuel}
         if ratio.dropna().empty:
             raise ValueError(
-                "energy_price_ratio kind='dual': commodity-balance dual ratio is empty / all-NaN -- no "
-                "overlapping base/reform years, or a zero baseline shadow price for the matched fuel. "
-                "Check the EBb4 export, the fuel code, and the run years.")
-        # GUARDRAIL: the EBb4 dual is a SHORT-RUN marginal that is degenerate/sparse -- it binds (nonzero)
-        # in scattered years that differ between base and reform, so the base/reform overlap can collapse
-        # to a single year. _align_to_start would then BROADCAST that one point into a permanent economy-
-        # wide price shock (observed on PHL: one 2029 point = +32%). A single/near-single overlap is not a
-        # credible price PATH, so refuse it loudly rather than ship a spurious permanent shock. The fix is
-        # a levelized price: ship the cost-of-electricity workbook (kind='cost_index') or use kind='lcoe'
-        # (levelized cost from the raw CSVs), both of which are dense + smooth.
+                "energy_price_ratio kind='marginal': commodity-balance shadow-price ratio is empty / "
+                "all-NaN -- no overlapping base/reform years, or a zero baseline shadow price for the "
+                "matched fuel. Check the EBb4 export, the fuel code, and the run years.")
+        # GUARDRAIL: the marginal is a SHORT-RUN scarcity price that is degenerate/sparse -- it binds
+        # (nonzero) in scattered years that differ between base and reform, so the base/reform overlap can
+        # collapse to a single year. _align_to_start would then BROADCAST that one point into a permanent
+        # economy-wide price shock (observed on PHL: one 2029 point = +32%). A single/near-single overlap is
+        # not a credible price PATH, so refuse it loudly rather than ship a spurious permanent shock. The
+        # fix is a levelized price: kind='cost_index' (workbook) or kind='lcoe' -- both dense + smooth.
         n_overlap = int(ratio.dropna().shape[0])
-        if n_overlap < _DUAL_MIN_OVERLAP_YEARS:
+        if n_overlap < _MARGINAL_MIN_OVERLAP_YEARS:
             raise ValueError(
-                f"energy_price_ratio kind='dual': the commodity-balance dual for fuel={fuel!r} overlaps in "
-                f"only {n_overlap} year(s) between base and reform (need >= {_DUAL_MIN_OVERLAP_YEARS}). The "
-                "EBb4 dual is a sparse/degenerate short-run marginal (it binds in different years per "
-                "scenario), so a single overlapping year would broadcast to a spurious PERMANENT price "
-                "shock. Use a levelized price instead: a cost-of-electricity workbook (kind='cost_index') "
-                "or kind='lcoe' (levelized cost reconstructed from the CLEWS cost/production CSVs).")
+                f"energy_price_ratio kind='marginal': the commodity-balance shadow price for fuel={fuel!r} "
+                f"overlaps in only {n_overlap} year(s) between base and reform (need >= "
+                f"{_MARGINAL_MIN_OVERLAP_YEARS}). The marginal is a sparse/degenerate short-run price (it "
+                "binds in different years per scenario), so a single overlapping year would broadcast to a "
+                "spurious PERMANENT price shock. Use a levelized price instead: a cost-of-electricity "
+                "workbook (kind='cost_index') or kind='lcoe' (levelized cost from the CLEWS cost/production "
+                "CSVs).")
+    elif kind == "lcoe":
+        if not busbar:
+            raise ValueError(
+                "energy_price_ratio kind='lcoe' needs the busbar electricity commodity code -- set "
+                "CountryConfig.busbar_electricity (e.g. 'PHL_POW_ELE') or pass busbar=...; it is the LCOE "
+                "denominator and identifies the generation fleet (the producers of that commodity).")
+        ratio = lcoe.lcoe_ratio(base_dir, reform_dir, busbar)
+        files = {"base": lcoe.PROD_FILE[0], "reform": lcoe.PROD_FILE[0], "busbar": busbar}
+        if ratio.dropna().empty:
+            raise ValueError(
+                f"energy_price_ratio kind='lcoe': the levelized-cost ratio for busbar={busbar!r} is empty "
+                "-- no overlapping base/reform years with nonzero generation. Check the busbar code and that "
+                "ProductionByTechnologyByMode + the cost CSVs are present in both scenario dirs.")
     elif kind == "cost_index":
         bx, rx = _cost_xlsx(base_dir), _cost_xlsx(reform_dir)
         ratio = cost_of_electricity_ratio(bx, rx)
         files = {"base": os.path.basename(bx), "reform": os.path.basename(rx)}
     else:
-        raise ValueError(f"energy_price_ratio: unknown kind {kind!r} (use 'cost_index' or 'dual')")
+        raise ValueError(
+            f"energy_price_ratio: unknown kind {kind!r} (use 'cost_index', 'lcoe', 'marginal', or 'auto')")
     if resolved is not None:
         resolved.update({"requested": requested, "kind": kind, **files})
     return _align_to_start(1.0 + share * (ratio - 1.0), og_start_year, n)
@@ -430,20 +479,20 @@ def pm25_dose_response(country, *, override=None) -> float:
     return float(M)
 
 
-_DUAL_CONSTRAINT = "EBb4_EnergyBalanceEachYear4_ICR"  # OSeMOSYS annual commodity balance
+_MARGINAL_CONSTRAINT = "EBb4_EnergyBalanceEachYear4_ICR"  # OSeMOSYS annual commodity balance
 
 
-_DUAL_ZERO_ATOL = 1e-3   # CBC dual reporting resolution: |dual| at/below this is slack/noise, not a price
+_MARGINAL_ZERO_ATOL = 1e-3   # CBC dual reporting resolution: |dual| at/below this is slack/noise, not a price
 
-# Minimum base/reform overlapping years for the sparse EBb4 dual to be a credible price PATH. Below this,
-# _align_to_start would broadcast a near-single point into a spurious permanent shock (see the guardrail in
-# energy_price_ratio); the levelized 'cost_index'/'lcoe' sources are dense and are the right fallback.
-_DUAL_MIN_OVERLAP_YEARS = 3
+# Minimum base/reform overlapping years for the sparse marginal (EBb4 shadow price) to be a credible price
+# PATH. Below this, _align_to_start would broadcast a near-single point into a spurious permanent shock (see
+# the guardrail in energy_price_ratio); the levelized 'cost_index'/'lcoe' sources are dense and preferred.
+_MARGINAL_MIN_OVERLAP_YEARS = 3
 
 
 def commodity_shadow_price(source, *, fuel=None, undiscount=True, start_year=None,
-                           drop_zero=True, zero_atol=_DUAL_ZERO_ATOL,
-                           constraint=_DUAL_CONSTRAINT) -> pd.Series:
+                           drop_zero=True, zero_atol=_MARGINAL_ZERO_ATOL,
+                           constraint=_MARGINAL_CONSTRAINT) -> pd.Series:
     """The rigorous energy price: the annual dual of the OSeMOSYS commodity-balance
     constraint, as exported by a MUIOGO CBC solve to
     `res/<run>/csv/EBb4_EnergyBalanceEachYear4_ICR.csv` (columns r,f,y,<dual>,DiscountRate).

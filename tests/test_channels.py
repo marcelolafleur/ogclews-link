@@ -566,6 +566,61 @@ def _write_cost_workbook(path, vals_by_year):
     pd.DataFrame(data).to_excel(path, index=False)
 
 
+def _write_lcoe_csvs(d, *, gen_inv, supply_vom, gen_out, busbar="ELC", fuel="COAL",
+                     gen="GEN", mine="MINE"):
+    """A minimal MUIOGO/OSeMOSYS export for the LCOE reader: one generation tech (``gen``, produces
+    ``busbar`` and consumes ``fuel``) + one fuel supplier (``mine``, produces ``fuel``). Args are
+    per-year dicts. LCOE = (gen own annualized capex + supplier var-O&M ALLOCATED to power by
+    use-share) / busbar generation; with a single fuel user the share is 1, so numerator =
+    gen_inv + supply_vom."""
+    import pandas as pd
+    ys = sorted(gen_out)
+
+    def w(fname, rows):
+        pd.DataFrame(rows).to_csv(os.path.join(d, fname), index=False)
+
+    w("AnnualizedInvestmentCost.csv",
+      [{"t": gen, "y": y, "AnnualizedInvestmentCost": gen_inv[y]} for y in ys])
+    w("AnnualFixedOperatingCost.csv",
+      [{"t": gen, "y": y, "AnnualFixedOperatingCost": 0.0} for y in ys])
+    w("AnnualVariableOperatingCost.csv",
+      [{"t": mine, "y": y, "AnnualVariableOperatingCost": supply_vom[y]} for y in ys])
+    w("ProductionByTechnologyByMode.csv",
+      [{"f": busbar, "t": gen, "y": y, "ProductionByTechnologyByMode": gen_out[y]} for y in ys] +
+      [{"f": fuel, "t": mine, "y": y, "ProductionByTechnologyByMode": gen_out[y]} for y in ys])
+    w("UseByTechnologyByMode.csv",
+      [{"f": fuel, "t": gen, "y": y, "UseByTechnologyByMode": gen_out[y]} for y in ys])
+
+
+def test_lcoe_ratio_from_csvs():
+    # The workbook-less levelized source: numerator = generation own annualized capex + the upstream
+    # fuel-supply cost ALLOCATED to power by use-share; denominator = busbar generation. This fixture
+    # has one gen tech + one fuel supplier, so the fuel-allocation share is 1. Base LCOE = (100+100)/200
+    # = 1.0; the reform RAISES capex (150) but CUTS fuel (90) -> (150+90)/200 = 1.2. The fuel term is
+    # exactly what credits the reform's fuel savings against its higher capex (omitting it would report
+    # 1.5, overstating the premium).
+    import tempfile
+
+    from ogclews_link import lcoe
+    b, r = tempfile.mkdtemp(), tempfile.mkdtemp()
+    try:
+        _write_lcoe_csvs(b, gen_inv={2026: 100., 2027: 100.}, supply_vom={2026: 100., 2027: 100.},
+                         gen_out={2026: 200., 2027: 200.})
+        _write_lcoe_csvs(r, gen_inv={2026: 150., 2027: 150.}, supply_vom={2026: 90., 2027: 90.},
+                         gen_out={2026: 200., 2027: 200.})
+        assert lcoe.lcoe_by_year(b, "ELC") == {2026: 1.0, 2027: 1.0}
+        ratio = lcoe.lcoe_ratio(b, r, "ELC")
+        assert abs(ratio.loc[2026] - 1.2) < 1e-9 and abs(ratio.loc[2027] - 1.2) < 1e-9
+        # a supply_predicate that excludes the real fuel supplier must trip the completeness guard
+        with __import__("pytest").raises(AssertionError, match="MATERIAL fuel producer"):
+            lcoe.lcoe_by_year(r, "ELC", supply_predicate=lambda t: False)
+    finally:
+        for dd in (b, r):
+            for f in os.listdir(dd):
+                os.remove(os.path.join(dd, f))
+            os.rmdir(dd)
+
+
 def test_cost_of_electricity_ratio_reads_workbook():
     # The cost-index source (the curated workbook) is the REAL production path for a calibrated
     # country; exercise the reader + the fail-loud missing-row guard (no fixture existed before).
@@ -891,35 +946,49 @@ def test_transmissions_touch_disjoint_state():
     assert np.allclose(ctx3.og_reform.Z, bZ3)
 
 
-def test_energy_price_ratio_auto_selects_dual_without_workbook():
-    # 'auto' uses the curated cost-of-electricity workbook when present, else the EBb4 dual -- so raw
-    # MUIOGO output (no workbook) works without configuration. Here the scenario dirs hold only EBb4
-    # CSVs, so 'auto' must resolve to the dual and equal an explicit kind='dual'.
+def test_energy_price_ratio_auto_prefers_lcoe_never_marginal():
+    # 'auto' policy: workbook -> lcoe -> NEVER the marginal. With no workbook but the LCOE CSVs + a
+    # busbar code, 'auto' resolves to 'lcoe' (dense/smooth) and equals an explicit kind='lcoe'. With
+    # ONLY the EBb4 marginal export (no workbook, no LCOE inputs, no busbar), 'auto' must RAISE loudly:
+    # it never silently falls to the degenerate marginal (which would broadcast a single binding year).
     import tempfile
 
-    csv = ("r,f,y,EBb4_EnergyBalanceEachYear4_ICR,DiscountRate\n"
-           "RE1,ELC,2026,2.0,0.0\nRE1,ELC,2027,2.0,0.0\n")
-    bdir = tempfile.mkdtemp(); rdir = tempfile.mkdtemp()
+    import pytest
+    b, r = tempfile.mkdtemp(), tempfile.mkdtemp()
     try:
-        for d in (bdir, rdir):
-            with open(os.path.join(d, "EBb4_EnergyBalanceEachYear4_ICR.csv"), "w") as f:
-                f.write(csv)
-        assert not signals._has_cost_xlsx(bdir) and not signals._has_cost_xlsx(rdir)
-        kw = dict(base_dir=bdir, reform_dir=rdir, share=0.5, og_start_year=2026, n=2, fuel="ELC")
-        auto = signals.energy_price_ratio("auto", **kw)
-        dual = signals.energy_price_ratio("dual", **kw)
-        assert auto is not None and np.allclose(auto, dual)              # auto == dual here
-        assert np.allclose(auto, 1.0)                                    # self-ratio -> no price move
+        _write_lcoe_csvs(b, gen_inv={2026: 100., 2027: 100.}, supply_vom={2026: 100., 2027: 100.},
+                         gen_out={2026: 200., 2027: 200.})
+        _write_lcoe_csvs(r, gen_inv={2026: 150., 2027: 150.}, supply_vom={2026: 90., 2027: 90.},
+                         gen_out={2026: 200., 2027: 200.})
+        kw = dict(base_dir=b, reform_dir=r, share=0.5, og_start_year=2026, n=2, busbar="ELC")
+        resolved = {}
+        auto = signals.energy_price_ratio("auto", resolved=resolved, **kw)
+        lc = signals.energy_price_ratio("lcoe", **kw)
+        assert resolved["requested"] == "auto" and resolved["kind"] == "lcoe"
+        assert np.allclose(auto, lc) and np.allclose(auto, [1.10, 1.10])   # 1 + 0.5*(1.2-1)
+
+        # only the EBb4 marginal present (no workbook / no LCOE inputs / no busbar) -> auto refuses
+        eb = tempfile.mkdtemp()
+        with open(os.path.join(eb, "EBb4_EnergyBalanceEachYear4_ICR.csv"), "w") as f:
+            f.write("r,f,y,EBb4_EnergyBalanceEachYear4_ICR,DiscountRate\nRE1,ELC,2026,2.0,0.0\n")
+        try:
+            with pytest.raises(ValueError, match="no levelized price source"):
+                signals.energy_price_ratio("auto", base_dir=eb, reform_dir=eb, share=0.5,
+                                           og_start_year=2026, n=2, fuel="ELC")
+        finally:
+            os.remove(os.path.join(eb, "EBb4_EnergyBalanceEachYear4_ICR.csv"))
+            os.rmdir(eb)
     finally:
-        for d in (bdir, rdir):
-            os.remove(os.path.join(d, "EBb4_EnergyBalanceEachYear4_ICR.csv"))
-            os.rmdir(d)
+        for dd in (b, r):
+            for f in os.listdir(dd):
+                os.remove(os.path.join(dd, f))
+            os.rmdir(dd)
 
 
-def test_energy_price_dual_source():
-    # price_source="dual" drives the energy wedge from the commodity-balance dual RATIO (not
-    # the controlled shock). Stub the reader so the branch + alignment are exercised with no
-    # CLEWS files and no OG solve.
+def test_energy_price_marginal_source():
+    # kind='marginal' drives the energy wedge from the commodity-balance shadow-price RATIO (not the
+    # controlled shock). Stub the reader so the branch + guardrail + alignment are exercised with no
+    # CLEWS files and no OG solve. Three overlapping years clear the sparse-marginal guardrail.
     import pandas as pd
 
     ctx = _ctx()
@@ -927,19 +996,36 @@ def test_energy_price_dual_source():
     share = float(np.asarray(ctx.og_reform.io_matrix)[I_E, M_E])      # electricity's share of the energy good
     n = np.asarray(ctx.og_reform.tau_c).shape[0]
     orig = signals.commodity_shadow_price_ratio
-    signals.commodity_shadow_price_ratio = lambda b, r, **k: pd.Series([1.20, 1.20], index=[sy, sy + 1])
+    signals.commodity_shadow_price_ratio = lambda b, r, **k: pd.Series([1.20, 1.20, 1.20],
+                                                                       index=[sy, sy + 1, sy + 2])
     try:
         # sourcing (dispatch + dilution + align) now lives in signals.energy_price_ratio; the channel
         # just applies the ready good-level ratio.
-        ratio = signals.energy_price_ratio("dual", base_dir=PHL.scenario.base_dir,
+        ratio = signals.energy_price_ratio("marginal", base_dir=PHL.scenario.base_dir,
                                            reform_dir=PHL.scenario.reform_dir, share=share,
                                            og_start_year=sy, n=n)
         channels.energy_price(ctx, price_ratio=ratio)
     finally:
         signals.commodity_shadow_price_ratio = orig
     tau = np.asarray(ctx.og_reform.tau_c)[0, I_E]
-    # electricity dual ratio is diluted by `share` into the broader energy good, then folded into (1+tau)
+    # electricity marginal ratio is diluted by `share` into the broader energy good, then folded into (1+tau)
     assert abs((1 + tau) - (1 + share * 0.20) * 1.12) < 1e-9, tau
+
+
+def test_energy_price_marginal_guardrail_rejects_sparse_overlap():
+    # the marginal is degenerate: if base/reform overlap in fewer than the minimum years, refuse rather
+    # than let _align_to_start broadcast a single binding year into a permanent shock.
+    import pandas as pd
+
+    import pytest
+    orig = signals.commodity_shadow_price_ratio
+    signals.commodity_shadow_price_ratio = lambda b, r, **k: pd.Series([1.32], index=[2029])
+    try:
+        with pytest.raises(ValueError, match="overlaps in only 1 year"):
+            signals.energy_price_ratio("marginal", base_dir="x", reform_dir="y", share=1.0,
+                                       og_start_year=2026, n=10, fuel="ELC")
+    finally:
+        signals.commodity_shadow_price_ratio = orig
 
 
 def test_muiogo_run_reader():

@@ -152,10 +152,12 @@ def main(argv=None):
                 pre[side] = preflight(d, label=side)   # loud export checklist BEFORE the expensive solve
         entry = registry.lookup(country)    # OG-model provenance for the manifest (and fail-fast)
         # FAIL-FAST, not warn-then-burn: an experiment that unconditionally sources the energy price
-        # (its source calls _auto_price_ratio) needs the cost workbook or the EBb4 dual in BOTH scenario
-        # dirs. If neither exists -- and the registered calibration is couplable, so the energy legs
-        # won't just skip -- the run is GUARANTEED to die after the multi-minute baseline solve; refuse
-        # now with the fix instead. (calibration None -> single-industry -> energy legs skip -> no gate.)
+        # (its source calls _auto_price_ratio) needs a LEVELIZED 'auto' source in BOTH scenario dirs --
+        # the cost-of-electricity workbook, OR the LCOE inputs (a busbar code + the production/use/cost
+        # CSVs). The EBb4 marginal does NOT satisfy 'auto' (it is opt-in only). If no levelized source
+        # exists -- and the registered calibration is couplable, so the energy legs won't just skip --
+        # the run is GUARANTEED to die after the multi-minute baseline solve; refuse now with the fix
+        # instead. (calibration None -> single-industry -> energy legs skip -> no gate.)
         import inspect
 
         from . import signals as _signals
@@ -164,16 +166,18 @@ def main(argv=None):
         except (OSError, TypeError):        # no source (frozen/builtin) -> can't tell -> don't gate
             needs_price = False
         if needs_price and entry.calibration and len(pre) == 2:
-            ebb4 = all(v.get("EBb4_EnergyBalanceEachYear4_ICR") for v in pre.values())
-            workbook = all(_signals._has_cost_xlsx(d) for d in
-                           (country.scenario.base_dir, country.scenario.reform_dir))
-            if not (ebb4 or workbook):
+            dirs = (country.scenario.base_dir, country.scenario.reform_dir)
+            workbook = all(_signals._has_cost_xlsx(d) for d in dirs)
+            lcoe_ok = bool(getattr(country, "busbar_electricity", None)) and \
+                all(_signals._has_lcoe_inputs(d) for d in dirs)
+            if not (workbook or lcoe_ok):
                 raise SystemExit(
-                    f"experiment {args.experiment!r} needs an energy-price source, but neither the "
-                    "cost-of-electricity workbook nor the EBb4 commodity-balance dual is present in "
-                    "both scenario dirs (see the export checklist above). Re-solve the CLEWS case with "
-                    "CBC and '-printing all' (produces the EBb4 export), or point --clews-base/"
-                    "--clews-reform at run dirs that carry a price source.")
+                    f"experiment {args.experiment!r} needs an energy-price source, but 'auto' has neither "
+                    "a cost-of-electricity workbook nor the LCOE inputs (CountryConfig.busbar_electricity "
+                    "+ the ProductionByTechnologyByMode / UseByTechnologyByMode / annual cost CSVs) in "
+                    "both scenario dirs (see the export checklist above). A MUIOGO CBC solve produces the "
+                    "LCOE CSVs; set busbar_electricity for the country. (The EBb4 marginal is NOT an 'auto' "
+                    "source -- it is a degenerate short-run price, opt-in via kind='marginal' only.)")
         og_model = {"repo": entry.key, "package": entry.package, "version": entry.version,
                     "env_python": entry.env_python}
         ctx = framework.run(

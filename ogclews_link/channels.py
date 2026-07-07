@@ -115,8 +115,8 @@ def energy_price(ctx, price_ratio, *, energy_subsistence_floor=0.0, recycle_reve
         raise ValueError(                        # price): a degenerate source, not a real price signal.
             f"energy_price: price ratio has non-positive entries (min={float(np.min(r)):.4g}); "
             "r*(1+tau)-1 would set a <= -100% consumption wedge on the energy good. This means a degenerate "
-            "price source (an all-slack/empty dual, or a CLEWS horizon ending before og_start_year so the "
-            "aligned path is all-zero). Check the energy-price source and alignment.")
+            "price source (an all-slack/empty marginal, or a CLEWS horizon ending before og_start_year so "
+            "the aligned path is all-zero). Check the energy-price source and alignment.")
     tau[:, i_e] = r * (1.0 + tau[:, i_e]) - 1.0  # permanent: full tail
     p.tau_c = tau
     dtau = tau[:, i_e] - before

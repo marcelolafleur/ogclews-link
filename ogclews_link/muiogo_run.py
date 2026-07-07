@@ -77,16 +77,20 @@ def verify_run(csv_dir: str, required=(_EBB4, "Demand")) -> dict:
     return {stem: bool(glob.glob(os.path.join(csv_dir, f"*{stem}*.csv"))) for stem in required}
 
 
-# The MUIOGO export contract the channels consume -- stem -> which channel needs it. The EBb4 dual only
-# exists when the case was solved with CBC and '-printing all'; the rest are standard MUIOGO result CSVs.
+# The MUIOGO export contract the channels consume -- stem -> which channel needs it. The LCOE 'auto'
+# price is reconstructed from the production/use topology + the annual cost CSVs (all standard MUIOGO
+# result CSVs); the EBb4 marginal only exists when the case was solved with CBC and '-printing all', and
+# is the opt-in 'marginal' source only (NOT used by 'auto').
 PREFLIGHT_STEMS = {
-    _EBB4: "energy price 'auto'/'dual' source (needs a CBC solve with '-printing all')",
+    "ProductionByTechnologyByMode": "energy price 'auto' (LCOE denominator: busbar generation)",
+    "UseByTechnologyByMode": "energy price 'auto' (LCOE fuel-chain allocation)",
+    "AnnualizedInvestmentCost": "capital-intensity channel + LCOE 'auto' (annualized capex)",
+    "AnnualFixedOperatingCost": "capital-intensity channel + LCOE 'auto' (fixed O&M)",
+    "AnnualVariableOperatingCost": "capital-intensity channel + LCOE 'auto' (variable O&M / fuel)",
     "Demand": "demand write-back baseline (emit_energy_demand)",
     "CapitalInvestment": "public-investment channel (power capex delta)",
-    "AnnualizedInvestmentCost": "capital-intensity channel (capital cost share)",
-    "AnnualFixedOperatingCost": "capital-intensity channel (O&M denominator)",
-    "AnnualVariableOperatingCost": "capital-intensity channel (O&M denominator)",
     "AnnualTechnologyEmission": "carbon + health channels (matches the ...ByMode variant too)",
+    _EBB4: "energy price 'marginal' OPT-IN only (a CBC '-printing all' export; NOT used by 'auto')",
 }
 
 

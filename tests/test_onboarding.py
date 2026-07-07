@@ -182,15 +182,29 @@ def test_dual_multi_region_warns_but_works(tmp_path, capsys):
 # --- price-source provenance -------------------------------------------------------
 
 def test_energy_price_ratio_records_resolved_source(tmp_path):
+    # 'auto' on a pure-MUIOGO export (no workbook) resolves to the levelized 'lcoe' source and records
+    # its provenance (resolved kind + busbar) so the run's manifest shows WHICH source drove the price.
+    def _write_lcoe(d):
+        for fname, col, tech, val in (
+                ("AnnualizedInvestmentCost.csv", "AnnualizedInvestmentCost", "GEN", 100.0),
+                ("AnnualFixedOperatingCost.csv", "AnnualFixedOperatingCost", "GEN", 0.0),
+                ("AnnualVariableOperatingCost.csv", "AnnualVariableOperatingCost", "MINE", 100.0)):
+            (d / fname).write_text(f"t,y,{col}\n{tech},2026,{val}\n{tech},2027,{val}\n")
+        (d / "ProductionByTechnologyByMode.csv").write_text(
+            "f,t,y,ProductionByTechnologyByMode\nELC,GEN,2026,200\nELC,GEN,2027,200\n"
+            "COAL,MINE,2026,200\nCOAL,MINE,2027,200\n")
+        (d / "UseByTechnologyByMode.csv").write_text(
+            "f,t,y,UseByTechnologyByMode\nCOAL,GEN,2026,200\nCOAL,GEN,2027,200\n")
+
     base, reform = tmp_path / "b", tmp_path / "r"
     for d in (base, reform):
         d.mkdir()
-        _write_ebb4(str(d), fuels=("TST_HOU_ELE",))
+        _write_lcoe(d)
     resolved = {}
     out = signals.energy_price_ratio("auto", base_dir=str(base), reform_dir=str(reform), share=1.0,
-                                     og_start_year=2026, n=5, fuel="TST_HOU_ELE", resolved=resolved)
-    assert resolved["requested"] == "auto" and resolved["kind"] == "dual"
-    assert np.allclose(out, 1.0)                          # identical base/reform duals -> flat ratio
+                                     og_start_year=2026, n=5, busbar="ELC", resolved=resolved)
+    assert resolved["requested"] == "auto" and resolved["kind"] == "lcoe" and resolved["busbar"] == "ELC"
+    assert np.allclose(out, 1.0)                          # identical base/reform -> flat ratio
 
 
 # --- health channel skip path ------------------------------------------------------
@@ -382,7 +396,7 @@ def test_manifest_excludes_provenance_only_records(tmp_path):
     cc = config_from_dict(ENTRY)
     ctx = _fake_ctx(cc, tmp_path)
     ctx.log("investment", pct_gdp=0.1)
-    ctx.log("energy_price_source", provenance_only=True, kind="dual")
+    ctx.log("energy_price_source", provenance_only=True, kind="lcoe")
     def fake_exp(ctx, solve):
         """A fake experiment."""
     path = write_run_manifest(str(tmp_path), fake_exp, cc, ctx)
