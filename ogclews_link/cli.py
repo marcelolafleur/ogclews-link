@@ -153,6 +153,12 @@ def main(argv=None):
                 print(f"  {CLEWS_SCENARIO_HELP}")
             else:
                 pre[side] = preflight(d, label=side)   # loud export checklist BEFORE the expensive solve
+        # Health-data notice BEFORE the solve: the GBD extract is machine-local (never shipped with the
+        # repo), so a fresh install runs without it and the health channel skips. Say so now -- a tester
+        # should not learn it 20 minutes into the solve.
+        if getattr(country, "gbd_burden_csv", None) is None:
+            print("health data: no GBD export on disk -> the health channel will SKIP this run "
+                  "(everything else proceeds). To enable it, download the extract per DATA.md.")
         entry = registry.lookup(country)    # OG-model provenance for the manifest (and fail-fast)
         # FAIL-FAST, not warn-then-burn: an experiment that unconditionally sources the energy price
         # (its source calls _auto_price_ratio) needs a LEVELIZED 'auto' source in BOTH scenario dirs --

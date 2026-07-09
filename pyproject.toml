@@ -48,7 +48,7 @@ dev = ["pytest>=6.0", "pytest-xdist"]
 ogclews-link = "ogclews_link.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/SeaCelo/ogclews-link"
+Homepage = "https://github.com/marcelolafleur/ogclews-link"
 
 [tool.setuptools.packages.find]
 include = ["ogclews_link*"]              # catches ogclews_link AND ogclews_link.viz

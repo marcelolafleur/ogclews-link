@@ -199,9 +199,11 @@ def lookup(model, path: str | None = None, *, require_env: bool = True) -> Model
     if entry is None:
         raise ModelNotInstalledError(
             f"No OG model registered for '{ident}'. Registry: {rp}"
-            f"{' (+ MUIOGO install)' if saw_muiogo else ''}. Install + register it "
-            f"(`ogclews-link models register --path <dir>`, or via the MUIOGO OG installer/tab), or set "
-            f"${ENV_VAR} to a registry that has it.")
+            f"{' (+ MUIOGO install)' if saw_muiogo else ''}. Register your checkout under this EXACT key: "
+            f"`ogclews-link models register --path <dir> --key {ident}` -- the key must equal the "
+            f"country's og_repo ('{ident}'); without --key it defaults to the directory's name, which is "
+            f"wrong for worktrees/renamed folders. (Or install via the MUIOGO OG installer/tab, or set "
+            f"${ENV_VAR} to a registry that has it.)")
     if require_env and not os.path.exists(entry.env_python):
         raise ModelNotInstalledError(
             f"OG model env for '{entry.key}' ({entry.package}) not found at {entry.env_python}. "
