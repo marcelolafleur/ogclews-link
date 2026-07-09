@@ -44,7 +44,11 @@ ran stale code via import shadowing (2026-07-07) — these are load-bearing, not
 
 ## Orchestration
 
-The main loop orchestrates and verifies; execution work is delegated to agents (Opus 4.8). Judgment
-lives in files (this one, checklists, skills), so executors run them mechanically and report
-PASS/FAIL with evidence. The orchestrator spot-checks results before acting on them; executors never
-bless their own output.
+The main loop orchestrates and verifies; execution is delegated by the **checklist test**: work with
+a written checklist + verifiable output routes DOWN (Opus 4.8 = anything a human sees / big
+decisions; Sonnet 5 = standard work from a clear spec; Haiku 4.5 = scoped grunt work, always with
+grep); judgment that can't be written down stays UP. Every delegation ships a brief stating, per
+step, what you should SEE if it worked; the likeliest failure + countermove; the stop-and-report
+conditions; and a flag list of anything unverified. Judgment lives in files (this one, checklists,
+skills), so executors run them mechanically and report PASS/FAIL with evidence. The orchestrator
+spot-checks results before acting on them; executors never bless their own output.
