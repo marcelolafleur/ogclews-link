@@ -2,8 +2,8 @@
 cumulative channel set (energy price -> + investment -> + carbon -> + health). Dumps a
 layered_results.json the visual consumes. One-way (each step takes CLEWS as given).
 
-    PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
-      /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/run_across_steps.py
+    PYTHONPATH=<this repo checkout> \
+      <og-model-venv>/bin/python experiments/run_across_steps.py
 
 Runs UNDER the OG model's interpreter (it builds the full deck, which needs OG-Core's native plotting
 and the SS income factor). It injects og_runner's IN-PROCESS solve callables into the same generic
@@ -20,7 +20,9 @@ from ogclews_link import channels, framework, og_runner, registry, report, signa
 from ogclews_link.country import PHL
 from ogclews_link.experiments import ACROSS_STEPS
 
-OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs"
+# Repo-relative: outputs land in THIS checkout's ogclews_runs/, whichever worktree runs it
+# (a hardcoded main-repo path here once wrote a worktree's results into the wrong tree).
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "ogclews_runs")
 
 
 def main():
