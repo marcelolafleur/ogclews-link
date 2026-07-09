@@ -18,9 +18,11 @@ is well defined.
 \paragraph{The energy price.}
 The electricity price handed to the macro side is the country's \emph{real} \CLEWS{}
 price---the ``auto'' source: a curated cost-of-electricity index where available,
-otherwise the \OSeMOSYS{} commodity-balance marginal cost on the raw run---taken as a reform/base
-ratio so the (uncalibrated) money units cancel. For the Philippine scenario pair this
-ratio is near-flat. It is transmitted through the composite of \Cref{sec:routes}: an
+otherwise the levelized cost of electricity (LCOE) reconstructed from the run's
+per-technology costs and generation (the commodity-balance shadow price is degenerate,
+binding in only scattered years, so it is not used)---taken as a reform/base ratio so the
+(uncalibrated) money units cancel. For the Philippine reform this LCOE ratio averages
+about $1.05$ (rising to $1.16$ by 2030). It is transmitted through the composite of \Cref{sec:routes}: an
 inter-industry cost-push weighted by electricity's input-cost share $\phi_j$ across
 industries (read from the SAM), with electricity's own self-use carried instead by a
 recycled household wedge on the electricity value-share of the energy good. The direct

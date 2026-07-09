@@ -7,7 +7,7 @@ scenario; a \emph{wedge} is a parameter of \OGCore{} that a signal sets; a
 \emph{channel} is a named, guard-railed map from a signal to a wedge. The remainder of
 this section defines these objects (\Cref{sec:signals-wedges}), identifies the
 privileged signal---the marginal cost on the energy-balance constraint
-(\Cref{sec:dual})---shows how the energy channel carries an electricity-price change into
+(\Cref{sec:signal})---shows how the energy channel carries an electricity-price change into
 a core that contains no energy in production (\Cref{sec:routes}), describes the staged
 orchestration and the interface contract that make the mapping auditable
 (\Cref{sec:architecture}), and states the accounting principles that keep a single
@@ -57,16 +57,20 @@ country-agnostic: no hard-coded country, industry index, or industry count are b
 those are read from the calibration and the declared concordance (\Cref{sec:architecture}).
 \end{remark}
 
-\subsection{The marginal cost as the load-bearing signal}
-\label{sec:dual}
+\subsection{The levelized cost of electricity as the load-bearing signal}
+\label{sec:signal}
 
-Among the signals, the marginal cost on the energy-balance constraint is privileged.
-In the \OSeMOSYS{} program \citep{howells_osemosys_2011} each commodity carries a
-balance constraint requiring supply to meet demand in every timeslice and year; the
-marginal cost that constraint carries is what the least-cost system would pay to deliver
-one additional unit of the commodity. Under the usual competitive interpretation it
-is the price that would clear that quantity, and it is therefore the natural object to
-hand to a demand system. Two properties make it load-bearing.
+Among the signals, the price of electricity is privileged. Its theoretically clean form
+is a marginal cost --- the \emph{shadow price} on the \OSeMOSYS{} commodity-balance
+constraint \citep{howells_osemosys_2011} (which requires supply to meet demand in every
+timeslice and year), what the least-cost system would pay to deliver one more unit, and
+under the competitive interpretation the price that clears the market. But that shadow
+price is degenerate in this model: it binds in only scattered years and is near-zero
+elsewhere, so it is unusable as a smooth long-run signal (it is kept for scarcity
+studies). The coupling therefore uses the \emph{levelized cost of electricity} (LCOE):
+the all-in average cost of a unit of delivered power --- capital recovery, operation and
+maintenance, and fuel --- a dense, robust proxy for the price the economy faces. Two
+properties make it load-bearing.
 
 First, it closes an elasticity gap. Inside the energy optimiser, demand is an
 exogenous datum.
@@ -96,7 +100,7 @@ These two roles define what it means for the coupling to be internally consisten
 \label{def:fixedpoint}
 Let $D_{\text{OG}}(\pi)$ be the energy demand \OGCore{} implies when households (and,
 in the structural form of \Cref{sec:routes}, firms) face energy price $\pi$, and let
-$\pi_{\text{C}}(D)$ be the \CLEWS{} marginal cost of delivering $D$. A \emph{consistent} coupling is a pair $(\pi^\star, D^\star)$ with
+$\pi_{\text{C}}(D)$ be the \CLEWS{} price of delivering $D$ (its levelized cost). A \emph{consistent} coupling is a pair $(\pi^\star, D^\star)$ with
 \[
   D^\star = D_{\text{OG}}(\pi^\star)
   \qquad\text{and}\qquad
