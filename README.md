@@ -55,10 +55,15 @@ The first run solves the baseline (a few minutes), then applies the channels and
 
 8) ## Results
 Under `./ogclews_runs/coupled/`:
+- **`index.html`** — a self-contained figure deck, built automatically at the end of the run (open it in a
+  browser); the figures live in `figures/`. It shows only *this* run's results — no hardcoded scenario, so
+  it works for any model or country. Pass `--no-figures` to skip it (it can be rebuilt later, no re-solve).
 - **`macro_table.csv`** — the headline: % change (reform vs baseline) in GDP, consumption, capital, labour,
   interest rate, and wage — by year and at the steady state.
 - **`ogclews_manifest.json`** — what ran, channel by channel.
 - `clews_inputs/`, `reform/` — the feedback files sent back toward CLEWS, and the raw solved output.
+- `clews_source/` — the CLEWS export slices the deck used, copied in so the figures rebuild without the
+  original MUIOGO case.
 
 ## What to expect
 The run prints a **per-channel log**, then the macro table. Each channel reports or skips with a reason —

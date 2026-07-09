@@ -46,6 +46,21 @@ def _client(num_workers):
         c.close()
 
 
+def _sector_good_names(og_package, model_M, model_I):
+    """Ordered industry (PROD_DICT) and good (CONS_DICT) group NAMES, for labeling figures by name
+    instead of "sector k". Returned only when they line up with the model's realized M / I (a positional
+    match -- the figures index by position); else None, so the viz falls back to numbered labels. Runs in
+    the OG env (it imports the country package, which the link env can't); best-effort, never raises."""
+    try:
+        pkg = importlib.import_module(og_package)
+        prod, cons = getattr(pkg, "PROD_DICT", None), getattr(pkg, "CONS_DICT", None)
+        ind = list(prod) if prod and len(prod) == int(model_M) else None
+        good = list(cons) if cons and len(cons) == int(model_I) else None
+        return ind, good
+    except Exception:  # noqa: BLE001 -- names are a labeling convenience; absence just means numbered labels
+        return None, None
+
+
 def _discover_concordance(og_package, model_M):
     """The energy-port concordance for this country, discovered from the package's own PROD_DICT/CONS_DICT
     (electricity must be an ISOLATED industry -- see contract.Concordance.from_dicts). Returned as a plain
@@ -442,9 +457,11 @@ def inprocess_callables(og_package, params_resource, og_start_year, *,
                                   num_workers, base_dir, calibration, ss, show_progress)
         # Export the discovered concordance next to the baseline (same file the subprocess path writes),
         # so framework._load_concordance + the viz driver find the run's energy ports either way.
+        _ind, _good = _sector_good_names(og_package, p.M, p.I)
         with open(os.path.join(base_dir, "baseline_meta.json"), "w", encoding="utf-8") as f:
             json.dump({"schema_version": serde.BASELINE_META_SCHEMA,
                        "og_package": og_package, "M": int(p.M), "I": int(p.I),
+                       "industry_names": _ind, "good_names": _good,
                        "concordance": _discover_concordance(og_package, p.M)}, f)
         return p, base, base_dir, {}        # template = real Specifications; baseline_arrays unused here
 
@@ -485,9 +502,11 @@ def export_baseline(a):
     # The energy-port concordance is discovered in the OG env (it needs the country package's PROD_DICT/
     # CONS_DICT, which the link env can't import) and EXPORTED here for the link to read -- tied to the
     # baseline's realized M, so a single-industry baseline reports the ports unavailable (channels skip).
+    _ind, _good = _sector_good_names(a.og_package, p.M, p.I)   # figures label sectors/goods by name
     meta = {"schema_version": serde.BASELINE_META_SCHEMA,
             "og_package": a.og_package, "un_code": getattr(p, "_un_code", ""), "M": int(p.M), "I": int(p.I),
             "S": int(p.S), "start_year": int(getattr(p, "start_year", a.og_start_year)),
+            "industry_names": _ind, "good_names": _good,
             "ogcore_version": getattr(ogcore, "__version__", None), "ss_only": bool(a.ss),
             "concordance": _discover_concordance(a.og_package, p.M)}
     with open(os.path.join(a.out_dir, "baseline_meta.json"), "w", encoding="utf-8") as f:

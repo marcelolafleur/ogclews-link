@@ -46,14 +46,14 @@ def safe_read_pickle(path):
     return _srp(path)
 
 DEFAULT_COUNTRY = "phl"
-# Caveats for the SHARED PHL run's assumptions. Override with --note for any other scenario.
-DEFAULT_NOTE = ("Illustrative -- magnitudes are not to be taken literally: assumed ~20% higher energy cost "
-                "(a stand-in, not the energy model's detailed price path); investment and carbon sizes "
-                "uncalibrated; carbon-tax revenue is not returned to households.")
-# The full caveat above is shown in full on the cover. Individual charts carry only this one-line
-# credit caveat -- the long note, stamped under every chart, wraps to 2-3 lines and collides with
-# the x-axis label, so the detail lives on the cover.
-FIG_CAVEAT = "Illustrative -- magnitudes are not to be taken literally."
+# Generic illustrative caveat for the ACROSS-STEPS demo path (build_figures) when it is flagged
+# illustrative -- deliberately magnitude-free (no hardcoded "+20%/$50"): the deck shows a run's actual
+# results, never baked-in assumptions. A coupled-run deck is REAL (see build_deck_from_coupled_run,
+# which defaults illustrative=False), so it carries no caveat at all. Override with --note.
+DEFAULT_NOTE = ("Illustrative decomposition -- treat the step magnitudes as indicative; each channel's "
+                "calibrated inputs are its own.")
+# The full caveat above is shown on the cover. Individual charts carry only this one-line credit caveat.
+FIG_CAVEAT = "Illustrative -- magnitudes are indicative."
 
 # index.html / cover organization: a reading order of headline -> how the scenario is built ->
 # detailed results. Each section maps to the figure basenames it groups (cover + per-step incidence
@@ -168,6 +168,22 @@ def _run_concordance(base_dir):
         return None
 
 
+def _names_from_meta(base_dir):
+    """The (industry_names, good_names) the OG runner recorded next to the baseline
+    (`baseline_meta.json`, from the model's PROD_DICT/CONS_DICT) so figures label sectors/goods by name
+    instead of "sector k". (None, None) when unrecorded (an older run, single-industry, or a name/M
+    mismatch) -- the label helpers then fall back to numbered labels, so any model still renders."""
+    meta_path = os.path.join(base_dir, "baseline_meta.json") if base_dir else None
+    if not meta_path or not os.path.isfile(meta_path):
+        return None, None
+    try:
+        with open(meta_path, encoding="utf-8") as f:
+            m = json.load(f)
+        return m.get("industry_names"), m.get("good_names")
+    except (OSError, ValueError):
+        return None, None
+
+
 def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step=None,
                  gbd_csv=None, note=DEFAULT_NOTE, illustrative=True, og_appendix=False):
     """Render the full figure deck + index, resolving each role (``"baseline"`` and the step
@@ -180,9 +196,21 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
     charts carry the short caveat and the unit-labelled "model units" disclosures; flip it to False
     once the run is calibrated and every figure drops that language with no per-figure edits."""
     os.makedirs(fig_dir, exist_ok=True)
-    # Charts carry the one-line FIG_CAVEAT; the cover carries the full `note`. Both empty when the
-    # run is calibrated (illustrative=False), so the caveat language lives in ONE place.
-    full_note = note if illustrative else ""
+    # Clean regen: a rerun of THIS simulation should leave exactly this run's figures (no stale files
+    # from a prior run that produced a channel this one skipped). index.html/results.csv (in out_dir)
+    # are overwritten in place; here we clear the figures dir before repopulating it.
+    import shutil as _shutil
+    for _stale in glob.glob(os.path.join(fig_dir, "*.png")):
+        try:
+            os.remove(_stale)
+        except OSError:
+            pass
+    _shutil.rmtree(os.path.join(fig_dir, "per_step"), ignore_errors=True)
+    industry_names, good_names = _names_from_meta(dir_of("baseline"))   # label sectors/goods by name
+    # The cover shows whatever caption the caller passed (`note`), independent of `illustrative` -- so a
+    # real run can still carry a --note and a results-only run (note="") carries none. The per-figure
+    # FIG_CAVEAT is shown ONLY in the illustrative phase (a real run stamps no "illustrative" credit).
+    full_note = note or ""
     note = FIG_CAVEAT if illustrative else ""
     base_dir = dir_of("baseline")
     conc = _run_concordance(base_dir)             # per-run energy ports (None / unset -> no energy marker)
@@ -276,10 +304,13 @@ def _render_deck(country, dir_of, layered, fig_dir, index_path, *, headline_step
     # --- multi-good / multi-sector composition (the GE structure) ---------------
     # `conc` (the run's energy good/industry indices) was loaded once at the top from baseline_meta.json
     if None not in (base_ss, headline_ss, base_params):
-        _try(plots.consumption_by_good, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
-        _try(plots.sectoral_reallocation, base_ss, headline_ss, base_params, fig_dir, note=note, concordance=conc)
+        _try(plots.consumption_by_good, base_ss, headline_ss, base_params, fig_dir, note=note,
+             concordance=conc, good_names=good_names)
+        _try(plots.sectoral_reallocation, base_ss, headline_ss, base_params, fig_dir, note=note,
+             concordance=conc, industry_names=industry_names)
     if base_tpi is not None and headline_tpi is not None and base_params is not None:
-        _try(plots.consumption_by_good_by_group, base_tpi, headline_tpi, base_params, fig_dir, note=note, concordance=conc)
+        _try(plots.consumption_by_good_by_group, base_tpi, headline_tpi, base_params, fig_dir, note=note,
+             concordance=conc, good_names=good_names)
 
     # --- one-page headline dashboard --------------------------------------------
     if None not in (base_tpi, headline_tpi, base_ss, headline_ss, base_params, headline_params):
@@ -386,18 +417,15 @@ def _discover_baseline_cache(coupled_dir, manifest):
     return max(matched, key=os.path.getmtime)
 
 
-def _note_from_manifest(manifest):
-    """Honest caveat for a coupled run: the electricity price is the REAL CLEWS signal (not a +20%
-    stand-in); carbon/investment magnitudes are still uncalibrated and carbon revenue is unrecycled."""
-    name = (manifest.get("scenario") or {}).get("name") or "the CLEWS scenario"
-    return (f"Coupled run: electricity price from {name} (the CLEWS signal, not a +20% stand-in); "
-            "carbon and investment magnitudes uncalibrated; carbon-tax revenue not recycled.")
-
-
 def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_base=None,
                                 clews_reform=None, fig_dir=None, gbd_csv=None,
-                                step_label=None, note=None, illustrative=True, og_appendix=False):
+                                step_label=None, note=None, illustrative=False, og_appendix=False):
     """Build the full rich deck from ONE solved `run coupled` output dir, with NO new solve.
+
+    ``illustrative`` defaults to False: a coupled run IS the real integrated result (the electricity
+    price is the actual CLEWS signal, not a +20% stand-in), so the deck shows results with no baked
+    "illustrative" caveat and no hardcoded magnitudes -- the cover and titles carry only the run's own
+    country/scenario. Pass ``illustrative=True`` (or ``--note``) for a controlled-magnitude experiment.
 
     `out_dir` collects the whole simulation deck in ONE directory -- `out_dir/figures/` + `out_dir/
     index.html` -- mirroring OG-Core's single save-dir convention, so a simulation's results are one
@@ -423,8 +451,16 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_bas
     # CLEWS output (they are otherwise blank on the CountryConfig, which the coupling run fills at solve
     # time). Guarded: a frozen scenario just leaves those figures to skip (logged later, never silent).
     sc = manifest.get("scenario") or {}
-    for _attr, _val in (("base_dir", clews_base or sc.get("base_dir")),
-                        ("reform_dir", clews_reform or sc.get("reform_dir"))):
+    # CLEWS source for the emissions + energy-linkage figures, in priority order:
+    #   1. explicit --clews-base/--clews-reform;
+    #   2. clews_source/{base,reform} CO-LOCATED with the run (staged by `run` so the deck is
+    #      self-contained -- rebuildable even after the MUIOGO case moves/changes);
+    #   3. the external scenario dirs the manifest recorded (the fallback -- what the run read live).
+    _local = os.path.join(coupled_dir, "clews_source")
+    _lbase, _lreform = os.path.join(_local, "base"), os.path.join(_local, "reform")
+    base_src = clews_base or (_lbase if os.path.isdir(_lbase) else sc.get("base_dir"))
+    reform_src = clews_reform or (_lreform if os.path.isdir(_lreform) else sc.get("reform_dir"))
+    for _attr, _val in (("base_dir", base_src), ("reform_dir", reform_src)):
         if _val and getattr(country, "scenario", None) is not None:
             try:
                 setattr(country.scenario, _attr, _val)
@@ -462,7 +498,7 @@ def build_deck_from_coupled_run(coupled_dir, country, *, out_dir=None, clews_bas
     fig_dir = fig_dir or os.path.join(out_dir, "figures")
     # explicit arg > a path the manifest records > search upward from the run for the burden CSV
     gbd_csv = gbd_csv or manifest.get("gbd_csv") or _default_gbd_csv(coupled_dir, country)
-    note = _note_from_manifest(manifest) if note is None else note
+    note = note or ""      # results-only by default: no editorial caption unless --note is given
     print(f"coupled-deck: read {coupled_dir}\n       baseline {base_dir}\n       write {out_dir}")
     _render_deck(country, dir_of, layered, fig_dir, os.path.join(out_dir, "index.html"),
                  headline_step=label, gbd_csv=gbd_csv, note=note, illustrative=illustrative,
@@ -493,7 +529,10 @@ def main(argv=None):
                                             "(default: last step in layered_results.json)")
     ap.add_argument("--note", help="honest caveat caption stamped on every figure")
     ap.add_argument("--calibrated", action="store_true",
-                    help="drop the illustrative/model-units caveats (use once results are real)")
+                    help="[across-steps] drop the illustrative/model-units caveats (results are real)")
+    ap.add_argument("--illustrative", action="store_true",
+                    help="[coupled-run] mark a controlled-magnitude experiment so its deck carries the "
+                         "illustrative caveat -- default: a coupled run is real (results-only, no caveat)")
     ap.add_argument("--og-appendix", action="store_true",
                     help="also render OG-Core's ~31-plot standard suite into figures/og_suite/ "
                          "(off by default -> a lean deck of only the curated coupling figures)")
@@ -504,8 +543,9 @@ def main(argv=None):
     illustrative = not args.calibrated
 
     # A single coupled run (the live `run coupled` output): build the deck off its cached baseline +
-    # reform, no new solve. fig-dir/gbd-csv None -> the function defaults them under the coupled dir;
-    # note None -> a manifest-derived caveat (the energy price is the real CLEWS signal).
+    # reform, no new solve. fig-dir/gbd-csv None -> the function defaults them under the coupled dir.
+    # A coupled run is REAL -> illustrative defaults False (results-only, no caveat); --illustrative marks
+    # a controlled-magnitude experiment. note None -> no caption unless --note is given.
     coupled = _resolve(args.coupled_run, "OGCLEWS_COUPLED_RUN", None)
     if coupled:
         build_deck_from_coupled_run(
@@ -516,7 +556,7 @@ def main(argv=None):
             fig_dir=_resolve(args.fig_dir, "OGCLEWS_FIG_DIR", None),
             gbd_csv=_resolve(args.gbd_csv, "OGCLEWS_GBD_CSV", None),
             note=_resolve(args.note, "OGCLEWS_NOTE", None),
-            illustrative=illustrative, og_appendix=args.og_appendix)
+            illustrative=args.illustrative, og_appendix=args.og_appendix)
         return
 
     run_dir = _resolve(args.run_dir, "OGCLEWS_RUN_DIR", None)

@@ -1563,18 +1563,24 @@ def _energy_index(attr, n, concordance=None):
     return idx0 if idx0 is not None and 0 <= idx0 < n else None
 
 
-def _good_labels(I, energy0=None):
-    """1-based "good k" labels; the energy good (0-based `energy0`) gets a trailing asterisk."""
-    return [f"good {k + 1}" + (" *" if energy0 is not None and k == energy0 else "") for k in range(I)]
+def _good_labels(I, energy0=None, names=None):
+    """Labels for the I composite consumption goods; the energy good (0-based `energy0`) gets a trailing
+    asterisk. Uses the real good NAMES (CONS_DICT groups, recorded in baseline_meta) when they line up
+    with I; otherwise falls back to 1-based "good k" -- so any model labels sensibly."""
+    base = list(names) if (names and len(names) == I) else [f"good {k + 1}" for k in range(I)]
+    return [base[k] + (" *" if energy0 is not None and k == energy0 else "") for k in range(I)]
 
 
-def _sector_labels(M, energy0=None):
-    """1-based "sector k" labels; the energy industry (0-based `energy0`) gets a trailing asterisk."""
-    return [f"sector {k + 1}" + (" *" if energy0 is not None and k == energy0 else "") for k in range(M)]
+def _sector_labels(M, energy0=None, names=None):
+    """Labels for the M industries; the energy industry (0-based `energy0`) gets a trailing asterisk.
+    Uses the real industry NAMES (PROD_DICT groups, recorded in baseline_meta) when they line up with M;
+    otherwise falls back to 1-based "sector k"."""
+    base = list(names) if (names and len(names) == M) else [f"sector {k + 1}" for k in range(M)]
+    return [base[k] + (" *" if energy0 is not None and k == energy0 else "") for k in range(M)]
 
 
 def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
-                        concordance=None, name="consumption_by_good"):
+                        concordance=None, good_names=None, name="consumption_by_good"):
     """Steady-state %-change of each composite consumption good (C_i reform vs base), bars from
     zero, sign-colored, the computed % stamped on every bar. The energy good (concordance route A)
     is marked with an asterisk so the basket re-mix reads against its energy port -- by index, so
@@ -1588,7 +1594,7 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     I = cb.size
     dev = style.pct_dev(cr, cb)
     energy0 = _energy_index("energy_good_index", I, concordance)
-    lab = _good_labels(I, energy0)
+    lab = _good_labels(I, energy0, good_names)
 
     os.makedirs(out_dir, exist_ok=True)
     fig, ax = plt.subplots(figsize=(8.0, 5.0))
@@ -1607,7 +1613,9 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     ax.margins(y=0.20)
     ax.set_ylabel("consumption change vs baseline (%)")
     fin = dev[np.isfinite(dev)]
-    if energy0 is not None:
+    if energy0 is not None and good_names and len(good_names) == I:
+        parts = [f"goods are composite categories; * marks the energy good ({good_names[energy0]})"]
+    elif energy0 is not None:
         parts = [f"goods are composite categories; * marks the energy good (good {energy0 + 1}), "
                  f"the only one identified"]
     else:
@@ -1623,7 +1631,7 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
 
 
 def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None,
-                          concordance=None, name="sectoral_reallocation"):
+                          concordance=None, industry_names=None, name="sectoral_reallocation"):
     """Steady-state %-change by industry of output (Y_m), capital (K_m), and labor (L_m) -- a
     three-series dot plot, one cluster per sector, the computed values labeled. The energy industry
     (concordance route B) is marked with an asterisk. Dots (position/length encodings) keep the
@@ -1647,7 +1655,7 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
     if any(s[2].size != M for s in series):
         return []
     energy0 = _energy_index("energy_industry_index", M, concordance)
-    lab = _sector_labels(M, energy0)
+    lab = _sector_labels(M, energy0, industry_names)
 
     os.makedirs(out_dir, exist_ok=True)
     fig, ax = plt.subplots(figsize=(8.6, 5.4))
@@ -1680,9 +1688,12 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
         ax.set_xlim(lo - 0.16 * (span or 1.0), hi + 0.20 * (span or 1.0))
     ax.set_xlabel("change vs baseline (%)")
     ax.legend(loc="upper left", frameon=False, fontsize=8.5)
-    sub = "model sectors are composite industries; only the energy industry is identified"
+    _named = bool(industry_names and len(industry_names) == M)
+    sub = ("model sectors are composite industries" if _named
+           else "model sectors are composite industries; only the energy industry is identified")
     if energy0 is not None:
-        sub += f"  ·  * marks the energy industry (sector {energy0 + 1})"
+        _en = industry_names[energy0] if _named else f"sector {energy0 + 1}"
+        sub += f"  ·  * marks the energy industry ({_en})"
     else:
         sub += "  ·  output, capital, and jobs, one cluster per industry"
     style.title_block(
@@ -1693,7 +1704,7 @@ def sectoral_reallocation(base_ss, reform_ss, base_params, out_dir, *, note=None
 
 
 def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, note=None,
-                                 concordance=None, name="consumption_by_good_by_group"):
+                                 concordance=None, good_names=None, name="consumption_by_good_by_group"):
     """Near-term (t=0) consumption-quantity %-change by good for a few lifetime-income groups
     (poorest / middle / richest), as small multiples -- one panel per group, a bar per good. The
     quantity is c_i (T,I,S,J) at t=0 aggregated over ages -> (I,J), so the bars compare WHAT each
@@ -1725,7 +1736,7 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
         lam = None
     glab = _labels(J, lam)
     energy0 = _energy_index("energy_good_index", I, concordance)
-    xlab = _good_labels(I, energy0)
+    xlab = _good_labels(I, energy0, good_names)
 
     finite = dev[:, picks][np.isfinite(dev[:, picks])]
     vmax = np.max(np.abs(finite)) if finite.size else 1.0
@@ -1756,7 +1767,9 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
         if ai == 0:
             ax.set_ylabel("consumption change vs baseline (%)")
     sub = "Year-0 change in spending by type of good, for the poorest / middle / richest group"
-    if energy0 is not None:
+    if energy0 is not None and good_names and len(good_names) == I:
+        sub += f"  ·  goods are composite categories; * marks the energy good ({good_names[energy0]})"
+    elif energy0 is not None:
         sub += (f"  ·  goods are composite categories; * marks the energy good (good {energy0 + 1}), "
                 f"the only one identified")
     else:
