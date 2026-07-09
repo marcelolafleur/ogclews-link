@@ -3,8 +3,8 @@ via the bidirectional disease_pop -- and is the down-direction 'failure' merely 
 RC_SS=1e-8 tripping on a ~1e-6 aggregate-resource-constraint residual? Reuses the saved baseline;
 SS-only (the failure is an SS check, so no transition path needed).
 
-    PYTHONPATH=/Users/mlafleur/Projects/ogclews-link \
-      /Users/mlafleur/Projects/OG-PHL/.venv/bin/python experiments/test_health_bidirectional.py
+    PYTHONPATH=<this repo checkout> \
+      <og-model-venv>/bin/python experiments/test_health_bidirectional.py
 
 Runs UNDER the OG model's interpreter (it pokes the disease_pop demographic re-solve directly), using
 og_runner's in-process build/solve helpers.
@@ -20,7 +20,10 @@ from ogclews_link import (channels, health_pop, health_profile,  # noqa: F401 (r
                           og_runner, registry, report)
 from ogclews_link.country import PHL
 
-OUT = "/Users/mlafleur/Projects/ogclews-link/ogclews_runs/validate_health"
+# Repo-relative: outputs land in THIS checkout's ogclews_runs/, whichever worktree runs it
+# (a hardcoded main-repo path here once wrote a worktree's results into the wrong tree).
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                   "ogclews_runs", "validate_health")
 BASE = os.path.join(OUT, "health", "baseline")
 
 

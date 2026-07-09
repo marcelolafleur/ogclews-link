@@ -29,6 +29,22 @@ import subprocess
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+# GUARD against import shadowing: invoked as a plain script, sys.path[0] is experiments/ (no package
+# there), so `import ogclews_link` falls through to the venv's EDITABLE INSTALL -- which can point at a
+# DIFFERENT worktree/branch than this checkout. That silently ran a whole battery on stale code once
+# (2026-07-07, contaminated golden). Pin THIS repo first, then assert the resolution really landed here.
+sys.path.insert(0, REPO)
+import ogclews_link  # noqa: E402
+
+_RESOLVED = os.path.realpath(os.path.dirname(ogclews_link.__file__))
+if not _RESOLVED.startswith(os.path.realpath(REPO) + os.sep):
+    raise SystemExit(
+        f"run_battery: `import ogclews_link` resolved OUTSIDE this checkout:\n"
+        f"  resolved: {_RESOLVED}\n  expected: under {REPO}\n"
+        "An editable install is shadowing this worktree -- every solve would run the WRONG branch's "
+        "code. Use this checkout's own venv (pip install -e .) or fix the interpreter, then re-run.")
+
 STATE_PATH = os.path.join(REPO, "results", "battery-state.json")
 OUT_ROOT = os.path.join(REPO, "ogclews_runs", "battery")
 
