@@ -2,7 +2,7 @@
 calls ``solve(ctx)`` at the point the reform is solved. Pre-solve channels (clews->og, policy) run
 before solve(ctx); og->clews ``emit_`` channels run after. Run one with:
     python -m ogclews_link run <name>     (see `python -m ogclews_link list`).
-The data SOURCE for each channel (a controlled number, the CLEWS cost index, the dual, GBD) is visible
+The data SOURCE for each channel (a controlled number, the CLEWS cost index / levelized cost, GBD) is visible
 right here in the call -- not encoded in the name.
 """
 from __future__ import annotations
@@ -82,11 +82,12 @@ def _apply_energy_composite(ctx, elec_price_ratio):
 
 def _auto_price_ratio(ctx):
     """The country's ACTUAL electricity reform/base price-ratio path from CLEWS ('auto': the
-    cost-of-electricity workbook if present, else the OSeMOSYS commodity-balance dual on raw MUIOGO
-    output). UN-diluted (share=1.0). This is the real price change (near-flat for PHL), NOT an
-    illustrative stimulus -- the single source of the electricity price used by ``coupled`` and every
-    real energy result here. The RESOLVED source (workbook vs dual, and which files) is logged into the
-    run's provenance/manifest -- 'auto' must never leave the choice invisible."""
+    cost-of-electricity workbook if present, else the LEVELIZED cost reconstructed from the raw MUIOGO
+    cost/production CSVs). UN-diluted (share=1.0). This is the real price change, NOT an illustrative
+    stimulus -- the single source of the electricity price used by ``coupled`` and every real energy
+    result here. The marginal (shadow-price) source is NEVER auto-selected (it is degenerate); it is an
+    explicit opt-in. The RESOLVED source (workbook vs lcoe, and which files) is logged into the run's
+    provenance/manifest -- 'auto' must never leave the choice invisible."""
     con = ctx.concordance
     if con is None or con.energy_good_index is None:
         # Electricity not isolable for this country -> every consumer of this ratio skips anyway, so do
@@ -99,7 +100,7 @@ def _auto_price_ratio(ctx):
     ratio = signals.energy_price_ratio("auto", base_dir=c.scenario.base_dir, reform_dir=c.scenario.reform_dir,
                                        share=1.0, og_start_year=c.scenario.og_start_year,
                                        n=np.asarray(p.tau_c).shape[0], fuel=c.electricity_fuel,
-                                       resolved=resolved)
+                                       busbar=getattr(c, "busbar_electricity", None), resolved=resolved)
     if resolved:
         ctx.log("energy_price_source", provenance_only=True,
                 note="price-source resolution (provenance, not a channel)", **resolved)
@@ -109,7 +110,7 @@ def _auto_price_ratio(ctx):
 # --- single-channel experiments -------------------------------------------------
 
 def energy_price(ctx, solve):
-    """The energy-price demand-response channel at PHL's REAL electricity price (CLEWS 'auto' dual), via
+    """The energy-price demand-response channel at PHL's REAL electricity price (CLEWS 'auto' levelized), via
     the consumption-tax wedge (no recycling, c_min=0). PHL's real price is near-flat, so a small effect."""
     channels.energy_price(ctx, price_ratio=_auto_price_ratio(ctx))
     solve(ctx)
@@ -151,7 +152,7 @@ def energy_full(ctx, solve):
 
 
 def clean_incidence(ctx, solve):
-    """The regressive incidence of PHL's REAL electricity price (CLEWS 'auto' dual): revenue recycled +
+    """The regressive incidence of PHL's REAL electricity price (CLEWS 'auto' levelized): revenue recycled +
     energy a necessity (c_min>0). NB energy_cmin must be below every group's baseline energy consumption."""
     channels.energy_price(ctx, price_ratio=_auto_price_ratio(ctx), recycle_revenue_to_transfers=True,
                           energy_subsistence_floor=0.005)
@@ -225,11 +226,11 @@ def forward(ctx, solve):
 
 def coupled(ctx, solve):
     """The full coupled soft-link: the electricity price from CLEWS ('auto' -- the cost-of-electricity
-    index if the curated workbook is present, else the OSeMOSYS commodity-balance dual on raw MUIOGO
-    output) transmitted via the ENERGY_FULL COMPOSITE (inter-industry cost-push + recycled household
-    wedge -- the defensible transmission; see docs/design/energy-price-transmission.md) + public
-    investment + carbon on the CLEWS side + GBD health, then OG rate/activity emitted back."""
-    _apply_energy_composite(ctx, _auto_price_ratio(ctx))    # PHL's real CLEWS electricity price (near-flat)
+    index if the curated workbook is present, else the LEVELIZED cost reconstructed from raw MUIOGO
+    cost/production CSVs) transmitted via the ENERGY_FULL COMPOSITE (inter-industry cost-push + recycled
+    household wedge -- the defensible transmission; see docs/design/energy-price-transmission.md) +
+    public investment + carbon on the CLEWS side + GBD health, then OG rate/activity emitted back."""
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))    # the country's real CLEWS electricity price
     channels.investment(ctx, _public_capex(ctx))
     channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)    # carbon priced on the CLEWS side only here
     channels.health(ctx)
