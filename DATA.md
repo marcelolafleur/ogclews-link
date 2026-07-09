@@ -1,17 +1,20 @@
-# Data the health channel needs (present on disk + calibrated for PHL)
+# Data the health channel needs
 
 The health channel applies pollution mortality via the **disease_pop method** from
 DeBacker, Evans & LaFleur, *The Macroeconomic Returns to Public Health Investments*
 (the `CostOfDisease` repo): an age-specific shock `rho(s,t) = rho0 + kappa·g_t·h(s)`,
-phased in, then the population is recomputed. Two inputs come from data. **For PHL both are now present
-and calibrated:** the GBD burden CSV is on disk at `IHME-GBD_2023_DATA/` (covers PHL + IDN/ZAF/ETH), and
-the emissions→deaths dose-response multiplier is calibrated (`M = 0.082` for the Philippines, in
-`ogclews_link/data/pm25_health.json`). The recipe below documents how to (re)produce it or add a country.
+phased in, then the population is recomputed. Two inputs come from data:
+
+- The emissions→deaths dose-response multiplier **ships with the repo** (`M = 0.082` for the
+  Philippines, in `ogclews_link/data/pm25_health.json`) — nothing to do.
+- The GBD burden CSV **does not ship**. It is machine-local and git-ignored, so **every fresh clone
+  starts without it and the health channel skips** (cleanly, with a message) until you download it —
+  ~5 minutes, recipe in §1 below. The link looks for it at `IHME-GBD_2023_DATA/` in the repo root.
 
 ## 1. The age profile h(s) — IHME GBD (required)
 
-The PHL GBD extract is already on disk at `IHME-GBD_2023_DATA/`. To refresh it or add another country,
-download from the IHME GBD Results tool as below and point the channel at it.
+Download from the IHME GBD Results tool as below and place the export at `IHME-GBD_2023_DATA/` in the
+repo root (one multi-country CSV covers PHL + IDN/ZAF/ETH).
 
 - Portal: https://vizhub.healthdata.org/gbd-results/
 - GBD round: **GBD 2023** (to match the HIV extract used in CostOfDisease)
