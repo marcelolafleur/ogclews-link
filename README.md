@@ -1,29 +1,24 @@
 # ogclews-link
 
-Couples a country's **CLEWS/OSeMOSYS** energy scenarios (run via **MUIOGO**) to its **OG-Core** macro
-model and reports the economic results. This page gets you from zero to a solved Philippine example —
-about 30 minutes, most of it solver time. You need MUIOGO installed; the setup script handles
-everything else, including Python.
+Couples a country's **CLEWS/OSeMOSYS** energy scenarios to its **OG-Core** macro model and reports the
+economic results. This page gets you from zero to a solved Philippine example — about 30 minutes, most
+of it solver time. Every command below is copy-paste; the setup script installs everything it needs,
+including Python.
 
-## 1) Set your paths
+## 1) Make a working folder and get the Philippine CLEWS data
 
 ```bash
-mkdir -p ~/ogclews-test && cd ~/ogclews-test
-export MUIOGO=~/path/to/your/MUIOGO      # <-- edit this once; the steps below reuse it
-```
-
-## 2) Get the Philippine CLEWS data
-
-Skip if `$MUIOGO/WebAPP/DataStorage/Philippines_v9` already exists. Otherwise:
-```bash
+mkdir ogclews-test
+cd ogclews-test
 curl -LO https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip
 unzip Philippines_v9_250116.zip
-mv Philippines_v9 "$MUIOGO/WebAPP/DataStorage/"
 ```
+This is a solved CLEWS case (baseline `Base_v9` and reform `PEP_v9`) — you don't need MUIOGO to run
+this example. (If you have MUIOGO with `Philippines_v9` already installed, you can skip the download
+and point step 4 at `<MUIOGO>/WebAPP/DataStorage/Philippines_v9` instead.)
 
-## 3) Get OG-PHL on the multi-industry calibration
+## 2) Get OG-PHL on the multi-industry calibration
 
-Skip the clone if you already have OG-PHL, but you need the `m8` branch and a built environment:
 ```bash
 git clone https://github.com/EAPD-DRB/OG-PHL.git OG-PHL
 cd OG-PHL
@@ -32,39 +27,34 @@ uv sync
 cd ..
 ```
 
-## 4) Install the ogclews-link
+## 3) Install the ogclews-link
 
 ```bash
 git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
 ./scripts/setup.sh --og-path ../OG-PHL
 ```
-If your OG-PHL folder is named anything other than `OG-PHL`, add `--key og-phl`.
 
 **Checkpoint** — this must show a line starting `[x] og-phl` and ending `couplable=1`:
 ```bash
 uv run ogclews-link models list
 ```
 
-## 5) Optional: enable the health channel
-
-The health channel needs one data file that is not shipped (an IHME GBD extract, ~5 minutes to
-download — see [DATA.md](DATA.md)). Without it the run says so up front, skips health, and everything
-else works.
-
-## 6) Run
+## 4) Run
 
 ```bash
 uv run ogclews-link run coupled \
-  --clews-base   "$MUIOGO/WebAPP/DataStorage/Philippines_v9/res/Base_v9/csv" \
-  --clews-reform "$MUIOGO/WebAPP/DataStorage/Philippines_v9/res/PEP_v9/csv" \
+  --clews-base   ../Philippines_v9/res/Base_v9/csv \
+  --clews-reform ../Philippines_v9/res/PEP_v9/csv \
   --out ./ogclews_runs
 ```
 - About **20 minutes** the first time (baseline + reform); it prints solver iterations throughout.
   Later runs reuse the baseline and take ~8 minutes.
 - If it asks for a UN API token, press return — none is needed.
+- It will say the health channel is skipping: that channel needs one data file that is not shipped
+  (~5 minutes to download — see [DATA.md](DATA.md)). Everything else runs without it.
 
-## 7) Check the results
+## 5) Check the results
 
 In `./ogclews_runs/coupled/`:
 - Open **`index.html`** — the figure deck for this run.
@@ -75,4 +65,5 @@ In `./ogclews_runs/coupled/`:
 
 ---
 More detail: [DATA.md](DATA.md) (health data), [VALIDATION.md](VALIDATION.md) (how results are
-checked), `docs/` (design notes and the test plan).
+checked), `docs/` (design notes and the test plan). To change the energy scenarios themselves you'll
+need MUIOGO — this example uses the shipped, already-solved case.
