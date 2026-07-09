@@ -34,6 +34,7 @@ step "Working folder"
 ok "$PWD"
 
 step "1/5 ogclews-link (installs its own environment, including Python)"
+echo "  note: a 'No OG model is registered yet' message below is EXPECTED -- registration is step 4/5."
 [ -d ogclews-link ] || git clone --quiet "$LINK_REPO" ogclews-link
 ( cd ogclews-link && ./scripts/setup.sh )
 ok "link installed"
@@ -42,8 +43,13 @@ step "2/5 Philippine CLEWS case (already solved -- no MUIOGO needed)"
 if [ ! -d Philippines_v9 ]; then
   curl -fL --progress-bar -o Philippines_v9.zip "$CASE_ZIP"
   unzip -q Philippines_v9.zip && rm -f Philippines_v9.zip
+  # the release zip nests the case under WebAPP/DataStorage/ -- normalize to the top level
+  [ -d Philippines_v9 ] || { [ -d WebAPP/DataStorage/Philippines_v9 ] && mv WebAPP/DataStorage/Philippines_v9 .; }
 fi
-[ -d Philippines_v9/res/Base_v9/csv ] || die "Philippines_v9/res/Base_v9/csv missing after unzip."
+if [ ! -d Philippines_v9/res/Base_v9/csv ]; then
+  echo "  unzip produced:"; find . -maxdepth 4 -type d -name "Philippines_v9" -o -maxdepth 2 -type d | head -10
+  die "expected Philippines_v9/res/Base_v9/csv -- the zip's layout doesn't match; see the listing above."
+fi
 ok "case in place"
 
 step "3/5 OG-PHL on the m8 multi-industry calibration"

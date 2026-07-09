@@ -24,6 +24,7 @@ mkdir ogclews-test
 cd ogclews-test
 curl -LO https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip
 unzip Philippines_v9_250116.zip
+mv WebAPP/DataStorage/Philippines_v9 .
 ```
 This is a solved CLEWS case (baseline `Base_v9` and reform `PEP_v9`) — you don't need MUIOGO to run
 this example. (If you have MUIOGO with `Philippines_v9` already installed, you can skip the download
