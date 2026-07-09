@@ -1,47 +1,39 @@
 # ogclews-link
 
-A coupling layer between **OG-Core** (an overlapping-generations macro model; e.g. OG-PHL) and
-**CLEWS/OSeMOSYS** (a least-cost energy–land–water model, run via **MUIOGO**). It reads a country's CLEWS
-energy scenarios, applies them to that country's OG model through guard-railed **channels** (energy prices,
-public investment, a carbon penalty, health), solves the economy, and reports the results.
+Couples a country's **CLEWS/OSeMOSYS** energy scenarios to its **OG-Core** macro model and reports the
+economic results. This page gets you from zero to a solved Philippine example — about 30 minutes, most
+of it solver time.
 
-The link is its own environment and imports no OG-Core: to solve, it drives the country's OG model in *its*
-environment as a subprocess, so the link, MUIOGO, and each OG model stay independently installed.
+## Quick start — one script
 
-## Before you start
-
-You need three things on this machine:
-
-1) **MUIOGO** installed (the CLEWS side).
-
-2) **Python 3.11–3.13** on your PATH. The setup script manages the environment with
-[`uv`](https://docs.astral.sh/uv/) and will install uv itself if it's missing (a download from astral.sh).
-
-3) **Network access on the first run.** The baseline solve downloads UN population data. It may print
-`Please enter your UN API token` several times — you don't need a token; press return (or ignore it in a
-script) and it falls back to a public mirror automatically.
-
-Then pick a working folder (here it's `ogclews-test`) to hold OG-PHL and the ogclews-link — the CLEWS data
-stays in your MUIOGO install:
 ```bash
-mkdir -p ~/ogclews-test && cd ~/ogclews-test
+curl -fsSL https://raw.githubusercontent.com/marcelolafleur/ogclews-link/main/scripts/test-drive.sh -o test-drive.sh
+bash test-drive.sh
 ```
+It downloads the solved Philippine CLEWS case, installs OG-PHL and the link (including Python — it
+needs nothing pre-installed beyond git/curl/unzip), runs the coupled example, and opens the results
+deck. Safe to re-run; a second run takes ~8 minutes. When it mentions the health channel skipping,
+that's expected — see [DATA.md](DATA.md) to enable it (~5 minutes).
 
-## 1) The Philippine CLEWS data
+The manual steps below do the same thing, if you'd rather see each one.
 
-The `Philippines_v9` case, with a solved baseline (`Base_v9`) and reform (`PEP_v9`), must sit in
-`MUIOGO/WebAPP/DataStorage/`. If you don't have it, download
-[**Philippines_v9_250116.zip**](https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip),
-unzip it, and move the resulting `Philippines_v9` folder into your MUIOGO's `WebAPP/DataStorage/`.
+## 1) Make a working folder and get the Philippine CLEWS data
 
-## 2) OG-PHL on the M=8 (multi-industry) calibration
+```bash
+mkdir ogclews-test
+cd ogclews-test
+curl -LO https://github.com/marcelolafleur/ogclews-link/releases/download/phl-test-data/Philippines_v9_250116.zip
+unzip Philippines_v9_250116.zip
+mv WebAPP/DataStorage/Philippines_v9 .
+```
+This is a solved CLEWS case (baseline `Base_v9` and reform `PEP_v9`) — you don't need MUIOGO to run
+this example. (If you have MUIOGO with `Philippines_v9` already installed, you can skip the download
+and point step 4 at `<MUIOGO>/WebAPP/DataStorage/Philippines_v9` instead.)
 
-If you don't already have OG-PHL, clone it in the working folder:
+## 2) Get OG-PHL on the multi-industry calibration
+
 ```bash
 git clone https://github.com/EAPD-DRB/OG-PHL.git OG-PHL
-```
-Then, from inside it, switch to the M=8 calibration this test uses and build its environment:
-```bash
 cd OG-PHL
 git fetch origin pull/63/head:m8 && git checkout m8
 uv sync
@@ -55,60 +47,36 @@ git clone https://github.com/marcelolafleur/ogclews-link.git
 cd ogclews-link
 ./scripts/setup.sh --og-path ../OG-PHL
 ```
-This builds the link's own environment, checks the CLI, and registers OG-PHL.
 
-**Check the registration**: run `uv run ogclews-link models list` and confirm the line starts
-`[x] og-phl` and ends `couplable=1`. The registry key must be exactly `og-phl`, and by default it's taken
-from the folder's name — so if your OG-PHL checkout lives in a directory *not* literally named `OG-PHL`
-(a git worktree, a renamed folder), pass the key explicitly:
+**Checkpoint** — this must show a line starting `[x] og-phl` and ending `couplable=1`:
 ```bash
-./scripts/setup.sh --og-path <your-OG-PHL-dir> --key og-phl
+uv run ogclews-link models list
 ```
 
-## 4) Run the example
+## 4) Run
 
-Point it at your CLEWS baseline and reform:
 ```bash
 uv run ogclews-link run coupled \
-  --clews-base   <MUIOGO>/WebAPP/DataStorage/Philippines_v9/res/Base_v9/csv \
-  --clews-reform <MUIOGO>/WebAPP/DataStorage/Philippines_v9/res/PEP_v9/csv \
+  --clews-base   ../Philippines_v9/res/Base_v9/csv \
+  --clews-reform ../Philippines_v9/res/PEP_v9/csv \
   --out ./ogclews_runs
 ```
-The first run solves the baseline (**~10–12 minutes**) and then the reform (**~8 minutes**) — about
-20 minutes total, printing solver iterations throughout (it's working, not stuck). Later runs reuse the
-cached baseline and only solve the reform.
+- About **20 minutes** the first time (baseline + reform); it prints solver iterations throughout.
+  Later runs reuse the baseline and take ~8 minutes.
+- If it asks for a UN API token, press return — none is needed.
+- It will say the health channel is skipping: that channel needs one data file that is not shipped
+  (~5 minutes to download — see [DATA.md](DATA.md)). Everything else runs without it.
 
-## 5) Results
+## 5) Check the results
 
-Under `ogclews-link/ogclews_runs/coupled/` (wherever `--out` points):
-- **`index.html`** — a self-contained figure deck, built automatically at the end of the run (open it in a
-  browser); the figures live in `figures/`. It shows only *this* run's results — no hardcoded scenario, so
-  it works for any model or country. Pass `--no-figures` to skip it (it can be rebuilt later, no re-solve).
-- **`macro_table.csv`** — the headline: % change (reform vs baseline) in GDP, consumption, capital, labour,
-  interest rate, and wage — by year and at the steady state.
-- **`ogclews_manifest.json`** — what ran, channel by channel, including which energy-price source was used.
-- `clews_inputs/`, `reform/` — the feedback files sent back toward CLEWS, and the raw solved output.
-- `clews_source/` — the CLEWS export slices the deck used, copied in so the figures rebuild without the
-  original MUIOGO case.
-
-## What to expect
-
-Before the solve, the run prints a checklist of the CLEWS export files and which price source it resolved
-(for a raw MUIOGO case: the levelized cost of electricity, computed from the export itself). Then a
-per-channel log, then the macro table. Each channel reports or skips with a reason.
-
-**The health channel needs a data file that is never shipped with the repo** (an IHME GBD extract; it's
-machine-local and git-ignored). On a fresh install the run tells you before the solve that health will
-skip, and everything else proceeds. Downloading the extract takes ~5 minutes — see [DATA.md](DATA.md).
-
-Effects are small and the sign depends on which channels run. For PHL with health skipped: GDP dips
-through the transition (deepest around −0.5% in 2030, where the reform's electricity-price premium
-peaks) and lands roughly flat (about −0.1%) at the steady state. With the health data present, avoided
-pollution deaths lift the early transition to slightly positive. The energy price uses the real CLEWS
-signal; the carbon→tax conversion is still illustrative. Missing data makes a channel skip cleanly
-rather than fail, so the run always completes.
+In `./ogclews_runs/coupled/`:
+- Open **`index.html`** — the figure deck for this run.
+- **`macro_table.csv`** — % change (reform vs baseline) in GDP, consumption, capital, labour, r, and w,
+  by year and at the steady state. For this example expect small effects: GDP dipping through the
+  transition (deepest ≈ −0.5% in 2030) and roughly flat (≈ −0.1%) at the steady state.
+- **`ogclews_manifest.json`** — what ran, channel by channel, including the energy-price source.
 
 ---
-More detail: [DATA.md](DATA.md) (the health data and how to get it), [VALIDATION.md](VALIDATION.md)
-(how the results are checked), and `docs/` (design notes and the test plan). A guide to onboarding a
-new country is planned under `docs/`.
+More detail: [DATA.md](DATA.md) (health data), [VALIDATION.md](VALIDATION.md) (how results are
+checked), `docs/` (design notes and the test plan). To change the energy scenarios themselves you'll
+need MUIOGO — this example uses the shipped, already-solved case.
