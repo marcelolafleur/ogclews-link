@@ -74,13 +74,16 @@ year; capacity-adequacy and capacity-factor limits; fuel-availability limits; an
 emissions caps or penalties. Timeslices capture the intra-annual load shape (peak versus
 off-peak) that a single annual figure would hide.
 
-The object that makes the coupling work is the \emph{marginal cost} on the
-commodity-balance constraint --- what it would cost the least-cost system to supply one
-more unit of the carrier. Under the competitive interpretation this is exactly the price
-that would clear that quantity --- the energy price the macro model should face
-(\Cref{sec:dual}, \Cref{def:fixedpoint}). The marginal cost of a binding emissions cap
-is, likewise, the implied carbon price. These marginal costs, not the bare cost figures,
-are the load-bearing signals.
+The price that makes the coupling work is the \emph{levelized cost of electricity}
+(LCOE) --- the all-in average cost of a unit of delivered power (capital recovery,
+operation and maintenance, and fuel), reconstructed from the least-cost solution's costs
+and generation (\Cref{sec:signal}, \Cref{def:fixedpoint}). The coupling uses this average
+cost rather than the \emph{shadow price} on the commodity-balance constraint --- the
+program's short-run marginal cost of the carrier --- because that shadow price is
+degenerate here: it binds in only scattered years, so it is not a usable long-run price
+and is reserved for scarcity analyses. The shadow price on a binding emissions cap is,
+likewise, an implied carbon price. These prices, not bare cost totals, are the
+load-bearing signals.
 
 Two features matter for the coupling. First, the program optimises against a \emph{fixed}
 demand: quantity demanded does not respond to the carrier price within \OSeMOSYS{}
