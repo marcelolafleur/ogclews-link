@@ -2,8 +2,20 @@
 
 Couples a country's **CLEWS/OSeMOSYS** energy scenarios to its **OG-Core** macro model and reports the
 economic results. This page gets you from zero to a solved Philippine example — about 30 minutes, most
-of it solver time. Every command below is copy-paste; the setup script installs everything it needs,
-including Python.
+of it solver time.
+
+## Quick start — one script
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/marcelolafleur/ogclews-link/main/scripts/test-drive.sh -o test-drive.sh
+bash test-drive.sh
+```
+It downloads the solved Philippine CLEWS case, installs OG-PHL and the link (including Python — it
+needs nothing pre-installed beyond git/curl/unzip), runs the coupled example, and opens the results
+deck. Safe to re-run; a second run takes ~8 minutes. When it mentions the health channel skipping,
+that's expected — see [DATA.md](DATA.md) to enable it (~5 minutes).
+
+The manual steps below do the same thing, if you'd rather see each one.
 
 ## 1) Make a working folder and get the Philippine CLEWS data
 
