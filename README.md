@@ -10,18 +10,10 @@ environment as a subprocess, so the link, MUIOGO, and each OG model stay indepen
 
 ## Before you start
 
-You need three things on this machine:
+You need **MUIOGO** installed (the CLEWS side). The setup script below handles everything else,
+including Python.
 
-1) **MUIOGO** installed (the CLEWS side).
-
-2) **Python 3.11–3.13** on your PATH. The setup script manages the environment with
-[`uv`](https://docs.astral.sh/uv/) and will install uv itself if it's missing (a download from astral.sh).
-
-3) **Network access on the first run.** The baseline solve downloads UN population data. It may print
-`Please enter your UN API token` several times — you don't need a token; press return (or ignore it in a
-script) and it falls back to a public mirror automatically.
-
-Then pick a working folder (here it's `ogclews-test`) to hold OG-PHL and the ogclews-link — the CLEWS data
+Pick a working folder (here it's `ogclews-test`) to hold OG-PHL and the ogclews-link — the CLEWS data
 stays in your MUIOGO install:
 ```bash
 mkdir -p ~/ogclews-test && cd ~/ogclews-test
@@ -76,7 +68,7 @@ uv run ogclews-link run coupled \
 ```
 The first run solves the baseline (**~10–12 minutes**) and then the reform (**~8 minutes**) — about
 20 minutes total, printing solver iterations throughout (it's working, not stuck). Later runs reuse the
-cached baseline and only solve the reform.
+cached baseline and only solve the reform. If it asks for a UN API token, press return — none is needed.
 
 ## 5) Results
 
