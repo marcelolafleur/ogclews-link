@@ -18,6 +18,10 @@ ran stale code via import shadowing (2026-07-07) — these are load-bearing, not
 
    The printed path MUST be inside the worktree you intend to test. For the OG side, check
    `import ogphl, ogcore` the same way with the registered `env_python`.
+   **Third vector — cwd:** `python -c ...` and `python script.py` put the cwd / script dir at
+   `sys.path[0]`, so running from ANOTHER checkout's root imports THAT checkout's `ogclews_link/`
+   regardless of which venv you use. Always run from the worktree under test (console scripts are
+   immune — they don't put cwd on `sys.path`). Launch wrappers must assert the resolved path.
 3. **Each worktree gets its own venv** (`python -m venv .venv && .venv/bin/pip install -e .`).
    Entry scripts that must run from any checkout pin `sys.path.insert(0, REPO)` **and assert** the
    resolved `ogclews_link.__file__` is under `REPO` (see `experiments/run_battery.py`).
