@@ -49,36 +49,42 @@
 % ==========================================================================
 \section{The coupling in brief}
 
-\OGCore{} and \CLEWS{} are complementary. \CLEWS{}/\OSeMOSYS{} is a least-cost energy
-optimiser --- rich in technology, dispatch, and emissions, but blind to behaviour: its
-demand is a fixed input, and it has no households, government budget, or distribution.
-\OGCore{} is an overlapping-generations general-equilibrium economy --- rich in
-households (by age $s$ and lifetime income $j$), firms ($M$ industries), and a
-government that closes its budget --- but blind to energy: energy is not a priced input
-to firm production. They are joined by a \emph{staged soft link} that exchanges a few
-signals; a single hard model is ruled out because one steps through time period by
-period while the other plans all years at once.
+\OGCore{} and \CLEWS{} describe different parts of the same transition. \CLEWS{}/\OSeMOSYS{}
+is a least-cost energy-system optimiser: it represents technologies, dispatch, investment,
+and emissions in detail, but treats energy demand as an external input and has no
+households, government budget, or distributional accounts. \OGCore{} is an
+overlapping-generations general-equilibrium economy: it represents households (by age
+$s$ and lifetime income $j$), firms ($M$ industries), and a government budget, but has no
+priced energy input in firm production.
+
+The models are therefore connected by a \emph{staged soft link}. A small set of solved
+\CLEWS{} outcomes is translated into \OGCore{} parameters; selected \OGCore{} outcomes can
+then be passed back to \CLEWS{} in the next iteration. The link is staged rather than
+simultaneous because the models solve time differently: \OGCore{} moves through the
+transition period by period, while \CLEWS{} optimises the full planning horizon at once.
 
 Three objects organise every mechanism:
 \begin{itemize}
-  \item \textbf{Signal} --- a quantity read from a \emph{solved} \CLEWS{} scenario: a
-    fuel's marginal cost, the capital a build-out needs, emissions, an implied carbon price.
-  \item \textbf{Wedge} --- the \OGCore{} parameter that carries it: the consumption tax
-    $\tauc$, an industry productivity $Z_m$, public investment $\alphaI$, mortality
-    $\rho(s,t)$, effective labour $e(t,s,j)$.
-  \item \textbf{Channel} --- one signal mapped to one wedge, with a guard that fires
-    when the mapping is large or ill-posed.
+  \item \textbf{Signal} --- an outcome read from a \emph{solved} \CLEWS{} scenario, such as
+    an electricity price (its levelized cost), required grid investment, or emissions.
+  \item \textbf{Wedge} --- the \OGCore{} parameter used to carry that signal: for example
+    the consumption tax $\tauc$, industry productivity $Z_m$, public investment $\alphaI$,
+    mortality $\rho(s,t)$, or effective labour $e(t,s,j)$.
+  \item \textbf{Channel} --- the rule that maps one signal into one wedge, plus a
+    diagnostic check for cases where the mapping is too large or poorly defined.
 \end{itemize}
 
-The load-bearing signal is the \textbf{energy price}: \CLEWS{}'s marginal cost of
-supplying one more unit. Fed to \OGCore{}, it
-does two things \CLEWS{} cannot --- it lets demand respond to price, and it reveals who
-bears the cost. Because \OGCore{} firms have no energy input, the energy-price channel represents an
-electricity-price change through electricity's \emph{two} uses, combined in one
-transmission: a cost-push on the industries that buy electricity as an input (the
-contractionary, wage-bearing side), and a recycled consumption wedge on households (the
-regressive cost-of-living side). The input side is a reduced-form proxy; the
-fully-structural version --- energy as a priced production input --- is not yet built.
+The main signal is the \textbf{energy price}: the levelized cost of electricity --- the
+all-in average cost (capital, running costs, and fuel) of a delivered unit, reconstructed
+from the solved \CLEWS{} system. In \OGCore{} this signal does two things \CLEWS{} cannot do on
+its own: it lets quantities respond to price, and it shows which households and
+industries bear the cost. Because \OGCore{} firms do not buy energy explicitly, the
+electricity-price channel uses one composite transmission. It applies a cost-push to
+industries that use electricity as an intermediate input, and a consumption wedge to
+households that buy energy directly. The first part captures the contractionary,
+wage-bearing effect; the second captures the distributional cost-of-living effect. The
+input side is reduced-form: the fully structural version would add energy as a priced
+production input.
 
 Throughout, a hat denotes a reform/baseline ratio ($\hat x \equiv x^{r}/x^{b}$), and
 $i_e$ / $m_e$ are the energy \emph{good} / \emph{industry} (Philippines: $m_e=2$).
@@ -86,104 +92,118 @@ $i_e$ / $m_e$ are the energy \emph{good} / \emph{industry} (Philippines: $m_e=2$
 % ==========================================================================
 \section{The mechanisms}
 
-The channels split by direction: four carry \CLEWS{} signals into \OGCore{}, two are
-policy levers applied once to both models, and two send \OGCore{} results back to
-\CLEWS{}.
+The channels split by direction. Four carry \CLEWS{} signals into \OGCore{}, two are
+policy levers applied consistently across the linked models, and two send \OGCore{}
+outcomes back to \CLEWS{}.
 
 \subsection{Energy price \dir{CLEWS $\to$ OG}}
-\Intuition An electricity-price change hits the economy in two places, because
-electricity is used in two ways. Industries buy most of it as an \emph{input} (in the
-Philippine accounts about $73\%$), so a higher price raises their costs --- and, through
-them, wages and output. Households buy the rest \emph{directly} (about $25\%$), so it
-raises the cost of living, hardest for the poor (energy is a larger share of a poor
-budget). The channel is one complete transmission that carries both.
+\Intuition An electricity-price change enters the economy through production and
+household consumption. Industries buy most electricity as an \emph{input} (about $73\%$
+in the Philippine accounts), so a higher price raises production costs and affects
+output, wages, and returns. Households buy electricity \emph{directly} (about $25\%$), so
+the same price increase raises living costs. The proportional effect is larger for poorer
+households because energy takes a larger share of their budgets. This channel carries
+both uses together.
 \Technical The reform/baseline electricity-price ratio $g$ is applied through both uses.
-\emph{(i) Firm input --- a cost-push:} each industry $j$'s productivity is cut by
+\emph{(i) Firm input --- cost-push:} each industry $j$'s productivity is cut by
 electricity's share $\phi_j$ of its input costs (from the SAM),
 $Z_j \mapsto Z_j/(1+\phi_j(g-1))$, so its output price rises by $\approx\phi_j(g-1)$ ---
-the contractionary, wage-bearing side. \emph{(ii) Household consumption --- a wedge:} a
-recycled consumption-tax wedge on the energy good, scaled to electricity's value-share
-$\sigma$ of that good,
+the contractionary, wage-bearing side. \emph{(ii) Household consumption --- wedge:} a
+consumption-tax wedge on the energy good, scaled to electricity's value-share $\sigma$ of
+that good,
 \[
   1+\tau^{c,r}_{i_e} \;=\; \bigl(1+\sigma(g-1)\bigr)\bigl(1+\tau^{c,b}_{i_e}\bigr)
 \]
---- the regressive cost-of-living side. Electricity's own self-use is zeroed in the
-cost-push so it is not double-counted by the wedge. The input side is a reduced-form
-proxy ($\OGCore{}$ has no energy in production; the structural version is a real
-inter-industry use matrix, unbuilt). The price $g$ is \CLEWS{}'s ``auto'' source --- a
-cost-of-electricity index if available, else the \OSeMOSYS{} commodity-balance marginal cost; for
-the Philippines it is near-flat, so the whole channel is small.
+--- the regressive cost-of-living side. The additional revenue can be rebated to households
+as transfers when the run uses revenue recycling. The electricity industry's own purchases of
+electricity are removed from the cost-push to avoid double-counting through the household
+wedge. The price $g$ is taken from \CLEWS{}'s automatic price source: a
+cost-of-electricity index if available, otherwise the levelized cost of electricity
+reconstructed from the run's costs and generation. In the Philippine run it rises about
+$5\%$ on average (up to $16\%$ by 2030); the standalone channel is still small
+($-0.006\%$ of steady-state output).
 \Variables $g=\pi^{r}/\pi^{b}$, the reform/baseline electricity-price ratio; $\phi_j$,
 electricity's share of industry $j$'s input costs; $\sigma$, electricity's value-share of
 the household energy good $i_e$; $Z_j$, industry $j$'s productivity; $\tau^{c}_{i_e}$, the
 consumption-tax wedge on the energy good ($r,b$ = reform, baseline).
 
 \subsection{Carbon price \dir{policy --- both models}}
-\Intuition One carbon price, chosen by policy, applied once on both sides: in the energy
-model it tilts the build toward cleaner technology; in the economy it raises the price of
-(household) energy like a tax. It is counted once --- never also inferred back from the
-energy model's own implied carbon cost.
+\Intuition The carbon price is a policy input applied once. In the energy model, it tilts
+investment toward cleaner technologies. In the economy, it raises the price of household
+energy like a tax. It is not also inferred from \CLEWS{}'s implied carbon cost, because
+that would count the same policy twice.
 \Technical A price $cp$ (US\$/tCO$_2$) becomes an add-on to the energy-good wedge in
 \OGCore{}, and an emissions-penalty path in \CLEWS{}:
 \[
   \Delta\tauc_{i_e} \;=\; \frac{cp \,\cdot\, \text{deflator}\,\cdot\,\text{carbon intensity}}{p^{b}_{i_e}}.
 \]
-Because \OGCore{} firms buy no energy, only \emph{household} energy carbon is priced on
-the macro side; industrial carbon is priced in \CLEWS{}. Revenue is recyclable as
-transfers ($\alphaT$). Standalone $Y_{ss}=-0.040\%$; the \emph{level} rides on the
-uncalibrated unit/deflator bridge, so treat the magnitude as illustrative.
+Because \OGCore{} firms do not buy energy, the macro-side wedge covers only
+\emph{household} energy carbon; industrial carbon is priced in \CLEWS{}. Revenue can be
+recycled as transfers ($\alphaT$). Applied by itself, this channel changes steady-state
+output by $-0.021\%$; that level should be read as illustrative because the conversion
+from \CLEWS{} monetary units to the \OGCore{} numéraire is not yet calibrated.
 \Variables $cp$, the carbon price; the deflator maps \CLEWS{} money to the \OGCore{}
 numéraire (currently $1$, uncalibrated); carbon intensity, tCO$_2$ per unit of the energy
 good; $\alphaT$, the transfer share used to recycle revenue.
 
 \subsection{Public investment \dir{CLEWS $\to$ OG}}
-\Intuition Building the grid (transmission and distribution) is a public cost. If
-debt-financed it competes with everyone else for savings, pushing up the interest rate
-and crowding out private investment; but public capital is also productive, so it lifts
-output. The net sign depends on which dominates.
+\Intuition Grid expansion is public investment. If it is debt-financed, it competes for
+savings, raises the interest rate, and can crowd out private investment. At the same
+time, the resulting public capital is productive, so it can raise output. The net effect
+depends on which force dominates.
 \Technical The public grid-capex increment (as a share of GDP) is added to the
 public-investment share $\alphaI$ on a finite ramp; it accumulates into public capital,
 which is productive in the firm's technology:
 \[
   K_{g,t+1} = (1-\delta)\,K_{g,t} + I_{g,t}, \qquad I_{g,t} = \alpha_{I,t}\,Y_t .
 \]
-This is where crowding-out legitimately lives. In the Philippine scenario the extra grid
-spend is $\approx 0$ (the transition is generation-side), so the channel is inert here
-($Y_{ss}=+0.000\%$); its mechanics scale with any non-zero spend.
+This is where crowding-out enters the linked model. In the Philippine scenario the extra
+grid spend is $\approx 0$ because the transition is mostly generation-side, so this
+channel has essentially no effect here; the steady-state output change rounds to
+$+0.000\%$. With non-zero grid spending, the same mechanics scale accordingly.
 \Variables $\alphaI$, the public-investment share of output; $\Kg$, the public capital
 stock; $I_g$, public investment; $\delta$, depreciation; $\gammag$, public capital's
 share in production.
 
 \subsection{Capital intensity \dir{CLEWS $\to$ OG}}
-\Intuition A clean power fleet is capital-heavy (much up-front capex, little fuel). The
-tempting reading --- ``so it pulls capital in'' --- is wrong here. Raising the energy
-sector's capital \emph{share} with productivity fixed is like making the sector cheaper
-to run: competition drives the electricity price down, and because electricity demand
-barely responds, the sector's revenue shrinks and it \emph{sheds} capital. So this is a
-factor-income / energy-price lever, not a capital draw-in.
+\Intuition A clean power fleet is capital-heavy: it has high up-front capex and low fuel
+costs. That does not mean this channel necessarily pulls more capital into the energy
+sector. Here the lever raises the energy sector's capital \emph{share} while holding
+productivity fixed. In a competitive model, that lowers operating cost and pushes the
+electricity price down. Because electricity demand responds only weakly, sector revenue
+falls and the sector can shed capital. This channel is therefore a factor-income and
+energy-price lever, not an investment-pull lever.
 \Technical The reform/baseline ratio of the power fleet's capital-cost share scales the
-energy industry's capital exponent $\gammam$ (Philippines: $+12.2\%$). Under
-Cobb--Douglas technology ($\varepsilon=1$) capital's revenue share \emph{is} $\gammam$,
-so firm capital demand is $K_m=\gammam\,p_m Y_m/\rho_m$. The lever moves only $\gammam$,
-so in the reform/baseline ratio the cost of capital $\rho_m$ and the return $r$ cancel,
-leaving an exact identity:
+energy industry's Cobb--Douglas capital share $\gammam$ (also its capital exponent;
+Philippines: $+12.2\%$). Under Cobb--Douglas technology ($\varepsilon=1$), capital's
+revenue share \emph{is} $\gammam$, so firm capital demand is
+$K_m=\gammam\,p_m Y_m/\rho_m$. Taking reform/baseline ratios gives
+\[
+  \hat K_E \;=\; \hat\gamma_E \cdot \hat p_E \cdot \hat Y_E / \hat\rho_E .
+\]
+Here $\rho_m$ bundles the return, depreciation, business taxes, tax depreciation, and any
+investment tax credit. This channel changes $\gammam$, not those user-cost terms; in the
+Philippine solve $\hat\rho_E\approx 1$, so the result is read through the near-identity
 \[
   \hat K_E \;=\; \hat\gamma_E \cdot \hat p_E \cdot \hat Y_E .
 \]
-Measured (energy industry): $\hat\gamma_E=+12.2\%$, $\hat p_E=-42.8\%$,
-$\hat Y_E=+20.9\%$, so $\hat K_E=-22.4\%$ (the identity reproduces it to $0.03\%$).
+Measured for the energy industry on an earlier M=8 steady-state solve of this lever:
+$\hat\gamma_E=+12.2\%$, $\hat p_E=-42.8\%$, $\hat Y_E=+20.9\%$, so $\hat K_E=-22.4\%$; the
+product $\hat\gamma_E\hat p_E\hat Y_E$ matches the result to $0.03\%$. The committed
+golden records aggregates only (energy output $+4.4\%$, aggregate output $+0.001\%$ on
+the re-blessed run); the sectoral price/capital decomposition is re-derived per solve.
 \Variables $\gammam$, industry $m$'s capital exponent (its share of value added);
 $\rho_m=(r+\delta-\taub_m\delta^{\tau}_m-\tau^{\mathrm{inv}}_m\delta)/(1-\taub_m)$, the
 cost of capital; $p_m,Y_m$, the industry's price and output; a hat is a reform/baseline
 ratio; $E$ marks the energy industry.
 
 \subsection{Investment incentive \dir{policy}}
-\Intuition To actually pull capital \emph{into} energy, lower its cost of capital --- for
-instance with an investment tax credit. That makes energy investment cheaper at the going
-interest rate, so capital reallocates in. This is a genuinely different lever from capital
-intensity: capital intensity changes the factor \emph{mix} (the exponent); the credit
-changes the \emph{cost of capital}. They move energy capital in opposite directions, so
-they are not two views of the same thing.
+\Intuition To pull capital \emph{into} energy, lower the sector's cost of capital, for
+example with an investment tax credit. That makes energy investment cheaper at the
+prevailing interest rate, so capital reallocates toward the sector. This is distinct from
+capital intensity: capital intensity changes the factor \emph{mix} in production, while
+the credit changes the \emph{cost of capital}. They can move energy capital in opposite
+directions.
 \Technical An investment tax credit $\tau^{\mathrm{inv}}_m$ on the energy industry enters
 the cost of capital directly, where the capital exponent is \emph{absent}:
 \[
@@ -197,23 +217,24 @@ business-income tax; $\delta$, economic depreciation; $\delta^{\tau}_m$, tax dep
 $\rho_m$, the cost of capital.
 
 \subsection{Health \dir{CLEWS $\to$ OG}}
-\Intuition Cleaner air saves lives and --- more important for output --- makes
-working-age people healthier and more productive. But a $7.7\%$ cut in power-sector
-PM$_{2.5}$ is not $7.7\%$ fewer deaths: energy is one pollution source among many, and
-deaths fall less than one-for-one as the air clears, so only $\sim$8\% of the cut reaches
-mortality. The deaths avoided skew elderly (retirees), so the long-run output effect is
-$\approx 0$; the real macro gain is the working-age productivity channel, which shows up
-along the transition.
+\Intuition Cleaner air saves lives and, more important for output, makes working-age
+people healthier and more productive. A $2.7\%$ cut in power-sector PM$_{2.5}$ does not
+mean $2.7\%$ fewer pollution deaths. Power is only one source of pollution, and mortality
+falls less than proportionally as air quality improves, so only about $8\%$ of the
+emissions cut passes through to deaths. The avoided deaths are concentrated among older
+people, so the long-run output effect is close to zero. The macro gain comes mainly from
+working-age productivity during the transition.
 \Technical The reform/baseline PM$_{2.5}$ emissions change $\Delta\text{em}$ scales the
 country's Global Burden of Disease attributable deaths by a calibrated dose-response $M$:
 \[
   \Delta\text{deaths} \;=\; D_{\mathrm{PM}} \times M \times \Delta\text{em}
-  \;=\; 43{,}951 \times 0.082 \times (-0.077) \;\approx\; -279 .
+  \;=\; 43{,}951 \times 0.082 \times (-0.0265) \;\approx\; -95 .
 \]
 \emph{Mortality} shocks the age-specific rate $\rho(s,t)$ to hit that signed target and
-recomputes the population; \emph{morbidity} scales the effective-labour profile
-$e(t,s,j)$ by a working-age disability shape. Result: $Y_{ss}=-0.003\%$ but $+0.19\%$
-near-term. The $\times M$ is what separates $-279$ from the naïve $-3{,}400$.
+then recomputes the population; \emph{morbidity} scales the effective-labour profile
+$e(t,s,j)$ by a working-age disability shape. Result: steady-state output changes by
+$-0.0003\%$, but near-term output rises by $+0.19\%$. The $\times M$ term is what
+separates $-95$ from the unadjusted $-1{,}165$.
 \Variables $\Delta\text{em}$, the reform/baseline PM$_{2.5}$ emissions change;
 $D_{\mathrm{PM}}$, GBD ambient-PM$_{2.5}$ attributable deaths ($43{,}951$, Philippines);
 $M\approx0.082$, the dose-response (energy mass-share $\times$ concentration-response
@@ -221,25 +242,28 @@ elasticity); $\rho(s,t)$, mortality by age $s$ and time $t$; $e(t,s,j)$, effecti
 by time, age, and income group $j$.
 
 \subsection{Discount rate \dir{OG $\to$ CLEWS}}
-\Intuition The economy has an equilibrium return on capital --- its own cost of capital.
-Handing that to the energy planner means it discounts future costs at a rate the economy
-actually implies, rather than an arbitrary assumption. A lower return favours
-capital-heavy, long-lived assets (renewables).
+\Intuition The economy produces an equilibrium return on capital: its own cost of
+capital. Passing that return to the energy planner lets \CLEWS{} discount future costs at
+a rate implied by the macroeconomy rather than by an external assumption. A lower return
+favours technologies with high up-front costs and long operating lives, such as
+renewables.
 \Technical After the reform solves, \OGCore{}'s equilibrium market return $\rp$ (a
 multi-period mean) is written to \CLEWS{}'s planning discount rate. It is emitted
-\emph{after} the solve and is one-way: it changes the energy build, whose prices feed back
-to \OGCore{} only once the loop iterates. Inert as a standalone reform.
+\emph{after} the solve and is one-way: it can change the energy build, but the resulting
+prices feed back to \OGCore{} only in a later iteration. By itself it does not change the
+current \OGCore{} solve.
 \Variables $\rp$, the market portfolio return (\OGCore{}'s equilibrium cost of capital);
 the \CLEWS{} discount rate it sets.
 
 \subsection{Energy demand \dir{OG $\to$ CLEWS}}
-\Intuition A larger or richer economy needs more energy. Once the economy solves, its
-activity scales the demand the energy system must meet. In a single pass this barely
-changes, so the channel is latent --- it only bites once the two models iterate.
+\Intuition A larger or richer economy needs more energy. After \OGCore{} solves, its
+activity level scales the demand path that \CLEWS{} must meet. In a single pass this
+barely changes, so the channel mainly matters once the two models iterate.
 \Technical The reform/baseline activity ratio (industry output $Y_m$ or consumption
 $C_i$, raised to an elasticity) scales \CLEWS{}'s specified annual demand:
-$\text{demand}^{r} = (\hat Y_m)^{\varepsilon_D}\,\text{demand}^{b}$. Emitted after the
-solve; one-way. In one pass $\hat Y_m\approx 1$, so it is inert by construction.
+$\text{demand}^{r} = (\hat Y_m)^{\varepsilon_D}\,\text{demand}^{b}$. The signal is emitted
+after the solve and is one-way. In one pass $\hat Y_m\approx 1$, so the demand path is
+almost unchanged by construction.
 \Variables $Y_m$, industry output; $C_i$, consumption of good $i$; $\varepsilon_D$, the
 demand-scaling elasticity; the \CLEWS{} specified annual demand it scales.
 
