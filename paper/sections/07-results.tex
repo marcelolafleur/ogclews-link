@@ -13,21 +13,20 @@ like the quantities, as percent changes from baseline.
 \subsection{The flagship coupled run}
 \label{sec:coupled}
 The \chan{coupled} experiment applies, in one reform: the real \CLEWS{} electricity price
-(the ``auto'' source---cost-of-electricity index or \OSeMOSYS{} commodity-balance marginal cost)
-through the composite transmission of \Cref{sec:routes} (inter-industry cost-push plus a
-recycled household wedge); public grid investment; a \$50/tCO\textsubscript{2} carbon
-price on the \CLEWS{} side; and the Global Burden of Disease health channel; then it emits
-the equilibrium return and activity back to \CLEWS{}. The real Philippine electricity
-price is \emph{near-flat}---the coupled run moves electricity output by only $-0.18\%$---so
-the energy-price channel contributes almost nothing, and the macro response is carried by
-the health channel.
+(the ``auto'' source---a cost-of-electricity index or the reconstructed levelized cost,
+\Cref{sec:signal}) through the composite transmission of \Cref{sec:routes}
+(inter-industry cost-push plus a recycled household wedge); public grid investment; a
+\$50/tCO\textsubscript{2} carbon price on the \CLEWS{} side; and the Global Burden of
+Disease health channel; then it emits the equilibrium return and activity back to
+\CLEWS{}. The real Philippine electricity price rises about $5\%$ on average
+(\Cref{sec:calibration}); the coupled run moves electricity output by $-2.0\%$.
 
-That response is a steady state that is marginally negative but a transition that is
-positive and growing (\Cref{tab:phl-coupled}): output is $-0.017\%$ in the long-run
-steady state (the cleaner-air survival gain skews elderly, adding retirees) but
-$+0.17\%$ near-term and $+0.40\%$ by period ten, as the working-age morbidity gain raises
-effective labour (\Cref{fig:transition}). This horizon split---a small negative at the
-steady state, a larger positive along the path---is the signature of the demographic
+The response is a positive transition and a negative steady state
+(\Cref{tab:phl-coupled}): output is $+0.18\%$ near-term and $+0.20\%$ by period ten, as
+the working-age morbidity gain raises effective labour, but $-0.14\%$ in the long-run
+steady state, where the added retirees (the cleaner-air survival gain skews elderly)
+combine with the contractionary price channels (\Cref{fig:transition}). This horizon
+split---a positive path, a negative steady state---is the signature of the demographic
 health channel and is invisible to a static core.
 
 \begin{table}[t]
@@ -40,12 +39,12 @@ and transition periods $t_0$, $t_{10}$). Source: \texttt{results/golden.json}, r
 \toprule
  & steady state & $t_0$ (near term) & $t_{10}$ \\
 \midrule
-output $Y$        & $-0.017$ & $+0.165$ & $+0.395$ \\
-consumption $C$   & $+0.008$ & $+0.195$ & $+0.467$ \\
-capital $K$       & $-0.014$ & $+0.147$ & $+0.390$ \\
-labour $L$        & $-0.010$ & $+0.248$ & $+0.240$ \\
-return $r$        & $-0.009$ & $+0.025$ & $+0.004$ \\
-wage $w$          & $-0.003$ & $-0.078$ & $+0.159$ \\
+output $Y$        & $-0.138$ & $+0.179$ & $+0.202$ \\
+consumption $C$   & $-0.087$ & $+0.066$ & $+0.385$ \\
+capital $K$       & $-0.128$ & $+0.164$ & $+0.218$ \\
+labour $L$        & $-0.007$ & $+0.276$ & $+0.222$ \\
+return $r$        & $-0.032$ & $+0.047$ & $-0.056$ \\
+wage $w$          & $-0.117$ & $-0.117$ & $+0.009$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -53,28 +52,31 @@ wage $w$          & $-0.003$ & $-0.078$ & $+0.159$ \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.82\linewidth]{coupled_transition}
-\caption{The coupled transition path (percent change from baseline): the steady-state
-effect is marginally negative while the near-term path is positive, driven by the
-working-age morbidity gain. Source: \texttt{results/figures/coupled\_transition.png}.}
+\caption{The coupled transition path (percent change from baseline): the near-term path
+is positive, driven by the working-age morbidity gain, while the steady-state effect is
+negative ($-0.14\%$). Source: \texttt{results/figures/coupled\_transition.png}.}
 \label{fig:transition}
 \end{figure}
 
 \subsection{Channel decomposition}
 \label{sec:decomposition}
 Table~\ref{tab:phl-channels} runs each channel as a standalone reform;
-\Cref{fig:channel-impact} plots the steady-state output impacts, and
-\Cref{fig:decomposition} the cumulative decomposition that layers the channels to
-reproduce the coupled run. Four things stand out, all as \Cref{sec:channels} anticipates.
-The \emph{energy-price} channel is negligible ($Y_{ss}=-0.0005\%$): the real Philippine
-electricity price is near-flat, so, honestly transmitted, it does little---the illustrative $+20\%$
-shocks of earlier work were doing the work, not the data. \emph{Carbon} is the clearest
-contraction ($Y_{ss}=-0.040\%$): a resource cost that shrinks capital and labour.
-\emph{Capital intensity} moves output only slightly at the aggregate ($-0.027\%$) but
-reshapes the energy sector sharply (\Cref{sec:ch-capint}). \emph{Health} is near-zero at
-the steady state ($-0.003\%$) but $+0.19\%$ near-term---the morbidity productivity gain.
+\Cref{fig:channel-impact} plots the steady-state output impacts. Four things stand out,
+all as \Cref{sec:channels} anticipates.
+The \emph{energy-price} channel is small ($Y_{ss}=-0.006\%$): the real Philippine
+electricity price rises about $5\%$ and, honestly transmitted, moves aggregate output
+little---the illustrative $+20\%$ shocks of earlier work were doing the work, not the
+data. \emph{Carbon} is the clearest standalone contraction ($Y_{ss}=-0.021\%$): a
+resource cost that shrinks capital and labour. \emph{Capital intensity} barely moves
+aggregate output ($+0.001\%$) but reshapes the energy sector (\Cref{sec:ch-capint}).
+\emph{Health} is near-zero at the steady state ($-0.0003\%$) but $+0.19\%$
+near-term---the morbidity productivity gain.
 The forward emitters (\chan{discount\_rate}, \chan{demand}) and \chan{investment} are
 $\approx 0$ as standalone reforms: the Philippine public grid-capex delta is small, and
-the emitters only feed \CLEWS{} until the loop closes.
+the emitters only feed \CLEWS{} until the loop closes. Finally, the coupled steady state
+($-0.138\%$) is well beyond the sum of the standalone channels ($\approx-0.02\%$): the
+channels interact in general equilibrium, so the standalone table is a diagnostic
+reading, not an additive accounting of the coupled run.
 
 \begin{table}[t]
 \centering\footnotesize
@@ -85,14 +87,14 @@ reforms on the M=8 Philippine calibration. Source: \texttt{results/golden.json}.
 \toprule
 channel & $Y$ & $C$ & $K$ & $L$ & $r$ \\
 \midrule
-\chan{energy\_price} (real price)      & $-0.001$ & $-0.006$ & $-0.001$ & $+0.001$ & $+0.000$ \\
-\chan{clean\_incidence} (recycled)    & $+0.018$ & $-0.087$ & $+0.017$ & $+0.026$ & $+0.023$ \\
-\chan{carbon}                         & $-0.040$ & $+0.019$ & $-0.048$ & $-0.045$ & $-0.045$ \\
-\chan{capital\_intensity}             & $-0.027$ & $+0.602$ & $-0.002$ & $-0.073$ & $-0.046$ \\
+\chan{energy\_price} (real price)      & $-0.006$ & $-0.062$ & $-0.011$ & $+0.009$ & $+0.002$ \\
+\chan{clean\_incidence} (recycled)    & $+0.003$ & $-0.092$ & $-0.003$ & $+0.017$ & $+0.017$ \\
+\chan{carbon}                         & $-0.021$ & $+0.026$ & $-0.019$ & $-0.045$ & $-0.064$ \\
+\chan{capital\_intensity}             & $+0.001$ & $+0.144$ & $+0.012$ & $-0.018$ & $-0.013$ \\
 \chan{investment}                     & $+0.000$ & $+0.000$ & $+0.000$ & $+0.000$ & $-0.000$ \\
-\chan{health}                         & $-0.003$ & $+0.019$ & $-0.001$ & $-0.010$ & $-0.007$ \\
+\chan{health}                         & $-0.000$ & $+0.024$ & $+0.004$ & $-0.013$ & $-0.011$ \\
 \midrule
-\chan{coupled} (all)                  & $-0.017$ & $+0.008$ & $-0.014$ & $-0.010$ & $-0.009$ \\
+\chan{coupled} (all)                  & $-0.138$ & $-0.087$ & $-0.128$ & $-0.007$ & $-0.032$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -105,27 +107,19 @@ Source: \texttt{results/figures/golden\_channel\_impact.png}.}
 \label{fig:channel-impact}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.82\linewidth]{coupled_decomposition}
-\caption{Cumulative channel decomposition: the layers reproduce the coupled run, so the
-top layer equals \chan{coupled} and each step's marginal contribution is attributable.
-Source: \texttt{results/figures/coupled\_decomposition.png}.}
-\label{fig:decomposition}
-\end{figure}
-
 \subsection{Distributional incidence}
 \label{sec:incidence}
 The distinctive output of an \OGCore{} core is incidence. Under the recycled
 electricity-price change with energy a partial necessity (\chan{clean\_incidence}),
-aggregate consumption falls ($C_{ss}=-0.087\%$) even as the price change is returned as
+aggregate consumption falls ($C_{ss}=-0.092\%$) even as the price change is returned as
 transfers: the burden lands more heavily on lower-income households, who spend a larger
 share on energy---a regressive pattern a single-agent macro core cannot produce.
 
 \subsection{The capital pair}
 \label{sec:capital-results}
 The \chan{capital\_intensity} channel is decomposed exactly via the firm identity of
-\Cref{sec:ch-capint} (\Cref{tab:capital-pair}): raising the energy capital exponent
+\Cref{sec:ch-capint} (\Cref{tab:capital-pair}, measured on an earlier steady-state solve
+of the lever): raising the energy capital exponent
 $12.2\%$ collapses the electricity price $42.8\%$; demand is elastic enough that output
 \emph{rises} $20.9\%$, yet capital \emph{falls} $22.4\%$ because the price collapse shrinks
 revenue---and the identity $\hat K_E=\hat\gamma_E\hat p_E\hat Y_E$ reproduces that response

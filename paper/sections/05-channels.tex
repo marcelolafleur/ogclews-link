@@ -100,7 +100,8 @@ unchanged---leaving the identity
   \hat K_E \;=\; \hat\gamma_E \,\cdot\, \hat p_E \,\cdot\, \hat Y_E .
   \label{eq:Khat}
 \end{equation}
-The identity is the tool for \emph{reading} the result. On the M=8 Philippine solve
+The identity is the tool for \emph{reading} the result. On an earlier M=8 Philippine
+steady-state solve of this lever
 (\Cref{tab:capital-pair}), raising the energy capital exponent by $12.2\%$ turns out to
 \emph{shed} energy capital, by $22.4\%$: the higher exponent cuts the sector's unit cost,
 so under zero profit the electricity price collapses $42.8\%$; demand is elastic enough
@@ -126,10 +127,13 @@ of calibration: they are genuinely different levers, and the no-double-counting 
 \begin{table}[t]
 \centering\footnotesize
 \caption{The \chan{capital\_intensity} channel decomposed via the firm identity
-\cref{eq:Khat}, measured on the M=8 Philippine solve (energy industry $m_e=2$). Raising
+\cref{eq:Khat}, measured on an earlier M=8 Philippine steady-state solve of the lever
+(energy industry $m_e=2$). Raising
 the capital exponent collapses the electricity price and, despite higher output, sheds
-capital; the identity reproduces the observed capital response to $0.03\%$. Source: the
-solved steady states behind \texttt{results/golden.json}.}
+capital; the identity reproduces the observed capital response to $0.03\%$. The committed
+golden records aggregates only (on the re-blessed record the standalone run moves energy
+output $+4.4\%$ and aggregate output $+0.001\%$); the sectoral price/capital
+decomposition is re-derived per solve.}
 \label{tab:capital-pair}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
@@ -166,8 +170,9 @@ the Global Burden of Disease export ($43{,}951$ attributable deaths), scaled by 
 calibrated per-country dose-response $M\approx0.082$ (an energy mass-share $\times$
 concentration-response elasticity). The lives effect is
 $\Delta\text{deaths}=\text{total}\times M\times\Delta\text{emissions}$, so the reform's
-$-7.7\%$ emissions change saves about $279$ lives---the dose-response $M$ is what
-separates this from the naive $43{,}951\times\Delta\text{emissions}\approx-3{,}400$. What
+$-2.7\%$ emissions change (the first-decade mean) saves about $95$ lives---the
+dose-response $M$ is what
+separates this from the naive $43{,}951\times\Delta\text{emissions}\approx-1{,}165$. What
 remains a modelling assumption---and keeps the channel reduced-form---is the
 \emph{linearity} of that mapping and the size of the morbidity productivity elasticity,
 not the burden or the dose-response. The mechanism itself---endogenous demography driven
