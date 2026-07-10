@@ -78,13 +78,15 @@
       [diagram \texttt{\detokenize{#1}}: build \texttt{../presentation} first --- \texttt{./build.sh}]\\[3pt]
       \itshape #2}}}%
   \caption{#2}\label{#3}\end{figure}}
-% \figurefig{file-no-ext}{caption}{label}  (pulls ../presentation/figures/<file>.png)
+% \figurefig{file-no-ext}{caption}{label}  (pulls ../results/figures/<file>.png,
+% the committed golden figures)
 \newcommand{\figurefig}[3]{%
   \begin{figure}[t]\centering
-  \IfFileExists{../presentation/figures/#1.png}%
+  \IfFileExists{../results/figures/#1.png}%
     {\includegraphics[width=\linewidth,height=0.5\textheight,keepaspectratio]{#1}}%
     {\fbox{\parbox{0.85\linewidth}{\centering\color{mute}\small
-      [figure \texttt{\detokenize{#1}}: build \texttt{../presentation} first --- \texttt{./build.sh}]\\[3pt]
+      [figure \texttt{\detokenize{#1}}: regenerate via
+      \texttt{experiments/plot\string_golden\string_summary.py}]\\[3pt]
       \itshape #2}}}%
   \caption{#2}\label{#3}\end{figure}}
 

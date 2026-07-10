@@ -1,0 +1,52 @@
+% ==========================================================================
+% Who Pays for the Energy Transition?
+% Linking CLEWS and OG-Core for energy-transition policy analysis.
+%
+% Build:  latexmk -pdf main.tex      (bibtex pass included)
+%
+% FRAMING (agreed 2026-07-10): the POSITIONING / INTRODUCTION paper, companion to
+% the methods paper in ../paper. Structure = the agreed HYBRID:
+%  - an AER-style long introduction (the paper in miniature: problem, what we do,
+%    what we find, why it matters, literature woven in, roadmap);
+%  - a field-journal body (the landscape section is a REAL numbered section, then
+%    models -> linkages -> Philippine illustration -> policy discussion), the shape
+%    of Energy Economics / The Energy Journal where the coupling canon lives;
+%  - JEP prose discipline throughout: plain language first, an equation only when
+%    it is load-bearing, every number attached to its meaning.
+%  - Numbers: the committed re-blessed golden (results/golden.json @ 1611cc9);
+%    figures reuse ../results/figures.
+%
+% SHARED SOURCES (single source of truth; make self-contained at submission):
+%  - preamble:      \input{../paper/preamble}
+%  - bibliography:  \bibliography{../paper/references}
+% ==========================================================================
+\documentclass[11pt]{article}
+\input{../paper/preamble}
+
+\title{\bfseries Who Pays for the Energy Transition?\\[2pt]
+\large Linking a Least-Cost Energy-System Model to an
+Overlapping-Generations Economy for Policy Analysis}
+
+\author{Matthew LaFleur \\ \small co-authors TBD}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/00-abstract}
+\end{abstract}
+
+\input{sections/01-introduction}
+\input{sections/02-landscape}
+\input{sections/03-two-models}
+\input{sections/04-linkages}
+\input{sections/05-illustration}
+\input{sections/06-policy}
+\input{sections/07-conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{../paper/references}
+
+\end{document}
