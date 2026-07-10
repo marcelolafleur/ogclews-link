@@ -1,61 +1,63 @@
-\section{The Two Models, and Why This Pair}
+\section{The Two Models}
 \label{sec:two-models}
 
-\subsection{CLEWS: the plan}
+\subsection{CLEWS}
 \label{sec:clews-intro}
 
-\CLEWS{} \citep{howells_clews_2013} is an integrated climate-land-energy-water
-planning framework built on \OSeMOSYS{} \citep{howells_osemosys_2011}, an open-source
-linear program that chooses capacity additions and dispatch to meet exogenous
-energy-service demands at least discounted system cost, subject to engineering and
-policy constraints---capacity adequacy, fuel availability, emissions caps or
-penalties, and the intra-annual load shape. Its outputs are the objects planners
-argue about: the technology mix, the build schedule, fuel use, emissions, and costs.
+\CLEWS{} \citep{howells_clews_2013} is an integrated climate, land, energy, and
+water planning framework built on \OSeMOSYS{} \citep{howells_osemosys_2011}, an
+open-source linear program that chooses capacity additions and dispatch to meet
+exogenous energy-service demands at least discounted system cost, subject to
+engineering and policy constraints: capacity adequacy, fuel availability, emissions
+caps or penalties, and the intra-annual load shape. Its outputs are the objects of
+energy planning: the technology mix, the build schedule, fuel use, emissions, and
+system costs.
 
-Two properties make it the right energy-side partner. First, it is
-\emph{institutionally deployed}: \CLEWS{} models are developed with and handed to
-national teams, so the energy scenario a country couples to its economy is the
-country's own plan, not a stylised import. Second, its gaps are exactly the
-complementary ones: demand is a fixed input (no price response), and there are no
-households, no government budget, and no distribution---``system cost'' is a total
-with no one attached to it.
+Two properties make it the appropriate energy-side partner. First, it is
+institutionally deployed: \CLEWS{} models are developed with national teams and
+transferred to them, so the energy scenario a country couples to its economy is the
+country's own plan rather than a stylised import. Second, its limitations are the
+complementary ones: demand is a fixed input with no price response, and the model
+contains no households, no government budget, and no distribution---system cost is a
+total with no incidence attached to it.
 
-\subsection{OG-Core: the people}
+\subsection{OG-Core}
 \label{sec:og-intro}
 
 \OGCore{} \citep{debacker_evans_ogcore} is an open-source overlapping-generations
-general-equilibrium platform in the tradition of \citet{auerbach_kotlikoff_1987}.
-Households live through $S$ ages in $J$ lifetime-income groups, working, saving, and
-consuming $I$ goods with a subsistence floor on necessities; $M$ industries hire
-labour and capital; a government levies consumption, business, and income taxes,
-issues debt, pays transfers, and invests in public capital---and its budget must
-close. The model solves both a long-run steady state and the full transition path to
-it, so ``near-term'' and ``eventually'' are different, computable answers. Countries
-calibrate it to their own accounts; the Philippine calibration used below has eight
-industries and five consumption goods, with electricity isolated as its own industry
-and good.
+general equilibrium platform in the tradition of \citet{auerbach_kotlikoff_1987}.
+Households live through $S$ ages in $J$ lifetime-income groups, supplying labour,
+saving, and consuming $I$ goods subject to a subsistence floor on necessities; $M$
+industries employ labour and capital; and a government levies consumption, business,
+and income taxes, issues debt, pays transfers, and invests in public capital, with a
+budget that must close. The model solves both the long-run steady state and the full
+transition path, so near-term and long-run effects are separately computable.
+Countries calibrate the platform to their own accounts; the Philippine calibration
+used below has eight industries and five consumption goods, with electricity
+identified as its own industry and consumption good.
 
-\OGCore{}'s blindness mirrors \CLEWS{}'s sight: firms use capital and labour but no
-priced energy input, and there is no technology detail---no plants, no dispatch, no
-emissions. What it uniquely holds, among the macro traditions of
-Section~\ref{sec:landscape}, is the combination of forward-looking life-cycle
-behaviour, age-and-income heterogeneity, demography that policy can move, and a
-fiscal sector with real instruments.
+\OGCore{}'s limitations mirror those of \CLEWS{}: firms employ capital and labour
+but no priced energy input, and the model carries no technology detail---no plants,
+no dispatch, no emissions. What it uniquely contributes, relative to the
+macroeconomic partners in Section~\ref{sec:landscape}, is the combination of
+forward-looking life-cycle behaviour, age and income heterogeneity, demography that
+policy can shift, and a fiscal sector with explicit instruments.
 
-\subsection{Why these two, and why a soft link}
+\subsection{The rationale for this pairing}
 \label{sec:why-pair}
 
-The pairing is deliberate on three grounds. \emph{Structural complementarity}: each
-model's gap is the other's core competence, with almost no overlap to reconcile---the
-usual hybrid-modelling problem of double-counted behaviour barely arises.
-\emph{Institutional fit}: both are open source, documented, and built for country
-ownership, so a coupled analysis can be run, audited, and re-run by the country it
-describes---a requirement for policy work, not a convenience. \emph{Solution-concept
-honesty}: the two cannot be merged even in principle. \OGCore{} steps through the
-transition period by period as an equilibrium among cohorts; \OSeMOSYS{} optimises
-all years at once for a planner; and an OLG economy exposes no scalar welfare
-objective an LP could join (Section~\ref{sec:hard-links}). A staged soft link---solve
-the energy plan, carry a few signals into the economy, solve the economy, send its
-return and demand back---is therefore not a compromise but the correct object. What
-a soft link owes its users is discipline at the seam, which is the subject of the
-next section.
+The pairing rests on three considerations. The first is structural complementarity:
+each model's gap is the other's core competence, with little overlapping behaviour
+to reconcile, so the double-counting problems that occupy much of the hybrid
+literature largely do not arise. The second is institutional fit: both models are
+open source, documented, and built for country ownership, so a coupled analysis can
+be run, audited, and re-run by the country it describes---a requirement for policy
+use rather than a convenience. The third is consistency of solution concepts: the
+two models cannot be merged even in principle, since \OGCore{} traces a transition
+period by period as an equilibrium among cohorts, \OSeMOSYS{} optimises all years
+simultaneously for a planner, and the OLG economy exposes no scalar objective an
+optimisation could join (Section~\ref{sec:hard-links}). A staged soft link---solve
+the energy plan, carry a defined set of signals into the economy, solve the economy,
+return its equilibrium rate and activity---is therefore the appropriate structure
+rather than a second-best. What a soft link requires in exchange is discipline at
+the interface, which the next section describes.

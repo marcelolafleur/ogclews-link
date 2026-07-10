@@ -1,113 +1,122 @@
 \section{Introduction}
 \label{sec:intro}
 
-When a country plans its energy transition, the plan is drawn by an energy-system
-model: a least-cost optimiser that chooses which power plants to build, when to build
-them, and how to run them, subject to the engineering of the grid and the policies of
-the government. The questions the country's ministers then ask are almost never about
-the plan itself. They are about the economy around it. What will the plan do to
-electricity prices, and through them to wages and the cost of living? Who bears the
-burden---and is it the poor, for whom electricity is a larger share of the budget? What
-does the build-out do to the public debt? How many lives does cleaner air save, and are
-the people it saves workers or retirees? None of these questions can be answered by the
-model that produced the plan, because that model contains no households, no firms, no
-government budget, and no prices that anyone responds to. Demand is a fixed input;
-``cost'' is a total, silent about who pays it.
+How do the costs and benefits of a national energy-transition plan propagate through
+the economy, and who bears them? Countries plan their energy transitions with
+energy-system models: least-cost optimisers that choose capacity, dispatch, and fuel
+mix subject to engineering and policy constraints. These models determine what the
+plan is, but they cannot determine what the plan does to electricity prices, wages,
+the cost of living, the public budget, or the distribution of welfare across
+households, because they contain no households, no firms, no government, and no
+prices that any agent responds to. The models that do contain these---general
+equilibrium models of the macroeconomy---typically carry no energy technology: no
+capacity constraints, no dispatch, no fuel mix, and no emissions accounting. The
+economic questions raised by the energy transition therefore fall between two mature
+modelling traditions, and they are increasingly consequential: carbon pricing is
+spreading, national climate pledges must be costed, development finance is
+conditioned on credible transition plans, and the distributional effects of energy
+prices bear directly on whether reforms are politically sustainable.
 
-The tools that could answer those questions---general-equilibrium models of the
-macroeconomy---have the opposite blindness. They carry behaviour, taxes, and
-distribution, but no energy technology: no dispatch, no capacity constraints, no fuel
-mix, no emissions accounting worth the name. The economics of the energy transition
-therefore sits in an awkward seam between two mature modelling traditions, each blind
-precisely where the other sees. This seam is not new---it has been worked since the oil
-shocks of the 1970s---but the questions now crossing it are more consequential than
-they have ever been: carbon pricing is spreading, national climate pledges must be
-costed, development finance is conditioned on credible transition plans, and the
-distributional politics of energy prices can decide whether a reform survives contact
-with an electorate.
+In this paper we introduce a framework that connects the two traditions, and we show
+what the connection makes it possible to answer. The framework links two open-source
+models that countries already use. On the energy side is \CLEWS{}---Climate, Land,
+Energy and Water Systems \citep{howells_clews_2013}---a least-cost planning framework
+built on the \OSeMOSYS{} optimiser \citep{howells_osemosys_2011} and developed with
+national teams so that each country owns its own model. On the economy side is
+\OGCore{} \citep{debacker_evans_ogcore}, an overlapping-generations (OLG) general
+equilibrium platform in the tradition of \citet{auerbach_kotlikoff_1987}, with
+households differentiated by age and lifetime income, multiple industries, and a
+government that closes its budget with explicit tax instruments. The two models are
+connected by a channel-based soft link: a small set of economically meaningful
+signals is read from the solved energy scenario---the electricity price, the required
+grid investment, the emissions path---and each signal is carried into the economy by
+exactly one model parameter, with the economy's equilibrium return and activity
+passed back. Each channel is a named economic mechanism with stated assumptions, and
+no signal enters twice. A companion paper \citep{lafleur_companion} develops the
+framework formally and validates each mechanism; this paper motivates the link,
+positions it within the literature on energy-macro integration, and illustrates its
+use.
 
-This paper introduces a way across the seam, built from two open-source models that
-countries already use, and shows what crossing it buys. On the energy side is
-\CLEWS{}---Climate, Land, Energy and Water Systems \citep{howells_clews_2013}---a
-least-cost planning framework built on the \OSeMOSYS{} optimiser
-\citep{howells_osemosys_2011} and deployed with national teams so that the country owns
-its own model. On the economy side is \OGCore{} \citep{debacker_evans_ogcore}, an
-overlapping-generations (OLG) general-equilibrium platform in the
-\citet{auerbach_kotlikoff_1987} tradition, with households differentiated by age and
-lifetime income, multiple industries, and a government that must balance its budget
-with real tax instruments. The two are joined by a \emph{channel-based soft link}: the
-solved energy scenario is read for a small set of economically meaningful
-signals---the electricity price, the required grid investment, the emissions
-path---and each signal is carried into the economy by exactly one model parameter it
-can legitimately move, with the economy's equilibrium return and activity sent back.
-Every channel is a named, auditable economic mechanism; no signal is counted twice. A
-companion paper \citep{lafleur_companion} develops the framework formally and
-validates each mechanism; this paper explains why the link exists, what it adds to the
-existing ways of joining energy and macro models, and what it looks like in use.
+A substantial literature integrates energy-system and macroeconomic models, and we
+review it in Section~\ref{sec:landscape}. Hard-linked models fold a stylised
+one-agent growth economy into the energy optimisation
+\citep{manne_wene_1992,messner_schrattenholzer_2000,manne_merge_1995,loulou_times_2008}.
+Hybrid computable general equilibrium (CGE) models embed bottom-up technology in a
+top-down economy \citep{bohringer_rutherford_2008,hourcade_hybrid_2006}, and
+soft-linked national studies iterate an energy model against a CGE partner
+\citep{krook_riekkola_2017,helgesen_tomasgard_2018}. Integrated assessment models
+descending from \citet{nordhaus_dice_2008} address global abatement with aggregate
+representations of both sides. These contributions establish that the integration
+matters and how to organise it.
 
-What it looks like in use is best shown by example. We couple the Philippine \CLEWS{}
-case---a baseline against an announced energy-policy reform---to a Philippine
-multi-industry calibration of \OGCore{}. The reform raises the levelized cost of
-electricity by about $5\%$ on average (peaking near $16\%$ around 2030), and the link
-transmits that real price, not a stylised shock, through industry costs and household
-budgets. Three findings illustrate what the coupled tool can say that neither parent
-could. First, the macroeconomic effect of the reform \emph{changes sign with the
-horizon}: output rises roughly $+0.2\%$ over the first decade of the transition but
-settles $-0.14\%$ below baseline in the long run. The near-term gain is a health
-effect---cleaner air makes the working-age population measurably more
-productive---while the long-run cost combines higher energy prices with, perversely
-only at first glance, the demographic arithmetic of survival: the lives cleaner air
-saves are concentrated among the elderly, so the steady state has more retirees per
-worker. A static or representative-agent model cannot even express this horizon
-structure. Second, the health effect itself is disciplined: the reform's $2.7\%$ cut
-in power-sector particulate emissions saves about $95$ lives per year once a
-calibrated dose-response is applied---not the $1{,}165$ a naive reading of the burden
-data would suggest. Third, incidence is regressive even when the energy-price revenue
-is recycled back to households: aggregate consumption falls about $0.09\%$, and the
-burden concentrates on poorer households, for whom electricity is closer to a
-necessity. Who pays is an output of the model, not an assumption.
+Existing approaches, however, share a common simplification: the macroeconomic side
+has no age structure. The economy is a representative agent, or a set of households
+differentiated by income but not by cohort, usually without forward-looking
+life-cycle saving and without a fiscal sector that must close. This is precisely the
+wrong simplification for the current generation of policy questions. The
+distributional effects of energy prices differ across ages and generations
+\citep{kotlikoff_2021}; the health co-benefits of decarbonisation operate through
+demography, changing who is alive, at which ages, and with what productivity; and
+fiscal closure is where carbon revenue, grid investment, transfers, and debt
+interact. The OLG tradition carries exactly this structure, but it has not been
+joined to a bottom-up energy-systems model. There is also a structural reason the
+standard hard-link route cannot supply the connection: hard-linking requires the
+economy to expose a scalar welfare objective the energy program can join, and an
+OLG economy---an equilibrium among cohorts, not a planner's optimum---has none. To
+our knowledge, the framework introduced here is the first to link a full
+overlapping-generations economy to a bottom-up energy-water-land systems model.
 
-The claim is not that linking energy and macro models is new. It is one of the oldest
-projects in energy economics, and Section~\ref{sec:landscape} reviews it: the
-hard-linked optimisers that fold a stylised Ramsey economy into the energy program
-(MARKAL-MACRO, MESSAGE-MACRO, MERGE, TIMES
-\citealp{manne_wene_1992,messner_schrattenholzer_2000,manne_merge_1995,loulou_times_2008});
-the hybrid computable-general-equilibrium (CGE) tradition that integrates bottom-up
-technology into a top-down economy \citep{bohringer_rutherford_2008,hourcade_hybrid_2006};
-the soft-linked national studies that iterate an energy model against a CGE partner
-\citep{krook_riekkola_2017,helgesen_tomasgard_2018}; and the integrated assessment
-models descending from \citet{nordhaus_dice_2008}. Each of these settles for a macro
-side without age structure: a representative agent, or households distinguished by
-income but not by cohort, usually without forward-looking life-cycle saving and
-usually without a fiscal sector that must actually close. That is precisely the
-wrong simplification for today's questions. Distribution across ages and generations
-is where energy-transition politics lives \citep{kotlikoff_2021}; health co-benefits
-are inherently demographic (they change who is alive, at which ages, with what
-productivity); and fiscal closure is where carbon revenue, grid investment, and debt
-meet. The OLG tradition holds exactly these pieces. To our knowledge, this link is
-the first to join a full overlapping-generations economy to a bottom-up
-energy-water-land systems model, and to do so through named channels rather than a
-merged optimisation.
+We illustrate the framework with a Philippine application: the country's \CLEWS{}
+case, a baseline against an announced energy-policy reform, coupled to a Philippine
+multi-industry calibration of \OGCore{}. The link transmits the reform's real
+electricity price---the levelized cost of electricity rises about $5\%$ on average,
+peaking near $16\%$ around 2030---together with grid investment, a carbon price, and
+the emissions-driven health channel. Three results illustrate what the coupled
+framework can quantify. First, the macroeconomic effect of the reform changes sign
+with the horizon: output rises by roughly $0.2\%$ over the first decade of the
+transition but is $0.14\%$ below baseline in the long-run steady state. The near-term
+gain operates through health---cleaner air raises working-age productivity---while
+the long-run cost combines higher energy prices with a demographic composition
+effect: the lives saved by cleaner air are concentrated among the elderly, so the
+steady state has more retirees per worker. Second, the health effect is disciplined
+by a calibrated dose-response: the reform's $2.7\%$ cut in power-sector particulate
+emissions saves about $95$ lives per year, rather than the roughly $1{,}165$ implied
+by scaling the attributable burden one-for-one. Third, incidence is regressive even
+when the energy-price revenue is recycled to households as transfers: aggregate
+consumption falls about $0.09\%$, with the burden concentrated on lower-income
+households, for whom electricity is closer to a necessity. In each case the answer is
+an output of the model rather than an assumption.
 
-Two design choices matter for credibility, and we flag them at the outset. The link is
-\emph{soft} and \emph{staged}: the models remain separate programs, exchanging a few
-auditable files, because no simultaneous optimisation exists that contains them
-both---\OGCore{} traces a transition period by period while \OSeMOSYS{} plans all
-years at once, and \OGCore{} exposes no scalar welfare objective an energy LP could
-sit inside. And the link is \emph{honestly scoped}: one full \CLEWS{}$\to$\OGCore{}
-pass is implemented and validated against a committed regression record; the reverse
-signals (the economy's equilibrium return, its energy demand) are emitted and
-ready, but the outer fixed-point iteration is designed rather than closed, and the
-conversion between \CLEWS{} money and the \OGCore{} numéraire is a stated unit bridge
-awaiting calibration. Magnitudes that ride on that bridge are labelled illustrative
+We position the paper within three strands of literature. First, we build on the
+energy-macro integration literature
+\citep{wene_1996,bohringer_rutherford_2008,hourcade_hybrid_2006}, adopting the
+soft-link architecture but replacing the representative-agent macro partner with an
+OLG economy, which the hard-link route cannot accommodate. Second, we complement the
+OLG literature on climate and energy policy \citep{kotlikoff_2021}, which measures
+generational incidence under aggregate representations of the energy system, by
+supplying the bottom-up technology detail that national planning actually uses.
+Third, we contribute to the quantification of health co-benefits
+\citep{gbd_2019_risk,burnett_gemm_2018} by embedding them in general equilibrium as
+demographic shocks---to survival rates and effective labour by age---rather than as
+external valuations appended to an energy model's output.
+
+Two design choices bear on how the results should be read, and we state them at the
+outset. The link is soft and staged: the models remain separate programs exchanging
+a small set of auditable files, because their solution concepts do not
+compose---\OGCore{} traces a transition period by period while \OSeMOSYS{} optimises
+all years at once. And the scope is deliberately limited: one full
+\CLEWS{}$\to$\OGCore{} pass is implemented and validated against a committed
+regression record; the reverse signals are emitted and ready, but the outer
+fixed-point iteration is designed rather than closed, and the conversion between
+\CLEWS{} monetary units and the \OGCore{} numéraire is an explicit bridge awaiting
+calibration. Magnitudes that depend on that bridge are labelled illustrative
 wherever they appear.
 
 The rest of the paper proceeds as follows. Section~\ref{sec:landscape} reviews how
-energy-macro integration has been done and what each approach cannot answer.
-Section~\ref{sec:two-models} introduces the two models and argues that this particular
-pair---open-source, country-owned, and structurally complementary---is the right one
-to join. Section~\ref{sec:linkages} presents the linkages themselves: the
-signal-wedge-channel vocabulary, the electricity-price signal, and the eight channels.
-Section~\ref{sec:illustration} works through the Philippine coupling.
-Section~\ref{sec:policy} discusses what the linked tool offers policy analysis, and
-what it does not yet. Section~\ref{sec:conclusion} concludes.
+energy-macro integration has been approached and identifies the gap the framework
+fills. Section~\ref{sec:two-models} describes the two models and the rationale for
+this pairing. Section~\ref{sec:linkages} presents the linkage framework: the
+signal-wedge-channel structure, the electricity-price signal, and the eight
+channels. Section~\ref{sec:illustration} reports the Philippine application.
+Section~\ref{sec:policy} discusses implications for policy analysis and the
+extension roadmap. Section~\ref{sec:conclusion} concludes.
