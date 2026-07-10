@@ -1,10 +1,12 @@
 \section{Introduction}
 \label{sec:intro}
 
-How do the costs and benefits of a national energy-transition plan propagate through
-the economy, and who bears them? Countries plan their energy transitions with
-energy-system models: least-cost optimisers that choose capacity, dispatch, and fuel
-mix subject to engineering and policy constraints. These models determine what the
+How do the costs and benefits of a national resource-system plan---a country's
+climate, land, energy and water strategy---propagate through the economy, and who
+bears them? Countries develop these strategies with systems-planning models:
+least-cost optimisers that choose capacity, dispatch, and resource allocation
+subject to engineering and policy constraints, with the energy transition as the
+leading current application. These models determine what the
 plan is, but they cannot determine what the plan does to electricity prices, wages,
 the cost of living, the public budget, or the distribution of welfare across
 households, because they contain no households, no firms, no government, and no
@@ -109,8 +111,10 @@ all years at once. And the scope is deliberately limited: one full
 regression record; the reverse signals are emitted and ready, but the outer
 fixed-point iteration is designed rather than closed, and the conversion between
 \CLEWS{} monetary units and the \OGCore{} numéraire is an explicit bridge awaiting
-calibration. Magnitudes that depend on that bridge are labelled illustrative
-wherever they appear.
+calibration. The channel library is likewise currently instantiated for the energy
+system---\CLEWS{}'s land and water signals enter through the same architecture and
+are part of the extension roadmap (Section~\ref{sec:policy}). Magnitudes that depend
+on the unit bridge are labelled illustrative wherever they appear.
 
 The rest of the paper proceeds as follows. Section~\ref{sec:landscape} reviews how
 energy-macro integration has been approached and identifies the gap the framework
