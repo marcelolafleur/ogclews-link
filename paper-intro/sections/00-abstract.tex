@@ -8,11 +8,24 @@
 %  - the Philippine illustration: LCOE +5%, transition +0.2% / steady state -0.14%,
 %    ~95 lives per year, regressive incidence even with revenue recycling.
 %  - honest scope: one validated CLEWS->OG pass; iteration designed, not yet closed.
-% STYLE ANCHOR: match the user's abstract register (CostOfDisease_JDE.tex): "We
-% develop a framework for... The framework combines X with Y to recover Z... We
-% illustrate the framework using [country]... In our preferred specification,
-% [number]... These estimates imply... More broadly, ..."
+% STYLE ANCHOR: register of CostOfDisease_JDE.tex ("We develop a framework for...
+% We illustrate the framework using [country]... More broadly, ...").
 We develop a framework for quantifying the macroeconomic and distributional effects
 of national energy-transition plans. The framework links a least-cost energy-systems
-model with an overlapping-generations general equilibrium economy through a small
-set of auditable channels. \emph{Abstract to be completed last.}
+model (\CLEWS{}/\OSeMOSYS{}) with an overlapping-generations general equilibrium
+model (\OGCore{}) through a small set of auditable channels: each signal from the
+solved energy scenario---the electricity price, grid investment, emissions---is
+carried into the economy by exactly one model parameter, and the economy's
+equilibrium return and activity are passed back. Both models are open source and
+calibrated by countries to their own data, so the same structural mapping is
+portable across settings. We illustrate the framework using the Philippines,
+coupling the country's own energy-reform scenario to a multi-industry Philippine
+calibration of \OGCore{}. The reform raises the levelized cost of electricity by
+about $5\%$. Output rises roughly $0.2\%$ over the first decade of the transition,
+driven by health co-benefits that raise working-age productivity and save about $95$
+lives per year, but settles $0.14\%$ below baseline in the long run, where the
+survival gains add retirees and the price channels accumulate. Incidence is
+regressive even with full revenue recycling. These results are outputs of the
+coupled framework and are not expressible in either model alone. More broadly, the
+framework moves the distributional, fiscal, and demographic consequences of energy
+policy from assumptions outside the model to outputs of it.
