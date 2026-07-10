@@ -40,6 +40,26 @@ exploration/
   research-inbox/                    DROP RESEARCH DOCUMENTS HERE (see its README)
 ```
 
+## Working discipline (decided 2026-07-10)
+
+**Architecture decision:** `ogclews-link` owns the coupling loop (separate orchestrator); MUIOGO stays
+the energy-model server, driven through its own endpoints/classes. The Rev-4.2 spec is a source of
+HYPOTHESES, not truths.
+
+**Per-idea pipeline — one idea at a time, each surviving on its own merits:**
+1. **Assess** (here, `findings/idea-NN-<name>.md`): does it add value to OUR tool? technically sound?
+   economically sound? feasible with the models today? What is the empirical test? Independent
+   judgment — never "the spec says so".
+2. **Build** on its own branch `channel/<idea>` off `origin/main`, in the single build worktree
+   (`~/Projects/ogclews-link-build`); transform tests without solving, per the house idiom.
+3. **Test empirically** on the PHL models (v9 case copies — never mutate the live case; CLEWS LP solves
+   are minutes and run freely; OG solves are asked-first).
+4. **Decide**: merge proposal to trunk, or record why it died. Branch deleted either way; worktree
+   moves to the next idea.
+
+Idea ledger: #01 CLEWS re-run seam (in progress) · #02 residual loop controller (blocked on #01) ·
+then the map §6 shortlist, re-assessed one by one.
+
 ## Method
 
 The space is constructed as a cross-product, then graded:
