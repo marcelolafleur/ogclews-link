@@ -54,3 +54,31 @@ Neither is the case per the code read; the empirical test will confirm.
 **Worth building — highest-leverage item in the program.** Not because the spec says so: because our
 own map has three og→clews channels and a loop that are unfalsifiable without it. Risks are scoped
 (ID translation, case-copy discipline); the empirical test is crisp.
+
+## Empirical log (2026-07-10, PHL Philippines_v9, CBC)
+
+The seam works — the driver ran MUIOGO's own pipeline headlessly on case copies from the first
+attempt. Every iteration below was a REAL discovery, not a code bug hunt:
+
+1. **Result-CSV naming:** the Rev-4.2 spec says `ProductionByTechnologyAnnual`; this MUIOGO exports
+   `ProductionByTechnologyByMode`. First verdict pass crashed by trusting the spec — fixed against
+   the actual export (the discipline holds: never believe the spec).
+2. **Silent zero-row no-op (now a loud error):** `PHL_HOU_ELE`'s SAD rows are all zero — household
+   load rides **`PHL_HOU_ELEF`** (9,978 PJ over 34 yrs, SC_0). The patcher initially "succeeded"
+   scaling zeros; it now raises on all-zero rows and names the commodities that actually carry
+   demand. General lesson for every demand-side channel: **the `*F` final-demand code is the
+   coupling surface**, not the delivered-commodity code.
+3. **Old-MUIO case under today's MUIOGO (the user's caution, tested):** the Jan-2026 case
+   regenerates **functionally identically** — all 54 datafile param blocks value-identical
+   (differences: block order, CRLF, comments). The small orig-vs-today result gap
+   (production −0.12%, var-op-cost −0.53%) is **alternative optima**: var-op-cost is ~0.03% of the
+   investment-dominated objective, and `AnnualizedInvestmentCost` matches to +0.0001%. So no
+   data-structure misreading detected for Base_v9 — but structures Base_v9 doesn't exercise
+   (storage, UDCs, PEP's SMR chain) remain untested; the caveat stands.
+4. **Historical years are load-bearing:** scaling demand ×1.1 in ALL years (including calibrated
+   2020–2024 history pinned to actual generation) made the LP pathological — CBC ground >1 h vs
+   ~4 min healthy. **Patch the exchange window only (2026+)**, exactly what the coupling does
+   anyway. Also caught: `subprocess.run`'s timeout kill orphaned the CBC grandchild at 100 % CPU —
+   the driver now owns the process group and kills it on timeout.
+5. Determinism (same store + same MUIOGO solved twice) and the window-patched treatment: verdicts
+   from round-trip v3 — recorded below when complete.
