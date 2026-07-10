@@ -1,0 +1,46 @@
+\section{What the Linked Tool Offers Policy Analysis}
+\label{sec:policy}
+
+\subsection{Questions that now have a modelled answer}
+\label{sec:new-questions}
+
+The value of the link is a set of questions that move from ``outside the model'' to
+``an output of the model.'' For an energy-transition package expressed as a \CLEWS{}
+scenario, the coupled tool can now answer: \emph{Who pays?}---incidence of the
+implied electricity-price path by age and lifetime income, with and without revenue
+recycling. \emph{When?}---impact, decade, and steady-state effects that can differ in
+sign, because the economy solves a full transition. \emph{What are the health
+co-benefits worth?}---in lives, in age structure, and in effective labour, from the
+country's own burden data. \emph{How does the budget close?}---carbon revenue, grid
+investment, transfers, and debt inside one consistent fiscal accounting. \emph{What
+discount rate should the plan itself use?}---the economy's own equilibrium cost of
+capital, read back to the planner rather than assumed
+(Section~\ref{sec:feedback-channels}). Each answer is attributable to a named
+channel, which is what makes the tool usable in an argument: a contested number can
+be traced to its mechanism, its signal, and its assumptions.
+
+\subsection{Built to be owned}
+\label{sec:ownership}
+
+The engineering choices serve deployment. Both parents are open source; the link
+reads a country's existing \CLEWS{} case as produced by its national team and
+discovers the country's \OGCore{} calibration---how many industries, which one is
+electricity---at run time, rather than hard-coding any country's structure. Channels
+whose data prerequisites a country cannot meet skip loudly instead of fabricating.
+The intended user is the analyst in a ministry or country office who already runs
+one of the two models and needs the other half of the answer, on infrastructure the
+country controls and can audit.
+
+\subsection{Honest scope, and the path forward}
+\label{sec:scope}
+
+Three limits define the current tool, each with a designed successor. The coupling
+runs one validated \CLEWS{}$\to$\OGCore{} pass; the return signals exist, and closing
+the loop---iterating until the electricity price the economy faces and the demand
+the planner meets agree---is the next step. The money-to-numéraire bridge is
+uncalibrated, so carbon and investment magnitudes are illustrative until it is
+pinned to the country's accounts. And energy enters firm costs in reduced form; the
+structural version prices energy as a production input inside \OGCore{} itself. None
+of these limits is hidden in the output: illustrative levels are labelled where they
+appear, and validated mechanics are distinguished from calibrated magnitudes
+throughout.

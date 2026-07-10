@@ -1,0 +1,110 @@
+\section{Six Decades at the Seam: How Energy and Macro Models Have Been Joined}
+\label{sec:landscape}
+
+The energy-macro seam has been worked long enough to have a taxonomy. Four families
+of solutions exist, and the differences between them come down to two questions:
+\emph{how much economy} sits beside the energy technology, and \emph{how tightly} the
+two are bound. This section reviews the families with an eye to a single test---can
+the tool say who pays?---because that test is what motivates the link this paper
+introduces.
+
+\subsection{Hard links: an economy inside the optimiser}
+\label{sec:hard-links}
+
+The oldest and tightest approach folds a small macroeconomy directly into the energy
+optimisation, so that one program solves both. MARKAL-MACRO \citep{manne_wene_1992}
+attached a single-sector Ramsey growth model to the MARKAL energy system;
+MESSAGE-MACRO \citep{messner_schrattenholzer_2000} did the same for MESSAGE,
+iterating between the modules until they agree; MERGE \citep{manne_merge_1995} and
+the TIMES family \citep{loulou_times_2008} carry the design forward. The gain is
+real: energy demand responds to price \emph{inside} the solution, so the cost of a
+constraint is measured against an economy that adapts.
+
+The price of the tightness is the economy itself. For the macro side to sit inside
+(or iterate cleanly against) an optimisation, it must be collapsed to a single
+intertemporal utility function---one representative agent, one aggregate good, saving
+determined by one Euler equation. There are no ages, no income classes, no separate
+industries, no tax instruments, and no government budget in any meaningful sense.
+The hard-linked family can say what a carbon constraint costs in aggregate
+consumption; it cannot say who pays, because there is no one inside the model to pay
+differently from anyone else. There is also a structural prerequisite worth naming,
+since it explains why the approach cannot simply be repeated here: hard-linking
+requires the economy to expose a scalar objective the energy program can join. An
+overlapping-generations economy does not have one---it is an equilibrium among
+cohorts, not an optimum of a planner---so the hard-link route is closed to exactly
+the class of models that carries distribution.
+
+\subsection{Hybrid CGE: technology inside the economy}
+\label{sec:hybrid-cge}
+
+The mirror-image approach embeds bottom-up technology detail into a top-down
+computable general equilibrium model. The methodological landmark is
+\citet{bohringer_rutherford_2008}, who showed how to formulate discrete energy
+technologies and a full Arrow-Debreu economy as one mixed complementarity problem;
+\citet{hourcade_hybrid_2006} frame the broader hybrid agenda. Applied descendants
+run from global trade-and-energy CGEs to national policy models
+\citep[e.g.][]{goulder_hafstead_2017}, and the tradition has produced serious
+distributional work: \citet{rausch_2011} attach household micro-data to a CGE and
+measure the incidence of carbon pricing across income classes.
+
+Two limits persist. First, the economy is almost always \emph{recursive-dynamic}: it
+rolls forward year by year with a fixed saving rule rather than solving forward-looking
+life-cycle behaviour, so the intertemporal questions---who saves in anticipation of a
+reform, how a transition redistributes across cohorts---are outside its language.
+Second, even where households are heterogeneous by income, they are not
+heterogeneous by \emph{age}: there are no cohorts, no retirement, no demography, and
+therefore no way to express a mechanism as basic as ``cleaner air changes who is
+alive and at what productive age.'' The hybrid CGE family can say who pays across the
+income distribution in a given year; it cannot say who pays across generations, and
+it cannot carry a demographic health channel at all.
+
+\subsection{Soft links: two models, a negotiated agreement}
+\label{sec:soft-links}
+
+Between the poles sits the soft link: keep both models whole, pass results between
+them, iterate to (approximate) consistency. \citet{wene_1996} formalised the
+approach and its convergence logic; national implementations include the Swedish
+TIMES-CGE pairing of \citet{krook_riekkola_2017}, and \citet{helgesen_tomasgard_2018}
+study what full integration versus linking does to equilibria and convergence.
+Soft links trade elegance for honesty: each model keeps its full structure and its
+own solution concept, the exchange is inspectable, and the seam is explicit rather
+than hidden inside a merged program.
+
+The limitation of the soft-link literature is not the method but the partner: the
+macro side has again been a representative-agent or income-class CGE, with the same
+silences as Section~\ref{sec:hybrid-cge}. The method itself is exactly right for a
+macro model that \emph{cannot} be hard-linked---which, as noted above, an OLG economy
+structurally cannot. This paper is, in that sense, a soft link in the
+\citet{wene_1996} tradition with a new class of partner on the economy side.
+
+\subsection{Integrated assessment models: the seam at global scale}
+\label{sec:iams}
+
+Integrated assessment models answer a different question---the social cost of
+carbon, optimal global abatement paths---and make different sacrifices to do so.
+The DICE lineage \citep{nordhaus_dice_2008} reduces both sides of the seam: energy
+technology to an aggregate abatement-cost function, the economy to a global Ramsey
+planner. Process IAMs restore rich technology but keep the aggregate economy. The
+family's central controversy is telling for our purposes: the debate between
+\citet{stern_2007} and \citet{nordhaus_stern_2007} turned on a discount rate that
+must be \emph{assumed}, precisely because a one-agent model has no market inside it
+to reveal one. An economy with an equilibrium interest rate---as in the link
+introduced here, where the energy planner's discount rate is read off the economy's
+own cost of capital---dissolves a piece of that controversy by construction.
+
+\subsection{The open cell in the taxonomy}
+\label{sec:open-cell}
+
+Arranging the families by their two coordinates---how much economy, how tight a
+bind---reveals an open cell. Rich technology with a rich \emph{aggregate} economy
+exists (hybrid CGE); rich technology with a thin optimising economy exists (hard
+links, process IAMs); and OLG economies with rich fiscal and demographic structure
+exist but with no energy technology attached---\citet{kotlikoff_2021} put carbon
+policy into a full OLG world precisely to measure its generational incidence, but
+with climate entering through an aggregate damage function, not through a power
+system anyone plans. The cell that remains open is the one today's questions
+occupy: \emph{bottom-up energy-water-land technology joined to an
+overlapping-generations economy with fiscal closure}. Filling that cell requires a
+soft link (the OLG side forbids hard-linking), a disciplined interface (so the
+freedom of a soft link does not become arbitrariness), and a pair of models that
+countries can actually own and run. The next two sections take these in turn.
