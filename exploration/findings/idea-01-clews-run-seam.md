@@ -80,5 +80,21 @@ attempt. Every iteration below was a REAL discovery, not a code bug hunt:
    ~4 min healthy. **Patch the exchange window only (2026+)**, exactly what the coupling does
    anyway. Also caught: `subprocess.run`'s timeout kill orphaned the CBC grandchild at 100 % CPU —
    the driver now owns the process group and kills it on timeout.
-5. Determinism (same store + same MUIOGO solved twice) and the window-patched treatment: verdicts
-   from round-trip v3 — recorded below when complete.
+5. **Round-trip v3 verdicts (final): the seam is EMPIRICALLY PROVEN.**
+   - *Treatment:* `PHL_HOU_ELEF` ×1.1 over 2026–2053 (window sum 9,190→10,109 PJ) →
+     **electricity production +4.28 %, variable operating cost +3.72 %** vs control — right sign,
+     sensible magnitude (< +10 % since household load is a slice of total), through MUIOGO's own
+     pipeline end-to-end. Solves healthy at ~204–214 s each.
+   - *Reproducibility:* solving the same store twice reproduces results to **0.002 %** (production)
+     and **<1e-6** (cost) — economically identical; BIT determinism does not hold (regeneration+CBC
+     re-lands on a tie vertex). Criterion set to an economic tolerance (1e-3), realized gaps printed.
+   - *Old-vs-today (reported, non-fatal):* production −0.125 %, var-op-cost −0.529 % vs the Jan
+     results — alternative optima per finding 3, not data reinterpretation.
+
+**Status: idea #01 SURVIVES.** Branch `channel/clews-run-seam`: `clews_driver.py` (case copy,
+code→ID translation, windowed demand patcher with zero-row guard, process-group-safe MUIOGO solve
+subprocess) + 8 unit tests + `experiments/seam_roundtrip.py` (control/determinism/treatment).
+Follow-ons for the merge proposal: extend the contract test to PEP_v9 (untested old-MUIO structures:
+storage/UDC/SMR chain), writers for EmissionsPenalty/AnnualEmissionLimit/DiscountRate patches (the
+demand patcher is the template), and wiring `framework.run`'s `clews_runner` hook to this driver
+(that is idea #02's ground).
