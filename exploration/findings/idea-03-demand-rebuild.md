@@ -60,7 +60,28 @@ none is readable, one OG baseline solve (ask first).
 or the rebuilt paths make the LP pathological even window-limited (would mean demand levels far
 outside the case's capacity envelope — itself a reportable harmonization finding, not a code bug).
 
+## Population-basis check (2026-07-11, the "two growth paths" worry — resolved)
+
+The user's concern: is it a problem to run two models on two different growth paths? Checked, no solve:
+- **CLEWS v9 carries NO population or GDP series.** genData.json has no pop/gdp/driver fields; demand
+  is authored directly as absolute PJ paths in RYC.json (the only `population|gdp` grep hit was
+  "capital costs" in the case description). So there is **no hidden second population/GDP dataset**
+  that could silently conflict with OG field-by-field. The only divergence is the demand *trajectory*
+  itself — precisely what this channel harmonizes.
+- OG-PHL uses UN-608 population (declining, ~1%/yr per WPP) and g\_y=3.71%/yr; the authored CLEWS
+  household-elec growth (4.35%/yr) sits in a plausible income-elasticity range against OG's GDP path.
+
+**Design consequence (the resolution):** consistency = shared *drivers*, not identical demand paths.
+Two divergent paths is the STATUS QUO today (channel off), silent; turning the channel on collapses
+them to one story (OG's). The real trap is *partial* harmonization — so the design guards are:
+(1) a whole-run **stance toggle** (OG-consistent [default, user's choice] vs official-outlook), never
+silent half-and-half; (2) loud provenance recording the mode + every rebuilt commodity; (3) harmonize
+the demand vector as a set (or state exactly which commodities); (4) full reconciliation is the loop
+(idea #02), where the two paths *converge* rather than one overwriting the other. This channel is the
+necessary first step; the loop is the closure.
+
 ## Verdict
 
 **Worth building — proceeds.** Highest-value item on our own map (§6 #1), measured-large content,
-all machinery verified present, empirical test crisp and mostly solve-free.
+all machinery verified present, empirical test crisp and mostly solve-free. User decision recorded:
+default to OG-consistent growth, expose an on/off stance toggle.
