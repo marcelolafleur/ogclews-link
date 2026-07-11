@@ -267,4 +267,22 @@ almost unchanged by construction.
 \Variables $Y_m$, industry output; $C_i$, consumption of good $i$; $\varepsilon_D$, the
 demand-scaling elasticity; the \CLEWS{} specified annual demand it scales.
 
+\subsection{Closing the loop \dir{OG $\leftrightarrow$ CLEWS}}
+\Intuition The two \dir{OG $\to$ CLEWS} channels above only bite once their signals are
+fed back and the energy model is re-solved. That step is now a concrete, tested mechanism
+rather than a plan: the link writes the returned signals into a \emph{copy} of the
+\CLEWS{} case, re-solves it in the energy model's own environment, and reads the new
+result. The live case is never touched, and the economics never enters the link's
+environment --- the same isolation the forward direction uses.
+\Technical The re-solve runs \CLEWS{}'s own datafile generation and solver on the patched
+case copy, invoked as a subprocess in the energy model's interpreter. Validated on the
+Philippine case: a $+10\%$ perturbation to household-electricity demand propagates through
+the re-solve to $+4.28\%$ electricity production and $+3.72\%$ system operating cost, and
+re-solving an unchanged case reproduces its results to $0.002\%$ --- the return signals
+transmit correctly and the mechanism is deterministic to within solver tolerance. What is
+not yet wired is the \emph{outer} iteration that repeats this to the price/quantity fixed
+point, with damping to prevent oscillation under price-inelastic demand.
+\Variables the patched \CLEWS{} case (a copy); its re-solved demand, production, and cost;
+the electricity price the next iteration reads back.
+
 \end{document}

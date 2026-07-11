@@ -188,9 +188,10 @@ and how each is represented in the model}
   \end{tikzpicture}}
   \end{center}
   \smallskip
-  {\color{sub}\small Current implementation: the single pass (solid). The loop (dashed)
-  is designed, and the return signals already exist, but the outer iteration is not yet
-  implemented.}
+  {\color{sub}\small Current implementation: the single pass (solid). The return signals
+  exist and the \CLEWS{} re-solve seam is built and tested --- patch the energy model's
+  case, re-solve it in its own environment, read the result --- so the dashed step is a
+  working mechanism; what remains is the outer iteration and its damping.}
 \end{frame}
 
 % ===========================================================================
@@ -473,8 +474,10 @@ and how each is represented in the model}
 \end{frame}
 
 \dgmframe{Closing the loop}{loop}{%
-  Iterate until energy demand stops changing. Current implementation: the single pass;
-  the loop still needs damping.}
+  Iterate until energy demand stops changing. The re-solve seam is built and tested ---
+  feed the economy's demand back, re-solve the energy model in its own environment, read
+  the new price; a $+10\%$ demand test moved production $+4.3\%$. What remains is the
+  outer iteration and its damping.}
 
 % ===========================================================================
 \section{The Philippine coupled run}
@@ -541,6 +544,7 @@ and how each is represented in the model}
       {\footnotesize\begin{itemize}
         \item eight one-signal $\to$ one-wedge channels
         \item single \CLEWS$\to$\OGCore{} pass on real price and health inputs
+        \item the \CLEWS{} re-solve seam: feed results back, re-solve, re-read (tested)
         \item separate model environments linked by auditable files
         \item numbers locked in the reference record and re-checked by tests
       \end{itemize}}
@@ -548,7 +552,8 @@ and how each is represented in the model}
     \begin{column}{0.48\textwidth}
       {\small\bfseries Remaining work}\par\smallskip
       {\footnotesize\begin{itemize}
-        \item \textbf{loop closure} --- outer re-solve-and-iterate
+        \item \textbf{loop closure} --- the outer iterate-and-damp controller (the
+              re-solve seam it drives is already built)
         \item \textbf{monetary-unit conversion} --- calibrate \CLEWS{} money to the
               \OGCore{} numéraire
         \item \textbf{energy as a priced input} --- structural firm-cost channel

@@ -6,7 +6,9 @@
 % economy that tracks households, government, and who is affected) and the roadmap:
 %  1. Feed the real commodity marginal costs from a full CLEWS/MUIOGO run.
 %  2. Calibrate the unit/deflator bridge so cost and revenue sizes can be trusted.
-%  3. Close the loop -- iterate OG <-> CLEWS to a price/quantity fixed point.
+%  3. Close the loop -- the CLEWS re-solve seam is built+validated (clews_driver); what
+%     remains is the outer iteration controller (damping/convergence) that drives it to the
+%     price/quantity fixed point.
 %  4. Calibrate the health link on real Philippine PM2.5-and-health (GBD) data.
 %  5. Energy as a priced production input (the structural ideal for the energy channel).
 %  6. Integrate as the economic engine behind MUIOGO.

@@ -7,8 +7,11 @@
 %    (carbon/investment magnitudes via the deflator; energy price once the real marginal cost is wired).
 %  - The maturity ladder: each channel is an approximation toward the marginal-cost-
 %    exchanging theoretical ideal (reuse presentation diagram `maturity`).
-%  - One-pass vs iterated: discount_rate and demand are latent until loop closure;
-%    state the fixed-point and the damping/convergence plan (iterate.py).
+%  - One-pass vs iterated: discount_rate and demand are latent until loop closure. The CLEWS
+%    re-solve seam is now built+validated (clews_driver: patch a case copy -> re-solve in
+%    MUIOGO's env -> re-read; +4.3% production for +10% demand on PHL v9; deterministic to
+%    0.002%), so what remains is only the outer damping/convergence controller -- state the
+%    fixed-point and that plan.
 %  - Structural gap: energy is not yet a priced production input (the structural ideal); consequences
 %    (no factor substitution away from energy, no inter-industry energy flows in the
 %    shipped core) and why the cost-push proxy is a defensible interim.

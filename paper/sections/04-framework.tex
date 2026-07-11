@@ -111,7 +111,8 @@ $\pi_{\text{C}}(D)$ be the \CLEWS{} price of delivering $D$ (its levelized cost)
 \noindent A single \CLEWS{}$\to$\OGCore{} pass evaluates $\pi_{\text{C}}(D^{b})$ at
 \emph{baseline} demand and applies it once; iterating the two maps to the fixed point
 of \Cref{def:fixedpoint} is \emph{loop closure} (\Cref{sec:architecture}). The
-present work validates the single pass; the loop is the principal unbuilt piece.
+present work validates the single pass and the \CLEWS{} re-solve seam that the closed
+loop requires; the principal unbuilt piece is the outer iteration controller.
 
 \subsection{The energy channel: electricity's two uses}
 \label{sec:routes}
@@ -237,10 +238,16 @@ re-pointed at another country without touching the channels.
 Loop closure is constrained by \Cref{ass:inelastic}. Because energy demand is
 price-inelastic inside the optimiser, naïve price feedback can oscillate; convergence
 to \Cref{def:fixedpoint} requires damping and a baseline-anchored demand calibration.
-The \OGCore{}$\to$\CLEWS{} emitters are built and produce well-formed \CLEWS{} inputs;
-what is not yet wired is the outer loop that re-solves \CLEWS{} on them and repeats. Until
-it runs, the two \OGCore{}$\to$\CLEWS{} channels (\Cref{sec:ch-discount,sec:ch-demand}) emit
-well-formed signals but have no feedback effect on the macro economy.
+The \OGCore{}$\to$\CLEWS{} emitters produce well-formed \CLEWS{} inputs, and the
+\CLEWS{} re-solve they feed---step~(v) of the orchestration---is now implemented and
+validated rather than planned: the link patches a copy of the \CLEWS{} case, re-solves it
+in the energy model's own environment, and reads the result, leaving the calibrated case
+untouched. On the Philippine case a controlled $+10\%$ household-electricity demand
+perturbation propagates through the re-solve to a $+4.3\%$ electricity-production response,
+confirming that the returned signals transmit correctly. What is not yet wired is the
+outer controller that iterates the re-solve to \Cref{def:fixedpoint} under damping; until
+it runs, the two \OGCore{}$\to$\CLEWS{} channels (\Cref{sec:ch-discount,sec:ch-demand})
+emit well-formed signals but have no feedback effect on the macro economy.
 
 \subsection{No-double-counting discipline}
 \label{sec:discipline}
