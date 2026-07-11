@@ -57,8 +57,10 @@ HYPOTHESES, not truths.
 4. **Decide**: merge proposal to trunk, or record why it died. Branch deleted either way; worktree
    moves to the next idea.
 
-Idea ledger: #01 CLEWS re-run seam (in progress) · #02 residual loop controller (blocked on #01) ·
-then the map §6 shortlist, re-assessed one by one.
+Idea ledger: #01 CLEWS re-run seam — **SURVIVED** (empirically proven 2026-07-10; branch
+`channel/clews-run-seam` @87246ac awaiting merge decision) · #02 residual loop controller —
+ASSESSING (branch `channel/loop-controller`, STACKED on #01's branch since it depends on the
+driver; merges only after/with it) · then the map §6 shortlist, re-assessed one by one.
 
 ## Method
 
