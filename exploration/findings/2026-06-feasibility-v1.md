@@ -1,5 +1,11 @@
 # New-channel feasibility — exhaustive exploration
 
+> ⚠️ **v6-ERA — RETIRED 2026-07-11.** v6 is dead; **v9 (`Philippines_v9`) is the only scenario, ever.**
+> Every CLEWS data reference / number below is v6 and **VOID — do not use or cite.** The v-agnostic
+> economic/coding conclusions were carried into the live v9 deliverable
+> [`channel-space-map.md`](../channel-space-map.md); anything data-specific must be re-verified on v9.
+> Kept only as a dated audit trail.
+
 **Date:** 2026-06-18 · **Branch:** `channel-exploration` (off `deployment-framework`) · **Scope:** five
 brainstormed channel ideas (LDC graduation, household cooking pollution, remittances vs diaspora bonds,
 precipitation/temperature, crop production/food prices), assessed against the *actual* CLEWS and OG-Core/OG-PHL
