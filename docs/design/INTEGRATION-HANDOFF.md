@@ -84,8 +84,11 @@ PYTHONPATH=~/Projects/ogclews-link  ~/Projects/OG-PHL/.venv/bin/python -m ogclew
    exp, "--clews-run", res_path])`. Not present.
 3. **Results → UI** — ogclews-link writes to `./ogclews_runs/` (outside MUIOGO); write OG results into
    MUIOGO `view/` + register in `resData.json`.
-4. **Loop closure** — the OG-side multi-pass loop is wired; the CLEWS re-solve hook (`clews_runner`) is
-   the external seam (bigger, later).
+4. **Loop closure** — the OG-side multi-pass loop is wired; the CLEWS re-solve seam is **now built and
+   validated** (`clews_driver`, branch `channel/clews-run-seam` / PR #14): patch a case copy → re-solve
+   in MUIOGO's own env → re-read; proven on PHL v9 (+10% household demand → +4.28% production). What
+   remains is wiring it to `framework.run`'s `clews_runner` hook + the convergence controller (damping /
+   residual stopping) — the mechanism is done, the outer iteration is the last piece.
 
 ## 4. Create the trunk (the user runs these)
 

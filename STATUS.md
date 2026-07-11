@@ -92,8 +92,13 @@ Decisions (do not relitigate without reason):
 
 **Stubbed / pending:**
 - **Loop closure** (`framework.Runner` multi-pass): the iteration/damping/convergence logic is
-  built, but the `clews_runner` hook that actually re-runs OSeMOSYS is unwired → multi-pass
-  honestly degrades to one pass. This is the one plumbing gap to *run* the full bidirectional loop.
+  built, and the **CLEWS re-run seam is now built and validated** (`clews_driver`, on branch
+  `channel/clews-run-seam` / PR #14): copy a MUIOGO case, patch it via the case's own code→opaque-ID
+  registry, re-solve in MUIOGO's own environment, re-read — proven on PHL v9 (+10% household-
+  electricity demand → +4.28% production / +3.72% cost through MUIOGO's own pipeline; re-solving the
+  same store reproduces to 0.002%). The remaining gap is narrower than before: wire `framework.run`'s
+  `clews_runner` hook to that driver + add the residual-based convergence controller. Until that lands,
+  multi-pass still degrades to one pass — but the re-solve *mechanism* it needs is no longer missing.
 - **Unit/deflator bridge** (`contract.UnitMap.deflator` is a placeholder) → carbon/investment
   *magnitudes* are illustrative. Needed to *trust* quantitative claims.
 - **Health channel — RESOLVED & HARDENED (2026-06-17): the cleaner-air (lives-saved) solve works,
