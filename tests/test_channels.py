@@ -201,8 +201,10 @@ def test_guardrails_present():
 
 
 def test_investment_public_infra_only():
-    # public-infra-only: PHL/PEP has NO grid (T&D) capex delta, so the public-investment channel
-    # correctly contributes ~nothing (private generation capex's effect rides the energy channel).
+    # public-infra-only: only genuine grid (T&D) capex flows to alpha_I; private generation capex is
+    # excluded (its macro effect rides the energy channel). Under CLEWS v9 the PEP reform has a SMALL
+    # T&D build, so alpha_I moves slightly -- NOT the exact zero of the retired v6 pair. The invariant
+    # tested is that public_only keeps the effect SMALL and bounded, never a large public-investment shock.
     if not HAVE_CLEWS:
         print("  (skip: CLEWS dirs absent)"); return
     ctx = _ctx()
@@ -211,8 +213,8 @@ def test_investment_public_infra_only():
                                          og_start_year=PHL.scenario.og_start_year, T=ctx.og_reform.T)
     prov = channels.investment(ctx, capex)
     assert "cumulative_pct_gdp" in prov
-    assert abs(prov["cumulative_pct_gdp"]) < 1e-9                  # no public-infra capex delta
-    assert np.allclose(np.asarray(ctx.og_reform.alpha_I), a0)      # alpha_I unchanged (honest ~0)
+    assert prov["peak_pct_gdp"] < 1e-3                             # v9 T&D capex delta is small (~1.6e-4)
+    assert np.max(np.abs(np.asarray(ctx.og_reform.alpha_I) - a0)) < 1e-3   # alpha_I barely moves (public-infra only)
 
 
 # --- #2b capital intensity (gamma_energy) lever + calibration + channel ---------

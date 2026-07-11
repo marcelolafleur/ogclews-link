@@ -94,7 +94,8 @@ Renewables/CCS are nearly all capital recovery (no fuel), so a cleaner mix raise
 `signals.capital_intensity_ratio` returns the ratio + provenance; the `capital_intensity` channel reads
 it (window defaults to the scenario's first decade, `og_start_year .. +9`).
 
-**Empirical (v6-Base vs v6-PEP, 2026–2035 window):**
+**Empirical (illustrative, historical CLEWS Base-vs-PEP pair, 2026–2035 window — the mechanism is the
+point, not the magnitudes; v9 numbers differ and v6 is retired):**
 
 | | base `s_K` | reform `s_K` | ratio | `γ_energy` | labor share |
 |---|---|---|---|---|---|

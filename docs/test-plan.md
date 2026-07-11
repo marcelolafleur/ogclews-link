@@ -58,7 +58,7 @@ survives across invocations). The TPI groups (energy, supply, forward, health, c
 - [ ] Baseline **SS** solves clean (no aggregate-resource-constraint failure)
 - [ ] Baseline **TPI** solves clean
 - [ ] Baseline reproducible (solve twice → identical aggregates)
-- [ ] Signal readers parse the real CLEWS dirs (`v6-Base`/`v6-PEP`): emissions (ByMode + plain), capex,
+- [ ] Signal readers parse the real CLEWS dirs (`Base_v9`/`PEP_v9`): emissions (ByMode + plain), capex,
       cost-index, the **EBb4 dual**, `capital_intensity_ratio` — sentinels (999999) zeroed, species
       filtered, year-overlap non-empty
 

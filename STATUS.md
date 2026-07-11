@@ -177,8 +177,8 @@ them — optional.) Constraint = `EBb4_EnergyBalanceEachYear4_ICR` in
 **What's left for the dual to be *used*:**
 1. Wire `commodity_shadow_price_ratio` into the `energy_price` channel as a `price_source="dual"`
    option (replacing/augmenting the `cost_of_electricity_ratio` proxy and the controlled +20% shock).
-2. Point it at a real run's CSV dir — needs the **MUIOGO-run reader / scenario source** (today
-   `country.scenario` points at CLEWS-OG `v6-*` dirs, not MUIOGO `res/<caserun>` dirs).
+2. Point it at a real run's CSV dir — DONE: `country.scenario` now resolves MUIOGO
+   `Philippines_v9/res/<run>/csv` (v9 `Base_v9`/`PEP_v9`) via the `OGCLEWS_CLEWS_*` env vars. v6 retired.
 3. Confirm the PHL electricity fuel code (demo uses `ELC001/ELC002`) and units vs the OG good.
 
 ## 5. Work plan (deployment framework, MVP-first)

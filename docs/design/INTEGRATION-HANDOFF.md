@@ -73,7 +73,7 @@ import each other.
 PYTHONPATH=~/Projects/ogclews-link  ~/Projects/OG-PHL/.venv/bin/python -m ogclews_link run <experiment> --workers 1
 #   python -m ogclews_link list | channels     # the menu
 ```
-→ reads the configured CLEWS scenario (`v6-Base` vs `v6-PEP`), applies channels, solves, writes
+→ reads the configured CLEWS scenario (v9 `Base_v9` vs `PEP_v9`), applies channels, solves, writes
 `./ogclews_runs/<exp>/{reform/TPI, ogclews_manifest.json, clews_inputs/}`.
 
 **Gaps to run it *from the MUIOGO button* (deployment-lane work):**
