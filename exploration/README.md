@@ -57,10 +57,12 @@ HYPOTHESES, not truths.
 4. **Decide**: merge proposal to trunk, or record why it died. Branch deleted either way; worktree
    moves to the next idea.
 
-Idea ledger: #01 CLEWS re-run seam — **SURVIVED** (empirically proven 2026-07-10; branch
-`channel/clews-run-seam` @87246ac awaiting merge decision) · #02 residual loop controller —
-ASSESSING (branch `channel/loop-controller`, STACKED on #01's branch since it depends on the
-driver; merges only after/with it) · then the map §6 shortlist, re-assessed one by one.
+Idea ledger (numbers are identity, not execution order): #01 CLEWS re-run seam — **SURVIVED**
+(empirically proven 2026-07-10; branch `channel/clews-run-seam` @87246ac, pushed, awaiting merge
+decision) · #02 residual loop controller — **POSTPONED** (failed the value test: today's exchange
+ratio ≈1.002 is trivial; resumes once #03 creates real feedback) · #03 demand rebuild (map 2.1) —
+**BUILDING** (branch `channel/demand-rebuild`, stacked on #01; the measured baseline-harmonization
+gap of 0.5–1.5 pp/yr is the content) · then the map §6 shortlist, one at a time.
 
 ## Method
 

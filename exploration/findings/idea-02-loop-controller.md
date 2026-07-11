@@ -3,7 +3,22 @@
 **Opened:** 2026-07-10 · **Origin:** our own loop-closure design (map §4) + the Rev-4.2 spec's §10
 loop mechanics, each element to be adopted or rejected on merit. **Build branch:**
 `channel/loop-controller` (STACKED on `channel/clews-run-seam` — depends on the proven driver;
-merges only after/with it). **Status: ASSESSING.**
+merges only after/with it). **Status: POSTPONED (2026-07-10) — failed the value test with today's
+exchange content; resumes after idea #03 (demand rebuild) creates real feedback.**
+
+## Assessment outcome (measured, no solve)
+
+The load-bearing unknown (merit question 2) was measured and it kills the current scoping:
+- **Reform-vs-baseline feedback ≈ +0.2 %** (coupled deck results.csv: Y +0.165…+0.221 % over the
+  first 12 years) → today's uniform `emit_energy_demand` ratio ≈ 1.002 → the loop converges
+  immediately and demonstrates nothing.
+- **The real iteration content is the baseline-harmonization gap**: CLEWS-authored demand growth
+  (PHL_HOU_ELEF **4.35 %/yr** 2026–53; PHL_SER_ELEF 5.34 %/yr) vs OG/A1-implied residential-elec
+  growth **≈3.8 %/yr** (η≈0.7 × g_y 3.71 % + pop ≈1.2 %) — 0.5–1.5 pp/yr compounding ⇒ tens of
+  percent apart by 2053. That content arrives with the **A1-style demand rebuild (map 2.1)** —
+  pulled forward as idea #03; this controller resumes against a loop that has something to iterate.
+  Everything else in this assessment (feasibility facts, empirical-test design, damping algebra
+  check) carries over unchanged.
 
 ## What it is
 
