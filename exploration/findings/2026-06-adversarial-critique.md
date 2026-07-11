@@ -1,5 +1,12 @@
 # Adversarial critique of the 7 exploratory channel prototypes + PM2.5 health-proxy refinement (2026-06)
 
+> ⚠️ **v6-ERA — RETIRED 2026-07-11.** Critiques the OLD class-based prototypes against **v6** data;
+> both are superseded (functions on `explore/channel-space`; **v9 `Philippines_v9` is the only scenario**).
+> Every v6-Base/v6-PEP number below is **VOID — do not use or cite.** The transferable lessons (climate
+> reform-only artifact, water one-sided clipping, cooking wrong-sign, eta_RM per-period normalization,
+> PM2.5 dose-window) are carried into [`channel-space-map.md`](../channel-space-map.md) §7 and the idea-*
+> docs; re-verify any specific number on v9. Kept only as a dated audit trail.
+
 **Provenance.** Distilled from workflow run `wf_4330b89f-dd1`, executed 2026-06-19. The run adversarially critiqued 7 prototype channel classes — `remittances`, `diaspora_bonds`, `food_price`, `climate_damage`, `water_stress`, `cooking_health`, `ldc_graduation` — plus a PM2.5/CO2e health-proxy refinement of the existing health channel, against the code at commit `ffe1b91`. That commit used the **old class-based** `ogclews-link` architecture (a `channels.py` of `Channel` subclasses). **The architecture has since been rewritten to plain functions.** Findings that cite specific `channels.py` line numbers, class structure, or the class-based API are therefore potentially **stale at the code level** — the exact lines/classes they point at may no longer exist. Findings about **economics or theory** (wrong signs, mismatched OG-Core primitives, misattributed mechanisms, framing/honesty problems, dose-response and signal-alignment issues) carry forward regardless of the rewrite, since they concern what the channel *should* compute, not how the old code happened to compute it.
 
 **Method note.** Each finder sub-agent examined one (channel, lens) pair across three lenses — *applicability* (is the CLEWS↔OG link honestly framed?), *coding* (does the implementation do what it claims?), and *economics* (is the OG-Core mechanism correctly attributed?) — plus three cross-cutting sweeps (suite-wide theory, OG-Core primitive consistency, suite-wide coding). A separate verifier sub-agent independently checked a sample of findings against the source. See the *Verification coverage* section at the end for how the two map (or rather, don't reliably map) against each other.
