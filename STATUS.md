@@ -237,6 +237,11 @@ uv run pytest tests/                                      # transform + unit tes
 **Dask gotcha:** the OG solve uses multiprocess workers (`--workers`, default 7); never `--workers 1`
 (the single-process threaded client starves the event loop under numba → serial fallback).
 
+**Durable golden baseline:** the last full-battery solve (2026-07-11, reproduced `golden.json` to <4e-4)
+left the reusable OG-PHL baseline cached at `ogclews_runs/battery/_og_baseline_cache/` (gitignored, in
+THIS main worktree — survives branch switches; only `git clean -x` removes it). Channels/experiments
+reuse it with no re-solve; regenerate via `run coupled --rebuild-baseline` (or `experiments/run_battery.py`).
+
 ## 8. Open questions / decisions pending
 
 - **Integration model fork** (recommended: subprocess/CLI): subprocess vs in-process plugin vs
