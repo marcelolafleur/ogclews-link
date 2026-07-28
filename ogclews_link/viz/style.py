@@ -13,6 +13,7 @@ and auto-upgrade if Source Sans 3 / Inter are dropped into ~/Library/Fonts.
 """
 from __future__ import annotations
 
+import itertools
 import os
 import platform
 from pathlib import Path
@@ -251,7 +252,7 @@ def income_labels(J, lambdas=None):
             pass
         edges = np.concatenate([[0.0], np.cumsum(np.asarray(lambdas, dtype=float))]) * 100
         out = []
-        for a, b in zip(edges[:-1], edges[1:]):
+        for a, b in itertools.pairwise(edges):
             lo, hi = round(float(a)), round(float(b))
             out.append(f"Top {100 - lo}%" if (hi >= 99.5 and lo >= 90) else f"{lo}-{hi}%")
         return out

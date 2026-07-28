@@ -11,10 +11,10 @@ from __future__ import annotations
 import math
 import re
 
-_DIST = re.compile(r"Distance:\s*([0-9.eE+-]+|nan|inf)", re.I)
+_DIST = re.compile(r"Distance:\s*([0-9.eE+-]+|nan|inf)", re.IGNORECASE)
 _ITER = re.compile(r"Iteration:\s*(\d+)")
 _CONT = re.compile(r"continuation t=([0-9.]+)")
-_SS_FAIL = re.compile(r"steady.?state.*(?:not found|could not)", re.I)
+_SS_FAIL = re.compile(r"steady.?state.*(?:not found|could not)", re.IGNORECASE)
 # a genuine raised exception starts the line with its type (RuntimeError:, ValueError:, ...). This excludes
 # the solver's routine "Max Euler error" / "resource constraint error" noise and benign Dask warnings.
 _EXC = re.compile(r"^\s*\w*(?:Error|Exception)\b")

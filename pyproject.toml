@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=6.0", "pytest-xdist"]
+dev = ["pytest>=6.0", "pytest-xdist", "ruff>=0.16,<0.17"]  # ruff pinned to a minor: default rule set moves between minors
 
 [project.scripts]
 ogclews-link = "ogclews_link.cli:main"
@@ -59,3 +59,21 @@ ogclews_link = ["data/*.json", "data/*.csv", "demographic_data/*.csv"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+# ruff's 0.16 defaults, plus BLE so the codebase's documented `noqa: BLE001` tolerances
+# (deliberate catch-alls in readers that must never break a run) are honored, not dead.
+extend-select = ["BLE"]
+ignore = [
+    "S110",   # try-except-pass: deliberate tolerant readers, each commented in place
+    "SIM115", # open() without context manager: short-lived reads, closed by refcount
+    "C408",   # dict()/list() calls over literals: house style
+    "EXE001", # shebang without +x bit: scripts are documented as `python <file>` invocations
+]
+
+[tool.ruff.lint.per-file-ignores]
+# the standalone installer runs under ANY system python (>=3.8), outside the link venv:
+# %-formatting stays (no modern-syntax upgrades) and subprocess returncodes are checked manually
+"scripts/setup.py" = ["UP031", "PLW1510"]
+# test helpers use range()/tuple defaults deliberately (immutable, never mutated)
+"tests/*" = ["B008"]

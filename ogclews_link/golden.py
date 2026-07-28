@@ -105,9 +105,7 @@ def compare(current: dict, golden: dict, rtol: float = 1e-6, atol: float = 1e-9)
     diffs = {}
     for k in sorted(set(cur) | set(gold)):
         a, b = gold.get(k), cur.get(k)
-        if a is None or b is None:
-            diffs[k] = (a, b)
-        elif abs(a - b) > atol + rtol * abs(a):
+        if a is None or b is None or abs(a - b) > atol + rtol * abs(a):
             diffs[k] = (a, b)
     return {"match": not diffs, "diffs": diffs}
 

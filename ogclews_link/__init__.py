@@ -9,5 +9,5 @@ Import-light by design: submodules are NOT imported here, so the pure-numpy chan
 transforms (``channels``) and the dataclass contract (``contract``) stay usable without
 pandas or ogcore. Import what you need, e.g. ``from ogclews_link import channels``.
 """
-__all__ = ["channels", "framework", "signals", "report", "contract", "og_wedge"]
+__all__ = ["channels", "contract", "framework", "og_wedge", "report", "signals"]
 __version__ = "0.0.1"

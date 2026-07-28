@@ -11,8 +11,14 @@ import tempfile
 
 
 def test_imports():
-    from ogclews_link.viz import build, plots, report, style, tables  # noqa: F401
-    from ogclews_link.viz import build_figures
+    from ogclews_link.viz import (  # noqa: F401
+        build,
+        build_figures,
+        plots,
+        report,
+        style,
+        tables,
+    )
     assert callable(build_figures)
 
 
@@ -95,8 +101,8 @@ def test_discover_baseline_cache_matches_concordance():
 
 def test_coupled_run_missing_inputs_raise():
     """The bridge fails loud (no silent empty deck) when the reform or baseline is absent."""
-    from ogclews_link.viz import build
     from ogclews_link.country import PHL
+    from ogclews_link.viz import build
     try:
         build.build_deck_from_coupled_run(tempfile.mkdtemp(), PHL)  # empty: no reform/, no cache
         raise AssertionError("expected SystemExit for a run with no reform/")

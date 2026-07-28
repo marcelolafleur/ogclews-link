@@ -154,7 +154,9 @@ def load_muiogo_registry() -> dict[str, ModelEntry]:
             records = json.load(fh)["calibrations"].values()
     except (OSError, ValueError, KeyError, AttributeError, TypeError):
         return {}
-    from . import discovery      # lazy: keep the module import graph flat (registry loads early)
+    from . import (
+        discovery,  # lazy: keep the module import graph flat (registry loads early)
+    )
     out: dict[str, ModelEntry] = {}
     for rec in records:
         if not isinstance(rec, dict):

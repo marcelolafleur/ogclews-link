@@ -181,10 +181,10 @@ def lcoe_by_year(csv_dir: str, busbar: str, *, supply_predicate=None,
                 tot_out_y[t] = v
 
         def out_frac(t, ps):
-            to = tot_out_y.get(t, 0.0)
+            to = tot_out_y.get(t, 0.0)                       # noqa: B023 -- consumed within this y-iteration only
             if to <= 0:
                 return 0.0
-            return sum((pv / to) * ps.get(g, 0.0) for g, pv in outs_y.get(t, {}).items())
+            return sum((pv / to) * ps.get(g, 0.0) for g, pv in outs_y.get(t, {}).items())  # noqa: B023
 
         # power_share fixed point: fraction of each commodity's use that flows to generation.
         # Downstream (finished fuel) -> upstream; a DAG converges in a few passes.
@@ -239,6 +239,6 @@ if __name__ == "__main__":
     # usage: python -m ogclews_link.lcoe <base_csv_dir> <reform_csv_dir> <busbar_commodity>
     base_dir, reform_dir, busbar = sys.argv[1], sys.argv[2], sys.argv[3]
     ratio = lcoe_ratio(base_dir, reform_dir, busbar)
-    print("mean=%.4f min=%.4f(%d) max=%.4f(%d)" % (
-        ratio.mean(), ratio.min(), ratio.idxmin(), ratio.max(), ratio.idxmax()))
+    print(f"mean={ratio.mean():.4f} min={ratio.min():.4f}({int(ratio.idxmin())}) "
+          f"max={ratio.max():.4f}({int(ratio.idxmax())})")
     print(" ".join(f"{y}:{ratio[y]:.3f}" for y in ratio.index))

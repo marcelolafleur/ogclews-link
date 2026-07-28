@@ -9,19 +9,17 @@ import os
 import matplotlib
 
 matplotlib.use("Agg")
-import numpy as np  # noqa: E402
-from scipy.optimize import brentq  # noqa: E402
+import numpy as np
+from scipy.optimize import brentq
 
-from ogclews_link import health_profile, signals  # noqa: E402
-from ogclews_link.signals import _cost_xlsx  # noqa: E402
+from ogclews_link import health_profile, signals
+from ogclews_link.signals import _cost_xlsx
 
-from . import style  # noqa: E402
+from . import style
 
 style.apply()
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import Patch  # noqa: E402
-
-
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 # ============================== FIGURES ==============================
 
@@ -46,7 +44,9 @@ def incidence_hero(base_tpi, reform_tpi, i_energy, out_dir, *, title, note, fact
     """Three linked panels: (1) the incidence curve -- welfare % change by income group as a
     dot-and-line, diverging color by sign; (2) the MECHANISM -- welfare vs baseline energy
     budget share; (3) the DOLLAR effect per household (approximate, via the OG income factor)."""
-    from ogclews_link import report  # the MODEL report module (incidence calc), not viz.report
+    from ogclews_link import (
+        report,  # the MODEL report module (incidence calc), not viz.report
+    )
 
     os.makedirs(out_dir, exist_ok=True)
     inc = report.incidence(base_tpi, reform_tpi, i_energy)
@@ -266,7 +266,7 @@ def energy_physical(country, out_dir, *, illustrative=True):
                           (er.index[-1], er.values[-1], "reform", style.GAIN)])
     ax.set_xlim(right=float(er.index[-1]) + (float(er.index[-1]) - float(er.index[0])) * 0.13)
     ax.set_ylabel(f"emissions ({country.co2_emission}{units})")
-    avoided = float(np.nansum((erb.values - er.values)))
+    avoided = float(np.nansum(erb.values - er.values))
     if np.isfinite(avoided) and abs(avoided) > 0:
         ymid = float(er.index[len(er) // 2])
         yv = float(np.nanmean([erb.values[len(er) // 2], er.values[len(er) // 2]]))
@@ -990,7 +990,7 @@ def morbidity_by_age(base_params, reform_params, out_dir, *, note=None, retire_a
             break
     delta = _by_age(er[t]) - _by_age(eb[t])              # change in effective labor by age
     ages = E + np.arange(S)
-    net = float(delta.sum())
+    float(delta.sum())
     tot = float(np.abs(delta).sum())
     if tot <= 0:
         return []
@@ -1118,7 +1118,7 @@ class _Felicity:
     def cev(self, base, reform, chi_n, rho_b, rho_r, j):
         """Solve V_base((1+φ)·c) = V_reform for φ (the CEV). base/reform are (c, n) tuples."""
         v_ref = self.V(reform[0], reform[1], chi_n, rho_r, j)
-        f = lambda phi: self.V(base[0], base[1], chi_n, rho_b, j, phi) - v_ref  # noqa: E731
+        f = lambda phi: self.V(base[0], base[1], chi_n, rho_b, j, phi) - v_ref
         try:
             return brentq(f, -0.99, 20.0, xtol=1e-10)
         except (ValueError, RuntimeError):
@@ -1274,7 +1274,7 @@ def cev_by_age(base_tpi, reform_tpi, base_params, reform_params, out_dir, *, not
     max_cev = 0.05  # real signal is ~0.3%; |CEV|>5% is a root-find blow-up (e.g. at the labor=0
     #                 retirement kink or a near-zero remaining-life utility), not an economic result
     ages, cev_w, cev_lo, cev_hi = [], [], [], []
-    for a in range(0, a_max + 1):
+    for a in range(a_max + 1):
         chi = np.array([chi_t[t, a + t] for t in range(S - a)])
         rb = np.array([rhoB[t, a + t] for t in range(S - a)])
         rr = np.array([rhoR[t, a + t] for t in range(S - a)])
@@ -1616,8 +1616,8 @@ def consumption_by_good(base_ss, reform_ss, base_params, out_dir, *, note=None,
     if energy0 is not None and good_names and len(good_names) == I:
         parts = [f"goods are composite categories; * marks the energy good ({good_names[energy0]})"]
     elif energy0 is not None:
-        parts = [f"goods are composite categories; * marks the energy good (good {energy0 + 1}), "
-                 f"the only one identified"]
+        parts = [(f"goods are composite categories; * marks the energy good (good {energy0 + 1}), "
+                 f"the only one identified")]
     else:
         parts = ["goods are composite categories"]
     if fin.size:
@@ -1724,7 +1724,7 @@ def consumption_by_good_by_group(base_tpi, reform_tpi, base_params, out_dir, *, 
     dev = style.pct_dev(r0, b0)                      # (I, J)
 
     # poorest / middle / richest -- distinct indices, degrade if J is tiny
-    picks = sorted(set([0, J // 2, J - 1]))
+    picks = sorted({0, J // 2, J - 1})
     if not picks:
         return []
     lam = None

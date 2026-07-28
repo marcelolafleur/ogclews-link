@@ -34,9 +34,11 @@ import glob
 import json
 import os
 
-from ogclews_link.viz import plots, report, tables  # noqa: F401
-from ogclews_link import report as og_report  # MODEL report (report.layered_entry); `report` above is viz's HTML/index module
 from ogclews_link import country as _country_mod
+from ogclews_link import (
+    report as og_report,  # MODEL report (report.layered_entry); `report` above is viz's HTML/index module
+)
+from ogclews_link.viz import plots, report, tables
 
 
 def safe_read_pickle(path):
@@ -107,7 +109,7 @@ def _default_gbd_csv(run_dir, country):
         hits = [h for h in glob.glob(os.path.join(d, "IHME-GBD_2023_DATA", "*.csv"))
                 if "citation" not in os.path.basename(h).lower()]
         if hits:
-            return sorted(hits)[0]
+            return min(hits)
         parent = os.path.dirname(d)
         if parent == d:
             break

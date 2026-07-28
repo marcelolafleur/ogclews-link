@@ -79,7 +79,7 @@ def _print_table(rows):
         cells = []
         for c in cols:
             v = r.get(c, "")
-            cells.append(v if isinstance(v, str) else (f"{v:+.2f}" if v == v else "n/a"))  # v!=v -> NaN
+            cells.append(v if isinstance(v, str) else (f"{v:+.2f}" if v == v else "n/a"))  # noqa: PLR0124 -- v != v is the NaN test
         print(" | ".join(cells))
 
 
@@ -104,7 +104,7 @@ def run():
     rebuild = os.environ.get("OGCLEWS_REBUILD") == "1"
     cfg = runtime.RunnerConfig(num_workers=7, show_progress=False, rebuild=rebuild)
     print(f"Exporting the OG baseline once (rebuild={rebuild}) ...")
-    template, base_tpi, base_dir, arrays = runtime.export_baseline(PHL, OUT_ROOT, cfg=cfg)
+    template, _base_tpi, base_dir, arrays = runtime.export_baseline(PHL, OUT_ROOT, cfg=cfg)
     base_sol = serde.load_solution(os.path.join(base_dir, "baseline_solution.npz"))
 
     rows = []

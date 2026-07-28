@@ -26,12 +26,25 @@ from ogclews_link import lcoe
 # cost_of_electricity_ratio + _ratio_over_common are defined below (moved from clews_signal.py)
 
 SENTINEL = 999999.0
-__all__ = ["cost_of_electricity_ratio", "read_clews_matrix", "read_clews_long",
-           "power_capex_increment", "capital_cost_share", "capital_intensity_ratio",
-           "emissions_by_year", "emissions_ratio",
-           "og_sector_output", "og_consumption_good", "og_interest_rate",
-           "commodity_shadow_price", "commodity_shadow_price_ratio",
-           "energy_price_ratio", "activity_ratio", "public_capex_pct_gdp", "pm25_dose_response"]
+__all__ = [
+    "activity_ratio",
+    "capital_cost_share",
+    "capital_intensity_ratio",
+    "commodity_shadow_price",
+    "commodity_shadow_price_ratio",
+    "cost_of_electricity_ratio",
+    "emissions_by_year",
+    "emissions_ratio",
+    "energy_price_ratio",
+    "og_consumption_good",
+    "og_interest_rate",
+    "og_sector_output",
+    "pm25_dose_response",
+    "power_capex_increment",
+    "public_capex_pct_gdp",
+    "read_clews_long",
+    "read_clews_matrix",
+]
 
 
 def _find(scenario_dir: str, metric: str, exclude: str = "") -> str:
@@ -331,7 +344,7 @@ def _align_finite(series, start_year: int, n: int) -> np.ndarray:
 def _cost_xlsx(scenario_dir: str) -> str:
     hits = [h for h in glob.glob(os.path.join(scenario_dir, "*Cost of electricity*.xlsx"))
             if not os.path.basename(h).startswith("~$")]
-    return sorted(hits)[0]
+    return min(hits)
 
 
 def _has_cost_xlsx(scenario_dir: str) -> bool:

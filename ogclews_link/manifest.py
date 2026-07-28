@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def _ogcore_version():
@@ -69,7 +69,7 @@ def write_run_manifest(out_dir, experiment, country, ctx, clews_run=None, og_mod
                      if not pr.get("provenance_only")],   # e.g. the energy_price_source record
         "clews_run": clews_run,
         "og_model": og_model or {"ogcore_version": _ogcore_version()},
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "provenance": ctx.provenance,
     }
     path = os.path.join(out_dir, filename)

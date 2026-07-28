@@ -89,7 +89,7 @@ def _read_sam(pkg_dir: str):
         return None
     try:
         import pandas as pd
-        return pd.read_csv(sorted(hits)[0], index_col=1, thousands=",").fillna(0)
+        return pd.read_csv(min(hits), index_col=1, thousands=",").fillna(0)
     except Exception:    # noqa: BLE001 -- a missing/odd SAM just leaves the share unreported
         return None
 

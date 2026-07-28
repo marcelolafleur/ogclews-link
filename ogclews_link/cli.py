@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 
-from . import clews_io, experiments  # noqa: F401
+from . import clews_io, experiments
 from .report import print_report
 
 
@@ -122,9 +122,8 @@ def main(argv=None):
             mp.print_help()
         return
     if args.cmd == "run":
-        from functools import partial
-
         import os
+        from functools import partial
 
         from . import framework, registry, runtime
         from .country import CLEWS_SCENARIO_HELP, resolve_country

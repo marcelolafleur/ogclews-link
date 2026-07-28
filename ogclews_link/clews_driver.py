@@ -27,10 +27,9 @@ import json
 import os
 import shutil
 import subprocess
-import time
 from pathlib import Path
 
-__all__ = ["muiogo_python", "copy_case", "scale_annual_demand", "run_caserun", "case_registry"]
+__all__ = ["case_registry", "copy_case", "muiogo_python", "run_caserun", "scale_annual_demand"]
 
 
 # --- environment resolution -------------------------------------------------------

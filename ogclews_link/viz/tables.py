@@ -11,10 +11,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-from . import style  # noqa: E402
+from . import style
 
 style.apply()
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 
 def _solved(layered):
