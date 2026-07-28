@@ -24,7 +24,7 @@ jobs:
         run: uv sync --extra dev
 
       - name: Test suite
-        run: uv run pytest tests/ -q -n auto
+        run: uv run pytest tests/ -q -rs -n auto
 
       - name: Installer smoke (setup.py --check)
         run: python scripts/setup.py --check

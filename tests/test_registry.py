@@ -5,15 +5,25 @@ Run with the standalone link venv: `uv run pytest tests/test_registry.py`.
 from __future__ import annotations
 
 import json
+import os
 import types
 
 from ogclews_link import registry
 
 
-def _write(tmp_path, env_python="/bin/sh"):
+def _fake_py(tmp_path, name="fake-python"):
+    """A file that EXISTS to stand in for an interpreter (lookup() isfile-checks env_python);
+    a literal /bin/sh would fail on Windows."""
+    p = tmp_path / name
+    p.write_text("")
+    return str(p)
+
+
+def _write(tmp_path, env_python=None):
     p = tmp_path / "og_model_registry.json"
     p.write_text(json.dumps({"schema_version": 1, "models": {
-        "og-phl": {"package": "ogphl", "env_python": env_python, "version": "0.1.0"}}}))
+        "og-phl": {"package": "ogphl", "env_python": env_python or _fake_py(tmp_path),
+                   "version": "0.1.0"}}}))
     return str(p)
 
 
@@ -44,7 +54,7 @@ def test_lookup_by_repo_key_package_and_country(tmp_path):
 
 def test_entry_carries_calibration_and_discovered(tmp_path):
     # a registered model may pin a CHOSEN calibration + carry the SAVED discovery status; absent -> None
-    entry = {"package": "ogzaf", "env_python": "/bin/sh", "version": "0.1.0", "source_dir": "/x/ogzaf",
+    entry = {"package": "ogzaf", "env_python": _fake_py(tmp_path), "version": "0.1.0", "source_dir": "/x/ogzaf",
              "calibration": "ogzaf_default_parameters_multisector.json",
              "discovered": {"at": "2026-01-01T00:00:00Z", "recommended": "m.json", "couplable_count": 1,
                             "candidates": [{"file": "m.json", "couplable": True}]}}
@@ -60,8 +70,8 @@ def test_entry_carries_calibration_and_discovered(tmp_path):
 def test_package_source_dir_derived_from_env_python():
     # absent source_dir -> derived from the env interpreter (<install>/.venv/bin/python -> <install>/<pkg>)
     e = registry.ModelEntry(key="og-phl", package="ogphl",
-                            env_python="/Users/x/OG-PHL/.venv/bin/python")
-    assert registry.package_source_dir(e) == "/Users/x/OG-PHL/ogphl"
+                            env_python=os.path.join("/Users/x/OG-PHL", ".venv", "bin", "python"))
+    assert registry.package_source_dir(e) == os.path.join("/Users/x/OG-PHL", "ogphl")
 
 
 def test_unregistered_raises_actionable(tmp_path):
