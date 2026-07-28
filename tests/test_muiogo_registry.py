@@ -16,9 +16,18 @@ import pytest
 from ogclews_link import registry
 
 
-def _muiogo_home(tmp_path, *, package="ogphl", repo="OG-PHL", python_path="/bin/sh",
+def _fake_py(tmp_path, name="fake-python"):
+    """A file that EXISTS to stand in for an interpreter (lookup() isfile-checks env_python);
+    a literal /bin/sh would fail on Windows."""
+    p = tmp_path / name
+    p.write_text("")
+    return str(p)
+
+
+def _muiogo_home(tmp_path, *, package="ogphl", repo="OG-PHL", python_path=None,
                  make_source=False, country_id="PHL", state="installed"):
     """Create a fake MUIOGO install carrying one installed-OG record; return (home, local_path)."""
+    python_path = python_path or _fake_py(tmp_path, "muiogo-python")
     ogc = tmp_path / "MUIOGO" / "WebAPP" / "DataStorage" / "OGCore"
     ogc.mkdir(parents=True)
     local_path = tmp_path / "models" / repo
@@ -31,10 +40,11 @@ def _muiogo_home(tmp_path, *, package="ogphl", repo="OG-PHL", python_path="/bin/
     return str(tmp_path / "MUIOGO"), str(local_path)
 
 
-def _link_registry(tmp_path, *, env_python="/bin/sh", key="og-phl", package="ogphl"):
+def _link_registry(tmp_path, *, env_python=None, key="og-phl", package="ogphl"):
     p = tmp_path / "og_model_registry.json"
     p.write_text(json.dumps({"schema_version": 1, "models": {
-        key: {"package": package, "env_python": env_python, "version": "0.1.0"}}}))
+        key: {"package": package, "env_python": env_python or _fake_py(tmp_path, "link-python"),
+              "version": "0.1.0"}}}))
     return str(p)
 
 
@@ -46,7 +56,8 @@ def _clean_env(monkeypatch):
 
 
 def test_resolves_model_from_muiogo_register(tmp_path, monkeypatch):
-    home, local = _muiogo_home(tmp_path, make_source=True)
+    py = _fake_py(tmp_path, "muiogo-python")
+    home, local = _muiogo_home(tmp_path, make_source=True, python_path=py)
     monkeypatch.setenv(registry.MUIOGO_HOME_ENV, home)
     # the link's OWN discovery picks the couplable calibration from MUIOGO's checkout (MUIOGO needn't know)
     monkeypatch.setattr("ogclews_link.discovery.discover_calibrations",
@@ -54,28 +65,30 @@ def test_resolves_model_from_muiogo_register(tmp_path, monkeypatch):
                                                   "couplable_count": 1})
     monkeypatch.chdir(tmp_path)                              # link-own -> packaged empty (no ./registry here)
     e = registry.lookup("og-phl")
-    assert (e.key, e.package, e.env_python) == ("og-phl", "ogphl", "/bin/sh")
+    assert (e.key, e.package, e.env_python) == ("og-phl", "ogphl", py)
     assert e.source_dir == os.path.join(local, "ogphl")
     assert e.calibration == "ogphl_multisector_default_parameters.json"
     assert registry.lookup("ogphl").key == "og-phl"         # also resolvable by package name
 
 
 def test_muiogo_is_source_of_truth_over_link_own(tmp_path, monkeypatch):
-    home, _ = _muiogo_home(tmp_path, python_path="/bin/sh")
+    mu_py, link_py = _fake_py(tmp_path, "muiogo-python"), _fake_py(tmp_path, "link-python")
+    home, _ = _muiogo_home(tmp_path, python_path=mu_py)
     monkeypatch.setenv(registry.MUIOGO_HOME_ENV, home)
     monkeypatch.chdir(tmp_path)
-    _link_registry(tmp_path, env_python="/usr/bin/true")    # link-own points at a DIFFERENT interpreter
+    _link_registry(tmp_path, env_python=link_py)            # link-own points at a DIFFERENT interpreter
     e = registry.lookup("og-phl")                            # no explicit path -> MUIOGO overlays link-own
-    assert e.env_python == "/bin/sh"                         # MUIOGO's record wins for the same key
+    assert e.env_python == mu_py                             # MUIOGO's record wins for the same key
 
 
 def test_explicit_registry_bypasses_muiogo(tmp_path, monkeypatch):
-    home, _ = _muiogo_home(tmp_path, python_path="/bin/sh")
+    mu_py, link_py = _fake_py(tmp_path, "muiogo-python"), _fake_py(tmp_path, "link-python")
+    home, _ = _muiogo_home(tmp_path, python_path=mu_py)
     monkeypatch.setenv(registry.MUIOGO_HOME_ENV, home)
-    rp = _link_registry(tmp_path, env_python="/usr/bin/true")
-    assert registry.lookup("og-phl", path=rp).env_python == "/usr/bin/true"   # explicit path -> MUIOGO ignored
+    rp = _link_registry(tmp_path, env_python=link_py)
+    assert registry.lookup("og-phl", path=rp).env_python == link_py   # explicit path -> MUIOGO ignored
     monkeypatch.setenv(registry.ENV_VAR, rp)                 # $OGCLEWS_MODEL_REGISTRY is also an override
-    assert registry.lookup("og-phl").env_python == "/usr/bin/true"
+    assert registry.lookup("og-phl").env_python == link_py
 
 
 def test_absent_muiogo_falls_back_to_link_own(tmp_path, monkeypatch):

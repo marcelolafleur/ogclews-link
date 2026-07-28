@@ -1,0 +1,30 @@
+# CI: the link's own suite on Linux AND Windows. The tests are ogcore-free (numpy/pandas only;
+# anything needing a live OG-PHL checkout skips itself), so this is cheap — and the Windows leg
+# turns tests/test_windows_portability.py's POSIX-simulated coverage into the real thing.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install (link venv, dev extra)
+        run: uv sync --extra dev
+
+      - name: Test suite
+        run: uv run pytest tests/ -q -rs -n auto
+
+      - name: Installer smoke (setup.py --check)
+        run: python scripts/setup.py --check
