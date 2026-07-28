@@ -58,19 +58,19 @@ else:
 
 
 def info(msg):
-    print("%s==>%s %s" % (B, N, msg))
+    print("%s==>%s %s" % (B, N, msg), flush=True)  # flush: keep ordering sane around subprocess output
 
 
 def ok(msg):
-    print("%s  ok%s %s" % (G, N, msg))
+    print("%s  ok%s %s" % (G, N, msg), flush=True)
 
 
 def warn(msg):
-    print("%s  ! %s %s" % (Y, N, msg))
+    print("%s  ! %s %s" % (Y, N, msg), flush=True)
 
 
 def die(msg):
-    print("%s  x %s %s" % (R, N, msg), file=sys.stderr)
+    print("%s  x %s %s" % (R, N, msg), file=sys.stderr, flush=True)
     sys.exit(1)
 
 
