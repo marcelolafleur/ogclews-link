@@ -17,6 +17,17 @@ that's expected — see [DATA.md](DATA.md) to enable it (~5 minutes).
 
 The manual steps below do the same thing, if you'd rather see each one.
 
+**On Windows:** the one-script quick start is macOS/Linux only, but the manual steps below all work
+from PowerShell with two substitutions — in step 1 use `Expand-Archive` instead of `unzip`, and in
+step 3 run the installer as
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 --og-path ..\OG-PHL
+```
+
+(or `python scripts\setup.py --og-path ..\OG-PHL` if you already have Python). Join the multi-line
+`\`-continued commands onto one line.
+
 ## 1) Make a working folder and get the Philippine CLEWS data
 
 ```bash

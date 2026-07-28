@@ -1,0 +1,14 @@
+# Normalize line endings so a Windows checkout (core.autocrlf=true) can't corrupt
+# fixtures or break the shell scripts under Git Bash.
+* text=auto
+*.sh text eol=lf
+*.ps1 text eol=crlf
+
+*.png binary
+*.pdf binary
+*.xlsx binary
+*.npz binary
+*.zip binary
+
+# byte-exact mirror of a published dataset (authored with CRLF) — leave it untouched
+ogclews_link/data/mcduffie2021_pm25_source_shares.csv -text
