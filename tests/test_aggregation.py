@@ -177,7 +177,8 @@ def _committed_source(repo, path):
     rel = os.path.relpath(path, repo)
     for ref in ("origin/main", "HEAD"):
         try:
-            r = subprocess.run(["git", "-C", repo, "show", f"{ref}:{rel}"], capture_output=True, text=True)
+            r = subprocess.run(["git", "-C", repo, "show", f"{ref}:{rel}"], capture_output=True, text=True,
+                               check=False)
             if r.returncode == 0 and r.stdout:
                 return r.stdout
         except Exception:  # noqa: BLE001 -- ref/git unavailable -> try the next fallback

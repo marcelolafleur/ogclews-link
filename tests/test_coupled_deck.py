@@ -10,7 +10,6 @@ from ogclews_link.muiogo_run import stage_clews_source
 from ogclews_link.registry import ModelEntry
 from ogclews_link.viz import build
 
-
 # --- task #6: stage the CLEWS source next to the run --------------------------------
 
 _EXPORTS = ["RE1_AnnualTechnologyEmissionByMode_2050.csv", "CapitalInvestment.csv",

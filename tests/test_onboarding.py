@@ -10,8 +10,12 @@ import pandas as pd
 import pytest
 
 from ogclews_link import channels, clews_io, muiogo_run, signals
-from ogclews_link.country import (PHL, config_from_dict, country_registry, resolve_country)
-
+from ogclews_link.country import (
+    PHL,
+    config_from_dict,
+    country_registry,
+    resolve_country,
+)
 
 # --- fixtures -------------------------------------------------------------------
 

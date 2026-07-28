@@ -226,7 +226,7 @@ def _validate_ss(out_dir):
     from ogcore.utils import safe_read_pickle
     try:
         ss = safe_read_pickle(os.path.join(out_dir, "SS", "SS_vars.pkl"))
-        s = lambda x: float(np.squeeze(x))                                       # noqa: E731
+        s = lambda x: float(np.squeeze(x))
         p_m = np.atleast_1d(np.squeeze(ss["p_m"]))
         r, K, Y = s(ss["r"]), s(ss["K"]), s(ss["Y"])
         return bool((p_m > 0).all() and np.isclose(p_m[-1], 1.0, atol=1e-3)

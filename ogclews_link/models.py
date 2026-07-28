@@ -9,7 +9,7 @@ import json
 import os
 import sys
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from . import discovery, registry
 
@@ -17,7 +17,7 @@ from . import discovery, registry
 def _discovered_block(findings: dict) -> dict:
     """The discovery findings as the durable record stored in the registry entry (drops the package/dir
     that the entry already carries; stamps when it was recorded)."""
-    return {"at": datetime.now(timezone.utc).isoformat(),
+    return {"at": datetime.now(UTC).isoformat(),
             "recommended": findings.get("recommended"),
             "couplable_count": findings.get("couplable_count"),
             "candidates": findings.get("candidates", [])}

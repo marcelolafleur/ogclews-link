@@ -12,8 +12,9 @@ import json
 import os
 
 import matplotlib
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 GOLDEN = os.path.join(REPO, "results", "golden.json")

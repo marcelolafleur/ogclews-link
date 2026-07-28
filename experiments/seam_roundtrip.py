@@ -31,8 +31,8 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ogclews_link import clews_driver                      # noqa: E402
-from ogclews_link.country import _muiogo_home              # noqa: E402
+from ogclews_link import clews_driver
+from ogclews_link.country import _muiogo_home
 
 CASERUN = "Base_v9"
 COMMODITY = "PHL_HOU_ELEF"   # the FINAL-demand code that carries load (PHL_HOU_ELE's SAD rows are 0)

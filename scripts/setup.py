@@ -239,12 +239,12 @@ def main():
     print()
     ok("ogclews-link is installed.")
     setenv = "set" if IS_WINDOWS else "export"
-    print("""Next — point at your CLEWS scenarios (from a MUIOGO install) and run:
-  {0} OGCLEWS_MUIOGO_HOME=<path to MUIOGO>          # or place MUIOGO at ../MUIOGO
-  {0} OGCLEWS_CLEWS_CASE=Philippines_v9
-  {0} OGCLEWS_CLEWS_BASE_RUN=Base_v9
-  {0} OGCLEWS_CLEWS_REFORM_RUN=PEP_v9
-  uv run ogclews-link run coupled --out ./ogclews_runs   # (or pass --clews-base/--clews-reform)""".format(setenv))
+    print(f"""Next — point at your CLEWS scenarios (from a MUIOGO install) and run:
+  {setenv} OGCLEWS_MUIOGO_HOME=<path to MUIOGO>          # or place MUIOGO at ../MUIOGO
+  {setenv} OGCLEWS_CLEWS_CASE=Philippines_v9
+  {setenv} OGCLEWS_CLEWS_BASE_RUN=Base_v9
+  {setenv} OGCLEWS_CLEWS_REFORM_RUN=PEP_v9
+  uv run ogclews-link run coupled --out ./ogclews_runs   # (or pass --clews-base/--clews-reform)""")
 
 
 if __name__ == "__main__":

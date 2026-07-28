@@ -16,8 +16,14 @@ import os
 
 import numpy as np
 
-from ogclews_link import (channels, health_pop, health_profile,  # noqa: F401 (registers channels)
-                          og_runner, registry, report)
+from ogclews_link import (  # noqa: F401 (registers channels)
+    channels,
+    health_pop,
+    health_profile,
+    og_runner,
+    registry,
+    report,
+)
 from ogclews_link.country import PHL
 
 # Repo-relative: outputs land in THIS checkout's ogclews_runs/, whichever worktree runs it

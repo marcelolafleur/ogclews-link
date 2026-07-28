@@ -117,7 +117,7 @@ def run_across_steps(step_fns, country, *, export_baseline, solve_reform,
         reform_dir = os.path.join(out_root, "across_steps", label)
         try:
             step_fn(ctx, _solve_step(solve_reform, baseline_arrays, base_dir, reform_dir, country))
-        except Exception as e:  # one non-converging step must not kill the whole batch
+        except Exception as e:  # noqa: BLE001 -- one non-converging step must not kill the whole batch
             print(f"[across_steps] step '{label}' did NOT solve: {type(e).__name__}: {e}")
             ctx.extras["error"] = f"{type(e).__name__}: {e}"
         results.append((label, ctx))

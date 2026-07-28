@@ -6,7 +6,7 @@ from __future__ import annotations
 import glob
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .contract import ScenarioPair, UnitMap
 
@@ -129,7 +129,7 @@ def _resolve_gbd_csv():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     hits = [h for h in glob.glob(os.path.join(root, "IHME-GBD_2023_DATA", "*.csv"))
             if "citation" not in os.path.basename(h).lower()]
-    return sorted(hits)[0] if hits else None
+    return min(hits) if hits else None
 
 
 def _resolve_dose_response(name: str):
@@ -283,7 +283,7 @@ def country_registry(config_file=None) -> dict:
         for entry in entries if isinstance(entries, list) else []:
             try:
                 if not isinstance(entry, dict):
-                    raise ValueError(f"entry {entry!r} is not an object")
+                    raise ValueError(f"entry {entry!r} is not an object")  # noqa: TRY004 -- funneled into the ValueError handler below
                 obj = config_from_dict(entry)
             except ValueError as e:
                 _bad(f"countries file {path!r}: {e}", e)

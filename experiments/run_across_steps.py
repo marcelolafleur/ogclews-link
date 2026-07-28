@@ -16,7 +16,14 @@ import os
 
 import numpy as np
 
-from ogclews_link import channels, framework, og_runner, registry, report, signals  # noqa: F401
+from ogclews_link import (  # noqa: F401
+    channels,
+    framework,
+    og_runner,
+    registry,
+    report,
+    signals,
+)
 from ogclews_link.country import PHL
 from ogclews_link.experiments import ACROSS_STEPS
 
@@ -60,7 +67,11 @@ def main():
     if health_row is not None and base_tpi is not None:
         def _mortonly(ctx, solve):
             # mirror the real +health layer (experiments._across_health) but health = mortality-only
-            from ogclews_link.experiments import _apply_energy_composite, _auto_price_ratio, _public_capex
+            from ogclews_link.experiments import (
+                _apply_energy_composite,
+                _auto_price_ratio,
+                _public_capex,
+            )
             _apply_energy_composite(ctx, _auto_price_ratio(ctx))
             channels.investment(ctx, _public_capex(ctx))
             channels.emit_carbon_penalty(ctx, carbon_price_usd_per_tco2=50.0)

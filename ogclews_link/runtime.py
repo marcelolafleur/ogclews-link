@@ -89,7 +89,8 @@ def build_deck(entry, coupled_dir, *, country_selector, countries_file=None, out
         args += ["--out-dir", out_dir]
     try:
         proc = subprocess.run([entry.env_python, *args], env=env, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
+                              stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                              check=False)
     except OSError as e:
         print(f"[deck] could not launch the figure build: {e}", file=sys.stderr)
         return False

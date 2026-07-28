@@ -6,8 +6,12 @@ import types
 
 import numpy as np
 
-from ogclews_link.policy_levers import (industry_registry, resolve_industry,
-                                        route_revenue, set_investment_incentive)
+from ogclews_link.policy_levers import (
+    industry_registry,
+    resolve_industry,
+    route_revenue,
+    set_investment_incentive,
+)
 
 TpS = 320
 

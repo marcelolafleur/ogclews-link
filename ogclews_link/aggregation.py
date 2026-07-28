@@ -40,9 +40,20 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-__all__ = ["CARRIERS", "aggregation_groups", "locate", "shares", "weighted_shock",
-           "apply_productivity_haircut", "input_intensity", "from_package", "GroupShare",
-           "SubgoodShares", "ShockTarget", "ShockPlan"]
+__all__ = [
+    "CARRIERS",
+    "GroupShare",
+    "ShockPlan",
+    "ShockTarget",
+    "SubgoodShares",
+    "aggregation_groups",
+    "apply_productivity_haircut",
+    "from_package",
+    "input_intensity",
+    "locate",
+    "shares",
+    "weighted_shock",
+]
 
 # Convenience regexes for the common IFPRI-SAM carriers. Axis-agnostic: they match an activity
 # ('a*') OR a commodity ('c*') code, so the same name works on PROD_DICT and CONS_DICT
@@ -106,7 +117,7 @@ def input_intensity(sam, prod_dict, carrier="electricity"):
         rows = [r for r in sam.index if rx.search(str(r))]
     crows = [r for r in rows if str(r).lower().startswith("c")] or rows   # commodity rows = input use
     out = []
-    for _name, codes in prod_dict.items():
+    for codes in prod_dict.values():
         cols = list(dict.fromkeys(codes))
         gross = _activity_gross(sam, cols)
         absorbed = _commodity_absorption(sam, crows, weight_cols=cols)

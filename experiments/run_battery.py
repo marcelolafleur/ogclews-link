@@ -35,7 +35,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 # DIFFERENT worktree/branch than this checkout. That silently ran a whole battery on stale code once
 # (2026-07-07, contaminated golden). Pin THIS repo first, then assert the resolution really landed here.
 sys.path.insert(0, REPO)
-import ogclews_link  # noqa: E402
+import ogclews_link
 
 _RESOLVED = os.path.realpath(os.path.dirname(ogclews_link.__file__))
 if not _RESOLVED.startswith(os.path.realpath(REPO) + os.sep):
@@ -225,9 +225,10 @@ def run_script(item) -> dict:
     if item.get("env") == "og":
         sub_env = dict(os.environ)
         sub_env["PYTHONPATH"] = REPO + (os.pathsep + sub_env["PYTHONPATH"] if sub_env.get("PYTHONPATH") else "")
-        proc = subprocess.run([_og_env_python(), path], cwd=REPO, capture_output=True, text=True, env=sub_env)
+        proc = subprocess.run([_og_env_python(), path], cwd=REPO, capture_output=True, text=True, env=sub_env,
+                              check=False)
     else:
-        proc = subprocess.run([sys.executable, path], cwd=REPO, capture_output=True, text=True)
+        proc = subprocess.run([sys.executable, path], cwd=REPO, capture_output=True, text=True, check=False)
     tail = "\n".join(proc.stdout.strip().splitlines()[-8:])
     ok = proc.returncode == 0
     exp = item.get("expect_stdout")
@@ -239,7 +240,7 @@ def run_script(item) -> dict:
 
 def run_pytest(item) -> dict:
     proc = subprocess.run([sys.executable, "-m", "pytest", item["target"], "-q"],
-                          cwd=REPO, capture_output=True, text=True)
+                          cwd=REPO, capture_output=True, text=True, check=False)
     return {"status": "pass" if proc.returncode == 0 else "fail", "returncode": proc.returncode,
             "stdout_tail": "\n".join(proc.stdout.strip().splitlines()[-3:])}
 
@@ -319,7 +320,7 @@ def cmd_list():
 
 
 def _fmt_dur(s):
-    s = int(round(s))
+    s = round(s)
     return f"{s // 60}m{s % 60:02d}s" if s >= 60 else f"{s}s"
 
 

@@ -11,7 +11,7 @@ import types
 
 import numpy as np
 
-from ogclews_link import channels, experiments, report, signals  # noqa: F401
+from ogclews_link import channels, experiments, report, signals
 from ogclews_link.contract import Concordance
 from ogclews_link.country import PHL
 from ogclews_link.framework import ExperimentContext, preflight
@@ -106,6 +106,7 @@ def test_ss_tail_persistence(monkeypatch):
     # investment is public-infra-only and PHL/PEP has ~0 grid capex, so inject a synthetic non-zero
     # public-infra increment to actually exercise the finite-flow taper.
     import pandas as pd
+
     from ogclews_link import signals as _sig
     yrs = list(range(2026, 2054))
     monkeypatch.setattr(_sig, "power_capex_increment", lambda *a, **k: pd.Series([5000.0] * len(yrs), index=yrs))
@@ -243,6 +244,7 @@ def test_capital_intensity_lever_target_and_identity():
 
 def test_capital_intensity_lever_blocks_infeasible():
     import pytest
+
     from ogclews_link import policy_levers
     # gamma 0.99 + gamma_g 0.05 -> labor share -0.04 < floor: a <=0 labor exponent OG-Core won't catch
     with pytest.raises(ValueError):
@@ -255,6 +257,7 @@ def test_capital_intensity_lever_blocks_infeasible():
 
 def test_capital_intensity_lever_requires_exactly_one():
     import pytest
+
     from ogclews_link import policy_levers
     with pytest.raises(ValueError):                                  # neither
         policy_levers.set_capital_intensity(_params(), M_E)
@@ -333,6 +336,7 @@ def test_health_skips_when_no_gbd_data(monkeypatch):
     # (energy+investment+carbon) with no health data. (Corrupt/absent emissions are handled earlier, so
     # we feed a valid emissions ratio to reach the GBD guard.)
     import dataclasses
+
     import pandas as pd
     monkeypatch.setattr(channels.signals, "emissions_ratio", lambda *a, **k: pd.Series([0.9] * 10))
     c = dataclasses.replace(PHL, gbd_burden_csv=None)
@@ -1044,7 +1048,6 @@ def test_energy_price_marginal_guardrail_rejects_sparse_overlap():
     # the marginal is degenerate: if base/reform overlap in fewer than the minimum years, refuse rather
     # than let _align_to_start broadcast a single binding year into a permanent shock.
     import pandas as pd
-
     import pytest
     orig = signals.commodity_shadow_price_ratio
     signals.commodity_shadow_price_ratio = lambda b, r, **k: pd.Series([1.32], index=[2029])
