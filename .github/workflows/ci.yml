@@ -5,7 +5,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, windows-onboarding]   # branch entry: validate this lane pre-PR
   pull_request:
 
 jobs:
