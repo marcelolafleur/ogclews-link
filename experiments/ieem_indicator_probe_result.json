@@ -4,8 +4,10 @@
       2020,
       2035
     ],
-    "bii_first": 0.9073286688344696,
-    "bii_last": 0.898499583833472,
+    "bii": [
+      0.9073286688344698,
+      0.8984995838334721
+    ],
     "cover_first": {
       "Cropland": 6.3755,
       "Forest": 253.6,
@@ -18,7 +20,6 @@
       "Built-up": 17.41,
       "Water bodies": 25.021
     },
-    "closure_ok": true,
     "duals": [
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
@@ -30,8 +31,10 @@
       2020,
       2035
     ],
-    "bii_first": 0.9073286688344696,
-    "bii_last": 0.8991819836060053,
+    "bii": [
+      0.9073286688344698,
+      0.8991819836060053
+    ],
     "cover_first": {
       "Cropland": 6.3755,
       "Forest": 253.6,
@@ -44,7 +47,6 @@
       "Built-up": 17.41,
       "Water bodies": 25.021
     },
-    "closure_ok": true,
     "duals": [
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
@@ -56,8 +58,10 @@
       2020,
       2035
     ],
-    "bii_first": 0.9073286688344696,
-    "bii_last": 0.8991819836060053,
+    "bii": [
+      0.9073286688344698,
+      0.8991819836060053
+    ],
     "cover_first": {
       "Cropland": 6.3755,
       "Forest": 253.6,
@@ -70,7 +74,6 @@
       "Built-up": 17.41,
       "Water bodies": 25.021
     },
-    "closure_ok": true,
     "duals": [
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
@@ -82,8 +85,10 @@
       2020,
       2035
     ],
-    "bii_first": 0.9073286688344696,
-    "bii_last": 0.8991819836060053,
+    "bii": [
+      0.9073286688344698,
+      0.8991819836060053
+    ],
     "cover_first": {
       "Cropland": 6.3755,
       "Forest": 253.6,
@@ -96,7 +101,6 @@
       "Built-up": 17.41,
       "Water bodies": 25.021
     },
-    "closure_ok": true,
     "duals": [
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",

@@ -13,8 +13,10 @@ indicator, and spatially-explicit ecosystem services — and every one of those 
 a *post-processing* layer over model output rather than a modelling capability we lack.
 
 I tested this rather than assuming it. Two of IEEM's headline indicator terms compute correctly
-from a solved MUIOGO case today, with no new model machinery
-([`experiments/ieem_indicator_probe.py`](../../experiments/ieem_indicator_probe.py)).
+from a solved MUIOGO case today, with no new model machinery. The arithmetic lives in
+[`ogclews_link/env_accounts.py`](../../ogclews_link/env_accounts.py) (15 tests); run it against
+the shipped demo case with
+[`experiments/ieem_indicator_probe.py`](../../experiments/ieem_indicator_probe.py).
 
 The one genuinely deep gap is different from the one I expected, and it is described in
 [§5](#5-the-land-rent-gap-the-real-structural-finding).
@@ -193,43 +195,67 @@ than "adopt SEEA framing".
 - **Representative households.** IEEM cannot produce cohort or lifetime-welfare incidence.
   We can.
 
-## 8. Recommended sequence
+## 8. Where this work lives
 
-Ordered by value per unit of effort. Nothing here is started.
+**Decision (2026-07-31): all of it in ogclews-link, MUIOGO untouched.**
 
-**(a) Land/resource shadow price → `unitrent`.** Add an equality land-closure UDC to a case that
-lacks one, solve, confirm `UDC2_UserDefinedConstraintEquality.csv` appears, and read the land
-rent. This unlocks eq. 3 and is the entry point for everything in §5. Cheapest real win.
+This is exploratory and will not land soon, and MUIOGO has ~8 contributor PRs in flight. So the
+constraint is blast radius, and ogclews-link's existing architecture already satisfies it: it is
+a non-invasive consumer that reads a case directory and subprocesses MUIOGO's own solve
+(`clews_driver.copy_case` / `run_caserun`), never editing MUIOGO's tracked files.
+
+Three facts make this safe, all verified:
+
+- **Case data is invisible to git.** MUIOGO's `.gitignore:51` ignores `WebAPP/DataStorage/*`
+  except four config JSONs. Any case we create, copy or patch leaves no trace in the repo.
+- **`copy_case` already sandboxes.** It copies a case under a new name inside DataStorage and
+  restamps it, so the source case is never mutated.
+- **No MUIOGO change is needed to get the land price.** `UDCE_d` is *already* wired in
+  `Duals.json`; what's missing is only a case carrying an equality land closure, which is case
+  data. The unit-rule fix below is cosmetic and can wait.
+
+Collision check against what's in flight: the OG-Core PRs (#498, #503) are confined to their own
+package, #509 is grid classes, #489 is the results viewer's display code. Nothing in flight
+touches case data or the dual config.
+
+Two items in the sequence below would eventually belong in MUIOGO if they graduate — (b) and the
+Pivot formula field. Both are deferred, so nothing needs to be decided now.
+
+## 8.1 Recommended sequence
+
+Ordered by value per unit of effort.
+
+**(a) Land/resource shadow price → `unitrent`.** Copy a case, add an equality land-closure UDC to
+the copy, solve, confirm `UDC2_UserDefinedConstraintEquality.csv` appears, read the land rent.
+Unlocks eq. 3 and is the entry point for everything in §5. Cheapest real win, and needs no MUIOGO
+change at all. **Next step.**
 
 **(b) Fix the UDC dual unit rule.** `Duals.json` gives `UDCI_d`/`UDCE_d` a `unitRule` of
-`{"var": "number"}` — dimensionless. A land shadow price would render unitless in the Pivot.
-This is the same bug class as #432 (just fixed for the energy-balance dual, commit `da372bdc`,
-`EmiUnit`→`CommUnit`). Small, self-contained MUIOGO issue.
+`{"var": "number"}` — dimensionless, so a land price renders unitless in the Pivot. Same bug
+class as #432 (fixed for the energy-balance dual in `da372bdc`, `EmiUnit`→`CommUnit`). Cosmetic:
+it changes the label, not the exported value. Defer until this graduates; it is then a small
+self-contained MUIOGO issue and a good contributor task.
 
-**(c) Genuine savings as a published indicator.** Terms are proven computable (§3). The
-`ENV_WATER` publication rail already carries a proper provenance envelope — SHA256 manifests of
-every input CSV and every modified view file
-(`documentation/environmental_water_pivot_publication.json`). Ship it on that rail. Note the
-Pivot **cannot compute derived quantities**: the indicator schema
-(`DefaultObj.Class.js:238-256`) has no formula field, so this must be computed externally and
-published, exactly as ENV_WATER is. Giving indicators a formula field is the right structural
-fix, and is a well-scoped piece of work in its own right.
+**(c) Genuine savings.** Terms proven computable (§3); `natural_capital_depletion` in
+`env_accounts.py` implements eq. 3 and returns 0.0 until (a) supplies unit rents. Needs
+national-accounts aggregates from OG-Core — which MUIOGO PR #498 (ingestion pipeline, draft)
+would supply, so coordinate rather than build a parallel path.
 
-**(d) Composite BII.** Nearly free once (c)'s rail exists — it is an area-weighted mean over land
-cover we already produce. Needs real PREDICTS coefficients for the country, which is a data task,
-not a modelling one.
+**(d) Composite BII.** Already implemented as `composite_index`; what's missing is real
+PREDICTS coefficients for the country. A data task, not a modelling one.
 
-**(e) InVEST on CLEWS land output.** The genuinely new capability. Needs a downscaling step
-(CLEWS land is aggregate; InVEST wants rasters). Biggest effort, and the one that would let us
-claim ecosystem services outright. Worth scoping only after (a)–(d).
+**(e) Publishing indicators back into a case.** The `ENV_WATER` rail is the precedent — an
+external script computes the value and writes the case's view files, carrying a provenance
+envelope of SHA256 manifests over every input CSV and every modified view file
+(`documentation/environmental_water_pivot_publication.json`). Worth noting the Pivot **cannot
+compute derived quantities**: the indicator schema (`DefaultObj.Class.js:238-256`) has no formula
+field. Giving it one is the right structural fix and a well-scoped MUIOGO issue — later.
 
-**(f) Split `flnd` out as a distinct factor in OG-Core.** The deep one. Large, touches OG-Core's
-firm side, and shares that surface with the unbuilt Option B — so scope them together or not at
-all.
+**(f) InVEST on CLEWS land output.** The genuinely new capability. Needs a downscaling step
+(CLEWS land is aggregate; InVEST wants rasters). Biggest effort. Scope only after (a)–(d).
 
-Sequencing note: (c) needs national-accounts aggregates from OG-Core, which is what MUIOGO
-PR #498 (OG-Core ingestion pipeline, draft) would provide. Worth coordinating rather than
-building a parallel path.
+**(g) Split `flnd` out as a distinct factor in OG-Core.** The deep one. Touches OG-Core's firm
+side and shares that surface with the unbuilt Option B — scope them together or not at all.
 
 ## 9. Repo state this was assessed against
 
