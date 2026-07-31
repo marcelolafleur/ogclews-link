@@ -1,0 +1,106 @@
+{
+  "CLMCHG": {
+    "years": [
+      2020,
+      2035
+    ],
+    "bii_first": 0.9073286688344696,
+    "bii_last": 0.898499583833472,
+    "cover_first": {
+      "Cropland": 6.3755,
+      "Forest": 253.6,
+      "Built-up": 15.0,
+      "Water bodies": 25.021
+    },
+    "cover_last": {
+      "Cropland": 9.3827,
+      "Forest": 248.1864,
+      "Built-up": 17.41,
+      "Water bodies": 25.021
+    },
+    "closure_ok": true,
+    "duals": [
+      "E8_AnnualEmissionsLimit",
+      "EBb4_EnergyBalanceEachYear4_ICR",
+      "UDC1_UserDefinedConstraintInequality"
+    ]
+  },
+  "CO2TAX": {
+    "years": [
+      2020,
+      2035
+    ],
+    "bii_first": 0.9073286688344696,
+    "bii_last": 0.8991819836060053,
+    "cover_first": {
+      "Cropland": 6.3755,
+      "Forest": 253.6,
+      "Built-up": 15.0,
+      "Water bodies": 25.021
+    },
+    "cover_last": {
+      "Cropland": 8.870899999999999,
+      "Forest": 248.6982,
+      "Built-up": 17.41,
+      "Water bodies": 25.021
+    },
+    "closure_ok": true,
+    "duals": [
+      "E8_AnnualEmissionsLimit",
+      "EBb4_EnergyBalanceEachYear4_ICR",
+      "UDC1_UserDefinedConstraintInequality"
+    ]
+  },
+  "REF": {
+    "years": [
+      2020,
+      2035
+    ],
+    "bii_first": 0.9073286688344696,
+    "bii_last": 0.8991819836060053,
+    "cover_first": {
+      "Cropland": 6.3755,
+      "Forest": 253.6,
+      "Built-up": 15.0,
+      "Water bodies": 25.021
+    },
+    "cover_last": {
+      "Cropland": 8.870899999999999,
+      "Forest": 248.6982,
+      "Built-up": 17.41,
+      "Water bodies": 25.021
+    },
+    "closure_ok": true,
+    "duals": [
+      "E8_AnnualEmissionsLimit",
+      "EBb4_EnergyBalanceEachYear4_ICR",
+      "UDC1_UserDefinedConstraintInequality"
+    ]
+  },
+  "RETRG": {
+    "years": [
+      2020,
+      2035
+    ],
+    "bii_first": 0.9073286688344696,
+    "bii_last": 0.8991819836060053,
+    "cover_first": {
+      "Cropland": 6.3755,
+      "Forest": 253.6,
+      "Built-up": 15.0,
+      "Water bodies": 25.021
+    },
+    "cover_last": {
+      "Cropland": 8.870899999999999,
+      "Forest": 248.6982,
+      "Built-up": 17.41,
+      "Water bodies": 25.021
+    },
+    "closure_ok": true,
+    "duals": [
+      "E8_AnnualEmissionsLimit",
+      "EBb4_EnergyBalanceEachYear4_ICR",
+      "UDC1_UserDefinedConstraintInequality"
+    ]
+  }
+}
