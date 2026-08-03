@@ -424,3 +424,152 @@ narrower and more answerable: **should the forest valuation be derived rather th
 yes, that is a calibration task with a literature (forest ecosystem-service valuation for the
 Philippines) and it would make the natural-capital line defensible. If no, everything downstream
 carries an undocumented `-10` and must say so.
+
+## 11. Forest carbon — sourced numbers (2026-08-03)
+
+Facts only; the design decision is §12. Every figure here is traceable.
+
+### Keep three concepts apart — conflating them is the main failure mode
+
+| | what it is | magnitude |
+|---|---|---|
+| **(a)** mature/primary forest annual uptake | near zero, and *not* significantly different from zero | 1.46 tCO2/ha/yr |
+| **(b)** secondary/regrowth annual uptake | the number people quote | 5.6–7.1 tCO2/ha/yr |
+| **(c)** one-off stock released on conversion | what deforestation actually costs | 292 tCO2/ha (PHL) |
+
+IPCC 2019 Refinement Vol 4 Ch 4 **Table 4.9 (updated)** splits by forest condition — primary /
+secondary >20 yr / secondary ≤20 yr — which the 2006 Guidelines did not. Use the 2019 Refinement.
+Primary tropical rainforest Asia is 0.7 t dm/ha/yr with **SD 2.2, three times the mean**; the
+tropical *mountain* value is −0.7, a net source. So for (a), zero is the conservative choice.
+
+⚠ The 2006 "Asia (insular) ≤20 yr" value of 13 t dm/ha/yr → 30.7 tCO2/ha/yr is **four times** the
+2019 figure. The 2019 revision dropped the continental/insular split and cut Asian rates sharply.
+30.7 is an outlier; do not use it.
+
+### The best source for PHL is the Philippines' own submission
+
+**Philippine Forest Reference Level, May 2023** — Forest Management Bureau / DENR, submitted to
+UNFCCC, technically assessed as FCCC/TAR/2023/PHL.
+`https://redd.unfccc.int/media/philippine_frl_document_final_29may2023_modified_version.pdf`
+
+- **(c) gross deforestation emission factor: 169.5 t dm/ha = 292 tCO2/ha** (AGB+BGB, §5.2.1).
+  Net of post-conversion regrowth ≈ **247 tCO2/ha**.
+- **(b) reforestation removal factor: 6.81 tCO2e/ha/yr** (Table 16, 2000–2018 mean).
+- Per forest type (Table 3): 224 / 234 / 309 / 421 tCO2/ha.
+- Its growth increments and root-shoot ratios come from 2019RF Tables 4.9/4.4 and reconcile exactly.
+
+**Why not IPCC defaults:** Philippine measured AGB is **102–202 t dm/ha** against the Tier 1
+primary-tropical-rainforest-Asia default of **413.1**. Philippine forest is degraded and secondary;
+defaults overstate its carbon by **2–4×**.
+
+Reference points for (c), and what each implies for the 4.32 Mha the model converts:
+
+| factor | tCO2/ha | release | share of model's cumulative energy CO2e | @ $30/tCO2 |
+|---|---:|---:|---:|---:|
+| **PHL FRL gross (recommended)** | **292** | **1,262 Mt** | **20%** | **$37.9 bn** |
+| PHL FRL net of regrowth | 247 | 1,068 Mt | 17% | $32.0 bn |
+| FAO FRA 2025 PHL living biomass | 519 | 2,243 Mt | 35% | $67.3 bn |
+| CLEWs Demo `EmissionToActivityChangeRatio` | 540 | 2,334 Mt | 37% | $70.0 bn |
+| IPCC 2019RF primary trop. rainforest Asia | 863 | 3,730 Mt | 59% | $111.9 bn |
+
+### The trap: never apply a regrowth factor to standing forest
+
+| factor applied to all 17.98 Mha of 2020 forest | implied sink | vs 2020 energy emissions (97.3 Mt) |
+|---|---:|---:|
+| FRL **reforestation** factor 6.81 | 122 Mt/yr | **126% — erases the energy sector** |
+| IPCC secondary >20 yr 5.64 | 101 Mt/yr | 104% |
+| IPCC **primary** 1.46 | 26 Mt/yr | 27% |
+
+The wild result on the carbon side comes from a data-reading error, not from model structure.
+
+### IEEM is a CONTRAST, not a precedent — correcting an earlier claim in this document
+
+I read IDB-WP-01193 (Banerjee et al. 2020, *The value of biodiversity in economic decision making*,
+DOI 10.18235/0002945, open at EconStor). It does **not** put carbon on land:
+
+- Forest depletion (eq. 3) is a **timber resource rent** — deforestation volume × timber output
+  price, unit rent endogenous to the CGE, 4% discount over 21 years. Stock and deforestation are in
+  **hectares**; the unit value is per **m³** of forest products; a parameter `ifora` bridges them.
+- Its **$30/tCO2 damage applies to fuel combustion only.** There is no land-use-change emission
+  term anywhere in IEEM.
+- Carbon storage appears once more as an InVEST biophysical indicator, reported as a percent change
+  and **never monetised** into genuine savings.
+- **The $30/tCO2 has no citation in the paper.** Traced: the 2017 precursor (CoPS G-273, Guatemala)
+  used **$20/tCO2e citing the World Bank's adjusted-net-savings damage value (World Bank 2011)**.
+  That the $30 descends from the same lineage is inferred, not stated.
+
+So putting carbon on land is **our extension, beyond IEEM** — worth saying plainly in any write-up.
+It also means a forest-depletion term based on timber rent and a land-carbon term in EmiVal are
+*different accounts* and can coexist without double counting. Valuing forest by carbon **and** by
+an assumed land rent would double count.
+
+### Carbon prices, for the record
+
+- **No carbon price exists in the Philippines.** The Low Carbon Economy Investment Act reached
+  Senate committee approval 10 Dec 2025 and was still pending full Senate at last verifiable check.
+  The TRAIN coal excise (PHP 150/MT of coal since 2020) is an indirect fuel excise, not a carbon price.
+- **No carbon-pricing instrument anywhere covers LULUCF** — World Bank *State and Trends 2025*
+  reports LULUCF and non-energy agriculture coverage at **0%**.
+- Benchmarks: IEEM/World-Bank-ANS **$30**; High-Level Commission corridor **$40–80 (2020) rising to
+  $50–100 (2030)**, 2017 USD; Singapore **S$45/tCO2e** in force 2026 — nearest regional in-force
+  price; EPA 2023 SC-GHG **$190** at 2% (2020 USD) but **superseded in US practice** by EO 14154 and
+  OMB M-25-27, which withdrew the federal uniform estimate.
+
+### Solver facts specific to MUIOGO
+
+- MUIOGO's `model.v.5.4.txt` does **not** declare `AnnualTechnologyEmission`,
+  `AnnualTechnologyEmissionByMode` or `TechnologyEmissionsPenalty` as `>=0` (lines 113, 114, 141),
+  unlike upstream OSeMOSYS which clamps all seven at `>=0`. So **negative emission ratios work
+  here** where upstream would silently pin the technology to zero activity.
+- That is also a hazard: a negative ratio plus a positive `EmissionsPenalty` yields a **negative
+  cost — a direct subsidy**. This is OSeMOSYS issue #99, "negative emissions farming." The
+  developers' own recommendation is to use **emission limits** (E8/E9), whose positive and negative
+  terms net out ETS-style, rather than penalties.
+- `EmissionToActivityChangeRatio` (line 79, constraints E10/E11) makes emissions proportional to the
+  **year-on-year change** in activity — the natural home for (c). Sign verified from E10: forest
+  shrinking (negative Δ) × negative ratio = positive release; forest growing = credit. Correct both
+  ways, but **area-symmetric**, so it implies instant carbon recovery on regrowth.
+
+### Direction of change
+
+Verified in both solves: forest **never increases**. PHL 30 years decreasing, 3 flat, 0 increasing;
+demo 15 decreasing, 0 increasing. Structural — forest is the residual of monotonically growing crop
+demand.
+
+Reality differs. The PHL FRL books **671,713 ha reforested against 1,197,127 ha deforested**
+(2000–2018) — reforestation is **56% of deforestation by area**. The model's one-directionality is
+an artefact of its demand-driven residual structure, not a fact about the Philippines.
+
+National flux estimates **disagree on sign** and must not be mixed: FRL (2000–2018) **+13.5 Mt
+CO2e/yr, a net source**, AGB+BGB only, degradation excluded; Philippine BTR1 FOLU 2020 **−25.9 Mt,
+a sink**; FAOSTAT forest land 2020 **−20.7 Mt, a sink**.
+
+### Precedent in models
+
+- **Published CLEWs models have essentially no land carbon.** The 2025 state-of-the-art review
+  (*Environ. Res.: Climate* 4(3):032001) states land "is the least covered aspect of the CLEWs
+  system". Ramos et al. 2021 and GeoCLEWs: area, yield and water only.
+- **EU-CLEWS is the one exception** (EGU 2026 abstract EGU26-7281), by the CLEWs core team, with
+  "forest-based carbon sequestration" — but the mechanism is not publicly documented. Worth
+  contacting: `c.taliotis@cyi.ac.cy`.
+- **TIMES** has no LULUCF in the standard framework (TIAM-UCL: "No land-use representation … except
+  for land-use emissions from the agriculture sector"); ETSAP only began AFOLU work in 2025.
+- **MESSAGEix** handles land through a separate `land_emission × LAND` term where `LAND` is a share
+  across pathways precomputed by GLOBIOM/G4M — an emulator, not a technology. The LP cannot scale
+  land sequestration freely.
+- **GCAM** has real structural land carbon, including a **30–100 year maturation lag** for forest
+  vegetation uptake (Calvin et al. 2019, *GMD* 12:677–698) — the memory a constant coefficient
+  cannot carry.
+- **No published paper** documents a negative `EmissionActivityRatio` on a forest technology.
+
+### Fiji
+
+**No IPCC Tier 1 default exists for Pacific/Oceania *tropical* forest** — every Oceania row in the
+2019 Refinement is temperate Oceanic (NZ / temperate Australia). Fiji must borrow the Tropical
+rainforest Asia rows, which is a real limitation to disclose. Usable: FAO FRA 2025 living-biomass
+stock **126.59 tC/ha = 464 tCO2/ha** (2020); FAOSTAT net forest-land flux **−1.785 tCO2/ha/yr**
+country-average. Fiji FCPF ER-PD per-hectare figures could not be retrieved (site returns HTTP 403).
+
+⚠ Do not splice FRA 2020 and FRA 2025 into one series: PHL revised the same year 2020 from 127.92 to
+141.57 tC/ha (+10.7%) and reversed its growing-stock trend; Fiji changed its carbon fraction from
+0.47 to 0.49.
