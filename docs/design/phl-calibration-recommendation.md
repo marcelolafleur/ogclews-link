@@ -159,3 +159,76 @@ Neither requires touching the energy side.
   session; they should be re-pulled from CountrySTAT before any production use.
 - The sandbox case `..._copy` (2.3 GB) still exists and holds the only yield-corrected solve. Kept
   deliberately — it is a unique result.
+
+## Defect 3, resolved — why water never binds (2026-08-03)
+
+Three reasons, and only the first is a straightforward bug.
+
+### The 2020 water balance, as solved (km³ = 10⁹ m³)
+
+| | model | observed PHL | verdict |
+|---|---:|---:|---|
+| precipitation (`MINPRCPHL`) | 724.97 | ~700 | **well calibrated** |
+| evapotranspiration | 404.94 (56%) | — | plausible |
+| surface water generated | 302.23 | — | — |
+| groundwater recharge | 20.27 | — | — |
+| **withdrawal: agriculture** | **2.71** | **~68** | **25× too low** |
+| withdrawal: public | 19.62 | ~12 | same order |
+| withdrawal: power cooling | 22.43 | ~5 industrial | high, but cooling is often reported apart |
+| **total withdrawal** | **44.76** | ~85 | — |
+| **surface water used** | **14.8%** | — | **85% slack — nothing can bind** |
+| groundwater used | 0% | — | untouched |
+
+### 1. Irrigation water requirements are 10–25× too low — the real bug
+
+`AGRWATPHL` input ratios on the irrigated crop modes, converted (1 unit per 10³ km² = 10,000 m³/ha):
+
+| mode | crop | model | observed requirement |
+|---|---|---:|---|
+| 19 | rice, irrigated, high input | **740 m³/ha/yr** | 6,000–15,000 m³/ha/season |
+| 17 | rice, irrigated, low input | **26 m³/ha/yr** | as above — this is effectively zero |
+| 6 | sugarcane, irrigated, high | 810 | thousands |
+| 5 | vegetables, irrigated, high | 500 | 3,000–5,000 |
+
+Note what is *right*: irrigated area is **1.94 Mha, 17% of cropland**, against an observed ~1.9 Mha
+and ~17%. The area is well calibrated; the water applied to it is not. Agriculture is roughly 80% of
+real Philippine water use and it is effectively absent from this model.
+
+### 2. There is no water-resource constraint anywhere
+
+`MINPRCPHL` is the single source of all water in the model and carries **no activity or capacity
+limit** — it falls through to the `999999` default, exactly like `MINLNDTOT`. Precipitation enters as
+a per-hectare *input coefficient on land*, so water "supply" is a function of land area rather than a
+fixed national endowment. Nothing caps withdrawal. The only constraint that could ever bind is the
+surface-water balance, and that has 85% headroom.
+
+### 3. Water has no seasonality
+
+The 30 timeslices are real and non-uniform (`YearSplit` has three distinct values summing to exactly
+1.0), so they do carry energy-system structure. But **no `CapacityFactor` or `AvailabilityFactor` is
+defined on precipitation or on any land technology**, so water availability is flat across the year,
+and the water demands are entered as `AccumulatedAnnualDemand` — annual. Philippine water scarcity is
+overwhelmingly a **dry-season, river-basin** phenomenon. A flat annual national average cannot
+represent it; wet-season abundance cancels dry-season deficit by construction.
+
+### The steelman — and the honest bottom line
+
+Even fixing (1) and (2), water would probably still not bind annually. Corrected withdrawals of
+~110 km³ against 302 km³ of surface water is 36% — stressed, not binding. **At annual national
+resolution the Philippines genuinely is not water-scarce**: 725 km³ of rain falls on 300,000 km².
+So this is not purely a bug, it is partly a resolution limit, and no parameter fix will make an
+annual national model show a seasonal regional shortage.
+
+Fixing (1) still matters a great deal, for reasons independent of whether water binds:
+
+- irrigation withdrawal is a headline CLEWs output in its own right, and it is 25× wrong;
+- the land–water nexus — the reason this model family exists — is currently inert;
+- with correct irrigation costs the choice between rainfed and irrigated crops becomes economically
+  meaningful, which feeds back into land allocation;
+- and it is the precondition for seasonality to reveal anything if it is ever added.
+
+**Recommended:** fix the irrigation water requirements from FAO CROPWAT / AQUASTAT crop water
+requirements for Philippine conditions (or the National Irrigation Administration's own duty-of-water
+figures). Then, if water stress is a question anyone wants to ask of this model, it needs
+dry-season timeslices with precipitation availability factors, and ideally basin-level rather than
+yield-cluster spatial units — which is a redesign, not a recalibration.
