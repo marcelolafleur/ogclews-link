@@ -148,15 +148,20 @@ GAMS or anything from IDB.
 
 This is the one that matters, and it is not the gap I expected going in.
 
-Three facts, each verified:
+> **Corrected 2026-08-03.** Point 1 originally claimed the land price had to come from an
+> equality user-defined constraint (`BAL_ENV_LAND`), and §8.1(a) recommended building one.
+> Both were wrong. See `phl-testcase-plan.md` §1. The corrected point 1 is below; points 2
+> and 3 stand unchanged and are still the substance of this section.
 
-1. **CLEWS can price land.** `BAL_ENV_LAND` in the Philippines v12 case is a user-defined
-   constraint with `Tag: 1` (`genData.json`). `model.v.5.4.txt:348` routes `UDCTag=1` into
-   `UDC2_UserDefinedConstraintEquality`. `Duals.json` **already wires** `UDCE_d`
-   "Shadow price - UDC Equality" for export. So the shadow price of the aggregate land balance
-   — a scarcity rent on land — is already latent in any case that carries an equality land
-   closure. The identical rail is demonstrably working for inequality UDCs (four
-   `UDC1_...csv` files exist in the demo's solved output).
+1. **CLEWS already prices land, through the ordinary commodity balance.** Land is a COMMODITY,
+   so its balance constraint carries a dual exactly like any energy carrier, and MUIOGO already
+   exports that dual. Verified in the shipped demo's solved output: `LND` has rows in
+   `EBb4_EnergyBalanceEachYear4_ICR.csv` (0.0 in most years, 26.198 in 2024), alongside `LBLT`,
+   `LWAT` and every water commodity. No new constraint is needed.
+
+   The `BAL_ENV_LAND` route is a dead end: it is an accounting identity (+1 on one bookkeeping
+   terminal, −1 on another, RHS 0), not a scarcity constraint, so its dual is ~0 by construction
+   and means nothing. Relaxing it relaxes no physical limit.
 
 2. **The SAM already carries a land rent.** OG-PHL ships `ogphl/data/002_IFPRI_SAM_PHL_2018_SAM.csv`
    — a full 107×108 IFPRI SAM for the Philippines, 2018 — which has a distinct **land factor
@@ -225,10 +230,12 @@ Pivot formula field. Both are deferred, so nothing needs to be decided now.
 
 Ordered by value per unit of effort.
 
-**(a) Land/resource shadow price → `unitrent`.** Copy a case, add an equality land-closure UDC to
-the copy, solve, confirm `UDC2_UserDefinedConstraintEquality.csv` appears, read the land rent.
-Unlocks eq. 3 and is the entry point for everything in §5. Cheapest real win, and needs no MUIOGO
-change at all. **Next step.**
+**(a) Land/resource shadow price → `unitrent`.** ~~Copy a case, add an equality land-closure UDC
+to the copy, solve, read the land rent.~~ **Superseded 2026-08-03 — do not do this.** The land
+dual is already exported via the ordinary commodity balance (§5.1); there is nothing to build.
+Read it with the existing `signals.commodity_shadow_price(fuel="LND")`, minding `drop_zero`
+(a zero land rent is a true zero — land was abundant that year — not missing data).
+The live plan is `phl-testcase-plan.md`.
 
 **(b) Fix the UDC dual unit rule.** `Duals.json` gives `UDCI_d`/`UDCE_d` a `unitRule` of
 `{"var": "number"}` — dimensionless, so a land price renders unitless in the Pivot. Same bug
