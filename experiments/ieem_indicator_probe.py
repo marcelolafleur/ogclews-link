@@ -31,10 +31,12 @@ from ogclews_link.env_accounts import (
     DEMO_LAND_MAP,
     LandClosureError,
     composite_index,
+    depletion_flow,
     emissions_damage,
     land_use_by_year,
     natural_capital_depletion,
 )
+from ogclews_link.signals import commodity_shadow_price
 
 DEFAULT_CASE = Path(
     "/Users/marcelolafleur/Projects/MUIOGO/WebAPP/DataStorage/CLEWs Demo"
@@ -49,6 +51,10 @@ BII_COEF = {
 }
 
 SOCIAL_COST_CO2 = 30.0  # US$/tCO2, the value used in IDB-WP-01193 eq. 2
+
+# The demo exports CH4, CO2, N2O and their CO2EQ aggregate; pricing the aggregate
+# at the SCC is the eq.2 reading. Summing all four would double-count (bug §3.2).
+EMISSION_SPECIES = "CO2EQ"
 
 DUAL_NAMES = [
     "E8_AnnualEmissionsLimit",
@@ -65,10 +71,10 @@ TERM_STATUS = [
     ("EmiVal (CO2 damage)", "COMPUTABLE NOW",
      "AnnualTechnologyEmission x social cost of carbon"),
     ("qdepl (quantity depleted)", "PRESENT",
-     "resource-technology activity is the extraction quantity"),
-    ("unitrent (eq.3 unit rent)", "MISSING -- RAIL WIRED",
-     ("needs the dual of an equality land closure; MUIOGO already exports UDC2 "
-      "duals, but no shipped case carries such a constraint")),
+     "net decline of the cover-class stock (depletion_flow over solved areas)"),
+    ("unitrent (eq.3 unit rent)", "PRESENT",
+     ("land is an ordinary commodity, so its balance dual is already exported in "
+      "EBb4 -- read with commodity_shadow_price(fuel='LND', drop_zero=False)")),
     ("GNSAV, DeprCapStock", "NOT A CLEWS QUANTITY",
      "national-accounts aggregates; OG-Core produces these"),
 ]
@@ -102,7 +108,7 @@ def main(argv: list[str]) -> int:
         first, last = years[0], years[-1]
         b0 = composite_index(cover[first], BII_COEF)
         b1 = composite_index(cover[last], BII_COEF)
-        emi = emissions_damage(run, SOCIAL_COST_CO2)
+        emi = emissions_damage(run, SOCIAL_COST_CO2, species=EMISSION_SPECIES)
 
         print(f"--- {run.name} ({first}-{last})")
         for y in (first, last):
@@ -116,18 +122,26 @@ def main(argv: list[str]) -> int:
                   f"({(b1 - b0) / b0 * 100:+.3f}%)   [illustrative coefficients]")
         if emi:
             ey = sorted(emi)
-            print(f"    EmiVal @ ${SOCIAL_COST_CO2:.0f}/t: "
+            print(f"    EmiVal @ ${SOCIAL_COST_CO2:.0f}/t {EMISSION_SPECIES}: "
                   f"{ey[0]}={emi[ey[0]]:,.1f} -> {ey[-1]}={emi[ey[-1]]:,.1f}")
 
         duals = available_duals(run)
         print(f"    duals exported: {duals}")
 
-        # eq.3 with the rents we actually have -- i.e. none, today.
-        depletion = natural_capital_depletion(
-            {y: cover[y].get("Forest", 0.0) for y in years}, unit_rents={}
-        )
-        print(f"    eq.3 natural-capital depletion: {depletion:,.2f} "
-              f"(no unit rents available -> identically zero)")
+        # eq.3 end-to-end: the land balance dual as the unit rent (drop_zero MUST
+        # be off -- a zero land dual is true abundance, not a missing year), and
+        # forest net decline as the depletion flow. Units are the case's own
+        # (currency per area unit x area), so this is a mechanism check.
+        rents = commodity_shadow_price(
+            run / "csv", fuel="LND", drop_zero=False
+        ).to_dict()
+        priced = {y: v for y, v in rents.items() if abs(v) > 1e-9}
+        flow = depletion_flow({y: cover[y].get("Forest", 0.0) for y in years})
+        depletion = natural_capital_depletion(flow, rents)
+        print(f"    LND balance dual: {len(rents)} years read, "
+              f"nonzero in {sorted(priced) or 'none'}")
+        print(f"    eq.3 natural-capital depletion (forest, PV @4%): "
+              f"{depletion:,.4f}")
 
         summary[run.name] = {
             "years": [first, last],
@@ -135,6 +149,9 @@ def main(argv: list[str]) -> int:
             "cover_first": cover[first],
             "cover_last": cover[last],
             "duals": duals,
+            "lnd_dual_nonzero_years": {y: priced[y] for y in sorted(priced)},
+            "forest_depletion_flow_total": sum(flow.values()),
+            "eq3_forest_depletion_pv": depletion,
         }
 
     print("\n=== eq.2 / eq.3 term availability in a solved MUIOGO case ===")

@@ -24,7 +24,15 @@
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
       "UDC1_UserDefinedConstraintInequality"
-    ]
+    ],
+    "lnd_dual_nonzero_years": {
+      "2020": 9.999999999990633e-05,
+      "2022": 23.0836,
+      "2034": 12.9175,
+      "2035": 12.2083
+    },
+    "forest_depletion_flow_total": 7.050800000000038,
+    "eq3_forest_depletion_pv": 9.824363919335994
   },
   "CO2TAX": {
     "years": [
@@ -51,7 +59,16 @@
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
       "UDC1_UserDefinedConstraintInequality"
-    ]
+    ],
+    "lnd_dual_nonzero_years": {
+      "2023": 14.0313,
+      "2026": 17.6257,
+      "2031": 20.9401,
+      "2033": 21.6003,
+      "2034": 21.8117
+    },
+    "forest_depletion_flow_total": 4.90179999999998,
+    "eq3_forest_depletion_pv": 22.333503894773408
   },
   "REF": {
     "years": [
@@ -78,7 +95,12 @@
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
       "UDC1_UserDefinedConstraintInequality"
-    ]
+    ],
+    "lnd_dual_nonzero_years": {
+      "2024": 21.034
+    },
+    "forest_depletion_flow_total": 4.90179999999998,
+    "eq3_forest_depletion_pv": 5.763077847633124
   },
   "RETRG": {
     "years": [
@@ -105,6 +127,14 @@
       "E8_AnnualEmissionsLimit",
       "EBb4_EnergyBalanceEachYear4_ICR",
       "UDC1_UserDefinedConstraintInequality"
-    ]
+    ],
+    "lnd_dual_nonzero_years": {
+      "2023": 21.9682,
+      "2025": 20.9475,
+      "2031": 14.4834,
+      "2034": 13.321
+    },
+    "forest_depletion_flow_total": 4.90179999999998,
+    "eq3_forest_depletion_pv": 18.260730379176124
   }
 }

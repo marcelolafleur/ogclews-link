@@ -12,6 +12,7 @@ from ogclews_link.env_accounts import (
     LandClosureError,
     LandMap,
     composite_index,
+    depletion_flow,
     emissions_damage,
     land_use_by_year,
     natural_capital_depletion,
@@ -105,6 +106,64 @@ def test_missing_file_returns_empty(tmp_path):
     assert cover == {} and resource == {}
 
 
+def test_empty_land_map_raises_not_returns_empty(tmp_path):
+    """Plan §3 bug 1: an empty map must refuse, never read as 'no land here'."""
+    run = _activity(tmp_path, DEMO_2020)
+    empty = LandMap(resource_tech="MINLNDTOT", classes={})
+    with pytest.raises(ValueError, match="maps no technology"):
+        land_use_by_year(run, empty)
+    # closure off is no escape hatch -- the refusal is before any reading
+    with pytest.raises(ValueError, match="maps no technology"):
+        land_use_by_year(run, empty, check_closure=False)
+
+
+def test_map_matching_nothing_in_nonempty_file_raises(tmp_path):
+    run = _activity(tmp_path, DEMO_2020)
+    wrong_case = LandMap(resource_tech="MINLNDTOT", classes={"ENV_LAND": "Forest"})
+    with pytest.raises(LandClosureError, match="matched nothing"):
+        land_use_by_year(run, wrong_case)
+
+
+def test_resource_only_match_is_a_closure_failure(tmp_path):
+    """Classes that match nothing while the resource matches must not pass."""
+    run = _activity(tmp_path, DEMO_2020)
+    resource_only = LandMap(resource_tech="RSCLND", classes={"NOPE": "Forest"})
+    with pytest.raises(LandClosureError, match="do not close"):
+        land_use_by_year(run, resource_only)
+
+
+# PHL-shaped fixture: the cover-class vector lives in one technology's modes.
+MODAL_2020 = [
+    ["RE1", "MINLNDTOT", "1", "2020", "300.0"],
+    ["RE1", "ENV_LAND", "1", "2020", "250.0"],
+    ["RE1", "ENV_LAND", "2", "2020", "30.0"],
+    ["RE1", "ENV_LAND", "3", "2020", "20.0"],
+]
+
+MODAL_MAP = LandMap(
+    resource_tech="MINLNDTOT",
+    mode_classes={"ENV_LAND": {"1": "Forest", "2": "Cropland", "3": "Built-up"}},
+)
+
+
+def test_mode_classes_read_cover_from_modes(tmp_path):
+    """Plan §3 bug 3: PHL carries the cover vector in ENV_LAND's modes."""
+    run = _activity(tmp_path, MODAL_2020)
+    cover, resource = land_use_by_year(run, MODAL_MAP)
+    assert cover[2020] == {"Forest": 250.0, "Cropland": 30.0, "Built-up": 20.0}
+    assert resource[2020] == pytest.approx(300.0)
+
+
+def test_unmapped_mode_is_dropped_and_closure_catches_it(tmp_path):
+    run = _activity(tmp_path, MODAL_2020)
+    partial = LandMap(
+        resource_tech="MINLNDTOT",
+        mode_classes={"ENV_LAND": {"1": "Forest", "2": "Cropland"}},  # mode 3 missing
+    )
+    with pytest.raises(LandClosureError, match="do not close"):
+        land_use_by_year(run, partial)
+
+
 def test_composite_index_is_area_weighted():
     cover = {"Forest": 253.6, "Cropland": 6.3755, "Built-up": 15.0,
              "Water bodies": 25.021}
@@ -132,20 +191,45 @@ def test_composite_index_no_area_returns_none():
     assert composite_index({"Forest": 0.0}, {"Forest": 0.95}) is None
 
 
-def test_emissions_damage_scales_and_aggregates(tmp_path):
+def _emissions(tmp_path: Path, rows: list[list]) -> Path:
     run = tmp_path / "REF"
-    _write(
-        run / "csv" / "AnnualTechnologyEmission.csv",
-        ["r", "t", "e", "y", "AnnualTechnologyEmission"],
-        [
-            ["RE1", "PWRCOA", "CO2", "2020", "100.0"],
-            ["RE1", "PWRGAS", "CO2", "2020", "50.0"],
-            ["RE1", "PWRCOA", "CO2", "2021", "80.0"],
-            ["RE1", "PWROIL", "CO2", "2021", ""],
-        ],
-    )
-    got = emissions_damage(run, 30.0)
+    _write(run / "csv" / "AnnualTechnologyEmission.csv",
+           ["r", "t", "e", "y", "AnnualTechnologyEmission"], rows)
+    return run
+
+
+# Multi-species on purpose: the demo has CH4/CO2/CO2EQ/N2O, PHL has CO2e/PM2_5.
+EMISSION_ROWS = [
+    ["RE1", "PWRCOA", "CO2", "2020", "100.0"],
+    ["RE1", "PWRGAS", "CO2", "2020", "50.0"],
+    ["RE1", "PWRCOA", "PM2_5", "2020", "7.0"],
+    ["RE1", "PWRCOA", "CO2", "2021", "80.0"],
+    ["RE1", "PWRCOA", "PM2_5", "2021", "6.0"],
+    ["RE1", "PWROIL", "CO2", "2021", ""],
+]
+
+
+def test_emissions_damage_prices_only_the_requested_species(tmp_path):
+    """Plan §3 bug 2: PM2_5 must not be priced at the social cost of carbon."""
+    run = _emissions(tmp_path, EMISSION_ROWS)
+    got = emissions_damage(run, 30.0, species="CO2")
     assert got == {2020: pytest.approx(4500.0), 2021: pytest.approx(2400.0)}
+
+
+def test_emissions_damage_accepts_several_species(tmp_path):
+    run = _emissions(tmp_path, EMISSION_ROWS)
+    got = emissions_damage(run, 30.0, species={"CO2", "PM2_5"})
+    assert got == {2020: pytest.approx(4710.0), 2021: pytest.approx(2580.0)}
+
+
+def test_emissions_damage_unknown_species_raises(tmp_path):
+    run = _emissions(tmp_path, EMISSION_ROWS)
+    with pytest.raises(ValueError, match="species present"):
+        emissions_damage(run, 30.0, species="CO2e")  # PHL code against demo-style file
+
+
+def test_emissions_damage_missing_file_returns_empty(tmp_path):
+    assert emissions_damage(tmp_path / "nope", 30.0, species="CO2") == {}
 
 
 def test_natural_capital_depletion_discounts_from_base_year():
@@ -163,3 +247,22 @@ def test_natural_capital_depletion_uses_only_shared_years():
 def test_natural_capital_depletion_without_rents_is_zero():
     """The current state of play: quantities exist, unit rents do not."""
     assert natural_capital_depletion({2020: 10.0}, {}) == 0.0
+
+
+def test_natural_capital_depletion_keeps_true_zero_rents():
+    """A zero land rent is a real observation (abundance), contributing 0."""
+    got = natural_capital_depletion({2020: 5.0, 2021: 5.0}, {2020: 0.0, 2021: 2.0})
+    assert got == pytest.approx(10.0 / 1.04)
+
+
+def test_depletion_flow_is_the_net_decline():
+    """Plan §3 bug 4: eq. 3 wants the flow, not the standing stock."""
+    stock = {2020: 253.6, 2021: 253.3, 2022: 253.0}
+    got = depletion_flow(stock)
+    assert got == {2021: pytest.approx(0.3), 2022: pytest.approx(0.3)}
+    assert 2020 not in got  # no predecessor, no flow
+
+
+def test_depletion_flow_growth_year_depletes_nothing():
+    got = depletion_flow({2020: 100.0, 2021: 102.0, 2022: 101.0})
+    assert got == {2021: 0.0, 2022: pytest.approx(1.0)}

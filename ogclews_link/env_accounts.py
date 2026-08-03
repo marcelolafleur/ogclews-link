@@ -26,7 +26,9 @@ it yourself.
 from __future__ import annotations
 
 import csv
+import itertools
 from collections import defaultdict
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -36,6 +38,7 @@ __all__ = [
     "LandClosureError",
     "LandMap",
     "composite_index",
+    "depletion_flow",
     "emissions_damage",
     "land_use_by_year",
     "natural_capital_depletion",
@@ -60,16 +63,36 @@ class LandMap:
     technology codes for the same cover classes, so this must be passed in rather
     than guessed.
 
+    Two routes to a cover class, because cases differ in where the class lives:
+
+    * ``classes`` -- technology code -> label, for cases (the demo) where each
+      cover class is its own technology. Matches whatever the mode is.
+    * ``mode_classes`` -- technology code -> mode -> label, for cases (PHL v12)
+      where one terminal technology (``ENV_LAND``) carries the cover classes in
+      its MODES. A mode of that technology with no label is simply not counted,
+      which the closure check then reports.
+
+    ``mode_classes`` wins when a technology appears in both.
+
     Args:
         resource_tech: the technology carrying the total land endowment.
         classes: land-use technology code -> cover-class label. Several
             technologies may share a label (e.g. four crop technologies -> Cropland).
+        mode_classes: technology code -> mode -> cover-class label.
     """
 
     resource_tech: str
     classes: dict[str, str] = field(default_factory=dict)
+    mode_classes: dict[str, dict[str, str]] = field(default_factory=dict)
 
-    def label(self, tech: str) -> str | None:
+    @property
+    def is_empty(self) -> bool:
+        return not self.classes and not self.mode_classes
+
+    def label(self, tech: str, mode: str | None = None) -> str | None:
+        by_mode = self.mode_classes.get(tech)
+        if by_mode is not None:
+            return by_mode.get(str(mode).strip()) if mode is not None else None
         return self.classes.get(tech)
 
 
@@ -87,9 +110,10 @@ DEMO_LAND_MAP = LandMap(
     },
 )
 
-# Philippines v12 carries parallel ENV_LND_* area stocks and an ENV_LAND terminal.
-# Placeholder: the v12 case ships no solved results in the MUIOGO checkout, so this
-# mapping is UNVERIFIED against real output. Confirm the technology codes before use.
+# Philippines v12: the cover-class vector lives in ENV_LAND's 8 MODES (not separate
+# technologies), so the real map goes in `mode_classes` -- a stage-3 modelling decision
+# (see docs/design/phl-testcase-plan.md §2), not transcription. Until it is built,
+# this placeholder is deliberately empty and `land_use_by_year` REFUSES it loudly.
 PHL_V12_LAND_MAP = LandMap(resource_tech="MINLNDTOT", classes={})
 
 
@@ -127,8 +151,20 @@ def land_use_by_year(
         (cover, resource) -- cover[year][class] = area; resource[year] = total.
 
     Raises:
-        LandClosureError: if areas do not sum to the land resource.
+        ValueError: if `land_map` maps no technology at all -- an empty map can
+            only ever produce an empty answer, which would misread as "the case
+            has no land".
+        LandClosureError: if areas do not sum to the land resource, or the map
+            matched nothing in a non-empty activity file.
     """
+    if land_map.is_empty:
+        raise ValueError(
+            f"land map for resource '{land_map.resource_tech}' maps no technology: "
+            "an empty map cannot distinguish 'no land in this case' from 'wrong "
+            "map for this case'. Build the map first (for PHL v12 that is stage 3 "
+            "of docs/design/phl-testcase-plan.md)."
+        )
+
     rows = _read_csv(_scenario_csv_dir(scenario_dir) / ACTIVITY_FILE)
     cover: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     resource: dict[int, float] = defaultdict(float)
@@ -138,7 +174,7 @@ def land_use_by_year(
         if not raw:
             continue
         tech, year, val = r["t"], int(r["y"]), float(raw)
-        label = land_map.label(tech)
+        label = land_map.label(tech, r.get("m"))
         if label is not None:
             cover[year][label] += val
         elif tech == land_map.resource_tech:
@@ -147,10 +183,18 @@ def land_use_by_year(
     cover_out = {y: dict(v) for y, v in sorted(cover.items())}
     resource_out = dict(sorted(resource.items()))
 
-    if check_closure and cover_out:
+    if check_closure:
+        if rows and not cover_out and not resource_out:
+            raise LandClosureError(
+                f"the land map (resource '{land_map.resource_tech}', "
+                f"{len(land_map.classes) + len(land_map.mode_classes)} mapped "
+                f"technologies) matched nothing in a non-empty {ACTIVITY_FILE} -- "
+                "wrong map for this case?"
+            )
         problems = []
-        for year, cls in cover_out.items():
-            total, res = sum(cls.values()), resource_out.get(year)
+        for year in sorted(set(cover_out) | set(resource_out)):
+            total = sum(cover_out.get(year, {}).values())
+            res = resource_out.get(year)
             if res is None:
                 problems.append(
                     f"{year}: no '{land_map.resource_tech}' row to close against"
@@ -204,24 +248,75 @@ def composite_index(
 
 
 def emissions_damage(
-    scenario_dir: str | Path, social_cost: float
+    scenario_dir: str | Path,
+    social_cost: float,
+    *,
+    species: str | Collection[str],
 ) -> dict[int, float]:
     """The CO2-damage term of genuine savings (IEEM eq. 2, ``EmiVal``).
+
+    ``species`` is REQUIRED because a case's emission file routinely carries
+    several species and summing them prices everything at the social cost of
+    carbon. The shipped demo has ``CH4, CO2, CO2EQ, N2O`` -- where CO2EQ already
+    aggregates the others, so an unfiltered sum double-counts CO2 and misprices
+    CH4/N2O; PHL v12 carries ``CO2e`` and ``PM2_5``, where an unfiltered sum
+    prices particulates at the SCC. Pick the one species (usually the CO2e
+    aggregate) that matches your ``social_cost``'s denominator.
 
     Args:
         scenario_dir: a solved run dir (or its `csv/` subdir).
         social_cost: currency per emission unit. IEEM uses US$30/tCO2.
+        species: emission code(s) to include, e.g. ``"CO2EQ"`` (demo) or
+            ``"CO2e"`` (PHL v12). Matched exactly against the file's `e` column.
 
     Returns:
         year -> damage value.
+
+    Raises:
+        ValueError: if the file has rows but none match `species` -- almost
+            always a species-code mismatch, not a zero-emission case.
     """
+    wanted = {species} if isinstance(species, str) else set(species)
     rows = _read_csv(_scenario_csv_dir(scenario_dir) / EMISSION_FILE)
     out: dict[int, float] = defaultdict(float)
+    matched = False
     for r in rows:
+        if r.get("e") not in wanted:
+            continue
+        matched = True
         raw = r.get(EMISSION_COL)
         if raw:
             out[int(r["y"])] += float(raw) * social_cost
+    if rows and not matched:
+        present = sorted({r.get("e", "") for r in rows})
+        raise ValueError(
+            f"emissions_damage: no rows for species {sorted(wanted)} in "
+            f"{EMISSION_FILE}; species present: {present}"
+        )
     return dict(sorted(out.items()))
+
+
+def depletion_flow(stock: dict[int, float]) -> dict[int, float]:
+    """Net decline of a stock series -- the `qdepl` flow IEEM eq. 3 wants.
+
+    eq. 3 prices the quantity DEPLETED each year, not the standing stock.
+    From an annual stock series the observable analogue is the year-on-year
+    net decline, floored at zero: a year where the stock grows depletes
+    nothing (the World Bank ANS convention for net forest depletion), it
+    does not earn a credit. The first year has no predecessor and yields
+    no flow.
+
+    Args:
+        stock: year -> standing stock (e.g. forest area by year).
+
+    Returns:
+        year -> quantity depleted, for every year after the first.
+    """
+    years = sorted(stock)
+    return {
+        curr: max(stock[prev] - stock[curr], 0.0)
+        for prev, curr in itertools.pairwise(years)
+    }
 
 
 def natural_capital_depletion(
@@ -236,13 +331,17 @@ def natural_capital_depletion(
         sum_t  (qdepl_t * unitrent_t) / (1 + intrat)^(t - base_year)
 
     In IEEM the unit rent is endogenous to the CGE. Our analogue is a CLEWS dual:
-    the shadow price of the resource's balance constraint. For land that means the
-    dual of an equality land-closure user-defined constraint, which MUIOGO already
-    wires for export -- but which no shipped case currently carries, so `unit_rents`
-    cannot yet be populated from a demo solve. See the assessment note.
+    the shadow price of the resource's balance constraint. Land is an ordinary
+    commodity, so its balance constraint already carries a dual and MUIOGO already
+    exports it -- `EBb4_EnergyBalanceEachYear4_ICR.csv` has the `LND` rows. Read it
+    with ``signals.commodity_shadow_price(fuel="LND", drop_zero=False)``:
+    `drop_zero` MUST be off, because for land a zero dual is a true zero (land was
+    abundant that year) and belongs in the sum, not a missing observation as it
+    would be for electricity. See docs/design/phl-testcase-plan.md §1(a).
 
     Args:
-        quantities: year -> quantity depleted.
+        quantities: year -> quantity depleted -- a FLOW (see `depletion_flow`),
+            never a standing stock.
         unit_rents: year -> unit rent. Years absent here are skipped.
         discount: IEEM uses 4% (Lange et al. 2018).
         base_year: discount to this year; defaults to the earliest shared year.
