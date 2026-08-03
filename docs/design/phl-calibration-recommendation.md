@@ -121,7 +121,9 @@ after** adding 21% more cropland: `PHL_WTR_GWT`, `PHL_WTR_SUR`, `PHL_WTR_EVT`, `
 the land–energy–water nexus. Until some water constraint binds, the "W" in CLEWs is decorative here
 and no water result means anything.
 
-I did not diagnose the cause. It is the obvious next investigation after Defects 1 and 2.
+**Cause found — see the resolved section at the end of this document.** Three reasons: irrigation
+water requirements are 10–25× too low, there is no water-resource constraint at all, and water has no
+seasonality. Only the first is a straightforward bug.
 
 ## Recommended order of work
 
