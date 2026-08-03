@@ -33,9 +33,14 @@ Do not build anything on it.
 
 ## 2. State of the PHL stack, as verified
 
-**No solved PHL case exists on this machine.** All three portable archives ship inputs only, and
-the installed case has no `res/`. Nothing can be read until someone solves it. The historical
-solve happened on a different machine, so no PHL dual has ever been observed here.
+> **Superseded on 2026-08-03 (stages 0–3 done).** Three claims below no longer hold; the
+> corrections are in §8. In short: a solved PHL case **does** now exist, in the headless
+> `muiogoai` world; the land dual **has** been observed and is the placeholder's token cost;
+> and the land map is built. Read §8 with this section.
+
+**~~No solved PHL case exists on this machine.~~** *(superseded — see §8.)* All three portable
+archives ship inputs only, and the case installed under `~/Projects/MUIOGO` has no `res/`.
+The historical solve happened on a different machine.
 
 **Land is not scarce in the PHL model.** `MINLNDTOT` carries
 `TotalTechnologyAnnualActivityUpperLimit` and `TotalAnnualMaxCapacity` of 999999 for every year,
@@ -49,7 +54,8 @@ bounds — the `AAC*` constraint family — whose duals are **not** among the th
 `WebAPP/DataStorage/Duals.json`. This is the real, well-scoped MUIOGO gap.
 
 **PHL land-cover state lives in `ENV_LAND`'s 8 modes**, not in separate technologies as in the
-demo. Our reader discards the mode column, so this needs a code change, not a config change.
+demo. ~~Our reader discards the mode column~~ — fixed in stage 0; `LandMap.mode_classes` now
+carries the mode-level map, and §8 records the verified assignment.
 
 **The land block is explicitly uncalibrated.** `documentation/KNOWN_LIMITATIONS.md` in CLEWs-PHL
 states it "has not been calibrated to observed historical land allocation, yields, irrigation
@@ -65,9 +71,12 @@ carbon term cannot be computed from this model as it stands.
 
 **Naming — the demo mapping will silently match nothing on PHL.** PHL uses `MINLNDTOT`,
 `PHL_LND`, and `LND*TOT`/`L*TOT` codes. The demo's `RSCLND`/`LNDFOR`/`LNDBLT`/`LNDWAT` do not
-appear. Building the real map is a modelling decision, not transcription: 32 technologies consume
-`PHL_LND`, including a solar plant with no demo analogue, and 24 crop options must collapse into
-one Cropland label.
+appear. ~~Building the real map is a modelling decision, not transcription: 32 technologies
+consume `PHL_LND` … and 24 crop options must collapse into one Cropland label.~~ *(Partly
+superseded — see §8.)* Going through `ENV_LAND`'s modes turned out to make this much easier
+than feared: the model has **already** collapsed the 24 crop options into a single `CROPLAND`
+mode, so no crop-aggregation judgment was needed. The mode→class assignment is transcription
+after all — readable straight off the solved run's generated input.
 
 **Size.** The installed diagnostic case is ~500 MB unpacked (`RYTM.json` 115 MB,
 `RYTCM.json` 95 MB). `clews_driver.copy_case` does a full `copytree`, so each experiment copy
@@ -117,28 +126,30 @@ an M×M use matrix. Two private factors only.
 
 ## 5. The plan
 
-**Stage 0 — fix the four bugs in §3.** Cheap, done against the demo where we have ground truth.
-Make the empty-map case *raise*, not return empty.
+**Stage 0 — fix the four bugs in §3. DONE** (2026-08-03, commit `7049079`). The empty map now
+raises; `emissions_damage` requires a species; mode-level cover reading added; `depletion_flow`
+added. 13 new tests.
 
-**Stage 1 — prove the whole chain on the demo.** Read the `LND` dual with
-`commodity_shadow_price(fuel="LND", drop_zero=False)`, feed it into `natural_capital_depletion`
-with a genuine depletion *flow*, and get a real non-zero number. The demo has both a solved case
-and a year where land actually prices (2024). This is the honest end-to-end test and it is
-available today, with no PHL dependency.
+**Stage 1 — prove the whole chain on the demo. DONE** (same commit). Non-zero depletion on all
+four demo scenarios; REF = 5.7631, hand-checked against 21.034 × 0.3082 / 1.04³.
 
-**Stage 2 — solve PHL once.** The unknown is whether it solves in reasonable time.
-`~/Projects/MUIOGO-AI` is the headless path — the `muiogo-provision` skill installs the case and
-`muiogo-run` solves it. The country manifest `clews/countries/PHL.json` lists three cases and
-marks `Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC` recommended. Nothing downstream can start
-until this exists.
+**Stage 2 — solve PHL once. DONE — it was already solved.** No solve was launched: the headless
+`muiogoai` world already carries two CBC-Optimal runs of
+`Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC`, solved 2026-08-03 at install time and clean under
+`muiogo verify`. See §8. The stage's open question — does it solve in reasonable time — is
+answered: about 2.5 minutes from input generation to results.
 
-**Stage 3 — build the PHL land map.** Real modelling judgment (see §2). Must handle
-`ENV_LAND`'s 8 modes and must close on the land resource, or it is wrong.
+**Stage 3 — build the PHL land map. DONE** (see §8). Verified against the solve: closes on
+`MINLNDTOT` to 0.00e+00 at both endpoints and ≤1e-4 across all 34 years.
 
 **Stage 4 — decide whether PHL gets a binding land endowment.** *Marcelo's call, not the
-assistant's.* Right now the 999999 placeholder means the land price is structurally zero and the
-whole natural-capital line comes out empty. Giving the model a real national land area is what
-would make the price mean anything. Not needed until stage 3 completes.
+assistant's.* **Stage 3 is now complete, so this is the live decision.** The prediction that the
+land price would be structurally ~zero is confirmed with numbers: the `PHL_LND` dual peaks at
+1.0e-4 — exactly `MINLNDTOT`'s token variable cost, and one order of magnitude *below* CBC's
+1e-3 dual-reporting resolution — so eq. 3 returns 0.0008, a number with no economic content.
+The two runs disagree about *which* years even carry that token dual, which is LP degeneracy
+and independent proof there is no signal there (§8). Giving the model a real national land area
+is what would make the price mean anything.
 
 **Stage 5 — export the binding duals.** Get the `AAC*` activity-limit duals into `Duals.json`.
 Genuine MUIOGO work, useful well beyond this project. Note `Duals.json` is one of only four
@@ -160,8 +171,88 @@ tracked files under `WebAPP/DataStorage/`, so this one *does* touch MUIOGO's rep
 |---|---|
 | `~/Projects/ogclews-link-ieem` | this worktree — where the work happens |
 | `~/Projects/ogclews-link` | main checkout, branch `main` |
-| `~/Projects/MUIOGO` | the GUI/solver; read-only until stage 5 |
-| `~/Projects/MUIOGO-AI` | headless driver + skills; the path to solving PHL |
+| `~/Projects/MUIOGO` | the GUI/solver; read-only until stage 5. **Holds the solved demo case.** |
+| `~/Projects/MUIOGO-AI` | headless driver source |
+| `~/muiogoai` | **the installed headless world — holds the solved PHL case.** Reach it only through the `muiogo-ai` launcher |
 | `~/Projects/CLEWs-PHL` | PHL model package, v12 lineage, archives only (no solve) |
 | `~/Projects/OG-PHL` | macro side; not needed before stage 5 |
 | `~/Projects/OG-Core` | local checkout on `feature/structure-plots`, 15 ahead of master |
+
+## 8. Stage 2–3 findings (2026-08-03)
+
+### The solved PHL case, and where it lives
+
+The solve exists in the **installed `muiogoai` world**, which is a different place from the
+`~/Projects/MUIOGO` checkout §2 was written about — that checkout still has no PHL `res/`, so
+§2 was not wrong, just looking in the only place that existed at the time.
+
+```
+world:  muiogoai (installed)   workspace ~/muiogoai   MUIOGO detached at 928a13bb
+case:   Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC   (2.3 GB unpacked)
+runs:   BASE_CHK, Base_v12 — both CBC "Optimal", objective 375930821.34, 24 csv files
+verify: `muiogo-ai verify --case … --run Base_v12` → "On-disk results still match the record."
+```
+
+Only the `BASE` scenario is active; `PEP_v12` is defined but unsolved, so there is still no
+land-side scenario contrast (§2's point stands).
+
+Reach the case with `muiogo-ai case-path --case '<name>'`, never by composing a path — a
+same-named case in the other world is exactly how the wrong data gets read.
+
+**Trap for the next reader.** `RUN.json`'s `results_sha256` digests the **`csv/` directory**
+(each filename plus each file's hash), *not* `results.txt`. Hashing `results.txt` and comparing
+looks like an integrity failure when nothing is wrong. Use `muiogo-ai verify`.
+
+### The verified mode → cover-class map
+
+Read off `res/Base_v12/data.txt`, where `param InputActivityRatio` carries one slice per
+commodity with the mode as its row index, all ratios 1:
+
+| mode | commodity | label | 2020 | 2053 |
+|---:|---|---|---:|---:|
+| 1 | `ENV_LND_FOREST` | Forest | 179.7818 | 136.5595 |
+| 2 | `ENV_LND_GRASSLAND` | Grassland | 0 | 0 |
+| 3 | `ENV_LND_OTHER` | Other | 0 | 0 |
+| 4 | `ENV_LND_BARREN` | Barren | 0 | 0 |
+| 5 | `ENV_LND_BUILT` | Built-up | 0.7698 | 1.0458 |
+| 6 | `ENV_LND_WATER` | Water bodies | 1.5984 | 1.5984 |
+| 7 | `ENV_LND_CROPLAND` | Cropland | 113.6631 | 156.6094 |
+| 8 | `PHL_LND` | Unallocated | 0 | 0 |
+
+Mode 8 consumes the land resource *directly* rather than a cover tag, so it is untagged land and
+belongs in the closure sum: `MINLNDTOT = modes 1–7 + mode 8`. It is identically zero here (all
+land is tagged) but is mapped explicitly so that if it ever goes positive it surfaces as area
+rather than breaking closure for no visible reason.
+
+Closure: 0.00e+00 at both endpoints, ≤1e-4 over all 34 years. The whole horizon is one story —
+forest → cropland, −43.22 against +42.95 — with built-up taking the small remainder.
+
+### Why stage 4 is now the binding decision
+
+| | demo (`REF`) | PHL (`Base_v12`) |
+|---|---:|---:|
+| land dual, max undiscounted | 2.10e+01 | **1.00e-04** |
+| years priced | 1 of 16 | 6 of 34 |
+| eq. 3 depletion PV | 5.7631 | **0.0008** |
+
+The PHL figure is not a small rent, it is *not a rent*: 1.0e-4 is precisely `MINLNDTOT`'s token
+variable cost, and it sits an order of magnitude below CBC's 1e-3 dual-reporting resolution
+(`signals._MARGINAL_ZERO_ATOL`). All seven `ENV_LND_*` cover-tag commodities have **identically
+zero** duals across all 34 years — they are pure accounting tags with no scarcity content, so
+there is no better commodity to read instead.
+
+The clincher is degeneracy: `BASE_CHK` and `Base_v12` are the same model at the same optimum
+(objectives agree to 8 significant figures) with identical land in every year, yet they report
+the token dual in **different years** — 2020/21/22/24/25/27/31/33 versus 2021/22/23/28/31/33.
+A dual that moves between alternate optima while nothing physical changes is noise. The probe now
+prints a `[!]` warning whenever every nonzero rent is ≤1e-3, so this cannot be mistaken for a
+result later.
+
+### Calibration warning, restated with numbers
+
+Structurally right, numerically not credible. Base_v12 puts **61%** of national area under forest
+against roughly 24% observed, **770 km²** under built-up (an order of magnitude low), and leaves
+Grassland, Barren and Other at exactly zero for all 34 years. Total land 295,813 km² against
+~298,170 km² actual is the one number that looks right. Mechanism checks only — never a
+Philippine result. The illustrative BII moves 0.7945 → 0.7358 (−7.4%); the *direction* follows
+from forest→cropland conversion and is believable, the level is not.

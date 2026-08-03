@@ -25,11 +25,14 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from ogclews_link.env_accounts import (
     DEMO_LAND_MAP,
+    PHL_V12_LAND_MAP,
     LandClosureError,
+    LandMap,
     composite_index,
     depletion_flow,
     emissions_damage,
@@ -48,13 +51,44 @@ BII_COEF = {
     "Cropland": 0.55,
     "Built-up": 0.35,
     "Water bodies": 0.90,
+    "Grassland": 0.70,
+    "Barren": 0.40,
+    "Other": 0.50,
+    "Unallocated": 0.50,
 }
 
 SOCIAL_COST_CO2 = 30.0  # US$/tCO2, the value used in IDB-WP-01193 eq. 2
 
-# The demo exports CH4, CO2, N2O and their CO2EQ aggregate; pricing the aggregate
-# at the SCC is the eq.2 reading. Summing all four would double-count (bug §3.2).
-EMISSION_SPECIES = "CO2EQ"
+
+@dataclass(frozen=True)
+class CaseProfile:
+    """What differs between cases: land naming, emission species, land commodity."""
+
+    land_map: LandMap
+    species: str
+    land_fuel: str
+
+
+# Keyed by a substring of the case directory name. Both entries are verified against
+# a real solve; a case matching neither is refused rather than read with a guess.
+PROFILES = {
+    # The demo exports CH4, CO2, N2O and their CO2EQ aggregate; pricing the aggregate
+    # at the SCC is the eq.2 reading. Summing all four would double-count (bug §3.2).
+    "CLEWs Demo": CaseProfile(DEMO_LAND_MAP, "CO2EQ", "LND"),
+    # PHL exports CO2e and PM2_5 -- summing them would price particulates at the SCC.
+    "Philippines_v12": CaseProfile(PHL_V12_LAND_MAP, "CO2e", "PHL_LND"),
+}
+
+
+def profile_for(case: Path) -> CaseProfile:
+    for key, prof in PROFILES.items():
+        if key in case.name:
+            return prof
+    raise SystemExit(
+        f"no land map / species profile for case {case.name!r}; known: "
+        f"{sorted(PROFILES)}. Add one -- reading land with the wrong map is how "
+        "you get a silently empty answer."
+    )
 
 DUAL_NAMES = [
     "E8_AnnualEmissionsLimit",
@@ -89,14 +123,17 @@ def main(argv: list[str]) -> int:
     if not (case / "res").is_dir():
         print(f"no solved runs under {case}/res")
         return 1
+    prof = profile_for(case)
 
-    runs = sorted(p for p in (case / "res").iterdir() if p.is_dir())
-    print(f"case: {case.name}   scenarios: {[r.name for r in runs]}\n")
+    runs = sorted(p for p in (case / "res").iterdir() if (p / "csv").is_dir())
+    print(f"case: {case.name}   scenarios: {[r.name for r in runs]}")
+    print(f"land resource: {prof.land_map.resource_tech}   "
+          f"land commodity: {prof.land_fuel}   species: {prof.species}\n")
 
     summary: dict[str, dict] = {}
     for run in runs:
         try:
-            cover, resource = land_use_by_year(run, DEMO_LAND_MAP)
+            cover, resource = land_use_by_year(run, prof.land_map)
         except LandClosureError as exc:
             print(f"--- {run.name}: CLOSURE FAILED -- {exc}\n")
             continue
@@ -108,7 +145,7 @@ def main(argv: list[str]) -> int:
         first, last = years[0], years[-1]
         b0 = composite_index(cover[first], BII_COEF)
         b1 = composite_index(cover[last], BII_COEF)
-        emi = emissions_damage(run, SOCIAL_COST_CO2, species=EMISSION_SPECIES)
+        emi = emissions_damage(run, SOCIAL_COST_CO2, species=prof.species)
 
         print(f"--- {run.name} ({first}-{last})")
         for y in (first, last):
@@ -122,7 +159,7 @@ def main(argv: list[str]) -> int:
                   f"({(b1 - b0) / b0 * 100:+.3f}%)   [illustrative coefficients]")
         if emi:
             ey = sorted(emi)
-            print(f"    EmiVal @ ${SOCIAL_COST_CO2:.0f}/t {EMISSION_SPECIES}: "
+            print(f"    EmiVal @ ${SOCIAL_COST_CO2:.0f}/t {prof.species}: "
                   f"{ey[0]}={emi[ey[0]]:,.1f} -> {ey[-1]}={emi[ey[-1]]:,.1f}")
 
         duals = available_duals(run)
@@ -133,15 +170,27 @@ def main(argv: list[str]) -> int:
         # forest net decline as the depletion flow. Units are the case's own
         # (currency per area unit x area), so this is a mechanism check.
         rents = commodity_shadow_price(
-            run / "csv", fuel="LND", drop_zero=False
+            run / "csv", fuel=prof.land_fuel, drop_zero=False
         ).to_dict()
         priced = {y: v for y, v in rents.items() if abs(v) > 1e-9}
         flow = depletion_flow({y: cover[y].get("Forest", 0.0) for y in years})
         depletion = natural_capital_depletion(flow, rents)
-        print(f"    LND balance dual: {len(rents)} years read, "
-              f"nonzero in {sorted(priced) or 'none'}")
+        biggest = max((abs(v) for v in rents.values()), default=0.0)
+        print(f"    {prof.land_fuel} balance dual: {len(rents)} years read, "
+              f"nonzero in {sorted(priced) or 'none'}, |max|={biggest:.3e}")
+        print(f"    forest depletion flow: {sum(flow.values()):,.4f} over "
+              f"{len(flow)} yr")
         print(f"    eq.3 natural-capital depletion (forest, PV @4%): "
               f"{depletion:,.4f}")
+        # A rent at or below CBC's dual-reporting resolution is not a price. On PHL
+        # this is the MINLNDTOT placeholder's token variable cost (1e-4), not scarcity.
+        if 0 < biggest <= 1e-3:
+            print(f"{'':4}[!] every nonzero rent is <= 1e-3, CBC's dual resolution: "
+                  "this is the token cost of an unbounded land resource, not a "
+                  "scarcity rent. The depletion figure above is not economically "
+                  "meaningful (see plan stage 4).")
+        elif biggest == 0.0:
+            print(f"{'':4}[!] land rent identically zero -- land never priced.")
 
         summary[run.name] = {
             "years": [first, last],
@@ -149,7 +198,10 @@ def main(argv: list[str]) -> int:
             "cover_first": cover[first],
             "cover_last": cover[last],
             "duals": duals,
-            "lnd_dual_nonzero_years": {y: priced[y] for y in sorted(priced)},
+            "land_fuel": prof.land_fuel,
+            "land_dual_nonzero_years": {y: priced[y] for y in sorted(priced)},
+            "land_dual_max_abs": biggest,
+            "land_rent_is_token_cost": 0 < biggest <= 1e-3,
             "forest_depletion_flow_total": sum(flow.values()),
             "eq3_forest_depletion_pv": depletion,
         }
@@ -159,8 +211,11 @@ def main(argv: list[str]) -> int:
         print(f"  [{status:>21}]  {name}")
         print(f"{'':26}{note}")
 
-    out = Path(__file__).with_name("ieem_indicator_probe_result.json")
-    out.write_text(json.dumps(summary, indent=2))
+    # One file per case -- a shared name would let a PHL run silently overwrite the
+    # demo's committed result, and the two are not comparable line for line.
+    slug = "".join(c if c.isalnum() else "_" for c in case.name).strip("_").lower()
+    out = Path(__file__).with_name(f"ieem_indicator_probe_{slug}.json")
+    out.write_text(json.dumps({"case": case.name, "runs": summary}, indent=2) + "\n")
     print(f"\nwrote {out.name}")
     return 0
 

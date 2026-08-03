@@ -1,0 +1,105 @@
+{
+  "case": "Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC",
+  "runs": {
+    "BASE_CHK": {
+      "years": [
+        2020,
+        2053
+      ],
+      "bii": [
+        0.7944726078730117,
+        0.7358405865054658
+      ],
+      "cover_first": {
+        "Barren": 0.0,
+        "Cropland": 113.6631,
+        "Water bodies": 1.5984,
+        "Grassland": 0.0,
+        "Other": 0.0,
+        "Unallocated": 0.0,
+        "Forest": 179.7818,
+        "Built-up": 0.7698
+      },
+      "cover_last": {
+        "Barren": 0.0,
+        "Cropland": 156.6094,
+        "Water bodies": 1.5984,
+        "Grassland": 0.0,
+        "Other": 0.0,
+        "Unallocated": 0.0,
+        "Forest": 136.5595,
+        "Built-up": 1.0458
+      },
+      "duals": [
+        "E8_AnnualEmissionsLimit",
+        "EBb4_EnergyBalanceEachYear4_ICR",
+        "UDC1_UserDefinedConstraintInequality",
+        "UDC2_UserDefinedConstraintEquality"
+      ],
+      "land_fuel": "PHL_LND",
+      "land_dual_nonzero_years": {
+        "2020": 9.999999999990633e-05,
+        "2021": 9.999999999992957e-05,
+        "2022": 9.999999999999593e-05,
+        "2024": 9.999999999995039e-05,
+        "2025": 9.999999999992743e-05,
+        "2027": 9.999999999993383e-05,
+        "2031": 9.999999999999536e-05,
+        "2033": 9.999999999999922e-05
+      },
+      "land_dual_max_abs": 9.999999999999922e-05,
+      "land_rent_is_token_cost": true,
+      "forest_depletion_flow_total": 43.22229999999999,
+      "eq3_forest_depletion_pv": 0.0009760522021833323
+    },
+    "Base_v12": {
+      "years": [
+        2020,
+        2053
+      ],
+      "bii": [
+        0.7944726078730117,
+        0.7358405865054658
+      ],
+      "cover_first": {
+        "Built-up": 0.7698,
+        "Unallocated": 0.0,
+        "Forest": 179.7818,
+        "Other": 0.0,
+        "Water bodies": 1.5984,
+        "Grassland": 0.0,
+        "Barren": 0.0,
+        "Cropland": 113.6631
+      },
+      "cover_last": {
+        "Built-up": 1.0458,
+        "Unallocated": 0.0,
+        "Forest": 136.5595,
+        "Other": 0.0,
+        "Water bodies": 1.5984,
+        "Grassland": 0.0,
+        "Barren": 0.0,
+        "Cropland": 156.6094
+      },
+      "duals": [
+        "E8_AnnualEmissionsLimit",
+        "EBb4_EnergyBalanceEachYear4_ICR",
+        "UDC1_UserDefinedConstraintInequality",
+        "UDC2_UserDefinedConstraintEquality"
+      ],
+      "land_fuel": "PHL_LND",
+      "land_dual_nonzero_years": {
+        "2021": 9.999999999992957e-05,
+        "2022": 9.999999999999593e-05,
+        "2023": 9.999999999996642e-05,
+        "2028": 9.999999999996355e-05,
+        "2031": 9.999999999999536e-05,
+        "2033": 9.999999999999922e-05
+      },
+      "land_dual_max_abs": 9.999999999999922e-05,
+      "land_rent_is_token_cost": true,
+      "forest_depletion_flow_total": 43.22229999999999,
+      "eq3_forest_depletion_pv": 0.0008267693527540236
+    }
+  }
+}

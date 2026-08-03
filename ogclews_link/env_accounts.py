@@ -110,11 +110,44 @@ DEMO_LAND_MAP = LandMap(
     },
 )
 
-# Philippines v12: the cover-class vector lives in ENV_LAND's 8 MODES (not separate
-# technologies), so the real map goes in `mode_classes` -- a stage-3 modelling decision
-# (see docs/design/phl-testcase-plan.md §2), not transcription. Until it is built,
-# this placeholder is deliberately empty and `land_use_by_year` REFUSES it loudly.
-PHL_V12_LAND_MAP = LandMap(resource_tech="MINLNDTOT", classes={})
+# Philippines v12 (`Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC`). The cover-class
+# vector lives in ENV_LAND's 8 MODES, not in separate technologies.
+#
+# The mode -> class assignment is NOT guessed: it is read off the solved run's own
+# generated model input, where `param InputActivityRatio` gives one slice per
+# commodity with the mode as its row index --
+#   [RE1,ENV_LAND,ENV_LND_FOREST,*,*]: <mode 1>, ... ENV_LND_CROPLAND -> 7, PHL_LND -> 8
+# all with ratio 1. Verified against `res/Base_v12` (CBC Optimal, provenance
+# `muiogo verify` clean): the seven cover modes close on MINLNDTOT to 1e-4 over all
+# 34 years.
+#
+# Mode 8 consumes the land resource PHL_LND *directly* rather than a cover tag, so it
+# is untagged land, and it belongs in the closure sum: MINLNDTOT = modes 1-7 + mode 8.
+# It is identically zero in Base_v12 (all land is tagged), but it is mapped
+# explicitly rather than dropped so that if it ever goes positive it shows up as
+# Unallocated area instead of breaking closure for no visible reason.
+#
+# CALIBRATION WARNING. These classes are structurally right and numerically not
+# credible: CLEWs-PHL's own KNOWN_LIMITATIONS.md says the land block was never
+# calibrated to observed land allocation. Base_v12 puts 61% of national area under
+# forest (against roughly 24% observed) and 770 km^2 under built-up (an order of
+# magnitude low), and leaves Grassland, Barren and Other identically zero for all
+# 34 years. Use for mechanism checks only, never as a Philippine result.
+PHL_V12_LAND_MAP = LandMap(
+    resource_tech="MINLNDTOT",
+    mode_classes={
+        "ENV_LAND": {
+            "1": "Forest",
+            "2": "Grassland",
+            "3": "Other",
+            "4": "Barren",
+            "5": "Built-up",
+            "6": "Water bodies",
+            "7": "Cropland",
+            "8": "Unallocated",
+        }
+    },
+)
 
 
 def _read_csv(path: Path) -> list[dict]:

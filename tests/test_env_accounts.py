@@ -9,6 +9,7 @@ import pytest
 
 from ogclews_link.env_accounts import (
     DEMO_LAND_MAP,
+    PHL_V12_LAND_MAP,
     LandClosureError,
     LandMap,
     composite_index,
@@ -152,6 +153,53 @@ def test_mode_classes_read_cover_from_modes(tmp_path):
     cover, resource = land_use_by_year(run, MODAL_MAP)
     assert cover[2020] == {"Forest": 250.0, "Cropland": 30.0, "Built-up": 20.0}
     assert resource[2020] == pytest.approx(300.0)
+
+
+# Real 2020 values from the solved Philippines_v12 Base_v12 run (CBC Optimal);
+# modes 1-7 are cover classes, mode 8 is untagged land. These close on MINLNDTOT.
+PHL_2020 = [
+    ["RE1", "MINLNDTOT", "1", "2020", "295.8131"],
+    ["RE1", "ENV_LAND", "1", "2020", "179.7818"],
+    ["RE1", "ENV_LAND", "2", "2020", "0.0"],
+    ["RE1", "ENV_LAND", "3", "2020", "0.0"],
+    ["RE1", "ENV_LAND", "4", "2020", "0.0"],
+    ["RE1", "ENV_LAND", "5", "2020", "0.7698"],
+    ["RE1", "ENV_LAND", "6", "2020", "1.5984"],
+    ["RE1", "ENV_LAND", "7", "2020", "113.6631"],
+    ["RE1", "ENV_LAND", "8", "2020", "0.0"],
+]
+
+
+def test_phl_map_reads_real_solved_values_and_closes(tmp_path):
+    """Stage 3: the shipped PHL map, against values from the real solve."""
+    run = _activity(tmp_path, PHL_2020)
+    cover, resource = land_use_by_year(run, PHL_V12_LAND_MAP)
+    assert cover[2020]["Forest"] == pytest.approx(179.7818)
+    assert cover[2020]["Cropland"] == pytest.approx(113.6631)
+    assert cover[2020]["Unallocated"] == 0.0  # all land is tagged in Base_v12
+    assert resource[2020] == pytest.approx(295.8131)
+    assert sum(cover[2020].values()) == pytest.approx(295.8131, abs=1e-3)
+
+
+def test_phl_map_covers_all_eight_modes():
+    """A missing mode would silently drop area; closure would then fail on a solve."""
+    assert set(PHL_V12_LAND_MAP.mode_classes["ENV_LAND"]) == {
+        str(m) for m in range(1, 9)
+    }
+    assert not PHL_V12_LAND_MAP.is_empty
+
+
+def test_phl_untagged_land_shows_as_unallocated(tmp_path):
+    """If mode 8 ever goes positive it must appear as area, not break closure."""
+    rows = [r[:] for r in PHL_2020]
+    for r in rows:
+        if r[1] == "ENV_LAND" and r[2] == "1":
+            r[4] = "169.7818"          # move 10 out of Forest...
+        elif r[1] == "ENV_LAND" and r[2] == "8":
+            r[4] = "10.0"              # ...into untagged land
+    cover, resource = land_use_by_year(_activity(tmp_path, rows), PHL_V12_LAND_MAP)
+    assert cover[2020]["Unallocated"] == pytest.approx(10.0)
+    assert sum(cover[2020].values()) == pytest.approx(resource[2020], abs=1e-3)
 
 
 def test_unmapped_mode_is_dropped_and_closure_catches_it(tmp_path):
