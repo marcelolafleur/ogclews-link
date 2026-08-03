@@ -1,8 +1,14 @@
 # CLEWs–IO (Bararzadeh Ledari et al. 2026) — assessment
 
-**Status:** research note, **incomplete pending full text**. Nothing here is built.
+**Status:** research note, **full text now read (2026-08-03)**. Nothing here is built.
 **Date:** 2026-08-03
 **Companion to:** `ieem-comparative-assessment.md` (IDB's IEEM) and `phl-testcase-plan.md`.
+
+> **Update — the seven questions are answered.** Marcelo supplied the PDF. §7 below now
+> records what the method actually is, replacing the speculation this note opened with.
+> **Headline: the loop is not iterative, and the adoptable pattern is much cheaper than
+> expected — jobs can go into MUIOGO today as an OSeMOSYS emission species, with no code
+> change anywhere.** See §7 and §9.
 
 ## The paper
 
@@ -132,45 +138,162 @@ implementation, and linking as an epistemological problem. Same community, Gardu
 That audit is worth more than the CLEWs–IO paper itself right now: it is a published standard we
 can be measured against, from the maintainers of the model we run.
 
-## What to extract from the PDF
+## 7. The method, from the full text
 
-Marcelo has access. These are the questions that decide whether we adapt anything:
+Case: **Sistan region, Iran** (Helmand basin), 2022–2042, SSP2-4.5 and SSP5-8.5. OSeMOSYS,
+minimising net present cost. Funded by **UNDP and the Iranian Department of Environment**, Sharif
+University with KTH scientific advice.
 
-1. **Is employment inside the LP or outside it?** Does the CLEWs objective or constraint set carry
-   an employment term, or is employment computed from solved activity and then fed back by
-   re-solving? The first is a model change; the second is our existing `clews_driver` pattern.
-2. **If iterated — what converges, and how?** Convergence criterion, damping, number of
-   iterations, and whether convergence was actually achieved. Keppo et al. are explicit that
-   convergence is not guaranteed.
-3. **Where do employment coefficients come from?** Jobs per unit of activity/capacity by
-   technology, or IO employment multipliers per unit of final demand? Which data source, which
-   year, and are they direct-only or direct+indirect+induced?
-4. **How are CLEWs technologies mapped to IO sectors?** This is the concordance problem we hit in
-   `contract.Concordance`. Their mapping is the reusable artefact.
-5. **How is double counting avoided** between direct jobs in CLEWs technologies and indirect jobs
-   from the IO multipliers?
-6. **Is the IO table national, regional, or constructed?** For Iran, and at what sector detail.
-7. **Stated limitations** — particularly on fixed coefficients over a 2050 horizon, which is the
-   obvious weakness of any IO-based projection.
+**1. Is employment inside the LP or outside it? — Inside, but via pre-computed coefficients.**
 
-## Recommendation
+This is the key structural finding, and it is *not* what the "endogenizing employment" highlight
+implies. The workflow is:
 
-**Do not act on this yet.** Two reasons: the method is unverified, and the current PHL work
-(stages 0–1 of `phl-testcase-plan.md`) is unaffected by anything here.
+1. An IO model is built **once, offline**, and produces net job coefficients per unit of physical
+   activity — jobs per PJ generated, per unit of land cultivated, per unit of wastewater treated.
+2. Those coefficients are **fed into CLEWs as a parameter.** Table 2's third column is literally
+   headed *"Input to the CLEWS model (Thousand Jobs-Net/PJ)"* — e.g. electricity: −343 jobs/PJ
+   lost, +1039 gained, **0.70 thousand net jobs/PJ entering the model**.
+3. CLEWs then carries employment as an accounting quantity the optimiser can see, and scenarios
+   can impose a target on it.
 
-When the PDF is in hand, the decision worth making is whether an **IO layer becomes the second
-economic side of ogclews-link**, sitting alongside OG-Core rather than replacing it — cheap
-sector and employment detail from IO, welfare and fiscal from OG-Core. That would answer the
-"which sectors shrink when water gets scarce" question that the IEEM note flagged we cannot
-currently answer, without the OG-Core firm-side rewrite.
+So employment *is* endogenous to the optimisation — but only in the sense that a pre-computed
+linear coefficient rides along with technology activity, exactly as an emission factor does.
 
-Separately and independently of all of the above: **the Keppo checklist should be adopted now.**
-Items (viii) — the deflator — and (xiii) — the epistemic map — are concrete, cheap, and overdue.
+**2. If iterated — what converges? — It does not iterate. There is no loop.**
+
+The words "iterate", "iteration", "converge" and "convergence" **do not appear anywhere in the
+paper.** There is no fixed point, no damping, no convergence criterion. The IO model is not
+re-run against CLEWs output. The link is one-way: IO → coefficients → CLEWs.
+
+The prose about "feedbacks reinforcing the uptake of clean technologies" is *interpretive
+narrative about what the results imply*, not a modelled mechanism. Where employment genuinely
+changes the optimum, it does so because **the modeller imposed a target** — the *Agrarian Oasis*
+scenario is defined as "targeting 50% increase in employment by 2040, by incentives for
+agricultural activities of the herbal plants."
+
+**This materially changes the earlier reading in §"What is established": they have not closed a
+loop we left open.** Their architecture is one-way, like ours. On the price side ogclews-link
+arguably goes further, since it carries a genuine LP dual as the signal.
+
+**3. Where do the coefficients come from? — IO multipliers, three tiers.**
+
+Direct + indirect + induced, following Howells et al. (2010) on the Korean electricity system and
+extended to food and water. Equations 1–5: a diagonal labour-intensity matrix (jobs per unit
+output), Type I Leontief multipliers `L` for indirect effects, and induced effects via a vector
+of household expenditure propensities `β_i = Exp_i / ΣExp_i`. For the headline 107,000 jobs the
+split is ~70% direct (74,900), ~20% indirect (21,400), ~10% induced (10,700). They cite the ILO's
+endorsement of IO multiplier models as validation.
+
+**4. How are CLEWs technologies mapped to IO sectors? — Not disclosed, and not recoverable.**
+
+This was the artefact I most wanted. The concordance is not published, and the data-availability
+statement reads: *"The data that has been used is confidential."* The regional IO table is not
+available either. The method is reusable; their mapping is not.
+
+**5. Double counting? — Handled by construction, not discussed.**
+
+The three tiers are defined so as not to overlap (direct = the investing sector; indirect =
+upstream via the Leontief inverse; induced = household spending of wages). Type I multipliers are
+used for the indirect tier, with induced handled separately, which is the standard way to avoid
+double counting. But the paper contains no explicit discussion of the risk.
+
+**6. The IO table — regional, and confidential.** Described as a "region-specific IO database"
+and an "open-access input-output model" built for the study, but neither the table nor its sector
+detail is provided.
+
+**7. Stated limitations — there are none.**
+
+The conclusion has no limitations section and no future-work paragraph. Nothing on the fixed
+Leontief coefficients being held constant to 2042, nothing on the one-way linkage, nothing on
+transferability of the regional IO table. For a paper whose entire economic side rests on fixed
+coefficients over twenty years, that is a real gap — and it is the strongest argument for reading
+their headline claims conservatively.
+
+## 8. The reusable methodology is elsewhere, and it is open
+
+The actual method document is the antecedent, and it is a **freely accessible preprint**:
+
+> Howells, M., Necibi, T., Laitner, J.S., **Gardumi, F.**, Bock, F. (2021). *Integrated
+> input-output and systems analysis modelling: the case of Tunisia. Part 1 — Energy technology
+> Input-Output multipliers.* Research Square,
+> DOI [10.21203/rs.3.rs-336989/v2](https://doi.org/10.21203/rs.3.rs-336989/v2) — open.
+
+Plus the original: Howells et al. (2010), *Incorporating macroeconomic feedback into an energy
+systems model using an IO approach: evaluating the rebound effect in the Korean electricity
+system*, Energy Policy 38, 2700–2728.
+
+If we adopt this, those two are the sources to work from — not the JCLP paper.
+
+## 9. The adoptable pattern — and it costs nothing
+
+Because the job coefficient enters CLEWs as *net jobs per unit of activity*, it is structurally
+**identical to an OSeMOSYS emission factor**. MUIOGO already has the whole machinery:
+
+| What jobs need | What OSeMOSYS already has |
+|---|---|
+| a per-activity coefficient | `EmissionActivityRatio{r,t,e,m,y}` |
+| an accounting total per year | `E1`/`E2` annual emission production |
+| a target or floor | `AnnualEmissionLimit` / `ModelPeriodEmissionLimit` |
+| the shadow price of that target | `E8_AnnualEmissionsLimit` — **already exported** in `Duals.json` |
+
+So employment can be added to a MUIOGO case **as an emission species named `JOBS`**, with net
+jobs per unit activity as its activity ratio. No change to the solver, no change to MUIOGO's code,
+no change to ogclews-link. It is case data, which is gitignored — the same zero-blast-radius
+route as the rest of the PHL work.
+
+And the payoff is more than accounting: because the emission-limit dual is already exported, an
+employment *target* immediately yields **the shadow price of a job** — the cost in system NPV of
+the marginal job. That is a genuinely policy-relevant number, and neither IEEM nor this paper
+reports it.
+
+Caveat to carry: this inherits every weakness of fixed Leontief coefficients. The coefficient is
+only as good as the IO table behind it, and it cannot capture the labour-market response. It
+is an accounting layer, not a labour model — which is exactly what the JCLP paper's missing
+limitations section should have said.
+
+## 10. Recommendation
+
+**Nothing here blocks or changes the PHL work** in `phl-testcase-plan.md`. Stages 0–1 stand.
+
+Three things worth doing, in order of cost:
+
+**(a) Treat the `JOBS`-as-emission-species trick as a first-class option.** It is case data,
+costs nothing, and yields the shadow price of a job for free (§9). It would be a genuinely novel
+output — and it is a much cheaper way to add a socio-economic dimension than anything in the IEEM
+note.
+
+**(b) Do not chase the IO layer yet.** The IEEM note argued for a sector-resolved economic layer,
+and this paper is evidence the pattern works. But their table and concordance are confidential,
+so we would be building from scratch, and a fixed-coefficient IO table has no forward-looking
+behaviour, no fiscal side and no intergenerational welfare — everything OG-Core exists for. The
+case for IO as a *second* economic side alongside OG-Core is still open; it is just not urgent,
+and the Tunisia preprint (§8) is where it would start.
+
+**(c) Adopt the Keppo checklist now** — independent of all of the above. Items (viii), the
+deflator still hardcoded to `1.0`, and (xiii), the epistemic map, are cheap and overdue.
+
+## 11. What this changes about how we talk about the field
+
+Both papers assessed in this repo make a strong-sounding integration claim that turns out, on
+reading the method, to be a single reduced-form coefficient:
+
+- **IEEM**: "dynamic endogenous feedbacks between natural capital, ES and the economy" = eroded
+  area share × an 8% productivity penalty.
+- **CLEWs–IO**: "endogenizing employment reshapes optimal pathways" = a jobs-per-PJ coefficient
+  carried alongside activity, with no iteration anywhere.
+
+Neither is dishonest, and both are useful. But the pattern is worth naming: **in this literature,
+"integrated" and "endogenous" usually mean a well-sourced linear coefficient, not a converged
+fixed point.** We are not behind on rigour. We are behind on publishing — and our repo is more
+explicit about its placeholders than either paper is about theirs.
 
 ## Provenance of this note
 
 Verified this session: DOI, authors, affiliations, journal/volume via Crossref and OpenAlex;
 abstract via KTH DiVA; OA status via Unpaywall for all three papers; sibling abstract via DOAJ;
-Keppo et al. full text read from the Polimi repository copy. **Not** verified: any method detail
-of the 2026 CLEWs–IO paper. The comparison table's ogclews-link column is from this repo's own
-audit, not from the paper.
+Keppo et al. full text read from the Polimi repository copy; **the JCLP paper's full text read
+from the PDF Marcelo supplied** — §7 cites its Table 1, Table 2, equations 1–5, §2.3, §3.2 and
+its conclusion. The comparison table's ogclews-link column is from this repo's own audit, not
+from any paper. §9 is my proposal, not the paper's — the paper does not suggest implementing
+jobs as an emission species, and does not report a shadow price of a job.
