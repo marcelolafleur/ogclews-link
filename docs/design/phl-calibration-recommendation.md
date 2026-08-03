@@ -234,3 +234,58 @@ requirements for Philippine conditions (or the National Irrigation Administratio
 figures). Then, if water stress is a question anyone wants to ask of this model, it needs
 dry-season timeslices with precipitation availability factors, and ideally basin-level rather than
 yield-cluster spatial units — which is a redesign, not a recalibration.
+
+## Defect 3 — the irrigation fix, TESTED (2026-08-03)
+
+Applied on top of the yield fix, in the same sandbox. Scaled every `AGRWATPHL` input ratio by
+**×10.931** — 960 records across 4 scenarios — chosen so total agricultural withdrawal hits FAO
+AQUASTAT's Philippine figure of ~69 km³/yr. **Re-solved Optimal in 129 s.** Crop demands still met to
+1e-4, water balance closes, `MINPRCPHL` unchanged at 724.97 km³.
+
+| | original | yield fix | **+ irrigation** | observed |
+|---|---:|---:|---:|---:|
+| agricultural withdrawal | 2.71 | 6.31 | **69.01 km³** | **~69** ✓ |
+| surface water withdrawn | 44.8 | 48.4 | **111.1 km³** | ~85 total |
+| surface water generated | 302.2 | 335.2 | 335.2 | — |
+| **surface water use ratio** | 14.8% | 14.4% | **33.1%** | — |
+| implied application on irrigated land | 1,397 | 2,521 | **27,556 m³/ha/yr** | NIA duty 31,500–47,300 |
+
+The resulting application rate sits just below NIA's design duty range, i.e. a slightly conservative
+gross-diversion figure including conveyance losses. That is the right concept for a *withdrawal*.
+
+### The decisive finding: nothing else changed. At all.
+
+| | yield fix | + irrigation |
+|---|---:|---:|
+| irrigated area | 25.04 | **25.04** |
+| rainfed area | 112.36 | **112.36** |
+| forest 2020 | 156.05 | **156.05** |
+| max water shadow price | 0.0015 | **0.0015** |
+| objective | 375,936,578.41 | 375,936,578.51 |
+
+An **11-fold increase in irrigation water changed the land allocation by not one decimal place**, and
+moved the objective by 0.1 in 376 million — a relative 3e-10. Because water carries no cost and no
+constraint, irrigation water is a pure accounting passthrough: the model is indifferent to how much
+of it is used.
+
+So the fix is **necessary but not sufficient**, and now demonstrated rather than argued:
+
+- **Worth doing.** Agricultural withdrawal is a headline CLEWs output and it now matches observed
+  instead of being 25× low. Anyone reading water numbers off this model gets a defensible figure.
+- **It does not activate the nexus.** Land and water remain economically decoupled. The rainfed-versus-
+  irrigated choice is still made on yields alone, because irrigation water is free.
+- **And a correct annual cap still would not bind.** At 33% surface-water use there is 224 km³ of
+  headroom. Confirmed empirically: the annual national scale cannot produce water scarcity in the
+  Philippines even with correct withdrawals.
+
+Activating the nexus needs a *binding* water constraint, which means dry-season timeslices with
+precipitation availability factors and ideally river-basin spatial units. That is the redesign flagged
+above, and this test is the evidence for why it is a redesign and not a recalibration.
+
+### Solves preserved
+
+| state | location |
+|---|---|
+| original, untouched | `…/Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC/res/Base_v12` |
+| yield fix only | `~/muiogoai/phl_calibration_solves/yieldfix_only` (952 MB, copied aside) |
+| yield + irrigation | `…/Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC_copy/res/Base_v12` |
