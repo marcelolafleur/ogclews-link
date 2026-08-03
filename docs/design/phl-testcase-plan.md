@@ -143,17 +143,19 @@ answered: about 2.5 minutes from input generation to results.
 `MINLNDTOT` to 0.00e+00 at both endpoints and ≤1e-4 across all 34 years.
 
 **Stage 4 — decide whether PHL gets a binding land endowment.** *Marcelo's call, not the
-assistant's.* **Stage 3 is now complete, so this is the live decision.** The prediction that the
-land price would be structurally ~zero is confirmed with numbers: the `PHL_LND` dual peaks at
-1.0e-4 — exactly `MINLNDTOT`'s token variable cost, and one order of magnitude *below* CBC's
-1e-3 dual-reporting resolution — so eq. 3 returns 0.0008, a number with no economic content.
-The two runs disagree about *which* years even carry that token dual, which is LP degeneracy
-and independent proof there is no signal there (§8). Giving the model a real national land area
-is what would make the price mean anything.
+assistant's.* **Read §9 before deciding: the premise of this stage is wrong.** PHL already has a
+binding, realistically-sized land endowment — eight cluster limits that bind exactly and sum to
+the true national area. Adding a national land total would duplicate their sum, never bind, and
+leave its dual at ~0. The actual obstacle is a `-10.0` variable cost on the land clusters that
+dominates their duals. `MINLNDTOT`'s dual really is a meaningless 1.0e-4 (§8), but that is
+because `MINLNDTOT` is not where land scarcity lives.
 
 **Stage 5 — export the binding duals.** Get the `AAC*` activity-limit duals into `Duals.json`.
 Genuine MUIOGO work, useful well beyond this project. Note `Duals.json` is one of only four
 tracked files under `WebAPP/DataStorage/`, so this one *does* touch MUIOGO's repo.
+**No longer a blocker for us:** the `AAC2` duals are already written to `res/<run>/results.txt`
+by every solve, so we can read them today without touching MUIOGO at all (§9). Stage 5 is now a
+convenience — worth doing for MUIOGO's other users, not needed for this project.
 
 ## 6. Ground rules that still hold
 
@@ -256,3 +258,78 @@ Grassland, Barren and Other at exactly zero for all 34 years. Total land 295,813
 ~298,170 km² actual is the one number that looks right. Mechanism checks only — never a
 Philippine result. The illustrative BII moves 0.7945 → 0.7358 (−7.4%); the *direction* follows
 from forest→cropland conversion and is believable, the level is not.
+
+## 9. The land price is already on disk — and it is mostly a parameter (2026-08-03)
+
+This section **reframes stage 4** and demotes stage 5. Read it before deciding either.
+
+### `results.txt` carries every constraint dual, `AAC2` included
+
+`res/<run>/results.txt` is CBC's full solution dump — 1.69M lines for PHL — and it lists
+constraint rows with their duals, not just variables. Column 4 is the dual.
+
+Verified against MUIOGO's own export rather than assumed: for
+`EBb4_EnergyBalanceEachYear4_ICR`, column 4 reproduces the shipped
+`csv/EBb4_…csv` values across **848** (commodity, year) pairs above the 1e-3 dual resolution,
+to a worst relative error of 3.0e-4 — which is the 8-significant-figure print precision, not a
+discrepancy. The two differ only by MUIOGO's convention `csv = raw × (1+DR)^(y − sy + 0.5)`.
+
+So the `AAC*` family that §2 correctly identified as unexported is **not unavailable**. It is
+sitting in a file every solve already writes. Stage 5 would make it convenient for MUIOGO's
+other users; it is not on our critical path.
+
+### The eight clusters bind exactly and partition national land
+
+`TotalTechnologyAnnualActivityUpperLimit` on `LNDAGRPHLC01–08` is flat across all 34 years, and
+solved activity equals the limit in every one. Their 2020 areas sum to **295.8131** — identical
+to `MINLNDTOT` and to `ENV_LAND`'s all-mode total, gap `+0.0000`. These eight limits *are* the
+Philippine land endowment, at a realistic 295,813 km² against ~298,170 km² observed.
+
+Every cluster carries a nonzero `AAC2` dual in all 34 years, of order 10 — against `MINLNDTOT`'s
+1.0e-4. That is why stage 4's premise fails: **land is already scarce in this model.** A new
+national land constraint would equal the sum of the cluster limits, so it would never bind and
+its dual would stay at zero.
+
+### …but ~97% of that dual is a `-10.0` variable cost
+
+All eight clusters carry `VariableCost = -10.0` in mode 27 — a *negative* cost, i.e. a reward of
+10 per unit of activity. Mode 27 stays available whether or not it is used, so it puts an
+**opportunity-cost floor of 10.0 under every cluster's land dual**. Netting it out:
+
+| cluster | area | dual (PV) | real dual | − floor | genuine scarcity |
+|---|---:|---:|---:|---:|---:|
+| `LNDAGRPHLC01` | 9.1115 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC02` | 23.6817 | −10.1012 | 10.3507 | 10.0 | **0.3507** |
+| `LNDAGRPHLC03` | 103.2149 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC04` | 27.3872 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC05` | 27.1799 | −10.2535 | 10.5068 | 10.0 | **0.5068** |
+| `LNDAGRPHLC06` | 18.7069 | −10.0370 | 10.2849 | 10.0 | **0.2849** |
+| `LNDAGRPHLC07` | 18.3850 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC08` | 68.1460 | −9.7585 | 9.9995 | 10.0 | **−0.0005** |
+
+Five of eight sit at 10.0000 to four decimals — they bind on the reward alone, with no scarcity
+content. Only clusters 02, 05 and 06 carry a genuine premium, 0.28–0.51, over 69.57 of 295.81
+(**23.5%** of national land). Coherence check: the clusters that price are a minority, which is
+consistent with cropland expanding into abundant forest rather than against a hard limit.
+
+**Taking the `AAC2` dual at face value overstates the true land rent by 20× to 35×.** Duals are
+negative because these are upper limits in a minimization; use the absolute value.
+
+### What this means for the decision
+
+1. **Do not add a national land endowment.** It would be redundant against the cluster limits and
+   would price at zero. Stage 4 as written would not produce a land price.
+2. **Interrogate the `-10.0` first.** It is the single thing standing between this model and a
+   usable land rent. It looks like a modelling device rather than an economic cost — plausibly
+   there to force land to be fully allocated so the `ENV_LAND` accounts close. If that is what it
+   is, it is doing a job and should not simply be deleted; the netting-out above may be the right
+   permanent treatment. **This is the question to answer before any PHL land rent is believable.**
+3. **A defensible rent exists today** for 23.5% of national land, if the floor is netted out —
+   small, positive, and confined to three clusters.
+4. **Do not build the extractor yet.** Any `results.txt` dual reader has to commit to a
+   convention for the floor, and that convention is decision (2), not a coding choice.
+
+Unverified and flagged: the cluster→cover-class correspondence is not established, so these
+per-cluster rents cannot yet be attributed to Forest or Cropland — which eq. 3 needs. Cluster 02
+runs in modes 3/24/30 and cluster 03 in 8/11/26/27/30, so the mode structure is richer than the
+single-mode floor story and deserves its own read before the rents are used per class.
