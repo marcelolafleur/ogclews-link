@@ -12,7 +12,9 @@ from ogclews_link.env_accounts import (
     PHL_V12_LAND_MAP,
     LandClosureError,
     LandMap,
+    area_changes,
     composite_index,
+    conversion_carbon,
     depletion_flow,
     emissions_damage,
     land_use_by_year,
@@ -314,3 +316,39 @@ def test_depletion_flow_is_the_net_decline():
 def test_depletion_flow_growth_year_depletes_nothing():
     got = depletion_flow({2020: 100.0, 2021: 102.0, 2022: 101.0})
     assert got == {2021: 0.0, 2022: pytest.approx(1.0)}
+
+
+def test_area_changes_keeps_both_directions():
+    got = area_changes({2020: 100.0, 2021: 90.0, 2022: 95.0})
+    assert got == {2021: (10.0, 0.0), 2022: (0.0, 5.0)}
+    assert 2020 not in got
+
+
+def test_conversion_carbon_default_credits_no_regrowth():
+    """The asymmetry: clearing releases the stock, regrowth earns nothing."""
+    cover = {2020: {"Forest": 100.0}, 2021: {"Forest": 90.0},
+             2022: {"Forest": 95.0}}
+    got = conversion_carbon(cover, {"Forest": 292.0})
+    assert got[2021] == pytest.approx(2920.0)   # 10 lost x 292
+    assert got[2022] == pytest.approx(0.0)      # 5 regained, no credit
+
+
+def test_conversion_carbon_regrowth_credit_is_symmetric_at_one():
+    cover = {2020: {"Forest": 100.0}, 2021: {"Forest": 90.0},
+             2022: {"Forest": 95.0}}
+    got = conversion_carbon(cover, {"Forest": 292.0}, regrowth_credit=1.0)
+    assert got[2022] == pytest.approx(-1460.0)  # 5 regained x 292, a credit
+    # full symmetry: net over the period is the net area change
+    assert sum(got.values()) == pytest.approx(5 * 292.0)
+
+
+def test_conversion_carbon_only_classes_with_factors_count():
+    cover = {2020: {"Forest": 100.0, "Cropland": 10.0},
+             2021: {"Forest": 90.0, "Cropland": 20.0}}
+    got = conversion_carbon(cover, {"Forest": 292.0})
+    assert got[2021] == pytest.approx(2920.0)   # cropland ignored
+
+
+def test_conversion_carbon_rejects_out_of_range_credit():
+    with pytest.raises(ValueError, match="regrowth_credit"):
+        conversion_carbon({}, {}, regrowth_credit=1.5)

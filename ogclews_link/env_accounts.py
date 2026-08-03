@@ -37,7 +37,9 @@ __all__ = [
     "PHL_V12_LAND_MAP",
     "LandClosureError",
     "LandMap",
+    "area_changes",
     "composite_index",
+    "conversion_carbon",
     "depletion_flow",
     "emissions_damage",
     "land_use_by_year",
@@ -350,6 +352,86 @@ def depletion_flow(stock: dict[int, float]) -> dict[int, float]:
         curr: max(stock[prev] - stock[curr], 0.0)
         for prev, curr in itertools.pairwise(years)
     }
+
+
+def area_changes(stock: dict[int, float]) -> dict[int, tuple[float, float]]:
+    """Year -> (area lost, area gained), keeping the two directions apart.
+
+    `depletion_flow` floors gains at zero, which is right for eq. 3 but throws
+    away information that land-carbon accounting needs. This keeps both.
+
+    Args:
+        stock: year -> area (one cover class).
+
+    Returns:
+        year -> (lost, gained), both non-negative, for years after the first.
+    """
+    years = sorted(stock)
+    out = {}
+    for prev, curr in itertools.pairwise(years):
+        d = stock[curr] - stock[prev]
+        out[curr] = (max(-d, 0.0), max(d, 0.0))
+    return out
+
+
+def conversion_carbon(
+    cover: dict[int, dict[str, float]],
+    stock_factors: dict[str, float],
+    *,
+    regrowth_credit: float = 0.0,
+) -> dict[int, float]:
+    """Carbon released when land changes cover class -- the LULUCF term.
+
+    This is the term a CLEWS case cannot give you: no land technology in either
+    the PHL v12 or the shipped demo case carries an emission ratio for
+    conversion, so land-use carbon is absent from `AnnualTechnologyEmission`
+    entirely. On PHL that omission is worth roughly a fifth of everything the
+    energy and industry sectors emit across the horizon.
+
+    ASYMMETRY IS THE POINT, and it is why this belongs here rather than in the
+    solver. Clearing a hectare releases its standing stock within a year or
+    two; regrowing that hectare takes decades and saturates (IPCC 2019
+    Refinement Table 4.9 updated: roughly 7.1 tCO2/ha/yr for secondary forest
+    under 20 years, 5.6 over 20, and 1.5 -- statistically indistinguishable
+    from zero -- for primary). OSeMOSYS's own
+    ``EmissionToActivityChangeRatio`` is area-SYMMETRIC: it would hand back a
+    regrowth credit exactly equal to the clearing debit, i.e. instant carbon
+    recovery. That is wrong, and it is unfixable inside a linear program with
+    no memory.
+
+    So ``regrowth_credit`` defaults to 0.0: land gained earns nothing. That is
+    the conservative treatment and the right default for a case where cover
+    only ever moves one way. Raise it toward 1.0 only with an explicit
+    justification for how fast the stock actually returns.
+
+    Args:
+        cover: year -> {class label -> area}, as returned by `land_use_by_year`.
+        stock_factors: class label -> carbon stock per unit area. For PHL the
+            defensible figure is the country's own Forest Reference Level
+            (2023) gross factor, 292 tCO2 per hectare of forest cleared; mind
+            the area units of your cover series. Classes absent here are
+            skipped, so a factor for Forest alone gives forest-only carbon.
+        regrowth_credit: fraction of the stock factor credited to area gained.
+            0.0 (default) credits nothing.
+
+    Returns:
+        year -> net carbon released, positive for a release. Years after the
+        first only; a year with no qualifying change yields 0.0.
+    """
+    if not 0.0 <= regrowth_credit <= 1.0:
+        raise ValueError(
+            f"regrowth_credit must be in [0, 1], got {regrowth_credit}"
+        )
+    series: dict[str, dict[int, float]] = defaultdict(dict)
+    for year, classes in cover.items():
+        for label, area in classes.items():
+            series[label][year] = area
+
+    out: dict[int, float] = defaultdict(float)
+    for label, factor in stock_factors.items():
+        for year, (lost, gained) in area_changes(series.get(label, {})).items():
+            out[year] += (lost - gained * regrowth_credit) * factor
+    return dict(sorted(out.items()))
 
 
 def natural_capital_depletion(
