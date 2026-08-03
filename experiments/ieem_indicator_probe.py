@@ -90,7 +90,7 @@ def profile_for(case: Path) -> CaseProfile:
         "you get a silently empty answer."
     )
 
-DUAL_NAMES = [
+SHADOW_PRICE_FILES = [
     "E8_AnnualEmissionsLimit",
     "EBb4_EnergyBalanceEachYear4_ICR",
     "UDC1_UserDefinedConstraintInequality",
@@ -107,15 +107,15 @@ TERM_STATUS = [
     ("qdepl (quantity depleted)", "PRESENT",
      "net decline of the cover-class stock (depletion_flow over solved areas)"),
     ("unitrent (eq.3 unit rent)", "PRESENT",
-     ("land is an ordinary commodity, so its balance dual is already exported in "
+     ("land is an ordinary commodity, so its balance shadow price is already exported in "
       "EBb4 -- read with commodity_shadow_price(fuel='LND', drop_zero=False)")),
     ("GNSAV, DeprCapStock", "NOT A CLEWS QUANTITY",
      "national-accounts aggregates; OG-Core produces these"),
 ]
 
 
-def available_duals(run: Path) -> list[str]:
-    return [n for n in DUAL_NAMES if (run / "csv" / f"{n}.csv").exists()]
+def available_shadow_price_files(run: Path) -> list[str]:
+    return [n for n in SHADOW_PRICE_FILES if (run / "csv" / f"{n}.csv").exists()]
 
 
 def main(argv: list[str]) -> int:
@@ -162,11 +162,11 @@ def main(argv: list[str]) -> int:
             print(f"    EmiVal @ ${SOCIAL_COST_CO2:.0f}/t {prof.species}: "
                   f"{ey[0]}={emi[ey[0]]:,.1f} -> {ey[-1]}={emi[ey[-1]]:,.1f}")
 
-        duals = available_duals(run)
-        print(f"    duals exported: {duals}")
+        exported = available_shadow_price_files(run)
+        print(f"    shadow prices exported: {exported}")
 
-        # eq.3 end-to-end: the land balance dual as the unit rent (drop_zero MUST
-        # be off -- a zero land dual is true abundance, not a missing year), and
+        # eq.3 end-to-end: the land balance shadow price as the unit rent (drop_zero MUST
+        # be off -- a zero land shadow price is true abundance, not a missing year), and
         # forest net decline as the depletion flow. Units are the case's own
         # (currency per area unit x area), so this is a mechanism check.
         rents = commodity_shadow_price(
@@ -176,16 +176,16 @@ def main(argv: list[str]) -> int:
         flow = depletion_flow({y: cover[y].get("Forest", 0.0) for y in years})
         depletion = natural_capital_depletion(flow, rents)
         biggest = max((abs(v) for v in rents.values()), default=0.0)
-        print(f"    {prof.land_fuel} balance dual: {len(rents)} years read, "
+        print(f"    {prof.land_fuel} balance shadow price: {len(rents)} years read, "
               f"nonzero in {sorted(priced) or 'none'}, |max|={biggest:.3e}")
         print(f"    forest depletion flow: {sum(flow.values()):,.4f} over "
               f"{len(flow)} yr")
         print(f"    eq.3 natural-capital depletion (forest, PV @4%): "
               f"{depletion:,.4f}")
-        # A rent at or below CBC's dual-reporting resolution is not a price. On PHL
+        # A rent at or below CBC's shadow-price reporting resolution is not a price. On PHL
         # this is the MINLNDTOT placeholder's token variable cost (1e-4), not scarcity.
         if 0 < biggest <= 1e-3:
-            print(f"{'':4}[!] every nonzero rent is <= 1e-3, CBC's dual resolution: "
+            print(f"{'':4}[!] every nonzero rent is <= 1e-3, CBC's shadow price resolution: "
                   "this is the token cost of an unbounded land resource, not a "
                   "scarcity rent. The depletion figure above is not economically "
                   "meaningful (see plan stage 4).")
@@ -197,7 +197,7 @@ def main(argv: list[str]) -> int:
             "bii": [b0, b1],
             "cover_first": cover[first],
             "cover_last": cover[last],
-            "duals": duals,
+            "shadow_prices_exported": exported,
             "land_fuel": prof.land_fuel,
             "land_dual_nonzero_years": {y: priced[y] for y in sorted(priced)},
             "land_dual_max_abs": biggest,

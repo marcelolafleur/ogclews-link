@@ -22,7 +22,7 @@
         "Built-up": 17.41,
         "Water bodies": 25.021
       },
-      "duals": [
+      "shadow_prices_exported": [
         "E8_AnnualEmissionsLimit",
         "EBb4_EnergyBalanceEachYear4_ICR",
         "UDC1_UserDefinedConstraintInequality"
@@ -60,7 +60,7 @@
         "Built-up": 17.41,
         "Water bodies": 25.021
       },
-      "duals": [
+      "shadow_prices_exported": [
         "E8_AnnualEmissionsLimit",
         "EBb4_EnergyBalanceEachYear4_ICR",
         "UDC1_UserDefinedConstraintInequality"
@@ -99,7 +99,7 @@
         "Built-up": 17.41,
         "Water bodies": 25.021
       },
-      "duals": [
+      "shadow_prices_exported": [
         "E8_AnnualEmissionsLimit",
         "EBb4_EnergyBalanceEachYear4_ICR",
         "UDC1_UserDefinedConstraintInequality"
@@ -134,7 +134,7 @@
         "Built-up": 17.41,
         "Water bodies": 25.021
       },
-      "duals": [
+      "shadow_prices_exported": [
         "E8_AnnualEmissionsLimit",
         "EBb4_EnergyBalanceEachYear4_ICR",
         "UDC1_UserDefinedConstraintInequality"

@@ -363,12 +363,12 @@ def natural_capital_depletion(
 
         sum_t  (qdepl_t * unitrent_t) / (1 + intrat)^(t - base_year)
 
-    In IEEM the unit rent is endogenous to the CGE. Our analogue is a CLEWS dual:
+    In IEEM the unit rent is endogenous to the CGE. Our analogue is a CLEWS shadow price:
     the shadow price of the resource's balance constraint. Land is an ordinary
-    commodity, so its balance constraint already carries a dual and MUIOGO already
+    commodity, so its balance constraint already carries a shadow price and MUIOGO already
     exports it -- `EBb4_EnergyBalanceEachYear4_ICR.csv` has the `LND` rows. Read it
     with ``signals.commodity_shadow_price(fuel="LND", drop_zero=False)``:
-    `drop_zero` MUST be off, because for land a zero dual is a true zero (land was
+    `drop_zero` MUST be off, because for land a zero shadow price is a true zero (land was
     abundant that year) and belongs in the sum, not a missing observation as it
     would be for electricity. See docs/design/phl-testcase-plan.md §1(a).
 
