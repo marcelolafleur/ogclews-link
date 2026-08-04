@@ -1,7 +1,7 @@
-# Comparison-paper PDFs
+# References — comparison-paper PDFs
 
-Local copies of the papers assessed in `../ieem-comparative-assessment.md` and
-`../clews-io-employment-assessment.md`. **All `*.pdf` here are gitignored** (licensed
+Local copies of the papers assessed in `../design/ieem-comparative-assessment.md` and
+`../design/clews-io-employment-assessment.md`. **All `*.pdf` here are gitignored** (licensed
 or publisher copies — they do not travel through the repo; each machine keeps its own).
 Fetch sources below.
 
