@@ -49,12 +49,10 @@ overlapping-generations partner does not appear in it.
 % "intergenerational"; CGE x4, macroeconometric x1, input-output x1.
 % Re-confirm against the publisher's version before submission.
 The combination of bottom-up energy-land-water
-technology with an OLG economy under fiscal closure is, to our knowledge, the cell
-the literature leaves open; reaching it requires the soft-link method, applied to a
-macroeconomic partner the tradition has not used.
+technology with an OLG economy under fiscal closure is, to our knowledge, absent
+from this literature; this paper describes one way to build it.
 
-Two recent frameworks sit nearest to this work and mark the frontier of current
-practice. IEEM \citep{banerjee_ieem_2020}, the Inter-American Development Bank's
+Two recent frameworks sit nearest to this work. IEEM \citep{banerjee_ieem_2020}, the Inter-American Development Bank's
 environmentally-extended CGE platform, attaches SEEA physical accounts to the
 social accounting matrix and couples land-use and ecosystem-service models in
 five-year steps; its wealth accounting---genuine savings net of natural-capital
@@ -68,10 +66,9 @@ through a single well-sourced linear coefficient---an erosion-share productivity
 penalty in one, jobs per unit of activity in the other---and their couplings
 differ in kind: IEEM's is a \emph{sequential feedback} (module results return to
 the economy in five-year steps), CLEWs--IO's a \emph{one-way parameterisation};
-neither---nor, yet, ours---is a numerical \emph{fixed-point iteration}. We record
-this as a characterisation of standard
-practice rather than a criticism: our own channels carry reduced-form coefficients
-too, labelled as provisional where they are (\Cref{sec:calibration}), and our loop
+neither---nor, yet, ours---is a numerical \emph{fixed-point iteration}. This is standard
+practice rather than a defect: our own channels carry reduced-form coefficients
+too (\Cref{sec:calibration}), and our loop
 is likewise open (\Cref{sec:architecture}). The three frameworks are complementary
 along different margins: IEEM extends the environment downward into a CGE,
 CLEWs--IO extends the economy sideways into employment accounting, and the present
@@ -90,11 +87,11 @@ instruments, and a government that closes its budget are native structure, not
 extensions. Both are models that countries can obtain, run, and audit---the
 practical criterion for a coupling meant to be re-pointed across countries.
 
-What this paper adds sits at the level of the interface. The soft-link literature
+The subject of this paper is the interface itself. The soft-link literature
 established the exchange-and-iterate method, but its interfaces are bespoke to each
 study: which quantities cross, in which units, entering which equations, is settled
-ad hoc and documented unevenly. The framework of \Cref{sec:framework} makes the
-interface itself the object of design---named channels carrying one signal into one
+ad hoc and documented unevenly. \Cref{sec:framework} specifies the interface
+explicitly---named channels carrying one signal into one
 wedge, guards that fire on ill-posed mappings, accounting principles that keep any
 cost from entering twice, a country-agnostic contract, and a regression-locked
 validation record. Two further strands are folded in rather than appended. The
