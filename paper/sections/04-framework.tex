@@ -114,6 +114,20 @@ of \Cref{def:fixedpoint} is \emph{loop closure} (\Cref{sec:architecture}). The
 present work validates the single pass and the \CLEWS{} re-solve seam that the closed
 loop requires; the principal unbuilt piece is the outer iteration controller.
 
+\begin{remark}[Shadow-price hygiene]
+\label{rem:hygiene}
+That the theoretically privileged signal fails in practice is a general lesson, and
+we convert it into a protocol applied to any marginal cost read from the optimiser
+before it crosses the seam: the value must sit above the solver's own reporting
+resolution; it must be invariant across alternate optima---a price that moves while
+nothing physical changes is degeneracy, not information; it must be decomposed
+against any cost parameter that floors it; and it must trace to a sourced input.
+The electricity marginal cost fails the first two tests, which is the origin of the
+levelized-cost choice above. Preliminary work applying the same protocol to the
+land balance of the Philippine case finds the same failure modes there, so we treat
+the protocol as part of the framework rather than a one-off diagnosis.
+\end{remark}
+
 \subsection{The energy channel: electricity's two uses}
 \label{sec:routes}
 
