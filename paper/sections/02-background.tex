@@ -1,18 +1,73 @@
 \section{Background and Related Work}
 \label{sec:background}
 
-% TODO(background): keep tight; can be merged into the intro if the venue prefers.
-%  - Energy-economy coupling traditions:
-%      * hard links: MESSAGE-MACRO, TIMES-MACRO, MERGE -- a macro production/utility
-%        block solved jointly with the energy LP, but against a representative agent.
-%      * soft links / iterative coupling: exchange of prices and quantities until a
-%        fixed point; our approach sits here.
-%      * IAMs (DICE/RICE family): aggregate, no technology detail, no heterogeneity.
-%  - CLEWS / OSeMOSYS lineage (Howells et al.): integrated climate-land-energy-water
-%    least-cost planning; what it does and does not represent.
-%  - OG-Core lineage: Auerbach-Kotlikoff OLG dynamic fiscal policy; the open-source
-%    OG-Core / country-calibrated family (OG-USA, OG-PHL); multi-industry extension.
-%  - Distributional energy/climate policy incidence; revenue-recycling literature.
-%  - Where this paper adds: a behaviourally + fiscally + demographically rich OLG core
-%    soft-linked to an engineering energy model, with marginal-cost price feedback and an
-%    explicit channel taxonomy.
+% Tight by design: the companion paper (paper-intro/) reviews the integration
+% literature in full; this section compresses it to the methods-relevant facts and
+% adds the model lineages and the health strand.
+
+Energy-system and macroeconomic models have been joined since the oil shocks of the
+1970s, in four families; the companion paper \citep{lafleur_linkages} reviews them in
+full, and here we compress the review to the fact that organises it: each family is
+defined by what it requires the macroeconomic side to be. \emph{Hard links} solve one
+program---MARKAL-MACRO attached a one-sector Ramsey growth model to the MARKAL energy
+system \citep{manne_wene_1992}, and MESSAGE-MACRO \citep{messner_schrattenholzer_2000},
+MERGE \citep{manne_merge_1995}, and the TIMES family \citep{loulou_times_2008} carry
+the design forward---so they require the economy to expose a scalar intertemporal
+objective: one representative agent, no ages, no income groups, no operational
+government budget. \emph{Hybrid} computable-general-equilibrium (CGE) models embed
+discrete technologies inside a top-down economy
+\citep{bohringer_rutherford_2008,hourcade_hybrid_2006}, so they require the economy
+to be formulated jointly with the technology block; in practice the economy is
+recursive-dynamic and heterogeneous by income at best---\citet{rausch_2011} estimate
+carbon-price incidence across income groups, and \citet{goulder_hafstead_2017} build
+the national policy workhorse---but it carries no cohorts and no demography.
+\emph{Integrated assessment models} in the DICE lineage \citep{nordhaus_dice_2008}
+aggregate both sides to study global abatement; the \citet{stern_2007} versus
+\citet{nordhaus_stern_2007} controversy turned on a discount rate that must be
+\emph{assumed}, because a one-agent model has no market to reveal one. \emph{Soft
+links} keep both models intact and exchange solved results---\citet{wene_1996}
+formalises the approach and its convergence logic, \citet{krook_riekkola_2017}
+document the practice in a Swedish TIMES--CGE pairing, and
+\citet{helgesen_tomasgard_2018} compare linking with full integration---so they
+require of the macro side only that the exchanged quantities be well defined.
+
+The macroeconomic partner in all four families lacks age structure, and this is the
+binding constraint for the present exercise. An overlapping-generations economy is an
+equilibrium among cohorts, not a planner's optimum: it exposes no scalar welfare
+objective, so the hard-link route is structurally unavailable
+(\Cref{ass:hardlink}), and its forward-looking life-cycle behaviour does not fit the
+recursive-dynamic hybrid mould. The OLG literature itself has taken up climate
+policy---\citet{kotlikoff_2021} measure the generational incidence of carbon
+taxation---but with climate entering through an aggregate damage function rather
+than a planned energy system. The combination of bottom-up energy-land-water
+technology with an OLG economy under fiscal closure is, to our knowledge, the cell
+the literature leaves open; reaching it requires the soft-link method, applied to a
+macroeconomic partner the tradition has not used.
+
+The two models paired here are each the open-source, country-owned representative of
+its lineage. \CLEWS{}---Climate, Land, Energy and Water Systems
+\citep{howells_clews_2013}---is a least-cost planning framework built on the
+\OSeMOSYS{} optimiser \citep{howells_osemosys_2011} and developed with national
+teams, so that the energy-side model of a given country is the one its planners
+already maintain. \OGCore{} \citep{debacker_evans_ogcore} descends from the
+Auerbach--Kotlikoff tradition of dynamic fiscal policy \citep{auerbach_kotlikoff_1987}
+as an open-source platform with country calibrations and a multi-industry
+production side; households indexed by age and lifetime income, explicit tax
+instruments, and a government that closes its budget are native structure, not
+extensions. Both are models that countries can obtain, run, and audit---the
+practical criterion for a coupling meant to be re-pointed across countries.
+
+What this paper adds sits at the level of the interface. The soft-link literature
+established the exchange-and-iterate method, but its interfaces are bespoke to each
+study: which quantities cross, in which units, entering which equations, is settled
+ad hoc and documented unevenly. The framework of \Cref{sec:framework} makes the
+interface itself the object of design---named channels carrying one signal into one
+wedge, guards that fire on ill-posed mappings, accounting principles that keep any
+cost from entering twice, a country-agnostic contract, and a regression-locked
+validation record. Two further strands are folded in rather than appended. The
+health co-benefits of decarbonisation, ordinarily valued outside the economic model
+from concentration-response functions \citep{gbd_2019_risk,burnett_gemm_2018}, enter
+here as demographic wedges---age-specific mortality and effective labour---inside
+general equilibrium (\Cref{sec:ch-health}). And the discount rate that integrated
+assessment must assume is, in a coupled OLG economy, an equilibrium object the
+economy can supply to the energy planner (\Cref{sec:ch-discount}).
