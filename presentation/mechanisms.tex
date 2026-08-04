@@ -217,31 +217,67 @@ economic interpretation, model representation, and validation status}
   paper/sections/06-calibration.tex.}
 \end{frame}
 
-% 7 ----------------------------------------------------------------------------
-\begin{frame}{Electricity enters through firms' costs and household budgets}
+% 7a ---------------------------------------------------------------------------
+\begin{frame}{Who pays when electricity gets $5\%$ dearer --- and how the model charges them}
   \centering
-  \resizebox{0.94\linewidth}{!}{%
-  \chainrow{electricity price,\\reform/baseline ratio $g_t$}{%
-    intermediate share: cost-push on $Z_m$\\
-    final share: wedge $1+\tau^{c,r}_{i_e}=g_t(1+\tau^{c,b}_{i_e})$}{%
-    cost of production $\uparrow$\\cost of living $\uparrow$, regressive}}
+  \renewcommand{\arraystretch}{1.12}
+  {\scriptsize
+  \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.20\textwidth} c >{\raggedright\arraybackslash}p{0.21\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.20\textwidth}@{}}
+    \toprule
+    Buyer & Share & In \OGCore{}? & How the channel charges them & What it delivers \\
+    \midrule
+    \textbf{Industries}\newline (electricity as an input) & $\sim\tfrac34$ &
+      \textbf{missing} --- no firm buys from any firm &
+      cost-push by hand: $Z_j \mathrel{/}= 1+\varphi_j(g{-}1)$, with $\varphi_j$ =
+      each industry's electricity cost share from the SAM &
+      the \emph{real resource cost} (contractionary) \\
+    \textbf{Households}\newline (electricity bills) & $\sim\tfrac14$ &
+      present, via the energy good &
+      price wedge $1+\tauc \leftarrow g\,(1+\tauc)$; revenue rebated lump-sum via
+      the transfer share $\alpha_T$ &
+      \emph{relative price + incidence}, fiscally neutral \\
+    \emph{Electricity's self-use} & --- & --- & removed from $\varphi$ &
+      each peso enters \emph{once} \\
+    \bottomrule
+  \end{tabularx}}
+  \par\smallskip
+  {\raggedright\footnotesize The partition is the design: the wedge is deliberately
+  revenue-neutral --- a price rise is a resource cost, not a tax; unrebated, it would
+  smuggle in a fiscal consolidation --- and the resource cost is carried on the
+  production side, sized by the SAM.\par}
+  \srcnote{paper/sections/04-framework.tex, who-pays subsection;
+  channels.py energy\_price / energy\_cost\_push; \_recycle\_via\_transfers.}
+\end{frame}
+
+% 7b ---------------------------------------------------------------------------
+\begin{frame}{Why the firm-side route alone reaches only a quarter of the shock}
+  \small Prices in \OGCore{} are outcomes, not dials --- but $p_m\propto 1/Z_m$
+  under zero-profit pricing, so lowering electricity's $Z$ makes the model produce
+  the higher price \emph{endogenously}. Follow it:
   \medskip
-  \begin{itemize}\small\setlength\itemsep{3pt}
-    \item the price splits by \emph{use}: roughly three quarters of Philippine
-          electricity is an industry input (an input--output-calibrated cost-push
-          on industry productivities), one quarter household consumption
-          (a consumption-price wedge); self-use netted so nothing enters twice
-    \item neither side alone is the channel: the wedge is close to output-neutral,
-          the cost-push contractionary --- only the composite carries the price
-          into both margins
-    \item with a subsistence floor, poorer households spend a larger energy share
-          $\Rightarrow$ incidence is regressive even under full revenue recycling
-  \end{itemize}
-  \smallskip
-  {\color{sub}\small The structural destination --- energy as a priced production
-  input --- is specified but out of scope.}
-  \srcnote{paper/sections/04-framework.tex, the energy channel; SAM shares in
-  paper/sections/06-calibration.tex.}
+
+  \centering
+  \begin{tikzpicture}[node distance=5mm and 7mm]
+    \node[wdg] (z) {$Z_{\text{elec}}\downarrow$\\(divide by $g$)};
+    \node[wdg, right=of z] (pm) {$p_{m,\text{elec}}\uparrow$\\endogenously};
+    \node[eff, right=of pm] (io) {consumption bridge\\$p_i=\sum_m \omega_{im}p_m$\\(fixed $I{\times}M$)};
+    \node[sig, right=of io] (hh) {energy good dearer\\$\to$ households pay\\($\sim\tfrac14$ of the shock)};
+    \node[draw=black!35, fill=white, rounded corners=1.5pt, inner sep=5pt,
+          font=\footnotesize, align=center, below=9mm of io] (dead)
+          {other industries' costs\\\textbf{no path} --- no firm buys electricity\\($\sim\tfrac34$ of the shock undelivered)};
+    \draw[ch] (z) -- (pm); \draw[ch] (pm) -- (io); \draw[ch] (io) -- (hh);
+    \draw[ch, dashed] (pm.south) |- (dead.west);
+    \node[font=\footnotesize\bfseries, text=claret, right=2mm of dead.east] {$\times$};
+  \end{tikzpicture}
+  \medskip
+
+  {\raggedright\footnotesize The route is correct but \emph{incomplete by
+  construction}: the only electricity buyers in the model are households --- and it
+  encodes a system-cost change as an electricity-technology change. Hence the split:
+  the wedge for the household quarter, the SAM-sized cost-push for the industrial
+  three quarters, until firms buy electricity inside the model.\par}
+  \srcnote{channels.py energy\_price\_tfp docstring; ogcore firm.py get\_pm,
+  SS.py:277 (p\_i = io\_matrix @ p\_m).}
 \end{frame}
 
 % 8 ----------------------------------------------------------------------------

@@ -68,22 +68,36 @@ it mechanically books government revenue (§4).
 ### (b) `energy_price_tfp` — the firm-side route (`channels.py:142`). This IS Jason's suggestion.
 
 Jason asked: *"why not put it on the firm side — since there's already a p_m, maybe
-they get p_m minus something?"* OG-Core has no producer-price-wedge parameter, but it
-has an exact equivalent handle: divide the electricity industry's TFP,
-`Z[:, e] /= r`. Under zero-profit pricing, `p_m ∝ 1/Z` holding factor prices
-(`firm.py:566`, `get_pm`), so OG-Core *produces* the higher electricity price
-endogenously, and the `io_matrix` carries it into the energy good's consumer price —
-**with** the general-equilibrium response (r, w, and electricity's own K, L, Y all
-adjust) that the τ^c wedge discards.
+they get p_m minus something?"* — a producer-side representation instead of a
+consumer tax. We can't do literally that: OG-Core has no parameter that drives a gap
+between what a firm's output sells for and what the firm receives. Prices in OG-Core
+aren't set by a dial — they're an *outcome*: every industry prices at cost (zero
+profit), so `p_m` is whatever it costs to produce one unit.
 
-**Why this still isn't enough — the answer that was missing in the room:** because of
-§1, the endogenous `p_m` rise *still reaches only consumption*. Manufacturing never
-feels it: no firm buys electricity in the model. The Z route re-prices the energy
-*good*; it cannot re-price other industries' *inputs*. And it has a second, subtler
-cost: it represents a **system**-cost change as an electricity-**technology** change,
-so electricity's own K/L/Y respond to something that is not actually a productivity
-event in the scenario (compare the capital-share lesson in channel note 3,
-forthcoming).
+But because price = unit cost, there *is* a dial that moves `p_m`: productivity. If
+electricity's `Z` falls 5%, producing a unit takes ~5% more inputs, so its unit cost
+— and therefore its price — rises ~5% (`firm.py:566`, `get_pm`; `p_m ∝ 1/Z` holding
+factor prices). That's `Z[:, e] /= r`: we change one deep parameter, and the higher
+price *emerges from the model's own equilibrium* — which is exactly what Jason wanted.
+And because it emerges in equilibrium, everything responds: wages, the interest rate,
+electricity's own K and L. That's the GE response the τ^c wedge doesn't have.
+
+**Why it's still not enough — trace who actually pays.** In reality, two kinds of
+buyers pay a higher electricity price: households (their bills) and **industries
+(the electricity they use in production — three quarters of all use).** In OG-Core,
+only the first group exists: no firm buys anything from any other firm, so there is
+no line in manufacturing's cost function where electricity appears — at any price.
+Trace the Z route through: electricity's Z falls → `p_m` rises → the energy
+*consumption good* gets dearer → **households pay. Full stop.** Manufacturing's
+costs, prices, and decisions: unchanged. The three quarters of the shock that
+industrial buyers should pay vanishes, because those buyers don't exist in the model.
+The route is not wrong — it is *incomplete by construction*: it can deliver the shock
+only to the quarter of its real-world destination the model represents.
+
+A second, subtler liability: it encodes a **system**-cost change as an
+electricity-**technology** change, so the sector's own K/L/Y reorganise in response
+to a productivity event that did not occur in the scenario (compare the
+capital-share lesson, channel note 3, forthcoming).
 
 ### (c) `energy_cost_push` — the missing-intermediates proxy (`channels.py:185`)
 

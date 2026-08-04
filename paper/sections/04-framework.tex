@@ -134,66 +134,114 @@ land balance of the Philippine case finds the same failure modes there, so we tr
 the protocol as part of the framework rather than a one-off diagnosis.
 \end{remark}
 
-\subsection{The energy channel: electricity's two uses}
+\subsection{The energy channel: who pays when electricity gets dearer}
 \label{sec:routes}
 
-The shipped \OGCore{} contains no energy as a produced, priced input to firms:
-households consume an ``energy good,'' but the firm's technology combines only private
-capital, public capital, and labour (\Cref{sec:og}). An electricity-price change
-therefore has no native door into production. The energy channel represents it through
-electricity's \emph{two} uses---what households consume directly and what industries buy
-as an input---combined into one transmission; a fully structural third form is the
-destination.
+The design of this channel follows from asking one question concretely: when the
+reform makes a delivered unit of electricity about $5\%$ more expensive, \emph{who
+pays}? In the Philippine social accounting matrix the answer has two parts: industries,
+which buy roughly three quarters of electricity as a production input, and households,
+which consume the remaining quarter directly. A faithful transmission must reach both
+groups of buyers, and must charge each peso of the increase exactly once.
 
-\paragraph{The consumption side: a household wedge.}
-For the electricity households consume directly, the price enters as a consumption-tax
-wedge on the energy good $i_e$. Writing $g_t \equiv \pi^{r}_t/\pi^{b}_t$ for the
-reform-to-baseline electricity-price ratio delivered by \CLEWS{}, the wedge is set so the
-gross-of-tax price multiplier inherits that ratio,
+The difficulty is that only one of those buyer groups exists in \OGCore{}. Two
+structural facts, stated exactly. First, production is value added only: each industry
+produces with private capital, public capital, and labour (\Cref{sec:og}), and
+\emph{no firm buys anything from any other firm}---there is no line in the
+manufacturing sector's cost function where electricity appears, at any price. Second,
+the model's input--output object is a \emph{consumption} bridge, not an
+intermediate-use matrix: a fixed $\Igood\times\Mind$ map that converts industry
+outputs into consumption goods, $p_i=\sum_m \omega_{im}p_m$, with no substitution
+across industries. Electricity's price can therefore reach households through the
+goods bridge, but the three quarters of the increase that industrial buyers should
+pay has no structural path---the buyers are missing from the model. Everything in
+this subsection is the consequence of that fact.
+
+\paragraph{The firm-side route, and why it delivers only a quarter of the shock.}
+The natural first instinct is to represent the change at the electricity
+\emph{producer}: let the industry price $p_{m_e}$ itself rise, and let households
+respond to that. \OGCore{} has no parameter that inserts a wedge between what a
+firm's output sells for and what the firm receives---prices are outcomes, not
+dials---but it has an exact equivalent handle. Because every industry prices at unit
+cost (zero profit), $p_m$ is proportional to $1/\TFP_m$ holding factor prices, so
+dividing the electricity industry's productivity by the price ratio,
+$\TFP_{m_e}\to\TFP_{m_e}/g_t$, makes the model \emph{produce} the higher electricity
+price endogenously---with the full general-equilibrium response of wages, the
+interest rate, and the sector's own inputs that a tax wedge does not have. This route
+is implemented (\texttt{energy\_price\_tfp}). Now trace where the higher price goes.
+It flows through the consumption bridge into the energy good, and households pay it.
+It goes nowhere else: manufacturing's costs, prices, and decisions are untouched,
+because manufacturing buys no electricity in the model. The route is not wrong---it is
+\emph{incomplete by construction}: it can deliver the shock only to the quarter of its
+real-world destination that the model represents. It also has a subtler liability: it
+encodes a \emph{system}-cost change as an electricity-\emph{technology} change, so the
+sector's own capital and labour reorganise in response to a productivity event that
+did not occur in the scenario.
+
+\paragraph{The household quarter: a consumption wedge, made fiscally inert.}
+The deployed channel therefore carries the household share through the more surgical
+instrument: a consumption-tax wedge on the energy good $i_e$, set so the gross-of-tax
+price inherits the ratio,
 \begin{equation}
-  1 + \tau^{c,r}_{t,i_e} \;=\; g_t\,\bigl(1 + \tau^{c,b}_{t,i_e}\bigr).
+  1 + \tau^{c,r}_{t,i_e} \;=\; g_t\,\bigl(1 + \tau^{c,b}_{t,i_e}\bigr),
   \label{eq:routeA}
 \end{equation}
-Households then face $(1+\tauc_{t,i_e})\,p_{i_e,t}$: the quantity of energy falls, the
-composite price rises, and---because energy is a partial necessity---the burden is
-regressive, the channel's distinctive incidence output. Because $\tauc$ is a fiscal
-instrument, the mapping mechanically credits the government with consumption-tax revenue
-that is economically a resource cost, not income---``phantom revenue'' that must be
-recycled (\Cref{sec:discipline}). This side alone is close to output-neutral: it
-reshuffles consumption rather than shrinking output (\Cref{sec:results}).
+where $g_t \equiv \pi^{r}_t/\pi^{b}_t$ is the \CLEWS{} price ratio. Households then
+face $(1+\tauc_{t,i_e})\,p_{i_e,t}$ exactly where \OGCore{} puts consumption taxes:
+in the cost-of-living index, in subsistence spending, and in the sub-good demand.
+Demand falls, and---because energy is a partial necessity---the burden is regressive,
+the channel's distinctive incidence output. The wedge raises what households pay
+without fabricating a technology event inside the electricity sector; its cost is
+fiscal bookkeeping. A consumption tax mechanically credits the government with
+revenue, but an electricity-price increase is not a tax: it is a real resource cost,
+and no government receives it. Left alone, the wedge would therefore smuggle an
+accidental fiscal consolidation into the run---extra revenue retiring debt under the
+closure rule. The channel neutralises this by returning the wedge's revenue to
+households as a lump-sum transfer (a bump to the transfer share $\alphaT$, estimated
+on baseline quantities): the wedge is \emph{revenue-neutral by construction},
+delivering relative prices and incidence and nothing else. This side alone is close
+to output-neutral: it reshuffles consumption rather than shrinking output
+(\Cref{sec:results}).
 
-\paragraph{The intermediate side: an inter-industry cost-push.}
-For the (larger) share of electricity that industries buy as an input, the price raises
-firms' costs. Lacking energy in production, the channel proxies this as a per-industry
-productivity loss sized by input--output cost pass-through. Let
-$\boldsymbol\theta=(\theta_1,\dots,\theta_{\Mind})$ be the direct electricity cost shares
-and $A$ the matrix of interindustry input coefficients. A proportional price increase
-$\hat p_E$ raises industry $m$'s unit cost directly by $\theta_m\hat p_E$ and, through
-purchased intermediates, indirectly; summing the Leontief series gives the total
-cost-push
+\paragraph{The industrial three quarters: delivered by hand.}
+For the share the missing buyers should pay, the channel does the only thing the
+structure allows: it raises each industry's costs directly, by the amount its
+electricity purchases imply. Let
+$\boldsymbol\theta=(\theta_1,\dots,\theta_{\Mind})$ be the direct electricity cost
+shares and $A$ the matrix of interindustry input coefficients, both read from the
+social accounting matrix. A proportional price increase $\hat p_E$ raises industry
+$m$'s unit cost directly by $\theta_m\hat p_E$ and, through purchased intermediates,
+indirectly; summing the Leontief series gives the total cost-push
 \begin{equation}
   \hat{\mathbf c} \;=\; (I - A^{\!\top})^{-1}\,\boldsymbol\theta\,\hat p_E ,
   \label{eq:routeB}
 \end{equation}
-applied as a haircut $\TFP^{r}_m = \TFP^{b}_m\,(1-\kappa_m)$ with $\kappa_m$ the
-gross-output cost increase of industry $m$---and electricity's own self-use netted out,
-so it is not double-counted with the consumption wedge. This is the contractionary,
-wage-bearing side, with the correct output sign (\Cref{sec:results}). It remains a proxy:
-firms do not substitute away from energy, no energy market clears, and mapping a
-gross-output cost onto value-added productivity is conservative rather than exact.
+applied as a productivity haircut $\TFP^{r}_m = \TFP^{b}_m\,(1-\kappa_m)$, with
+$\kappa_m$ the gross-output cost increase of industry $m$ and electricity's own
+self-use netted out so that nothing appears in both legs. The \emph{size} of the
+shock comes from data; the \emph{mechanism} is imposed, because the structural door
+does not exist. That is the honest characterisation of this leg: it is the
+first-order cost pass-through an intermediate-input structure would deliver, without
+the structure---firms do not substitute away from electricity, and no energy market
+clears. It is the contractionary, wage-bearing side, with the correct output sign
+(\Cref{sec:results}).
 
-\begin{remark}[The channel is the composite, not one side]
+\begin{remark}[The channel is the composite, with a division of labour]
 \label{rem:ab-contrast}
-The deployed energy channel applies \emph{both} sides at once, weighted by electricity's
-final-versus-intermediate split in the country's social accounting matrix (for the
-Philippines, roughly one-quarter final, three-quarters intermediate). Neither side alone
-is the channel: the consumption wedge is close to output-neutral, the cost-push is
-materially contractionary (\Cref{sec:results}), and only together do they carry an
-electricity-price change into both the cost of living and the cost of production.
+The deployed energy channel applies both legs at once, weighted by electricity's
+final-versus-intermediate split in the country's social accounting matrix. The
+division of labour is deliberate: the \emph{wedge} carries relative prices and
+incidence, fiscally neutralised by the rebate; the \emph{cost-push} carries the real
+resource loss, as destroyed productive capacity. Neither alone is the channel---the
+wedge is close to output-neutral, the cost-push materially contractionary
+(\Cref{sec:results})---and each peso of the price increase enters exactly once:
+intermediate exposure through $\boldsymbol\theta$, final exposure through the wedge,
+the overlap (self-use) removed.
 \end{remark}
 
-\paragraph{The structural ideal: energy as a priced production input.}
-The faithful form would nest energy with value added in the firm's technology,
+\paragraph{The structural ideal: put the missing buyers into the model.}
+The fix for all of the above is structural: give firms the electricity purchases they
+are missing, by nesting energy with value added in the technology,
 \begin{equation}
   Y^{\text{gross}}_m
   \;=\; \TFP_m\Bigl[\,\omega_m\, VA_m^{\frac{\sigma_{E,m}-1}{\sigma_{E,m}}}
@@ -214,8 +262,11 @@ added net of energy purchases, and the energy price feeds firm cost endogenously
 that the fixed point of \Cref{def:fixedpoint} closes the loop on quantities as well as
 prices. The substitution elasticities $\sigma_{E,m}\in[0.3,0.8]$ are available from the
 energy-CGE literature and the cost shares $\theta_m$ are already calibrated from the
-Philippine social accounting matrix (\Cref{sec:calibration}). It would replace the
-intermediate side's cost-push proxy with a true priced input, but requires a
+Philippine social accounting matrix (\Cref{sec:calibration}); indeed the SAM already
+contains the full intermediate-use block, so the barrier is \OGCore{}'s firm side,
+not data. With it, the two-legged composite collapses into one mechanism---firms
+substitute away from expensive electricity, an energy market clears, and the fixed
+point of \Cref{def:fixedpoint} closes on quantities as well as prices. It is a
 production-side extension to \OGCore{} itself, out of scope here.
 
 \subsection{Architecture: a staged soft link}
