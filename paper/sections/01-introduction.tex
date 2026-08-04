@@ -35,9 +35,9 @@ signals into \OGCore{} (the energy price, public grid investment, generation
 capital intensity, and air-quality health), two are policy instruments applied once
 to both models (a carbon price and an investment tax credit), and two read
 \OGCore{} outputs back to \CLEWS{} (the equilibrium return and sectoral activity).
-Around the channels sits an accounting discipline---stated as principles, each
-enforced by a guard in the code---whose single purpose is that no economic quantity
-is counted twice. The machinery is country-agnostic: no country, industry index, or
+Around the channels sits an accounting discipline---stated as principles, enforced
+by guards in the code and by the rules of experiment composition---whose single
+purpose is that no economic quantity is counted twice. The machinery is country-agnostic: no country, industry index, or
 industry count is hard-coded, and the same channels re-point at another country
 through a declared interface contract.
 
@@ -96,8 +96,9 @@ appended to an energy model's output.
 
 We validate the machinery end-to-end on the Philippines: the country's \CLEWS{}
 case---a baseline against an announced energy-policy reform---coupled to a
-multi-industry \OGCore{} calibration, with every reported number regression-locked
-in a committed record. The reform raises the levelized cost of electricity about
+multi-industry \OGCore{} calibration, with each experiment's macroeconomic
+aggregates regression-locked in a committed record (sectoral and interface
+quantities are reproduced from the solved outputs and qualified where they appear). The reform raises the levelized cost of electricity about
 $5\%$ on average, peaking near $16\%$ around 2030. Four results characterise the
 coupled response. The macroeconomic effect changes sign with the horizon: output is
 about $+0.2\%$ along the first decade of the transition---the working-age morbidity

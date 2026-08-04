@@ -58,7 +58,9 @@ principle): in \OGCore{} as an add-on to the energy-good wedge,
 $\Delta\tauc_{i_e}=\text{(carbon price)}\times\text{deflator}\times\text{carbon
 intensity}/p^{b}_{i_e}$, and in \CLEWS{} as an emissions-penalty path. Because \OGCore{}
 has no energy in production, only \emph{household} energy carbon is priced on the macro
-side; industrial carbon is priced only in \CLEWS{}. Revenue is recyclable through
+side; industrial carbon is priced only in \CLEWS{}. In the present one-pass validation
+the \CLEWS{}-side path is \emph{emitted} as a ready input; it shapes the build mix only
+when the energy model is re-solved on it. Revenue is recyclable through
 transfers. Magnitudes are illustrative until the unit/deflator bridge and the carbon
 intensity are calibrated (\Cref{sec:calibration}).
 
@@ -182,7 +184,13 @@ by an emissions signal---is distinctively what an overlapping-generations core a
 After the reform solves, this channel reads \OGCore{}'s equilibrium market return $\rp$
 (a multi-period mean) and writes it to \CLEWS{}'s \texttt{DiscountRate}, so that energy
 planning uses the model-consistent cost of capital: a lower $\rp$ favours capital-heavy,
-long-lived assets. The effect on the macro economy returns only once the soft link
+long-lived assets. The mapping is a \emph{harmonisation convention}, not a structural
+equality: \texttt{DiscountRate} is the rate at which the least-cost planner discounts
+system cost, while $\rp$ is the economy's equilibrium portfolio return, and equating
+them asserts that energy planning should discount at the economy's opportunity cost of
+capital---leaving risk premia, tax treatment, and the real/nominal convention as
+explicit harmonisation choices rather than resolved economics. The effect on the macro
+economy returns only once the soft link
 iterates (\Cref{sec:architecture}); standalone, it is inert by construction.
 
 \subsection{Demand (\OGCore{} to \CLEWS{})}\label{sec:ch-demand}

@@ -15,10 +15,13 @@ like the quantities, as percent changes from baseline.
 The \chan{coupled} experiment applies, in one reform: the real \CLEWS{} electricity price
 (the ``auto'' source---a cost-of-electricity index or the reconstructed levelized cost,
 \Cref{sec:signal}) through the composite transmission of \Cref{sec:routes}
-(inter-industry cost-push plus a recycled household wedge); public grid investment; a
-\$50/tCO\textsubscript{2} carbon price on the \CLEWS{} side; and the Global Burden of
-Disease health channel; then it emits the equilibrium return and activity back to
-\CLEWS{}. The real Philippine electricity price rises about $5\%$ on average
+(inter-industry cost-push plus a recycled household wedge); public grid investment; and
+the Global Burden of Disease health channel; then it emits, alongside the equilibrium
+return and activity, a \$50/tCO\textsubscript{2} carbon-price input for the energy
+model. The emitted signals are inert in a single pass, so no carbon-price effect enters
+the numbers reported here---the underlying \CLEWS{} reform is a policy-composition
+scenario whose solve carries no emissions penalty, and the macro response reflects its
+prices, investment, and emissions alone. The real Philippine electricity price rises about $5\%$ on average
 (\Cref{sec:calibration}); the coupled run moves electricity output by $-2.0\%$.
 
 The response is a positive transition and a negative steady state
@@ -58,7 +61,7 @@ negative ($-0.14\%$). Source: \texttt{results/figures/coupled\_transition.png}.}
 \label{fig:transition}
 \end{figure}
 
-\subsection{Channel decomposition}
+\subsection{Standalone mechanism experiments}
 \label{sec:decomposition}
 Table~\ref{tab:phl-channels} reports \emph{runnable experiments}, each isolating one
 mechanism as a standalone reform---so \chan{energy\_price} is the household wedge of
@@ -66,8 +69,10 @@ the energy channel alone, on the real price (the composite is what \chan{coupled
 transmits), and \chan{clean\_incidence} is its recycled variant;
 \Cref{fig:channel-impact} plots the steady-state output impacts. Four things stand out,
 all as \Cref{sec:channels} anticipates.
-The \emph{energy-price} channel is small ($Y_{ss}=-0.006\%$): the real Philippine
-electricity price rises about $5\%$ and, honestly transmitted, moves aggregate output
+The household-wedge \chan{energy\_price} experiment is small ($Y_{ss}=-0.006\%$): the
+real Philippine
+electricity price rises about $5\%$ and, honestly transmitted through the wedge, moves
+aggregate output
 little---the illustrative $+20\%$ shocks of earlier work were doing the work, not the
 data. \emph{Carbon} is the clearest standalone contraction ($Y_{ss}=-0.021\%$): a
 resource cost that shrinks capital and labour. \emph{Capital intensity} barely moves
@@ -77,14 +82,19 @@ near-term---the morbidity productivity gain.
 The forward emitters (\chan{discount\_rate}, \chan{demand}) and \chan{investment} are
 $\approx 0$ as standalone reforms: the Philippine public grid-capex delta is small, and
 the emitters only feed \CLEWS{} until the loop closes. Finally, the coupled steady state
-($-0.138\%$) is well beyond the sum of the standalone channels ($\approx-0.02\%$): the
-channels interact in general equilibrium, so the standalone table is a diagnostic
-reading, not an additive accounting of the coupled run.
+($-0.138\%$) is not reproduced by summing these isolating experiments
+($\approx-0.02\%$)---nor should it be: the isolating configurations do not collectively
+duplicate the application treatment (the energy price, for one, enters the standalone
+row as the household wedge alone but enters \chan{coupled} as the composite), and
+channels sharing a general equilibrium can interact. A matched cumulative
+decomposition---a sequence of runs whose final step reproduces \chan{coupled}---is the
+instrument for attributing the difference; we do not attribute it here.
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{Per-channel steady-state response (percent change from baseline). Standalone
-reforms on the M=8 Philippine calibration. Source: \texttt{results/golden.json}.}
+\caption{Standalone mechanism experiments: steady-state response (percent change from
+baseline), one isolating reform per row, on the M=8 Philippine calibration.
+Source: \texttt{results/golden.json}.}
 \label{tab:phl-channels}
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
@@ -105,7 +115,9 @@ channel & $Y$ & $C$ & $K$ & $L$ & $r$ \\
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.82\linewidth]{golden_channel_impact}
-\caption{Per-channel steady-state output impact on the M=8 Philippine calibration.
+\caption{Steady-state output impact of the standalone mechanism experiments on the M=8
+Philippine calibration (the figure's ``by channel'' title predates the
+channel/experiment distinction of \Cref{sec:decomposition}).
 Source: \texttt{results/figures/golden\_channel\_impact.png}.}
 \label{fig:channel-impact}
 \end{figure}

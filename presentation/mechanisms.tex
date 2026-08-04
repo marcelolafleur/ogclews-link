@@ -474,9 +474,8 @@ and how each is represented in the model}
 \end{frame}
 
 \dgmframe{Closing the loop}{loop}{%
-  Iterate until energy demand stops changing. The re-solve seam is built and tested ---
-  feed the economy's demand back, re-solve the energy model in its own environment, read
-  the new price; a $+10\%$ demand test moved production $+4.3\%$. What remains is the
+  Iterate until energy demand stops changing. The re-solve seam is built and tested
+  (a controlled $+10\%$ demand patch moved production $+4.3\%$); what remains is the
   outer iteration and its damping.}
 
 % ===========================================================================
@@ -488,7 +487,7 @@ and how each is represented in the model}
   \begin{tikzpicture}[node distance=4.5mm and 4.5mm]
     \node[sig] (a) {the scenario's real electricity price,\\sent two ways: industry cost-push\\$+$ household wedge};
     \node[wdg, right=of a] (b) {public investment\\grid spending $\to$\\public capital};
-    \node[pol, right=of b] (c) {carbon price\\\$50/tCO$_2$\\(in the energy model)};
+    \node[pol, right=of b] (c) {carbon price\\\$50/tCO$_2$\\(emitted for the\\energy model's next solve)};
     \node[wdg, right=of c] (d) {health\\cleaner air $\to$ survival\\$+$ productivity};
     \node[eff, right=of d] (s) {\textbf{SOLVE}\\reform\\transition};
     \node[sig, right=of s] (f) {send back:\\return $+$\\energy demand};
@@ -503,10 +502,10 @@ and how each is represented in the model}
       {\footnotesize\begin{itemize}\setlength\itemsep{5pt}
         \item The real electricity price (its levelized cost) rises about $5\%$ on
               average, so the energy-price channels stay small ($-0.006\%$ alone).
-        \item Health carries the near-term gains; the steady-state contraction is
-              larger than the sum of the standalone channels --- the channels interact.
-        \item The $-0.021\%$ carbon number is the household-wedge channel applied by
-              itself, not an added second carbon price.
+        \item Health carries the near-term gains; the steady-state total is not the
+              sum of the standalone runs (they do not duplicate this treatment).
+        \item No carbon price acts in these numbers --- the reform solve carries no
+              emissions penalty; the \$50/tCO$_2$ is emitted for the return loop.
       \end{itemize}}
     \end{column}
     \begin{column}{0.40\textwidth}
