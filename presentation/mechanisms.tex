@@ -322,45 +322,42 @@ economic interpretation, model representation, and validation status}
 \end{frame}
 
 % 11 ---------------------------------------------------------------------------
-\begin{frame}{The model's own first-order condition settles the capital question}
-  \footnotesize
-  \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.50\textwidth}
-      Under Cobb--Douglas production, energy-industry capital demand satisfies
-      \[
-        K_E=\frac{\gamma_E\,p_E Y_E}{\rho_E},
-        \qquad
-        \hat K_E=\hat\gamma_E\,\hat p_E\,\hat Y_E
-      \]
-      (the user cost $\rho_E$ and taxes cancel in the reform/baseline ratio).
-      \smallskip
+\begin{frame}{Raising the capital share sheds capital; the tax credit draws it in}
+  \small
+  The first-order condition: capital is held in proportion to \emph{revenue},
+  \(K_E=\gamma_E\,p_E Y_E/\rho_E\) (share $\times$ revenue $\div$ cost of
+  capital). What the lever actually does:
+  \smallskip
 
-      Raising the capital \emph{share} does not pull capital in: the higher
-      exponent cuts unit cost, the electricity price collapses, and revenue ---
-      hence capital --- falls, despite higher output. The instrument that does
-      draw capital in is the tax credit, which enters $\rho_E$ where
-      $\gamma_E$ is absent.
-    \end{column}
-    \begin{column}{0.44\textwidth}
-      \renewcommand{\arraystretch}{1.2}
-      \begin{tabular}{@{}lr@{}}
-        \toprule
-        Earlier M=8 steady-state solve & Change \\
-        \midrule
-        capital exponent $\gamma_E$ & $+12.2\%$ \\
-        electricity price $p_E$ & $-42.8\%$ \\
-        electricity output $Y_E$ & $+20.9\%$ \\
-        electricity capital $K_E$ & $-22.4\%$ \\
-        identity gap & $0.023$\,pp \\
-        \bottomrule
-      \end{tabular}
-      \smallskip
+  \centering
+  \renewcommand{\arraystretch}{1.05}
+  {\footnotesize
+  \begin{tabular}{@{}clr@{}}
+    \toprule
+    & What happens & Measured \\
+    \midrule
+    1 & the lever raises the capital exponent & $\gamma_E$ $+12.2\%$ \\
+    2 & production gets cheaper; zero profit passes the cut into the price & $p_E$ $-42.8\%$ \\
+    3 & cheaper electricity raises demand and output & $Y_E$ $+20.9\%$ \\
+    4 & revenue $p_E Y_E$ \emph{falls} --- the price collapse outweighs the output gain & \\
+    5 & capital is a share of revenue, so capital \emph{falls} & $K_E$ $-22.4\%$ \\
+    \bottomrule
+  \end{tabular}}
+  \par\smallskip
+  {\raggedright\footnotesize The identity $\hat K_E=\hat\gamma_E\,\hat p_E\,\hat Y_E$
+  reproduces the $-22.4\%$ to within $0.023$\,pp: the attribution is exact, not a
+  narrative.\par}
+  \smallskip
 
-      {\color{sub}\scriptsize Evidence status: recomputed from the archived solved
-      steady states (2026-08-04); a re-run under the re-blessed baseline is
-      queued.}
-    \end{column}
-  \end{columns}
+  {\raggedright\textbf{The conclusion, stated plainly:} a higher capital
+  \emph{share} is not capital attraction. The instrument that attracts capital is
+  the investment tax credit --- it lowers the cost of capital $\rho_E$ in the
+  denominator, where $\gamma_E$ does not appear. Two levers, two different
+  equations, opposite effects on energy capital: never stack them.\par}
+  \smallskip
+  {\raggedright\color{sub}\scriptsize Evidence: recomputed from the archived M=8
+  solved steady states (2026-08-04); a re-run under the re-blessed baseline is
+  queued.\par}
   \srcnote{paper/sections/05-channels.tex, Table 2; SS\_vars recompute in
   docs/design/methods-paper-review-response.md.}
 \end{frame}
