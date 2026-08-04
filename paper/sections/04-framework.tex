@@ -25,28 +25,15 @@ in technology, dispatch, and emissions but blind to behaviour, the fiscal sector
 distribution. The information that usefully crosses the seam therefore differs by
 direction: from the macro side flow \emph{quantities}---sectoral activity and final
 demand; from the energy side flow \emph{prices and physical outcomes}---marginal
-costs, capital requirements, and emissions. The two primitives formalise the two
-directions.
-
-\begin{definition}[Signal]
-A \emph{signal} is a scalar or time path extracted from a solved \CLEWS{} scenario:
-the marginal cost on a commodity-balance constraint, the capital investment
-required by a build-out, the emissions of a fuel or period, or the marginal cost on an
-emissions constraint (an implied carbon price).
-\end{definition}
-
-\begin{definition}[Wedge]
-A \emph{wedge} is a parameter of \OGCore{} whose perturbation expresses a signal as a
-change in household or firm behaviour or in the government budget: the
-consumption-tax vector $\tauc$, an industry total-factor-productivity level $\TFP_m$,
-the public-investment share $\alphaI$, or the demographic objects---the age-specific
-mortality rate $\rho(s,t)$ and effective-labour profile $e(t,s,j)$.
-\end{definition}
-
-The term is used in its public-finance sense: the simplest channel
+costs, capital requirements, and emissions. Concretely, the signals in use are the
+marginal cost on a commodity balance, the capital a build-out requires, an emissions
+path, and the implied carbon price on a binding cap; the wedges they set are the
+consumption-tax vector $\tauc$, industry productivities $\TFP_m$, the
+public-investment share $\alphaI$, and the demographic objects $\rho(s,t)$ and
+$e(t,s,j)$---``wedge'' in its public-finance sense, since the simplest channel
 (\Cref{sec:routes}) literally inserts a tax wedge between the producer and consumer
-price of energy. A channel is then the composition of an extractor and an applicator,
-together with the validation that fires when a mapping is large or ill-posed.
+price of energy. A channel composes an extractor and its applicators with the
+validation that fires when a mapping is large or ill-posed.
 
 \begin{remark}[Realisation]
 The channels are plain functions in \texttt{channels.py} (those that run

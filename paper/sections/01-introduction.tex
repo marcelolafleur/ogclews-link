@@ -23,14 +23,12 @@ coupling as an explicit framework and reports the validation of each mechanism, 
 that the current state of the integration---what is built, what is verified, and
 what remains open---can be assessed, and criticised, at the level of its parts.
 
-The framework reduces the coupling to two primitives and a discipline. A
-\emph{signal} is a quantity read from a solved \CLEWS{} scenario: the electricity
-price, the capital a build-out requires, an emissions path. A \emph{wedge} is the
-\OGCore{} parameter that expresses it: a consumption-tax vector, an industry
-productivity level, the public-investment share, an age-specific mortality or
-effective-labour profile. A \emph{channel} is a named, guard-railed map from a
-signal to a deliberately partitioned set of wedges that never overlap---in the
-simplest channels, exactly one. Eight channels realise the coupling: four carry \CLEWS{}
+The framework reduces the coupling to two primitives and a discipline:
+\emph{signals} read from a solved \CLEWS{} scenario---the electricity price, the
+capital a build-out requires, an emissions path---enter through \emph{wedges}, the
+\OGCore{} parameters that express them, via named, guard-railed \emph{channels},
+each mapping one signal to a deliberately partitioned set of wedges that never
+overlap. Eight channels realise the coupling: four carry \CLEWS{}
 signals into \OGCore{} (the energy price, public grid investment, generation
 capital intensity, and air-quality health), two are policy instruments applied once
 to both models (a carbon price and an investment tax credit), and two read
