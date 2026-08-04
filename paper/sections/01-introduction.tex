@@ -1,36 +1,138 @@
 \section{Introduction}
 \label{sec:intro}
 
-% FRAMING: methods/framework paper for economists. The contribution to foreground is
-% the *architecture + channel taxonomy* (an auditable soft-link), not Philippine point
-% estimates. Sell the generality (country-agnostic registry); the OG-PHL run is proof
-% the machinery solves and signs are right.
-% TODO(intro):
-%  1. The complementarity / asymmetry gap.
-%     - CLEWS/OSeMOSYS: least-cost engineering optimizer; rich technology, emissions,
-%       sub-annual dispatch; BUT demand is price-inelastic, no behaviour, no fiscal
-%       sector, no distribution, single representative consumer of "cost".
-%     - OG-Core: OLG general equilibrium; rich households (J income x S age), firms,
-%       government budget closure, welfare; BUT energy is invisible -- no technology,
-%       no emissions, no energy as a priced input to production.
-%     - The interface is asymmetric and complementary: macro -> energy passes
-%       quantities (demand, activity); energy -> macro passes prices/marginal costs.
-%  2. Why not a hard link (state as a theoretical conclusion, not convenience):
-%     OG solves an OLG *transition path*; OSeMOSYS is a single *perfect-foresight* LP;
-%     OG has no scalar welfare to fold the LP into; shocks cannot be injected mid-solve.
-%     => a staged *soft* link is the right object.
-%  3. Contribution:
-%     - a channel-based coupling: each channel = one CLEWS signal -> one OG wedge,
-%       small, auditable, with explicit no-double-counting discipline.
-%     - eight channels spanning price, fiscal, capital (factor-share + capital-demand),
-%       demographic, and feedback links.
-%     - the load-bearing idea: the *commodity marginal cost* is the correct
-%       price signal; it both makes demand price-responsive and reveals incidence.
-%     - a distinctive demographic *health* channel (emissions -> dose-response ->
-%       mortality + morbidity -> population + effective labour).
-%     - an honest "maturity ladder": structural vs reduced-form, one-way vs iterated.
-%  4. Results preview + roadmap of the paper.
+% Division of labor: the companion paper (paper-intro/, \citep{lafleur_linkages})
+% motivates the link and positions it in the literature; THIS paper is the formal
+% development and validation — the current state of the integration.
 
-% Position vs hard-linked energy-macro models (MESSAGE-MACRO, TIMES-MACRO, MERGE) and
-% reduced-form IAMs: those couple to a single representative agent / aggregate welfare;
-% here the macro core is an OLG GE with heterogeneity, fiscal closure, and demography.
+How should a bottom-up model of a country's energy system be joined to a
+general-equilibrium model of its economy so that each number crossing the boundary
+has a stated economic meaning, enters exactly once, and can be audited? The question
+is practical. Least-cost planning frameworks in the \CLEWS{} tradition
+\citep{howells_clews_2013,howells_osemosys_2011} decide what a national energy
+transition builds and runs, but they contain no households, firms, or government,
+and no price that any agent responds to. Overlapping-generations (OLG)
+general-equilibrium platforms such as \OGCore{} \citep{debacker_evans_ogcore} carry
+behaviour, fiscal closure, and the distribution of welfare across ages and incomes,
+but no energy technology---in the shipped model, energy is not even a priced input
+to production. Neither family alone can say what a transition plan does to output,
+prices, the public budget, or the households that bear it. A companion paper
+\citep{lafleur_linkages} develops that motivation and positions the work within the
+energy--macro integration literature; this paper is the formal side. It develops the
+coupling as an explicit framework and reports the validation of each mechanism, so
+that the current state of the integration---what is built, what is verified, and
+what remains open---can be assessed, and criticised, at the level of its parts.
+
+The framework reduces the coupling to two primitives and a discipline. A
+\emph{signal} is a quantity read from a solved \CLEWS{} scenario: the electricity
+price, the capital a build-out requires, an emissions path. A \emph{wedge} is the
+\OGCore{} parameter that expresses it: a consumption-tax vector, an industry
+productivity level, the public-investment share, an age-specific mortality or
+effective-labour profile. A \emph{channel} is a named, guard-railed map from one
+signal to one wedge. Eight channels realise the coupling: four carry \CLEWS{}
+signals into \OGCore{} (the energy price, public grid investment, generation
+capital intensity, and air-quality health), two are policy instruments applied once
+to both models (a carbon price and an investment tax credit), and two read
+\OGCore{} outputs back to \CLEWS{} (the equilibrium return and sectoral activity).
+Around the channels sits an accounting discipline---stated as principles, each
+enforced by a guard in the code---whose single purpose is that no economic quantity
+is counted twice. The machinery is country-agnostic: no country, industry index, or
+industry count is hard-coded, and the same channels re-point at another country
+through a declared interface contract.
+
+The link is soft---the models remain separate programs exchanging a small set of
+auditable files---and this is a conclusion rather than a convenience. \OGCore{}
+traces an OLG transition path period by period; \OSeMOSYS{} solves one
+perfect-foresight linear program over all years at once. Hard links in the
+\textsc{message-macro} tradition
+\citep{messner_schrattenholzer_2000,manne_merge_1995,loulou_times_2008} fold the
+macro side into the energy optimisation through a scalar welfare objective, and an
+OLG economy---an equilibrium among overlapping cohorts, not a planner's
+optimum---has none to offer. What replaces the joint program is a staged
+orchestration: solve the \OGCore{} baseline; solve the \CLEWS{} scenario and
+extract its signals; apply the wedges and solve the reform transition; emit the
+economy's return and activity back to \CLEWS{}; and, in the closed loop, re-solve
+\CLEWS{} and iterate to a fixed point in the energy price and quantity.
+
+Two design choices carry most of the economics. The first is the price signal. The
+theoretically clean object is the shadow price on the \OSeMOSYS{} commodity-balance
+constraint---the marginal cost of one more unit of electricity, and under the
+competitive interpretation the market-clearing price. In practice that shadow price
+is degenerate: the constraint binds in scattered years and the price is near zero
+elsewhere. The deployed signal is therefore the levelized cost of electricity---the
+all-in average cost of a delivered unit---a dense, robust proxy, with the shadow
+price reserved for scarcity analyses. Whatever its source, the price plays two
+roles the energy model cannot: it makes energy demand price-responsive (demand is
+fixed inside the optimiser), and it reveals incidence, because \OGCore{}'s
+households, indexed by age and lifetime income, spend different shares of their
+budgets on energy. The second choice is how an electricity price enters an economy
+whose production function has no energy input. The energy channel splits
+electricity by use: the share households consume directly enters as a
+consumption-price wedge, and the share industries buy as an input enters as an
+input--output-calibrated cost-push on industry productivities---roughly one quarter
+and three quarters for the Philippines---with electricity's own self-use netted out
+so the two sides never overlap. Neither side alone is the channel: the wedge is
+close to output-neutral, the cost-push is contractionary, and only the composite
+carries the price into both the cost of living and the cost of production. The
+structural destination---energy as a priced input in the production
+technology---is specified but out of scope here.
+
+The discipline earns its place where intuition mislabels mechanisms. A capex-heavy
+clean power system invites the reading ``capital-intensive, so it pulls capital
+in,'' and the natural lever is the energy industry's capital exponent. The model's
+own first-order condition says otherwise: raising the exponent $12.2\%$ collapses
+the electricity price $42.8\%$ and \emph{sheds} $22.4\%$ of the sector's
+capital---a response the firm identity $\hat K_E=\hat\gamma_E\,\hat p_E\,\hat Y_E$
+reproduces to within $0.03\%$---while the instrument that does draw capital in, an
+investment tax credit, operates on the cost of capital, where the exponent is
+absent. The framework treats the two as distinct channels and forbids stacking
+them. The health channel, finally, is the mechanism the OLG structure makes
+possible: a power-sector emissions path maps, through a calibrated dose-response
+and the Global Burden of Disease age profiles, onto age-specific mortality and
+effective labour---so cleaner air changes who is alive, at which ages, and with
+what productivity, inside general equilibrium rather than as an external valuation
+appended to an energy model's output.
+
+We validate the machinery end-to-end on the Philippines: the country's \CLEWS{}
+case---a baseline against an announced energy-policy reform---coupled to a
+multi-industry \OGCore{} calibration, with every reported number regression-locked
+in a committed record. The reform raises the levelized cost of electricity about
+$5\%$ on average, peaking near $16\%$ around 2030. Four results characterise the
+coupled response. The macroeconomic effect changes sign with the horizon: output is
+about $+0.2\%$ along the first decade of the transition---the working-age morbidity
+gain from cleaner air---but $-0.14\%$ in the long-run steady state, where higher
+energy costs combine with a survival gain concentrated among the elderly. The
+coupled steady state is nearly an order of magnitude larger than the sum of the
+standalone channel effects ($-0.138\%$ against roughly $-0.02\%$): the channels
+interact in general equilibrium, and no additive reading of per-channel results
+reproduces the joint run. Incidence is regressive even under full revenue
+recycling: aggregate consumption falls about $0.09\%$, with the burden concentrated
+on lower-income households, for whom electricity is closer to a necessity. And the
+health effect is disciplined by its dose-response: the reform's $2.7\%$ cut in
+power-sector particulate emissions saves about $95$ lives per year, not the
+$1{,}165$ that a one-for-one scaling of the attributable burden would claim.
+
+Because this paper doubles as a status report on the integration, we state the
+frontier precisely. Implemented and validated: the full \CLEWS{}$\to$\OGCore{} pass
+---all eight channels, exercised by a continuable battery and locked in the golden
+record---and the \CLEWS{} re-solve seam that loop closure requires, in which the
+link patches a copy of the energy case, re-solves it in the energy model's own
+environment, and reads the result; a controlled $+10\%$ household-electricity
+demand perturbation returns a $+4.3\%$ electricity-production response. Designed
+but not yet wired: the outer controller that iterates the re-solve to the
+price--quantity fixed point under damping; until it runs, the two
+\OGCore{}$\to$\CLEWS{} channels emit well-formed signals with no feedback effect on
+the macro economy. Open by construction: the bridge between \CLEWS{} monetary units
+and the \OGCore{} numéraire is currently set to unity, so the carbon and investment
+magnitudes are labelled illustrative wherever they appear; the energy-price ratio
+and the health inputs do not depend on it.
+
+\Cref{sec:background} situates the framework in the integration literature.
+\Cref{sec:models} describes the two models at the level the channels touch.
+\Cref{sec:framework} develops the framework: signals and wedges, the price signal,
+the energy channel, the staged architecture, and the accounting principles.
+\Cref{sec:channels} presents the eight channels, with the capital pair as a worked
+example in channel discipline. \Cref{sec:calibration} documents the data and
+calibration. \Cref{sec:results} reports the Philippine validation.
+\Cref{sec:discussion} discusses limitations, and \Cref{sec:conclusion} concludes
+with the roadmap.
