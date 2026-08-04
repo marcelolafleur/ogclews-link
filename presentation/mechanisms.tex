@@ -189,29 +189,6 @@ economic interpretation, model representation, and validation status}
 \end{frame}
 
 % 5 ----------------------------------------------------------------------------
-\begin{frame}{The vocabulary: signal, wedge, channel}
-  \begin{description}
-    \item[{\color{clews}Signal}] a quantity read from a \emph{solved} \CLEWS{}
-      scenario: the marginal cost of a fuel, the capital a build-out requires,
-      an emissions path, the cost implied by an emissions cap.
-    \item[{\color{ogc}Wedge}] the \OGCore{} parameter that expresses it: a
-      consumption-price wedge $\tauc$, an industry productivity $Z_m$, the
-      public-investment share $\alphaI$, mortality $\rho(s,t)$, effective labour
-      $e(t,s,j)$.
-    \item[Channel] a named, guard-railed map from a signal to a
-      \emph{deliberately partitioned set of wedges that never overlap} --- one
-      wedge in the simplest channels, several where a signal splits by use
-      (energy) or by demographic object (health).
-  \end{description}
-  \medskip
-  {\color{sub}\small Each channel is one small, testable mapping, and nothing
-  country-specific is built in: which industry is electricity, and how many
-  industries there are, is read from the country's own model at run time.}
-  \srcnote{paper/sections/04-framework.tex, signals and wedges (partitioned-wedge
-  definition after the review round of 2026-08-04).}
-\end{frame}
-
-% 6 ----------------------------------------------------------------------------
 \begin{frame}{The deployed price is a levelized-cost proxy, not a marginal price}
   \small The theoretically clean signal is the marginal cost of electricity ---
   what one more unit would cost the least-cost system to supply; under the

@@ -1,16 +1,22 @@
-% TODO(abstract): ~150-200 words. Cover, in order:
-%  - the gap: energy-system optimizers (CLEWS/OSeMOSYS) have no behaviour, fiscal
-%    sector, or distribution; macro models have no energy technology detail.
-%  - the contribution: a channel-based *soft* link between OG-Core (an OLG general-
-%    equilibrium model) and CLEWS, each channel an auditable economic mechanism.
-%  - what is distinctive: heterogeneous incidence (J income x S age), fiscal closure,
-%    and a demographic health channel (emissions -> mortality/morbidity -> labour).
-%  - validation: a regression-locked, cross-environment battery on an M=8 OG-PHL
-%    calibration coupled to a real CLEWS scenario (coupled run); the PHL LCOE rises ~5%,
-%    health carries the transition gains, the price channels the steady-state
-%    contraction; incidence is regressive; signs are economically sound.
-%  - honest scope: the CLEWS->OG pass AND the CLEWS re-solve seam validated (patch a case
-%    copy, re-solve in the energy model's env, re-read; +4.3% production for +10% demand on
-%    PHL v9); the outer iteration controller and unit calibration remain open.
-The integration couples \OGCore{} and \CLEWS{} through a small set of economically
-grounded channels. \emph{Abstract to be written last.}
+% Distilled from the endorsed summary (docs/design/methods-paper-summary.md,
+% 2026-08-04). Revisit once §8-§9 are drafted, but the content is settled.
+Bottom-up resource-planning models decide what an energy transition builds; they
+contain no households, firms, or government. Overlapping-generations (OLG)
+general-equilibrium models carry behaviour, fiscal closure, and distribution; they
+contain no energy technology. This paper develops and validates an auditable soft
+link between the two---\CLEWS{}/\OSeMOSYS{} on the resource side, \OGCore{} on the
+economy side---whose macroeconomic partner distinguishes it from existing
+energy--macro links: forward-looking cohorts, income heterogeneity, demography, and
+fiscal closure. Eight channels carry electricity costs, public investment, carbon
+policy, pollution health effects, the equilibrium return, and activity across the
+boundary; each names its source quantity, its economic interpretation, its
+destination parameter, and the accounting rule that keeps any cost from entering
+twice. Because the commodity-balance shadow price is degenerate in the application,
+the deployed price signal is the levelized cost of electricity, split between a
+household consumption wedge and an input--output-calibrated industry cost-push. A
+Philippine application validates the mechanisms jointly: near-term output gains
+from working-age health, a small long-run contraction from electricity costs and
+demographic composition, and regressive incidence even under full revenue
+recycling. The single pass and the \CLEWS{} re-solve seam are implemented and
+tested; the outer fixed-point iteration and the monetary-unit bridge remain open,
+and every claim is scoped to its evidence.
