@@ -23,3 +23,10 @@ results/battery-state.json
 
 # per-machine installed OG-model register (written by the installer / models register)
 og_model_registry.json
+
+# macOS finder junk
+.DS_Store
+
+# Publisher PDFs read during the IEEM / CLEWs-IO assessments. Licensed copies,
+# not ours to redistribute -- keep them local, never commit.
+*.pdf
