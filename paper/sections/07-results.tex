@@ -60,7 +60,10 @@ negative ($-0.14\%$). Source: \texttt{results/figures/coupled\_transition.png}.}
 
 \subsection{Channel decomposition}
 \label{sec:decomposition}
-Table~\ref{tab:phl-channels} runs each channel as a standalone reform;
+Table~\ref{tab:phl-channels} reports \emph{runnable experiments}, each isolating one
+mechanism as a standalone reform---so \chan{energy\_price} is the household wedge of
+the energy channel alone, on the real price (the composite is what \chan{coupled}
+transmits), and \chan{clean\_incidence} is its recycled variant;
 \Cref{fig:channel-impact} plots the steady-state output impacts. Four things stand out,
 all as \Cref{sec:channels} anticipates.
 The \emph{energy-price} channel is small ($Y_{ss}=-0.006\%$): the real Philippine
@@ -94,7 +97,7 @@ channel & $Y$ & $C$ & $K$ & $L$ & $r$ \\
 \chan{investment}                     & $+0.000$ & $+0.000$ & $+0.000$ & $+0.000$ & $-0.000$ \\
 \chan{health}                         & $-0.000$ & $+0.024$ & $+0.004$ & $-0.013$ & $-0.011$ \\
 \midrule
-\chan{coupled} (all)                  & $-0.138$ & $-0.087$ & $-0.128$ & $-0.007$ & $-0.032$ \\
+\chan{coupled} (application config.)  & $-0.138$ & $-0.087$ & $-0.128$ & $-0.007$ & $-0.032$ \\
 \bottomrule
 \end{tabular}
 \end{table}

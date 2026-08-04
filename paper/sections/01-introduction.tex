@@ -28,8 +28,9 @@ The framework reduces the coupling to two primitives and a discipline. A
 price, the capital a build-out requires, an emissions path. A \emph{wedge} is the
 \OGCore{} parameter that expresses it: a consumption-tax vector, an industry
 productivity level, the public-investment share, an age-specific mortality or
-effective-labour profile. A \emph{channel} is a named, guard-railed map from one
-signal to one wedge. Eight channels realise the coupling: four carry \CLEWS{}
+effective-labour profile. A \emph{channel} is a named, guard-railed map from a
+signal to a deliberately partitioned set of wedges that never overlap---in the
+simplest channels, exactly one. Eight channels realise the coupling: four carry \CLEWS{}
 signals into \OGCore{} (the energy price, public grid investment, generation
 capital intensity, and air-quality health), two are policy instruments applied once
 to both models (a carbon price and an investment tax credit), and two read
@@ -113,9 +114,10 @@ power-sector particulate emissions saves about $95$ lives per year, not the
 $1{,}165$ that a one-for-one scaling of the attributable burden would claim.
 
 Because this paper doubles as a status report on the integration, we state the
-frontier precisely. Implemented and validated: the full \CLEWS{}$\to$\OGCore{} pass
----all eight channels, exercised by a continuable battery and locked in the golden
-record---and the \CLEWS{} re-solve seam that loop closure requires, in which the
+frontier precisely. Implemented and validated: the full \CLEWS{}$\to$\OGCore{} pass---the channel
+library exercised by a continuable battery and locked in the golden record, all but
+the investment-tax-credit lever, which is defined but not yet run standalone
+(\Cref{sec:channels})---and the \CLEWS{} re-solve seam that loop closure requires, in which the
 link patches a copy of the energy case, re-solves it in the energy model's own
 environment, and reads the result; a controlled $+10\%$ household-electricity
 demand perturbation returns a $+4.3\%$ electricity-production response. Designed

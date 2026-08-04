@@ -4,7 +4,10 @@
 The framework reduces the coupling to two primitive objects and a discipline for
 combining them. A \emph{signal} is a quantity carried out of a solved \CLEWS{}
 scenario; a \emph{wedge} is a parameter of \OGCore{} that a signal sets; a
-\emph{channel} is a named, guard-railed map from a signal to a wedge. The remainder of
+\emph{channel} is a named, guard-railed map from a signal to a set of wedges
+partitioned so that no part of the signal enters twice---one wedge in the simplest
+channels, several in those that split a signal by use (the energy channel,
+\Cref{sec:routes}) or by demographic object (health, \Cref{sec:ch-health}). The remainder of
 this section defines these objects (\Cref{sec:signals-wedges}), identifies the
 privileged signal---the marginal cost on the energy-balance constraint
 (\Cref{sec:signal})---shows how the energy channel carries an electricity-price change into
@@ -110,7 +113,10 @@ $\pi_{\text{C}}(D)$ be the \CLEWS{} price of delivering $D$ (its levelized cost)
 
 \noindent A single \CLEWS{}$\to$\OGCore{} pass evaluates $\pi_{\text{C}}(D^{b})$ at
 \emph{baseline} demand and applies it once; iterating the two maps to the fixed point
-of \Cref{def:fixedpoint} is \emph{loop closure} (\Cref{sec:architecture}). The
+of \Cref{def:fixedpoint} is \emph{loop closure} (\Cref{sec:architecture}). With the
+levelized cost as the deployed price, the fixed point is consistency under that
+pricing proxy, not a competitive-equilibrium price---the distinction inherits from
+the signal choice above. The
 present work validates the single pass and the \CLEWS{} re-solve seam that the closed
 loop requires; the principal unbuilt piece is the outer iteration controller.
 
@@ -215,7 +221,7 @@ production-side extension to \OGCore{} itself, out of scope here.
 \subsection{Architecture: a staged soft link}
 \label{sec:architecture}
 
-A simultaneous (``hard'') link is ruled out on structural, not practical, grounds.
+The classic hard-link route is ruled out on structural, not practical, grounds.
 
 \begin{assumption}[Incompatible solution concepts]
 \label{ass:hardlink}
@@ -224,6 +230,12 @@ foresight; \OSeMOSYS{} is a single perfect-foresight linear program over all yea
 once. \OGCore{} exposes no scalar welfare into which the program could be folded, and
 no shock can be injected mid-solve.
 \end{assumption}
+
+\noindent The assumption forecloses the integrated-welfare-program route of the
+hard-link tradition; a different simultaneous formulation---stacking both models'
+equilibrium and optimality conditions as one complementarity system---is
+conceivable in principle but would be a research programme of its own, not an
+available route.
 
 \noindent The models therefore stay separate and exchange a few signals---a soft link,
 in the tradition of iteratively coupled energy--macro models
@@ -253,12 +265,14 @@ Loop closure is constrained by \Cref{ass:inelastic}. Because energy demand is
 price-inelastic inside the optimiser, naïve price feedback can oscillate; convergence
 to \Cref{def:fixedpoint} requires damping and a baseline-anchored demand calibration.
 The \OGCore{}$\to$\CLEWS{} emitters produce well-formed \CLEWS{} inputs, and the
-\CLEWS{} re-solve they feed---step~(v) of the orchestration---is now implemented and
-validated rather than planned: the link patches a copy of the \CLEWS{} case, re-solves it
+\CLEWS{} re-solve seam they are designed to feed---step~(v) of the orchestration---is
+implemented and validated with a controlled perturbation rather than planned: the link
+patches a copy of the \CLEWS{} case, re-solves it
 in the energy model's own environment, and reads the result, leaving the calibrated case
 untouched. On the Philippine case a controlled $+10\%$ household-electricity demand
-perturbation propagates through the re-solve to a $+4.3\%$ electricity-production response,
-confirming that the returned signals transmit correctly. What is not yet wired is the
+patch propagates through the re-solve to a $+4.3\%$ electricity-production response,
+confirming the seam transmits; feeding the \emph{emitted} signals through it end to end
+belongs to the outer controller. What is not yet wired is the
 outer controller that iterates the re-solve to \Cref{def:fixedpoint} under damping; until
 it runs, the two \OGCore{}$\to$\CLEWS{} channels (\Cref{sec:ch-discount,sec:ch-demand})
 emit well-formed signals but have no feedback effect on the macro economy.
@@ -269,7 +283,8 @@ emit well-formed signals but have no feedback effect on the macro economy.
 Because several signals can be expressed through more than one wedge---and because a
 fiscal instrument used as a price wedge also moves the budget---the framework needs
 explicit accounting rules. We state them as principles; each is enforced by a guard in
-the corresponding channel.
+the corresponding channel where the forbidden combination can arise within one channel,
+and by the composition rules of the experiment layer where it arises across channels.
 
 \begin{principle}[One carbon price]
 A carbon price enters the system once: as an emissions penalty in \CLEWS{} and as a
