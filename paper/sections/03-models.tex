@@ -74,16 +74,15 @@ year; capacity-adequacy and capacity-factor limits; fuel-availability limits; an
 emissions caps or penalties. Timeslices capture the intra-annual load shape (peak versus
 off-peak) that a single annual figure would hide.
 
-The price that makes the coupling work is the \emph{levelized cost of electricity}
-(LCOE) --- the all-in average cost of a unit of delivered power (capital recovery,
-operation and maintenance, and fuel), reconstructed from the least-cost solution's costs
-and generation (\Cref{sec:signal}, \Cref{def:fixedpoint}). The coupling uses this average
-cost rather than the \emph{shadow price} on the commodity-balance constraint --- the
-program's short-run marginal cost of the carrier --- because that shadow price is
-degenerate here: it binds in only scattered years, so it is not a usable long-run price
-and is reserved for scarcity analyses. The shadow price on a binding emissions cap is,
-likewise, an implied carbon price. These prices, not bare cost totals, are the
-load-bearing signals.
+The deployed electricity-cost signal is the \emph{levelized cost of electricity}
+(LCOE)---the average capital, operation and maintenance, and fuel cost per unit of
+generation reconstructed from the least-cost solution (\Cref{sec:signal},
+\Cref{def:fixedpoint}). The interface uses its reform/base ratio as a proxy for the
+electricity price faced by the economy. It does not use the \emph{shadow price} on the
+commodity-balance constraint---the program's marginal cost of the carrier---because that
+dual is degenerate in this application: it binds in scattered years and is near zero
+elsewhere. The shadow price remains relevant for scarcity analysis, and the shadow price
+on a binding emissions cap is an implied carbon price.
 
 Two features matter for the coupling. First, the program optimises against a \emph{fixed}
 demand: quantity demanded does not respond to the carrier price within \OSeMOSYS{}
@@ -96,12 +95,14 @@ solver is configured to expose them) the commodity and emissions marginal costs.
 \subsection{The structural mismatch}
 \label{sec:mismatch}
 
-The two solution concepts do not compose into one optimisation (\Cref{ass:hardlink}):
+The two solution concepts do not compose into the classic joint-planner optimisation
+(\Cref{ass:hardlink}):
 \OGCore{} traces an overlapping-generations transition through time while \OSeMOSYS{}
 plans all years simultaneously under perfect foresight, and \OGCore{} exposes no scalar
-welfare into which the energy LP could be folded. A simultaneous (``hard'') link is
-therefore not available, and the staged soft link of \Cref{sec:framework} --- baseline,
-extract signals, apply wedges, optionally iterate --- is the appropriate object. The
+welfare into which the energy LP could be folded. A simultaneous formulation would
+require both models to be recast as a new equilibrium system; the staged soft link of
+\Cref{sec:framework}---baseline, transfer quantities, apply receiving-model changes, and
+optionally iterate---is the object developed here. The
 asymmetry is also complementary: \OGCore{} supplies the behaviour, fiscal closure, and
 heterogeneity \OSeMOSYS{} lacks, while \OSeMOSYS{} supplies the technology, dispatch, and
 emissions detail \OGCore{} lacks.

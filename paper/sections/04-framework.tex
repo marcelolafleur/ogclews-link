@@ -1,57 +1,48 @@
 \section{The Coupling Framework}
 \label{sec:framework}
 
-The framework reduces the coupling to two primitive objects and a discipline for
-combining them. A \emph{signal} is a quantity carried out of a solved \CLEWS{}
-scenario; a \emph{wedge} is a parameter of \OGCore{} that a signal sets; a
-\emph{channel} is a named, guard-railed map from a signal to a set of wedges
-partitioned so that no part of the signal enters twice---one wedge in the simplest
-channels, several in those that split a signal by use (the energy channel,
-\Cref{sec:routes}) or by demographic object (health, \Cref{sec:ch-health}). The remainder of
-this section defines these objects (\Cref{sec:signals-wedges}), identifies the
-privileged signal---the marginal cost on the energy-balance constraint
-(\Cref{sec:signal})---shows how the energy channel carries an electricity-price change into
-a core that contains no energy in production (\Cref{sec:routes}), describes the staged
-orchestration and the interface contract that make the mapping auditable
-(\Cref{sec:architecture}), and states the accounting principles that keep a single
-signal from being counted twice (\Cref{sec:discipline}).
+The interface transfers a small set of model outputs and policy inputs into explicit
+changes in the receiving model. Each named mapping records the source series, its economic
+interpretation, the receiving-model entry, the applicable accounting rule, and the tests
+that have been completed. This section describes those common elements, the deployed
+electricity-cost signal (\Cref{sec:signal}), its transmission into an economy without an
+intermediate energy input (\Cref{sec:routes}), the staged architecture and country
+contract (\Cref{sec:architecture}), and the accounting rules that prevent overlapping
+representations (\Cref{sec:discipline}).
 
-\subsection{Signals and wedges}
+\subsection{Transferred quantities and receiving-model entries}
 \label{sec:signals-wedges}
 
-The two models meet across an asymmetry. \OGCore{} is rich in behaviour, public
-finance, and household heterogeneity but blind to energy technology; \CLEWS{} is rich
-in technology, dispatch, and emissions but blind to behaviour, the fiscal sector, and
-distribution. The information that usefully crosses the seam therefore differs by
-direction: from the macro side flow \emph{quantities}---sectoral activity and final
-demand; from the energy side flow \emph{prices and physical outcomes}---marginal
-costs, capital requirements, and emissions. Concretely, the signals in use are the
-marginal cost on a commodity balance, the capital a build-out requires, an emissions
-path, and the implied carbon price on a binding cap; the wedges they set are the
-consumption-tax vector $\tauc$, industry productivities $\TFP_m$, the
-public-investment share $\alphaI$, and the demographic objects $\rho(s,t)$ and
-$e(t,s,j)$---``wedge'' in its public-finance sense, since the simplest channel
-(\Cref{sec:routes}) literally inserts a tax wedge between the producer and consumer
-price of energy. A channel composes an extractor and its applicators with the
-validation that fires when a mapping is large or ill-posed. Nothing country-specific
-is fixed in the framework: which industry is electricity, and how many industries and
-goods the country resolves, are read from the calibration and the declared concordance
-at run time (\Cref{sec:architecture}).
+The two models meet across an asymmetry. \OGCore{} is rich in behaviour, public finance,
+and household heterogeneity but blind to energy technology; \CLEWS{} is rich in
+technology, dispatch, and emissions but blind to behaviour, the fiscal sector, and
+distribution. From the resource model come an electricity-cost path, investment
+requirements, and emissions. From the economy come sectoral activity, final demand, and
+an equilibrium return. Policy scenarios also supply a carbon-price path or investment
+incentive to the relevant model entries. The receiving entries include the
+consumption-tax vector $\tauc$, industry productivities $\TFP_m$, the public-investment
+share $\alphaI$, demographic objects $\rho(s,t)$ and $e(t,s,j)$, and \CLEWS{} demand and
+discount-rate parameters. Some are literal wedges; others are ordinary parameters or
+model inputs. The interface checks dimensions, admissible ranges, units, and
+concordances before applying them. Portability is conditional on the country contract
+identifying the corresponding industries, goods, commodities, and units
+(\Cref{sec:architecture}).
 
-\subsection{The levelized cost of electricity as the load-bearing signal}
+\subsection{The electricity-cost signal}
 \label{sec:signal}
 
-Among the signals, the price of electricity is privileged. Its theoretically clean form
-is a marginal cost --- the \emph{shadow price} on the \OSeMOSYS{} commodity-balance
+The theoretically preferred electricity signal is a marginal cost---the \emph{shadow
+price} on the \OSeMOSYS{} commodity-balance
 constraint \citep{howells_osemosys_2011} (which requires supply to meet demand in every
 timeslice and year), what the least-cost system would pay to deliver one more unit, and
 under the competitive interpretation the price that clears the market. But that shadow
 price is degenerate in this model: it binds in only scattered years and is near-zero
 elsewhere, so it is unusable as a smooth long-run signal (it is kept for scarcity
-studies). The coupling therefore uses the \emph{levelized cost of electricity} (LCOE):
-the all-in average cost of a unit of delivered power --- capital recovery, operation and
-maintenance, and fuel --- a dense, robust proxy for the price the economy faces. Two
-properties make it load-bearing.
+studies). The coupling therefore uses the reform/base ratio of a curated cost index or,
+where that index is unavailable, reconstructed \emph{levelized cost of electricity}
+(LCOE): the average capital, operation and maintenance, and fuel cost per unit of
+generation. This is a dense average-cost proxy for the price the economy faces, not a
+marginal or observed retail price. The proxy performs two functions.
 
 First, it closes an elasticity gap. Inside the energy optimiser, demand is an
 exogenous datum.
@@ -64,16 +55,17 @@ optimiser.
 \end{assumption}
 
 \noindent The behavioural response must therefore come from the macro side. Feeding
-this price to \OGCore{} households---whose multi-good demand is unit-elastic above a
+this cost proxy to \OGCore{} households---whose multi-good demand is unit-elastic above a
 Stone--Geary subsistence floor \citep{stone_1954}, see \Cref{sec:og}---makes the
 quantity of energy demanded respond to its price, supplying the elasticity the
 optimiser lacks.
 
 Second, it reveals incidence. A single program-level ``cost'' is silent on who bears
 it. \OGCore{}'s households, indexed by $\Ngen$ age and $\Jinc$ lifetime-income groups,
-distribute the burden of an energy-price change; because energy is a partial
-necessity, the burden is generally regressive---an object a single-agent core cannot
-produce.
+distribute the burden of an energy-cost change. With the Stone--Geary calibration used
+here, lower-income households devote a larger budget share to the energy good, permitting
+the model to test whether incidence is regressive; a representative household cannot
+report that distribution.
 
 These two roles define what it means for the coupling to be internally consistent.
 
@@ -95,35 +87,33 @@ of \Cref{def:fixedpoint} is \emph{loop closure} (\Cref{sec:architecture}). With 
 levelized cost as the deployed price, the fixed point is consistency under that
 pricing proxy, not a competitive-equilibrium price---the distinction inherits from
 the signal choice above. The
-present work validates the single pass and the \CLEWS{} re-solve seam that the closed
-loop requires; the principal unbuilt piece is the outer iteration controller.
+present work tests the single pass and, separately, the \CLEWS{} re-solve seam that the
+closed loop requires; the emitted paths have not yet been carried through that seam by an
+outer iteration controller.
 
 \begin{remark}[Shadow-price hygiene]
 \label{rem:hygiene}
-That the theoretically privileged signal fails in practice is a general lesson, and
-we convert it into a protocol applied to any marginal cost read from the optimiser
+The failed dual motivates a protocol applied to any marginal cost read from the optimiser
 before it crosses the seam: the value must sit above the solver's own reporting
 resolution; it must be invariant across alternate optima---a price that moves while
 nothing physical changes is degeneracy, not information; it must be decomposed
 against any cost parameter that floors it; and it must trace to a sourced input.
-The electricity marginal cost fails the first two tests, which is the origin of the
-levelized-cost choice above. Preliminary work applying the same protocol to the
-land balance of the Philippine case finds the same failure modes there, so we treat
-the protocol as part of the framework rather than a one-off diagnosis.
+The electricity marginal cost fails the first two tests, which motivates the
+levelized-cost proxy above. Preliminary work on the Philippine land balance finds the
+same failure modes; that application is not part of the evidence reported here.
 \end{remark}
 
-\subsection{The energy channel: who pays when electricity gets dearer}
+\subsection{Transmission of electricity costs}
 \label{sec:routes}
 
-The design of this channel follows from asking one question concretely: when the
-reform makes a delivered unit of electricity about $5\%$ more expensive, \emph{who
-pays}? In the Philippine social accounting matrix the answer has two parts: industries,
+The design follows from identifying the purchasers exposed to the electricity-cost
+change. In the Philippine social accounting matrix they have two parts: industries,
 which buy roughly three quarters of electricity as a production input, and households,
 which consume the remaining quarter directly. A faithful transmission must reach both
-groups of buyers, and must charge each peso of the increase exactly once.
+groups of buyers while applying the increase to disjoint expenditure flows.
 
-The difficulty is that only one of those buyer groups exists in \OGCore{}. Two
-structural facts, stated exactly. First, production is value added only: each industry
+The difficulty is that both buyers exist in \OGCore{}, but intermediate purchases do
+not. Two structural facts matter. First, production is value added only: each industry
 produces with private capital, public capital, and labour (\Cref{sec:og}), and
 \emph{no firm buys anything from any other firm}---there is no line in the
 manufacturing sector's cost function where electricity appears, at any price. Second,
@@ -132,59 +122,55 @@ intermediate-use matrix: a fixed $\Igood\times\Mind$ map that converts industry
 outputs into consumption goods, $p_i=\sum_m \omega_{im}p_m$, with no substitution
 across industries. Electricity's price can therefore reach households through the
 goods bridge, but the three quarters of the increase that industrial buyers should
-pay has no structural path---the buyers are missing from the model. Everything in
-this subsection is the consequence of that fact.
+pay has no structural path---the transactions are missing from the model. The two-route
+approximation below follows from that omission.
 
-\paragraph{The firm-side route, and why it delivers only a quarter of the shock.}
-The natural first instinct is to represent the change at the electricity
+\paragraph{A producer-price route does not reach intermediate users.}
+One possible representation changes the electricity
 \emph{producer}: let the industry price $p_{m_e}$ itself rise, and let households
 respond to that. \OGCore{} has no parameter that inserts a wedge between what a
 firm's output sells for and what the firm receives---prices are outcomes, not
-dials---but it has an exact equivalent handle. Because every industry prices at unit
+dials---but productivity provides a reduced-form handle. Because every industry prices at unit
 cost (zero profit), $p_m$ is proportional to $1/\TFP_m$ holding factor prices, so
-dividing the electricity industry's productivity by the price ratio,
+dividing the electricity industry's productivity by the cost-proxy ratio,
 $\TFP_{m_e}\to\TFP_{m_e}/g_t$, makes the model \emph{produce} the higher electricity
 price endogenously---with the full general-equilibrium response of wages, the
 interest rate, and the sector's own inputs that a tax wedge does not have. This route
-is implemented. Now trace where the higher price goes.
+is implemented as a controlled comparison. Its transmission is limited.
 It flows through the consumption bridge into the energy good, and households pay it.
 It goes nowhere else: manufacturing's costs, prices, and decisions are untouched,
 because manufacturing buys no electricity in the model. The route is not wrong---it is
-\emph{incomplete by construction}: it can deliver the shock only to the quarter of its
-real-world destination that the model represents. It also has a subtler liability: it
+\emph{incomplete by construction}: it can deliver the shock only to household final
+use, roughly one quarter of Philippine electricity expenditure. It also
 encodes a \emph{system}-cost change as an electricity-\emph{technology} change, so the
 sector's own capital and labour reorganise in response to a productivity event that
 did not occur in the scenario.
 
-\paragraph{The household quarter: a consumption wedge, made fiscally inert.}
-The deployed channel therefore carries the household share through the more surgical
-instrument: a consumption-tax wedge on the energy good $i_e$, set so the gross-of-tax
-price inherits the ratio,
+\paragraph{Household final use: a revenue-neutral consumption wedge.}
+The deployed channel carries household final use through a consumption-tax wedge on the
+energy good $i_e$, set so the gross-of-tax price inherits the cost-proxy ratio,
 \begin{equation}
   1 + \tau^{c,r}_{t,i_e} \;=\; g_t\,\bigl(1 + \tau^{c,b}_{t,i_e}\bigr),
   \label{eq:routeA}
 \end{equation}
-where $g_t \equiv \pi^{r}_t/\pi^{b}_t$ is the \CLEWS{} price ratio. Households then
+where $g_t \equiv \pi^{r}_t/\pi^{b}_t$ is the \CLEWS{} cost-proxy ratio. Households then
 face $(1+\tauc_{t,i_e})\,p_{i_e,t}$ exactly where \OGCore{} puts consumption taxes:
 in the cost-of-living index, in subsistence spending, and in the sub-good demand.
-Demand falls, and---because energy is a partial necessity---the burden is regressive,
-the channel's distinctive incidence output. The wedge raises what households pay
-without fabricating a technology event inside the electricity sector; its cost is
-fiscal bookkeeping. A consumption tax mechanically credits the government with
-revenue, but an electricity-price increase is not a tax: it is a real resource cost,
-and no government receives it. Left alone, the wedge would therefore smuggle an
-accidental fiscal consolidation into the run---extra revenue retiring debt under the
-closure rule. The channel neutralises this by returning the wedge's revenue to
+Demand falls and, under the Stone--Geary calibration used here, the incidence is
+regressive. The wedge raises what households pay without representing a technology event
+inside the electricity sector. A consumption tax also credits the government with
+revenue, whereas the electricity-cost increase represented here is not government
+revenue. Left alone, the wedge would therefore introduce a fiscal consolidation in
+addition to the price change. The channel neutralises that effect by returning the revenue to
 households as a lump-sum transfer (a bump to the transfer share $\alphaT$, estimated
 on baseline quantities): the wedge is \emph{revenue-neutral by construction},
 delivering relative prices and incidence and nothing else. This side alone is close
 to output-neutral: it reshuffles consumption rather than shrinking output
 (\Cref{sec:results}).
 
-\paragraph{The industrial three quarters: delivered by hand.}
-For the share the missing buyers should pay, the channel does the only thing the
-structure allows: it raises each industry's costs directly, by the amount its
-electricity purchases imply. Let
+\paragraph{Intermediate use: a reduced-form industry cost-push.}
+For intermediate purchases, the channel raises each industry's costs directly by the
+amount implied by its electricity exposure. Let
 $\boldsymbol\theta=(\theta_1,\dots,\theta_{\Mind})$ be the direct electricity cost
 shares and $A$ the matrix of interindustry input coefficients, both read from the
 social accounting matrix. A proportional price increase $\hat p_E$ raises industry
@@ -197,29 +183,26 @@ indirectly; summing the Leontief series gives the total cost-push
 applied as a productivity haircut $\TFP^{r}_m = \TFP^{b}_m\,(1-\kappa_m)$, with
 $\kappa_m$ the gross-output cost increase of industry $m$ and electricity's own
 self-use netted out so that nothing appears in both legs. The \emph{size} of the
-shock comes from data; the \emph{mechanism} is imposed, because the structural door
-does not exist. That is the honest characterisation of this leg: it is the
-first-order cost pass-through an intermediate-input structure would deliver, without
-the structure---firms do not substitute away from electricity, and no energy market
-clears. It is the contractionary, wage-bearing side, with the correct output sign
-(\Cref{sec:results}).
+shock comes from data; the transmission mechanism is imposed because intermediate inputs
+are absent from the production block. It approximates the first-order cost pass-through
+of an intermediate-input structure: firms do not substitute away from electricity, and
+no intermediate energy market clears. The productivity reduction represents the resource
+cost in reduced form; it is not a literal loss of productive capacity.
 
-\begin{remark}[The channel is the composite, with a division of labour]
+\begin{remark}[The two routes cover disjoint expenditure bases]
 \label{rem:ab-contrast}
-The deployed energy channel applies both legs at once, weighted by electricity's
-final-versus-intermediate split in the country's social accounting matrix. The
-division of labour is deliberate: the \emph{wedge} carries relative prices and
-incidence, fiscally neutralised by the rebate; the \emph{cost-push} carries the real
-resource loss, as destroyed productive capacity. Neither alone is the channel---the
-wedge is close to output-neutral, the cost-push materially contractionary
-(\Cref{sec:results})---and each peso of the price increase enters exactly once:
-intermediate exposure through $\boldsymbol\theta$, final exposure through the wedge,
-the overlap (self-use) removed.
+Households and firms face the same proportional electricity-cost change; the social
+accounting matrix determines the expenditure base exposed through each route. The
+consumption wedge carries final-use prices and incidence and is fiscally neutralised by
+the rebate. The cost-push carries intermediate exposure through
+$\boldsymbol\theta$. Electricity self-use is removed before upstream propagation, so
+the two expenditure bases do not overlap. Neither route alone represents the complete
+electricity-cost mapping.
 \end{remark}
 
-\paragraph{The structural ideal: put the missing buyers into the model.}
-The fix for all of the above is structural: give firms the electricity purchases they
-are missing, by nesting energy with value added in the technology,
+\paragraph{Structural extension: energy as an intermediate input.}
+A structural alternative would add firms' electricity purchases by nesting energy with
+value added in the technology,
 \begin{equation}
   Y^{\text{gross}}_m
   \;=\; \TFP_m\Bigl[\,\omega_m\, VA_m^{\frac{\sigma_{E,m}-1}{\sigma_{E,m}}}
@@ -250,7 +233,7 @@ production-side extension to \OGCore{} itself, out of scope here.
 \subsection{Architecture: a staged soft link}
 \label{sec:architecture}
 
-The classic hard-link route is ruled out on structural, not practical, grounds.
+The classic joint-planner hard link is unavailable without reformulating both models.
 
 \begin{assumption}[Incompatible solution concepts]
 \label{ass:hardlink}
@@ -261,10 +244,9 @@ no shock can be injected mid-solve.
 \end{assumption}
 
 \noindent The assumption forecloses the integrated-welfare-program route of the
-hard-link tradition; a different simultaneous formulation---stacking both models'
-equilibrium and optimality conditions as one complementarity system---is
-conceivable in principle but would be a research programme of its own, not an
-available route.
+hard-link tradition. A simultaneous formulation that stacks both models' equilibrium
+and optimality conditions as a complementarity system is conceivable, but it would be a
+new model rather than a direct composition of the existing programs.
 
 \noindent The models therefore stay separate and exchange a few signals---a soft link,
 in the tradition of iteratively coupled energy--macro models
@@ -272,53 +254,56 @@ in the tradition of iteratively coupled energy--macro models
 behaviourally and fiscally rich overlapping-generations core in place of a
 representative agent. The orchestration (\Cref{fig:architecture}) runs in stages:
 (i)~solve the \OGCore{} baseline in steady state and along the transition;
-(ii)~solve the \CLEWS{} scenario and extract its signals; (iii)~apply the channel
-wedges to the reform parameters and solve the reform transition; (iv)~read the
-\OGCore{}$\to$\CLEWS{} signals (the equilibrium return $\rp$ and sectoral activity);
+(ii)~solve the \CLEWS{} scenario and extract the forward quantities; (iii)~apply the
+receiving-model changes and solve the reform transition; (iv)~read the
+\OGCore{}$\to$\CLEWS{} quantities (the equilibrium return $\rp$ and sectoral activity);
 and, in the closed loop, (v)~re-solve \CLEWS{} and repeat to the fixed point of
 \Cref{def:fixedpoint}.
 
 \diagramfig{architecture}{The structural seam. The two models stay separate and pass
-signals across a contract; a hard link is precluded by \Cref{ass:hardlink}.}{fig:architecture}
+quantities across a contract; the classic joint-planner formulation is unavailable under
+\Cref{ass:hardlink}.}{fig:architecture}
 
 What makes the exchange auditable is an explicit interface contract:
 a \emph{scenario pair} naming the baseline and reform runs, the
 \CLEWS{} scenario, and the country; a \emph{concordance} mapping \OGCore{} industries
 $m$ and goods $i$ to \CLEWS{} commodities, technologies, and demands---supplied by the
 country configuration, since \OGCore{} has no native notion of a resource; and a
-\emph{unit map} (real versus nominal, base year, deflator) that bridges \CLEWS{}'s bare
-numbers to \OGCore{}'s real numéraire. The contract is what lets the same machinery be
-re-pointed at another country without touching the channels.
+\emph{unit map} (real versus nominal, base year, deflator) that places \CLEWS{} quantities
+in the \OGCore{} real numéraire. The interface can be re-pointed only where this contract
+identifies compatible country-specific objects.
 
 Loop closure is constrained by \Cref{ass:inelastic}. Because energy demand is
 price-inelastic inside the optimiser, naïve price feedback can oscillate; convergence
 to \Cref{def:fixedpoint} requires damping and a baseline-anchored demand calibration.
 The \OGCore{}$\to$\CLEWS{} emitters produce well-formed \CLEWS{} inputs, and the
 \CLEWS{} re-solve seam they are designed to feed---step~(v) of the orchestration---is
-implemented and validated with a controlled perturbation rather than planned: the link
+implemented and tested with a controlled perturbation: the link
 patches a copy of the \CLEWS{} case, re-solves it
 in the energy model's own environment, and reads the result, leaving the calibrated case
 untouched. On the Philippine case a controlled $+10\%$ household-electricity demand
 patch propagates through the re-solve to a $+4.3\%$ electricity-production response,
-confirming the seam transmits; feeding the \emph{emitted} signals through it end to end
-belongs to the outer controller. What is not yet wired is the
+confirming that the seam transmits a demand change. The emitted return and activity paths
+have not been fed through it end to end. What is not yet wired is the
 outer controller that iterates the re-solve to \Cref{def:fixedpoint} under damping; until
 it runs, the two \OGCore{}$\to$\CLEWS{} channels (\Cref{sec:ch-discount,sec:ch-demand})
-emit well-formed signals but have no feedback effect on the macro economy.
+emit well-formed inputs but have no feedback effect on the macro economy.
 
 \subsection{No-double-counting discipline}
 \label{sec:discipline}
 
-Because several signals can be expressed through more than one wedge---and because a
+Because the same source quantity can be represented through more than one parameter---and because a
 fiscal instrument used as a price wedge also moves the budget---the framework needs
 explicit accounting rules. We state them as principles; each is enforced by a guard in
 the corresponding channel where the forbidden combination can arise within one channel,
 and by the composition rules of the experiment layer where it arises across channels.
 
-\begin{principle}[One carbon price]
-A carbon price enters the system once: as an emissions penalty in \CLEWS{} and as a
-tax wedge in \OGCore{} along the same path. It is never \emph{also} inferred a second
-time from a \CLEWS{} shadow price.
+\begin{principle}[One representation of each carbon cost]
+A carbon penalty that changes the \CLEWS{} solution may already enter \OGCore{} through
+the transmitted electricity-cost ratio. The same electricity cost is not added again as
+a separate macroeconomic wedge. A separate \OGCore{} carbon wedge is used only for a
+carbon-bearing household expenditure not already represented in that ratio, and an
+implied shadow price is not stacked on an exogenous carbon-price path.
 \end{principle}
 
 \begin{principle}[Count each energy cost once]
@@ -330,19 +315,19 @@ $\tauc$ wedge and a $\TFP$ haircut on the same consumption, or a separately-infe
 carbon wedge stacked on top.
 \end{principle}
 
-\begin{principle}[One view of generation capital]
-The capital cost of a generation build-out is represented once---through a cost-push
-($\TFP$) \emph{or} an investment incentive (an ITC), not both. The capital-share lever
-($\gammam$) is \emph{not} a third interchangeable view: in the Cobb--Douglas core it
-does not crowd capital in at all but instead lowers the energy price and sheds capital,
-a distinct factor-income object (\Cref{sec:ch-capint,sec:discussion}). Conflating it
-with the cost-of-capital representations is itself a double-counting error.
+\begin{principle}[Generation-capital representations require distinct sources]
+Multiple parameters are not calibrated to the same observed generation-capex change. A
+technology-driven change in the capital share and a separately specified investment tax
+credit may coexist when the scenario identifies both effects; they are not alternative
+names for one source quantity. In the Cobb--Douglas core the capital-share lever changes
+factor shares, whereas the ITC changes the user cost of capital
+(\Cref{sec:ch-capint}).
 \end{principle}
 
 \begin{principle}[Revenue must be routed]
 A $\tauc$ wedge mechanically generates consumption-tax revenue. That revenue must be
 recycled (as transfers or public investment) or explicitly financed (as deficit), or
-the run silently embeds an unmodelled fiscal expansion alongside the price shock.
+the run introduces an additional fiscal change alongside the price shock.
 \end{principle}
 
 \begin{principle}[Public and private capital are distinct]

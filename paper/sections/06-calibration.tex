@@ -15,34 +15,36 @@ Production is Cobb--Douglas ($\varepsilon=1$), with the public-capital share
 $\gamma_{g}$ carved out of each industry's capital share so that labour's residual share
 is well defined.
 
-\paragraph{The energy price.}
-The electricity price handed to the macro side is the country's \emph{real} \CLEWS{}
-price---the ``auto'' source: a curated cost-of-electricity index where available,
-otherwise the levelized cost of electricity (LCOE) reconstructed from the run's
+\paragraph{The electricity-cost proxy.}
+The ``auto'' source is a curated cost-of-electricity index where available, otherwise
+the levelized cost of electricity (LCOE) reconstructed from the run's
 per-technology costs and generation (the commodity-balance shadow price is degenerate,
 binding in only scattered years, so it is not used)---taken as a reform/base ratio so the
-(uncalibrated) money units cancel. For the Philippine reform this LCOE ratio averages
-about $1.05$ (rising to $1.16$ by 2030). It is transmitted through the composite of \Cref{sec:routes}: an
-inter-industry cost-push weighted by electricity's input-cost share $\phi_j$ across
-industries (read from the SAM), with electricity's own self-use carried instead by a
-recycled household wedge on the electricity value-share of the energy good. The direct
-and indirect cost-push follows the standard input--output logic of \Cref{eq:routeB}; the
+(uncalibrated) money units cancel. This ratio is an average-cost proxy, not an observed
+retail or marginal price. For the Philippine reform it averages about $1.05$ and reaches
+$1.16$ around 2030. The same proportional change is applied to disjoint expenditure
+bases through the composite of \Cref{sec:routes}: an inter-industry cost-push weighted by
+electricity input-cost shares from the SAM, and a recycled household wedge on final
+electricity use. The electricity industry's self-purchases are removed before upstream
+cost propagation. The direct and indirect cost-push follows the input--output logic of
+\Cref{eq:routeB}; the
 specific pass-through magnitudes are calibration-dependent and re-derived with the SAM
 (the earlier M=4 figures are retired with that aggregation).
 
 \paragraph{Health.}
-The health channel uses \emph{real} epidemiological data: the ambient-PM\textsubscript{2.5}
+The health channel uses sourced epidemiological estimates: the ambient-PM\textsubscript{2.5}
 attributable burden and its age profile from the IHME Global Burden of Disease export
-(covering several countries; for the Philippines $43{,}951$ attributable deaths, with real
+(covering several countries; for the Philippines $43{,}951$ attributable deaths, with
 deaths-by-age and years-lived-with-disability-by-age profiles), scaled by a calibrated
 dose-response $M\approx0.082$ (an energy mass-share $\times$ concentration-response
 elasticity). The lives effect is
 $\Delta\text{deaths}=\text{total}\times M\times\Delta\text{emissions}$, so the reform's
 $-2.7\%$ emissions change (the first-decade mean) saves about $95$ lives (the $\times M$
 dose-response separates
-this from the naive $43{,}951\times\Delta\text{emissions}\approx-1{,}165$). The remaining
-modelling assumptions are the \emph{linearity} of that mapping and the morbidity
-productivity elasticity, not the burden or the dose-response.
+this from the naive $43{,}951\times\Delta\text{emissions}\approx-1{,}165$). The GBD burden
+and age profile are sourced inputs. The construction of $M$, the linearity of the
+emissions-to-burden mapping, and the morbidity productivity elasticity remain calibrated
+model choices.
 
 \paragraph{Units.}
 The one uncalibrated bridge is the deflator that maps \CLEWS{} money to the \OGCore{} real
@@ -51,6 +53,7 @@ investment channels (and any revenue figure), though not the ratio-based energy 
 the demographic health inputs.
 
 \caveat{Magnitudes for the carbon and investment channels are illustrative until the
-unit/deflator bridge is calibrated; the \emph{mechanics} are validated (\Cref{sec:results})
-and the \emph{sizes} scale with the bridge. The energy-price and health inputs are real
-(a \CLEWS{} price ratio and the GBD burden).}
+unit/deflator bridge is calibrated; the transformation and solve mechanics are tested
+(\Cref{sec:results}) and the \emph{sizes} scale with the bridge. The electricity input is
+ratio-based, while the health burden and age profile are sourced estimates with a
+calibrated emissions-to-burden translation.}

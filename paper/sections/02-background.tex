@@ -29,13 +29,13 @@ document the practice in a Swedish TIMES--CGE pairing, and
 \citet{helgesen_tomasgard_2018} compare linking with full integration---so they
 require of the macro side only that the exchanged quantities be well defined.
 
-The macroeconomic partner in all four families lacks age structure, and this is the
-binding constraint for the present exercise. An overlapping-generations economy is an
+The prominent implementations reviewed above do not use an age-structured macroeconomic
+partner, and that is the relevant gap for the present exercise. An overlapping-generations economy is an
 equilibrium among cohorts, not a planner's optimum: it exposes no scalar welfare
 objective, so the classic integrated-welfare-program route of the hard links is
-unavailable to it
-(\Cref{ass:hardlink}), and its forward-looking life-cycle behaviour does not fit the
-recursive-dynamic hybrid mould. The OLG literature itself has taken up climate
+unavailable without reformulation
+(\Cref{ass:hardlink}), and its forward-looking life-cycle behaviour is not represented by
+the recursive-dynamic hybrids reviewed here. The OLG literature itself has taken up climate
 policy---\citet{kotlikoff_2021} measure the generational incidence of carbon
 taxation---but with climate entering through an aggregate damage function rather
 than a planned energy system. The absence can be documented in the field's own
@@ -52,27 +52,36 @@ The combination of bottom-up energy-land-water
 technology with an OLG economy under fiscal closure is, to our knowledge, absent
 from this literature; this paper describes one way to build it.
 
-Two recent frameworks sit nearest to this work. IEEM \citep{banerjee_ieem_2020}, the Inter-American Development Bank's
-environmentally-extended CGE platform, attaches SEEA physical accounts to the
-social accounting matrix and couples land-use and ecosystem-service models in
-five-year steps; its wealth accounting---genuine savings net of natural-capital
-depletion---is the adoptable contribution, and an accounting identity over model
-outputs rather than a modelling capability. CLEWs--IO
-\citep{bararzadeh_clews_io_2026} is the closest published analogue: the same
-physical model family coupled here, soft-linked to an input--output employment
-layer whose net-job coefficients enter the optimiser per unit of technology
-activity. Read at the method level, both carry their economy--resource linkage
-through a single well-sourced linear coefficient---an erosion-share productivity
-penalty in one, jobs per unit of activity in the other---and their couplings
-differ in kind: IEEM's is a \emph{sequential feedback} (module results return to
-the economy in five-year steps), CLEWs--IO's a \emph{one-way parameterisation};
-neither---nor, yet, ours---is a numerical \emph{fixed-point iteration}. This is standard
-practice rather than a defect: our own channels carry reduced-form coefficients
-too (\Cref{sec:calibration}), and our loop
-is likewise open (\Cref{sec:architecture}). The three frameworks are complementary
-along different margins: IEEM extends the environment downward into a CGE,
-CLEWs--IO extends the economy sideways into employment accounting, and the present
-framework extends the economy forward in time and across cohorts.
+Two recent frameworks provide the closest comparisons. IEEM
+\citep{banerjee_ieem_2020} is an environmentally extended CGE platform linked to SEEA
+accounts, land use, and ecosystem services. CLEWs--IO
+\citep{bararzadeh_clews_io_2026} links the same resource-model family used here to an
+input--output employment module. Table~\ref{tab:comparison} compares the analytical
+dimensions rather than ranking the frameworks.
+
+\begin{table}[t]
+\centering\scriptsize
+\caption{Comparison with neighbouring resource--economy frameworks.}
+\label{tab:comparison}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{0.12\linewidth} >{\raggedright\arraybackslash}p{0.20\linewidth} >{\raggedright\arraybackslash}p{0.23\linewidth} >{\raggedright\arraybackslash}p{0.18\linewidth} L@{}}
+\toprule
+Framework & Economic representation & Resource or environmental detail & Feedback structure & Principal analytical use \\
+\midrule
+IEEM & CGE with environmental accounts & land use, ecosystem services, and natural-capital accounts & sequential module feedback in five-year steps & environmental policy, ecosystem services, and wealth accounting \\
+CLEWs--IO & input--output employment layer & technology activity in a CLEWS model & employment coefficients enter resource planning & direct and indirect employment consequences of resource plans \\
+This paper & OLG general equilibrium with cohorts, income groups, and fiscal closure & technology, system cost, and emissions in CLEWS/OSeMOSYS & implemented forward pass and tested re-solve seam; outer iteration open & intertemporal macroeconomic, demographic, fiscal, and distributional effects \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The approaches are complementary. IEEM resolves environmental accounts and ecosystem
+services that are outside the present model; CLEWs--IO targets employment coefficients
+that the OLG link does not estimate; the present framework adds cohort dynamics,
+household incidence, and fiscal closure. None of the three applications currently reports
+a completed numerical fixed-point iteration, and all employ reduced-form mappings at the
+model boundary. The methodological distinction claimed here is therefore the economic
+structure and explicit documentation of the interface, not a more complete environmental
+or employment representation.
 
 The two models paired here are each the open-source, country-owned representative of
 its lineage. \CLEWS{}---Climate, Land, Energy and Water Systems
@@ -91,13 +100,14 @@ The subject of this paper is the interface itself. The soft-link literature
 established the exchange-and-iterate method, but its interfaces are bespoke to each
 study: which quantities cross, in which units, entering which equations, is settled
 ad hoc and documented unevenly. \Cref{sec:framework} specifies the interface
-explicitly---named channels carrying one signal into one
-wedge, guards that fire on ill-posed mappings, accounting principles that keep any
-cost from entering twice, a country-agnostic contract, and a regression-locked
-validation record. Two further strands are folded in rather than appended. The
+explicitly---named mappings from source quantities to receiving-model entries, guards
+that fire on ill-posed transformations, accounting rules that prevent overlapping
+representations, a country contract, and a regression-locked validation record. Two
+further strands are incorporated directly. The
 health co-benefits of decarbonisation, ordinarily valued outside the economic model
 from concentration-response functions \citep{gbd_2019_risk,burnett_gemm_2018}, enter
-here as demographic wedges---age-specific mortality and effective labour---inside
-general equilibrium (\Cref{sec:ch-health}). And the discount rate that integrated
-assessment must assume is, in a coupled OLG economy, an equilibrium object the
-economy can supply to the energy planner (\Cref{sec:ch-discount}).
+here through age-specific mortality and effective labour inside
+general equilibrium (\Cref{sec:ch-health}). The economy can also supply an equilibrium
+portfolio return as one candidate planning-rate input, while the choice between a private
+opportunity cost and a normative social discount rate remains a harmonisation decision
+(\Cref{sec:ch-discount}).

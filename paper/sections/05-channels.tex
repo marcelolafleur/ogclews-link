@@ -1,51 +1,51 @@
 \section{The Channels}
 \label{sec:channels}
 
-The coupling is realised as eight channels (\Cref{tab:channel-map}): four carry
-\CLEWS{} signals into \OGCore{} (\chan{energy\_price}, \chan{investment},
-\chan{capital\_intensity}, \chan{health}), two are policy instruments applied to both
-models (\chan{carbon}, \chan{energy\_capex}), and two read \OGCore{} outputs back to
-\CLEWS{} (\chan{discount\_rate}, \chan{demand}). Each is the composition of an
-extractor and a wedge (\Cref{sec:signals-wedges}); we give, for each, the signal it
-reads, the \OGCore{} object it moves, the first-order effect, and its maturity. The
-\chan{capital\_intensity}/\chan{energy\_capex} pair (\Cref{sec:ch-capint}) is treated
-at length, because verifying it cleanly against the model's own equilibrium conditions
-both corrects a natural mislabeling and illustrates the discipline of
-\Cref{sec:discipline}.
+Table~\ref{tab:channel-map} records the eight named mappings and, importantly, their
+different roles and evidence. Four carry \CLEWS{} outputs into \OGCore{}, two apply
+scenario policy inputs, and two write \OGCore{} outputs back to \CLEWS{}. The latter are not yet
+feedback mechanisms: they emit inputs for a subsequent resource-model solve. The
+subsections below concentrate on the economic interpretation and the non-obvious
+accounting choices rather than repeat the interface definitions.
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{The eight channels. Direction: \textsc{c$\to$o} \CLEWS$\to$\OGCore{};
-\textsc{p} policy (both sides); \textsc{o$\to$c} \OGCore$\to$\CLEWS{}.}
+\caption{The eight interface mappings and their current evidence, grouped by direction
+or policy role.}
 \label{tab:channel-map}
-\begin{tabularx}{\linewidth}{@{}l c L L L@{}}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{0.14\linewidth} >{\raggedright\arraybackslash}p{0.18\linewidth} >{\raggedright\arraybackslash}p{0.19\linewidth} >{\raggedright\arraybackslash}p{0.18\linewidth} L@{}}
 \toprule
-\textbf{Channel} & \textbf{Dir.} & \textbf{\CLEWS{} signal} & \textbf{\OGCore{} object} & \textbf{First-order effect} \\
+Mapping & Interface quantity & Receiving-model entry & Economic role & Current evidence \\
 \midrule
-\chan{energy\_price} & c$\to$o & electricity price (marginal cost / index) & cost-push + consumption wedge & output $\downarrow$; regressive incidence \\
-\chan{carbon} & p & carbon price (\$/tCO$_2$) & $\tauc$ + emissions penalty & demand $\downarrow$; emissions $\downarrow$ \\
-\chan{investment} & c$\to$o & public grid/T\&D capex & $\alphaI \to \Kg$ & public capital $\uparrow$; crowding-out, debt \\
-\chan{capital\_intensity} & c$\to$o & power-fleet capital-cost share & $\gammam$ (energy exponent) & energy price $\downarrow$; energy $K\downarrow$; labour share $\downarrow$ \\
-\chan{energy\_capex} & p & ITC rate (policy response) & cost of capital (\texttt{inv\_tax\_credit}) & capital reallocates into energy ($K\uparrow$) \\
-\chan{health} & c$\to$o & PM\textsubscript{2.5} emissions ratio & $\rho(s,t)$, $e(t,s,j)$ & mortality $\approx0$; morbidity $\uparrow$ labour \\
-\chan{discount\_rate} & o$\to$c & --- & reads $\rp$ $\to$ DiscountRate & shifts build mix (via loop) \\
-\chan{demand} & o$\to$c & --- & reads $Y_m/C_i$ $\to$ demand & more capacity (via loop) \\
+\multicolumn{5}{@{}l}{\emph{CLEWS to OG-Core}} \\
+Electricity cost & reform/base cost ratio & household $\tauc$; industry $\TFP_m$ & final- and intermediate-use exposure & composite coupled run; household route isolated \\
+Public investment & grid and transmission capex & $\alphaI\to\Kg$ & productive public capital and financing & coupled run; Philippine delta near zero \\
+Capital intensity & fleet capital-cost share & energy-industry $\gamma_E$ & production factor shares & aggregate golden record; earlier sectoral identity \\
+Health & PM\textsubscript{2.5} path & $\rho(s,t)$; $e(t,s,j)$ & survival and effective labour & controlled runs and coupled run \\
+\addlinespace
+\multicolumn{5}{@{}l}{\emph{Scenario policy inputs}} \\
+Carbon price & exogenous price path & \CLEWS{} penalty; conditional household wedge & emissions cost and revenue & macro run and emitted penalty; no policy re-solve \\
+Energy capex & investment-tax-credit path & energy-industry user cost & private generation investment & mapping defined; not exercised here \\
+\addlinespace
+\multicolumn{5}{@{}l}{\emph{OG-Core to CLEWS}} \\
+Discount rate & equilibrium return & \texttt{DiscountRate} & planning-rate harmonisation & artifact emitted; not returned through loop \\
+Demand & $Y_m$ or $C_i$ ratio & annual demand path & activity-consistent service demand & re-solve seam tested with exogenous patch \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \subsection{Energy price}\label{sec:ch-energy}
 The energy-price channel is the composite of \Cref{sec:routes}: it carries the \CLEWS{}
-electricity price into the economy through both of electricity's uses---a cost-push on
+electricity-cost proxy into the economy through both of electricity's uses---a cost-push on
 the industries that buy it as an input (the contractionary, wage-bearing side) and a
 recycled consumption-tax wedge on households (the regressive, cost-of-living side), with
-electricity's self-use netted out so the two do not overlap. The price is the
-Philippines' \emph{real} \CLEWS{} value---the ``auto'' source: a curated
-cost-of-electricity index where a workbook exists, otherwise the levelized cost of
-electricity (LCOE) reconstructed from the run's costs and generation (the commodity-balance
-shadow price is degenerate here, so it is not used)---not an illustrative shock. For the
-Philippine reform the LCOE rises about $5\%$ on average, so the channel has a small but
-non-negligible effect. Incidence is the channel's second output: with
+electricity's self-use netted out so the two do not overlap. The interface uses a
+reform/base electricity-cost ratio from the ``auto'' source: a curated cost index where
+one exists, otherwise LCOE reconstructed from the run's costs and generation. The
+commodity-balance shadow price is degenerate here and is not used. This is a
+scenario-derived average-cost proxy rather than an illustrative shock or an observed
+retail price. For the Philippine reform the proxy rises about $5\%$ on average.
+Incidence is the channel's second output: with
 energy a partial necessity ($\cmin>0$), the recycled price change (the
 \chan{clean\_incidence} variant) is regressive---the lowest-income group bears more of
 it. The standalone \chan{energy\_price} function applies only the household wedge
@@ -53,14 +53,18 @@ it. The standalone \chan{energy\_price} function applies only the household wedg
 $+20\%$ stress runs serve the transmission comparison.
 
 \subsection{Carbon price}\label{sec:ch-carbon}
-A single carbon price is applied once on both sides (\Cref{sec:discipline}, one-price
-principle): in \OGCore{} as an add-on to the energy-good wedge,
+The policy interface can write an exogenous carbon-price path to \CLEWS{} as an
+emissions penalty and, where the affected household expenditure is not already priced
+through the transmitted electricity-cost ratio, to \OGCore{} as an add-on to the
+energy-good wedge,
 $\Delta\tauc_{i_e}=\text{(carbon price)}\times\text{deflator}\times\text{carbon
 intensity}/p^{b}_{i_e}$, and in \CLEWS{} as an emissions-penalty path. Because \OGCore{}
 has no energy in production, only \emph{household} energy carbon is priced on the macro
-side; industrial carbon is priced only in \CLEWS{}. In the present one-pass validation
-the \CLEWS{}-side path is \emph{emitted} as a ready input; it shapes the build mix only
-when the energy model is re-solved on it. Revenue is recyclable through
+side; industrial carbon is priced only in \CLEWS{}. If the carbon penalty is already
+embodied in the \CLEWS{} cost ratio, the macroeconomic wedge is not added to the same
+electricity expenditure (\Cref{sec:discipline}). In the present one-pass demonstration
+the \CLEWS{}-side path is \emph{emitted} as a ready input; it does not shape the reported
+build mix because the policy path has not been re-solved. Revenue is recyclable through
 transfers. Magnitudes are illustrative until the unit/deflator bridge and the carbon
 intensity are calibrated (\Cref{sec:calibration}).
 
@@ -71,8 +75,9 @@ capital stock $\Kg$ through its law of motion; $\Kg$ is productive via the publi
 share $\gamma_{g}$. This is the channel in which crowding-out legitimately lives: if the
 spending is debt-financed it competes for the savings pool, raising $r$ and displacing
 private investment. In the Philippine scenario the public grid-capex delta is near zero
-(the transition is generation-side), so the channel is close to inert here; its mechanics
-are validated and its magnitude scales with a non-zero public delta.
+(the transition is generation-side), so the channel is close to inert here. The coupled
+run confirms that the mapping is accepted by the economy solve; the Philippine case does
+not provide a material public-investment response against which to validate its magnitude.
 
 \subsection{Capital intensity vs.\ capital demand: a worked example in channel discipline}
 \label{sec:ch-capint}
@@ -94,10 +99,9 @@ revenue share \emph{is} $\gammam$, so the firm's capital demand is
                  {\,r+\delta-\taub_{m}\delta^{\tau}_{m}-\tau^{\mathrm{inv}}_{m}\delta\,},
   \label{eq:Kfoc}
 \end{equation}
-an exact rearrangement of the capital first-order condition. Because the channel scales
-$\gammam$ and nothing else, the entire user-cost wedge and the $(1-\taub)$ factor cancel
-in the reform/base ratio---the lever leaves them, and the numeraire-pinned return $r$,
-unchanged---leaving the identity
+an exact rearrangement of the capital first-order condition. In the controlled comparison,
+the channel scales $\gammam$ while the user-cost terms and $(1-\taub)$ factor are unchanged.
+Let hats denote reform/base gross ratios. Their cancellation leaves the identity
 \begin{equation}
   \hat K_E \;=\; \hat\gamma_E \,\cdot\, \hat p_E \,\cdot\, \hat Y_E .
   \label{eq:Khat}
@@ -147,14 +151,11 @@ energy industry & $+12.2\%$ & $-42.8\%$ & $+20.9\%$ & $-22.4\%$ & $-22.4\%$ \\
 \end{table}
 
 \paragraph{The lesson.}
-The two levers act on different objects---a production exponent versus the cost of
-capital---so they are not interchangeable ``views of one capex,'' and the
-no-double-counting principle
-(\Cref{sec:discipline}) forbids treating them as substitutes or stacking them. More
-broadly, this is the value of coupling to a structural general-equilibrium core: the
-model's own first-order condition, \cref{eq:Kfoc}, is what exposes the mislabeling that a
-partial-equilibrium intuition (``a higher capital share pulls capital in'') would
-otherwise smuggle into the results.
+The two levers act on different objects---a production exponent and the user cost of
+capital---and may coexist only when calibrated to distinct technology and policy inputs.
+They should not be treated as alternative representations of the same observed capex
+change. The firm's first-order condition, \cref{eq:Kfoc}, provides the relevant test: a
+higher capital share does not by itself imply that the sector draws in more capital.
 
 \subsection{Health: emissions to demography and labour}\label{sec:ch-health}
 The \chan{health} channel maps the reform/base PM\textsubscript{2.5} emissions ratio,
@@ -166,21 +167,22 @@ skews elderly, saved lives are mostly retirees, so the long-run output effect is
 zero. \emph{Morbidity}: the effective-labour profile $e(t,s,j)$ is scaled by a
 working-age disability shape, so a cleaner reform raises labour productivity---the main
 macro gain. The sign of the GDP effect therefore depends on horizon (a near-term morbidity
-gain, a steady-state composition that adds retirees). The demographic inputs are
-real: the Philippine ambient-PM\textsubscript{2.5} burden and its age profile come from
-the Global Burden of Disease export ($43{,}951$ attributable deaths), scaled by a
-calibrated per-country dose-response $M\approx0.082$ (an energy mass-share $\times$
-concentration-response elasticity). The lives effect is
+gain, a steady-state composition that adds retirees). The Philippine
+ambient-PM\textsubscript{2.5} burden and its age profile come from the Global Burden of
+Disease export ($43{,}951$ attributable deaths). Translating the power-sector emissions
+ratio into that burden uses $M\approx0.082$, constructed from an energy mass share and a
+concentration-response elasticity. The lives effect is
 $\Delta\text{deaths}=\text{total}\times M\times\Delta\text{emissions}$, so the reform's
 $-2.7\%$ emissions change (the first-decade mean) saves about $95$ lives---the
 dose-response $M$ is what
 separates this from the naive $43{,}951\times\Delta\text{emissions}\approx-1{,}165$. What
-remains a modelling assumption---and keeps the channel reduced-form---is the
-\emph{linearity} of that mapping and the size of the morbidity productivity elasticity,
-not the burden or the dose-response. The mechanism---endogenous demography driven
-by an emissions signal---requires an age-structured equilibrium model.
+remains uncertain---and keeps the channel reduced-form---is the construction of $M$, the
+linearity of the emissions-to-burden mapping, and the morbidity productivity elasticity.
+The burden and age profile are sourced data; the subsequent translation is a calibrated
+model representation. The resulting demographic mechanism requires an age-structured
+equilibrium model.
 
-\subsection{Discount rate (\OGCore{} to \CLEWS{})}\label{sec:ch-discount}
+\subsection{Discount rate (economy to resource model)}\label{sec:ch-discount}
 After the reform solves, this channel reads \OGCore{}'s equilibrium market return $\rp$
 (a multi-period mean) and writes it to \CLEWS{}'s \texttt{DiscountRate}, so that energy
 planning uses the model-consistent cost of capital: a lower $\rp$ favours capital-heavy,
@@ -188,12 +190,13 @@ long-lived assets. The mapping is a \emph{harmonisation convention}, not a struc
 equality: \texttt{DiscountRate} is the rate at which the least-cost planner discounts
 system cost, while $\rp$ is the economy's equilibrium portfolio return, and equating
 them asserts that energy planning should discount at the economy's opportunity cost of
-capital---leaving risk premia, tax treatment, and the real/nominal convention as
-explicit harmonisation choices rather than resolved economics. The effect on the macro
+capital. It does not identify a normative social discount rate. Risk premia, tax
+treatment, term structure, and real/nominal conventions remain explicit harmonisation
+choices rather than resolved economics. The effect on the macro
 economy returns only once the soft link
 iterates (\Cref{sec:architecture}); standalone, it is inert by construction.
 
-\subsection{Demand (\OGCore{} to \CLEWS{})}\label{sec:ch-demand}
+\subsection{Demand (economy to resource model)}\label{sec:ch-demand}
 Symmetrically, this channel reads a reform/base activity ratio (industry output $Y_m$ or
 consumption $C_i$, raised to an elasticity) and scales \CLEWS{}'s annual demand. In a
 single pass the ratio is $\approx1$, so the channel is latent; it becomes a genuine driver
@@ -201,11 +204,9 @@ only inside the iterated loop---the macro-to-energy quantity link in the
 \textsc{message-macro}/\textsc{times-macro} tradition
 \citep{messner_schrattenholzer_2000,loulou_times_2008}.
 
-\subsection{Policy levers}\label{sec:levers}
-Channels couple the energy system; \emph{policy levers} are the generic, country-agnostic
-primitives that vary a scenario, all using existing \OGCore{} parameters: an investment
-incentive (the ITC behind \chan{energy\_capex}; sets \texttt{inv\_tax\_credit},
-\texttt{delta\_tau}, $\taub$) and a capital-share shift (the $\gammam$ behind
-\chan{capital\_intensity}). The capital pair of \Cref{sec:ch-capint} is the
-clearest illustration: two levers ($\gammam$ and the ITC) instantiate two distinct
-channels for one physical build-out, and the framework keeps them separate.
+\subsection{Policy inputs}\label{sec:levers}
+The policy interface uses existing model parameters rather than creating new economic
+objects. The investment incentive behind \chan{energy\_capex} sets the relevant
+investment-tax-credit and business-tax parameters; the capital-intensity mapping changes
+$\gammam$. As \Cref{sec:ch-capint} shows, these parameters act on different equations and
+must be tied to distinct scenario quantities if both are used.
