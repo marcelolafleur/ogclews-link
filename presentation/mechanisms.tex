@@ -120,7 +120,7 @@ economic interpretation, model representation, and validation status}
 \end{frame}
 
 % 2 ----------------------------------------------------------------------------
-\begin{frame}{Two models, complementary blind spots}
+\begin{frame}{Neither model alone can say who bears an energy transition}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.47\textwidth}
       {\color{clews}\bfseries CLEWS / OSeMOSYS}\par\smallskip
@@ -152,10 +152,11 @@ economic interpretation, model representation, and validation status}
 \end{frame}
 
 % 3 ----------------------------------------------------------------------------
-\dgmframe{The structural seam}{architecture}{%
-  Quantities flow right (energy demand, the interest rate); prices and physical
-  outcomes flow left (the energy price, build cost, emissions). The models stay
-  separate and pass a small set of auditable signals.}
+\dgmframe{Quantities flow one way; prices and outcomes flow the other}{architecture}{%
+  From the economy: energy demand and the interest rate. From the energy system:
+  the energy price, build cost, and emissions. The models stay separate and pass a
+  small set of auditable signals --- that asymmetry is the design, not an
+  accident.}
 
 % 4 ----------------------------------------------------------------------------
 \begin{frame}{Why a staged soft link, not one model}
@@ -262,8 +263,9 @@ economic interpretation, model representation, and validation status}
     \bottomrule
   \end{tabularx}
   \par\medskip
-  {\color{sub}\small four carry the energy system into the economy · two are policy
-  levers · two return the economy's answers}
+  {\color{sub}\small The point: nothing crosses the boundary informally. Every
+  exchanged quantity is one of these eight named, guarded channels --- four in,
+  two policy, two back.}
   \srcnote{paper/sections/05-channels.tex, Table 1; ogclews\_link/channels.py.}
 \end{frame}
 
@@ -363,26 +365,27 @@ economic interpretation, model representation, and validation status}
 \end{frame}
 
 % 12 ---------------------------------------------------------------------------
-\begin{frame}{Health enters through survival and effective labour}
+\begin{frame}{Cleaner air pays through workers now, and adds retirees later}
   \begin{columns}[T,onlytextwidth]
-    \begin{column}{0.44\textwidth}
-      {\footnotesize\begin{itemize}\setlength\itemsep{3pt}
-        \item \CLEWS{} supplies the PM$_{2.5}$ emissions path; the Global Burden
-              of Disease supplies the burden and its age profiles
+    \begin{column}{0.50\textwidth}
+      {\footnotesize\begin{itemize}\setlength\itemsep{2pt}
+        \item \CLEWS{} supplies the PM$_{2.5}$ path; the GBD supplies the burden
+              and its age profiles (right)
         \item a calibrated dose-response scales the $2.7\%$ emissions cut to
-              about $95$ fewer deaths per year --- not the $1{,}165$ of
-              one-for-one scaling
+              $\sim$95 fewer deaths/year (not the $1{,}165$ of one-for-one scaling)
         \item \textbf{mortality} skews elderly $\to$ saved lives add retirees
               $\to$ long-run output $\approx 0$
-        \item \textbf{morbidity} is working-age $\to$ effective labour rises ---
-              the near-term macro gain ($+0.19\%$)
+        \item \textbf{morbidity} is working-age $\to$ effective labour rises
+              ($+0.19\%$ near-term)
       \end{itemize}}
       \smallskip
-      {\color{sub}\scriptsize The morbidity productivity elasticity remains an
-      application assumption.}
+      {\footnotesize\textbf{So the GDP effect changes sign with the horizon} ---
+      gain on the path, cost in the steady state; only an age-structured model
+      produces that split. (The morbidity elasticity is an application
+      assumption.)}
     \end{column}
-    \begin{column}{0.53\textwidth}
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{health_age_profiles.png}
+    \begin{column}{0.46\textwidth}
+      \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{health_age_profiles.png}
     \end{column}
   \end{columns}
   \srcnote{paper/sections/05-channels.tex, health; figures regenerated from the
@@ -455,7 +458,7 @@ economic interpretation, model representation, and validation status}
 \end{frame}
 
 % 16 ---------------------------------------------------------------------------
-\begin{frame}{The Philippine application: what is active in the coupled run}
+\begin{frame}{Three mechanisms drive the Philippine results: price, investment, health}
   \centering
   \resizebox{0.98\textwidth}{!}{%
   \begin{tikzpicture}[node distance=4.5mm and 4.5mm]
