@@ -1,0 +1,113 @@
+\section{Background and Related Work}
+\label{sec:background}
+
+% Tight by design: compressed to the methods-relevant facts, the model lineages,
+% and the health strand. (No reference to the unpublished positioning draft.)
+
+Energy-system and macroeconomic models have been joined since the oil shocks of the
+1970s, in four families, and one fact organises them: each family is
+defined by what it requires the macroeconomic side to be. \emph{Hard links} solve one
+program---MARKAL-MACRO attached a one-sector Ramsey growth model to the MARKAL energy
+system \citep{manne_wene_1992}, and MESSAGE-MACRO \citep{messner_schrattenholzer_2000},
+MERGE \citep{manne_merge_1995}, and the TIMES family \citep{loulou_times_2008} carry
+the design forward---so they require the economy to expose a scalar intertemporal
+objective: one representative agent, no ages, no income groups, no operational
+government budget. \emph{Hybrid} computable-general-equilibrium (CGE) models embed
+discrete technologies inside a top-down economy
+\citep{bohringer_rutherford_2008,hourcade_hybrid_2006}, so they require the economy
+to be formulated jointly with the technology block; in practice the economy is
+recursive-dynamic and heterogeneous by income at best---\citet{rausch_2011} estimate
+carbon-price incidence across income groups, and \citet{goulder_hafstead_2017} build
+the national policy workhorse---but it carries no cohorts and no demography.
+\emph{Integrated assessment models} in the DICE lineage \citep{nordhaus_dice_2008}
+aggregate both sides to study global abatement; the \citet{stern_2007} versus
+\citet{nordhaus_stern_2007} controversy turned on a discount rate that must be
+\emph{assumed}, because a one-agent model has no market to reveal one. \emph{Soft
+links} keep both models intact and exchange solved results---\citet{wene_1996}
+formalises the approach and its convergence logic, \citet{krook_riekkola_2017}
+document the practice in a Swedish TIMES--CGE pairing, and
+\citet{helgesen_tomasgard_2018} compare linking with full integration---so they
+require of the macro side only that the exchanged quantities be well defined.
+
+The prominent implementations reviewed above do not use an age-structured macroeconomic
+partner, and that is the relevant gap for the present exercise. An overlapping-generations economy is an
+equilibrium among cohorts, not a planner's optimum: it exposes no scalar welfare
+objective, so the classic integrated-welfare-program route of the hard links is
+unavailable without reformulation
+(\Cref{ass:hardlink}), and its forward-looking life-cycle behaviour is not represented by
+the recursive-dynamic hybrids reviewed here. The OLG literature itself has taken up climate
+policy---\citet{kotlikoff_2021} measure the generational incidence of carbon
+taxation---but with climate entering through an aggregate damage function rather
+than a planned energy system. The absence can be documented in the field's own
+words: the community's state-of-the-art review of model linking
+\citep{keppo_linking_2026}---co-authored by maintainers of the model family we
+couple to---names computable-general-equilibrium, macroeconometric, and
+input--output frameworks as the economic partners in practice, and an
+overlapping-generations partner does not appear in it.
+% Verified 2026-08-04 against the open-access copy (Wuppertal mirror) by full-text
+% search: zero hits for "overlapping generation(s)"/"OLG"/"cohort"/
+% "intergenerational"; CGE x4, macroeconometric x1, input-output x1.
+% Re-confirm against the publisher's version before submission.
+The combination of bottom-up energy-land-water
+technology with an OLG economy under fiscal closure is, to our knowledge, absent
+from this literature; this paper describes one way to build it.
+
+Two recent frameworks provide the closest comparisons. IEEM
+\citep{banerjee_ieem_2020} is an environmentally extended CGE platform linked to SEEA
+accounts, land use, and ecosystem services. CLEWs--IO
+\citep{bararzadeh_clews_io_2026} links the same resource-model family used here to an
+input--output employment module. Table~\ref{tab:comparison} compares the analytical
+dimensions rather than ranking the frameworks.
+
+\begin{table}[t]
+\centering\scriptsize
+\caption{Comparison with neighbouring resource--economy frameworks.}
+\label{tab:comparison}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{0.12\linewidth} >{\raggedright\arraybackslash}p{0.20\linewidth} >{\raggedright\arraybackslash}p{0.23\linewidth} >{\raggedright\arraybackslash}p{0.18\linewidth} L@{}}
+\toprule
+Framework & Economic representation & Resource or environmental detail & Feedback structure & Principal analytical use \\
+\midrule
+IEEM & CGE with environmental accounts & land use, ecosystem services, and natural-capital accounts & sequential module feedback in five-year steps & environmental policy, ecosystem services, and wealth accounting \\
+CLEWs--IO & input--output employment layer & technology activity in a CLEWS model & employment coefficients enter resource planning & direct and indirect employment consequences of resource plans \\
+This paper & OLG general equilibrium with cohorts, income groups, and fiscal closure & technology, system cost, and emissions in CLEWS/OSeMOSYS & implemented forward pass and tested re-solve seam; outer iteration open & intertemporal macroeconomic, demographic, fiscal, and distributional effects \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The approaches are complementary. IEEM resolves environmental accounts and ecosystem
+services that are outside the present model; CLEWs--IO targets employment coefficients
+that the OLG link does not estimate; the present framework adds cohort dynamics,
+household incidence, and fiscal closure. None of the three applications currently reports
+a completed numerical fixed-point iteration, and all employ reduced-form mappings at the
+model boundary. The methodological distinction claimed here is therefore the economic
+structure and explicit documentation of the interface, not a more complete environmental
+or employment representation.
+
+The two models paired here are each the open-source, country-owned representative of
+its lineage. \CLEWS{}---Climate, Land, Energy and Water Systems
+\citep{howells_clews_2013}---is a least-cost planning framework built on the
+\OSeMOSYS{} optimiser \citep{howells_osemosys_2011} and developed with national
+teams, so that the energy-side model of a given country is the one its planners
+already maintain. \OGCore{} \citep{debacker_evans_ogcore} descends from the
+Auerbach--Kotlikoff tradition of dynamic fiscal policy \citep{auerbach_kotlikoff_1987}
+as an open-source platform with country calibrations and a multi-industry
+production side; households indexed by age and lifetime income, explicit tax
+instruments, and a government that closes its budget are native structure, not
+extensions. Both are models that countries can obtain, run, and audit---the
+practical criterion for a coupling meant to be re-pointed across countries.
+
+The subject of this paper is the interface itself. The soft-link literature
+established the exchange-and-iterate method, but its interfaces are bespoke to each
+study: which quantities cross, in which units, entering which equations, is settled
+ad hoc and documented unevenly. \Cref{sec:framework} specifies the interface
+explicitly---named mappings from source quantities to receiving-model entries, guards
+that fire on ill-posed transformations, accounting rules that prevent overlapping
+representations, a country contract, and a regression-locked validation record. Two
+further strands are incorporated directly. The
+health co-benefits of decarbonisation, ordinarily valued outside the economic model
+from concentration-response functions \citep{gbd_2019_risk,burnett_gemm_2018}, enter
+here through age-specific mortality and effective labour inside
+general equilibrium (\Cref{sec:ch-health}). The economy can also supply an equilibrium
+portfolio return as one candidate planning-rate input, while the choice between a private
+opportunity cost and a normative social discount rate remains a harmonisation decision
+(\Cref{sec:ch-discount}).

@@ -1,0 +1,87 @@
+\section{A Philippine Illustration}
+\label{sec:illustration}
+
+We illustrate the framework with a Philippine application: the country's \CLEWS{}
+case---a baseline against an announced energy-policy reform---coupled to the
+Philippine multi-industry calibration of \OGCore{} ($M=8$ industries, $I=5$
+consumption goods, with electricity identified as its own industry and good). All
+inputs are the country's own data. The electricity price is the reform/baseline
+levelized-cost ratio from the solved \CLEWS{} runs, about $1.05$ on average and
+peaking near $1.16$ around 2030; the health inputs are the Philippine
+ambient-PM$_{2.5}$ burden from the Global Burden of Disease ($43{,}951$ attributable
+deaths, with deaths-by-age and disability-by-age profiles). The figures reported
+below are the committed regression record of the coupled run. The purpose of the
+exercise is to demonstrate the machinery on real inputs, not to evaluate the reform.
+
+\subsection{The coupled result changes sign with the horizon}
+\label{sec:headline}
+
+\begin{table}[t]
+\centering\small
+\caption{The Philippine coupled run (percent change from baseline; steady state and
+transition periods $t_0$, $t_{10}$).}
+\label{tab:coupled-intro}
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & steady state & $t_0$ & $t_{10}$ \\
+\midrule
+output $Y$        & $-0.138$ & $+0.179$ & $+0.202$ \\
+consumption $C$   & $-0.087$ & $+0.066$ & $+0.385$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The coupled reform---the real electricity price, grid investment, a
+\$50/tCO\textsubscript{2} carbon price, and the health channel, applied
+together---raises output by about $0.18\%$ on impact and $0.20\%$ a decade in, but
+leaves it $0.14\%$ below baseline in the long-run steady state
+(Table~\ref{tab:coupled-intro}, \Cref{fig:transition-intro}). The near-term gain
+operates through the health channel: the reform's $2.7\%$ reduction in power-sector
+particulate emissions raises working-age productivity, and this morbidity effect
+dominates the early decades. The long-run reversal has two components: the
+contractionary price channels accumulate, and the lives saved by cleaner air
+(\cref{eq:health}: $43{,}951 \times 0.082 \times -0.0265 \approx -95$ per year) are
+concentrated among the elderly, so the eventual steady state supports more retirees
+per worker. The horizon structure is the substantive finding: an assessment based on
+a single number---the steady state alone, or the impact effect alone---would reach
+the opposite conclusion from an assessment based on the other, and none of the
+approaches reviewed in Sections~\ref{sec:hard-links}--\ref{sec:iams} can represent
+it.
+
+\figurefig{coupled_transition}{The coupled transition path (percent change from
+baseline): a positive near-term path driven by the working-age morbidity gain, and a
+negative steady state in which the added retirees combine with the price
+channels.}{fig:transition-intro}
+
+\subsection{Channel-by-channel results}
+\label{sec:channels-alone}
+
+Run as standalone reforms, the channels behave as their mechanisms predict, and all
+are small. The energy price alone moves steady-state output by $-0.006\%$: a real
+$5\%$ price increase, transmitted faithfully, is not a large macroeconomic
+shock---a discipline that is lost when stylised $+20\%$ shocks stand in for data.
+Carbon is the largest single contraction at $-0.021\%$. Capital intensity barely
+moves aggregate output while reshaping the energy sector. Health is $-0.0003\%$ at
+the steady state but $+0.19\%$ near-term. The sum of the standalone effects
+($\approx-0.02\%$) is an order of magnitude smaller than the coupled steady state
+($-0.138\%$): the channels interact in general equilibrium, so the channel-by-channel
+table is a diagnostic decomposition rather than an additive accounting---a caution
+that applies equally to the common practice of costing policy packages one component
+at a time.
+
+\subsection{Incidence}
+\label{sec:who-pays}
+
+Incidence is the output the OLG structure exists to provide. Under the recycled
+electricity-price experiment---the price change applied to households with all
+revenue returned as transfers---aggregate consumption still falls ($-0.092\%$ at the
+steady state), and the burden is concentrated on lower-income households, for whom
+electricity lies closer to the subsistence floor of the demand system. Revenue
+recycling softens but does not eliminate the regressivity. The result is a
+quantitative distributional answer, by age and income group, produced by the same
+framework that carries the energy plan.
+
+\caveat{The energy-price and health inputs are real (a \CLEWS{} price ratio and the
+GBD burden); the carbon and investment magnitudes depend on the uncalibrated
+money-to-numéraire bridge and are illustrative. Mechanics are validated throughout;
+levels are labelled.}

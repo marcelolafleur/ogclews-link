@@ -1,0 +1,382 @@
+% ============================================================================
+% The eight channels of the OG-Core x CLEWS soft link.
+% Technical briefing for economists and energy-system model developers.
+% Build from presentation/: latexmk -pdf channels-explainer.tex
+% ============================================================================
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usefonttheme{professionalfonts}
+
+\input{theme/ogclews-colors}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{normal text}{fg=ink,bg=white}
+\setbeamercolor{frametitle}{fg=ink,bg=white}
+\setbeamercolor{structure}{fg=ogc}
+\setbeamercolor{itemize item}{fg=ogc}
+\setbeamercolor{itemize subitem}{fg=clews}
+\setbeamercolor{block title}{fg=white,bg=ogc}
+\setbeamercolor{block body}{fg=ink,bg=ogc!6}
+\setbeamercolor{block title alerted}{fg=white,bg=claret}
+\setbeamercolor{block body alerted}{fg=ink,bg=claret!6}
+\setbeamerfont{title}{series=\bfseries,size=\fontsize{28}{32}}
+\setbeamerfont{subtitle}{size=\fontsize{16}{20}}
+\setbeamerfont{frametitle}{series=\bfseries,size=\fontsize{20}{23}}
+\setbeamerfont{normal text}{size=\fontsize{14}{17}}
+\setbeamertemplate{itemize item}{\small\raise0.5pt\hbox{\textbullet}}
+\setbeamertemplate{itemize subitem}{\footnotesize\raise0.5pt\hbox{--}}
+
+\setbeamertemplate{frametitle}{%
+  \vspace{0.34cm}%
+  {\color{claret}\rule{0.62cm}{2.2pt}}\par\vspace{2pt}%
+  \usebeamerfont{frametitle}\insertframetitle\par}
+
+\setbeamertemplate{footline}{%
+  \hbox to\paperwidth{\hspace{0.5cm}%
+    {\color{mute}\scriptsize OG-Core\,$\times$\,CLEWS · channel architecture}%
+    \hfill{\color{mute}\scriptsize\insertframenumber\,/\,\inserttotalframenumber}%
+    \hspace{0.5cm}}%
+  \vspace{3pt}}
+
+\newcommand{\OGCore}{\textsc{OG-Core}}
+\newcommand{\CLEWS}{\textsc{CLEWS}}
+\newcommand{\OSeMOSYS}{\textsc{OSeMOSYS}}
+\newcommand{\tauc}{\tau^{c}}
+\newcommand{\alphaI}{\alpha_{I}}
+\newcommand{\Kg}{K_{g}}
+\newcommand{\gammam}{\gamma_{m}}
+\newcommand{\TFP}{Z}
+\newcommand{\source}[1]{\note{[Sources] #1}}
+\newcommand{\status}[2]{\textcolor{#1}{\bfseries #2}}
+
+\title{The Eight Channels of the OG-Core--CLEWS Link}
+\subtitle{Economic interpretation, model representation, and validation status}
+\author{Marcelo LaFleur}
+\date{August 2026}
+
+\begin{document}
+
+% 1 ---------------------------------------------------------------------------
+\begin{frame}[plain]
+  \vfill
+  {\color{claret}\rule{1.25cm}{2.8pt}}\par\vspace{10pt}
+  {\usebeamerfont{title}\color{ink}The Eight Channels of the\\OG-Core--CLEWS Link}\par\vspace{9pt}
+  {\usebeamerfont{subtitle}\color{sub}Economic interpretation, model representation,\\
+  and validation status}\par\vspace{20pt}
+  {\small\color{mute}Technical briefing · August 2026}
+  \vfill
+  \source{paper/sections/01-introduction.tex; paper/sections/04-framework.tex.}
+\end{frame}
+
+% 2 ---------------------------------------------------------------------------
+\begin{frame}{Technology detail meets cohort-resolved equilibrium}
+  \small
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\color{clews}\Large\bfseries CLEWS / OSeMOSYS}\par\medskip
+      \begin{itemize}\setlength\itemsep{6pt}
+        \item capacity, dispatch, fuels, emissions and resource constraints
+        \item investment and operating costs over the planning horizon
+        \item fixed energy-service demand within each solve
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      {\color{ogc}\Large\bfseries OG-Core}\par\medskip
+      \begin{itemize}\setlength\itemsep{6pt}
+        \item forward-looking households by age and lifetime income
+        \item firms, prices, saving and general-equilibrium adjustment
+        \item fiscal closure, population structure and effective labour
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vfill
+  {\color{sub}\normalsize\centering
+   Resource-system prices and physical outcomes move into the economy; equilibrium
+   returns and activity move back.\par}
+  \source{paper/sections/03-models.tex; paper/sections/04-framework.tex.}
+\end{frame}
+
+% 3 ---------------------------------------------------------------------------
+\begin{frame}{Eight channels span five economic mechanisms}
+  \centering
+  \scriptsize
+  \renewcommand{\arraystretch}{1.08}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.21\textwidth} c >{\raggedright\arraybackslash}p{0.27\textwidth} >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Channel & Direction & Quantity entering the interface & Model representation \\
+    \midrule
+    Electricity price & C$\to$O & reform/base cost ratio & industry cost push + household wedge \\
+    Public investment & C$\to$O & grid and transmission capex & $\alphaI \to \Kg$ \\
+    Capital intensity & C$\to$O & fleet capital-cost share & energy-industry $\gammam$ \\
+    Health & C$\to$O & PM$_{2.5}$ path & mortality + effective labour \\
+    Carbon price & policy & exogenous price path & emissions penalty + conditional OG wedge \\
+    Energy capex & policy & investment tax credit & user cost of capital \\
+    Discount rate & O$\to$C & equilibrium return & planning-rate input \\
+    Energy demand & O$\to$C & $Y_m$ or $C_i$ & annual demand path \\
+    \bottomrule
+  \end{tabularx}
+  \source{paper/sections/05-channels.tex, Table 1; ogclews_link/channels.py.}
+\end{frame}
+
+% 4 ---------------------------------------------------------------------------
+\begin{frame}{Electricity prices enter firms and household budgets}
+  \footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\color{clews}\Large\bfseries Intermediate use}\par\medskip
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item Electricity input shares come from the social accounting matrix.
+        \item Direct and upstream exposure determine an industry-specific cost push.
+        \item The cost increase is represented as a reduction in $\TFP_m$.
+      \end{itemize}
+      \smallskip
+      {\color{sub}\scriptsize Reduced-form pending a structural energy input.}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      {\color{ogc}\Large\bfseries Final use}\par\medskip
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item The household share enters through the energy-good consumption price.
+        \item A subsistence component produces income-group incidence.
+        \item Mechanically generated revenue is recycled or explicitly financed.
+      \end{itemize}
+      \smallskip
+      {\color{sub}\scriptsize Electricity self-use is removed before combining the routes.}
+    \end{column}
+  \end{columns}
+  \source{paper/sections/04-framework.tex, ``The energy channel''; docs/design/energy-price-transmission.md.}
+\end{frame}
+
+% 5 ---------------------------------------------------------------------------
+\begin{frame}{LCOE is a price proxy, not a marginal price}
+  \small
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.45\textwidth}
+      {\color{claret}\Large\bfseries Candidate marginal signal}\par\medskip
+      The commodity-balance dual has the preferred marginal interpretation, but the
+      Philippine values are sparse and unstable for long-run transmission.
+      \medskip
+
+      \textbf{Hygiene tests}
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item solver resolution and alternate-optimum stability
+        \item decomposition against cost floors
+        \item traceability to sourced inputs
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\color{clews}\Large\bfseries Deployed signal}\par\medskip
+      The application uses the reform/base ratio of a curated electricity-cost index or
+      reconstructed levelized cost.
+      \medskip
+
+      \begin{block}{Interpretation}
+        A resulting fixed point would establish consistency under the selected proxy,
+        not a competitive-equilibrium electricity price.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \source{paper/sections/04-framework.tex, ``The levelized cost of electricity'' and ``Shadow-price hygiene''; paper/sections/06-calibration.tex.}
+\end{frame}
+
+% 6 ---------------------------------------------------------------------------
+\begin{frame}{Carbon costs enter once}
+  \small
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\color{policy}\Large\bfseries Policy representation}\par\medskip
+      \begin{itemize}\setlength\itemsep{6pt}
+        \item CLEWS: an emissions penalty changes technology costs and the optimal build.
+        \item OG-Core: a household wedge can represent direct carbon cost and revenue.
+        \item Industrial carbon remains in CLEWS while OG production excludes energy.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      {\color{claret}\Large\bfseries Accounting condition}\par\medskip
+      If the CLEWS reform price includes the penalty, the same resource cost must not
+      re-enter OG-Core through a second undifferentiated wedge.
+      \medskip
+
+      \begin{alertblock}{Application status}
+        The application emits a carbon-price artifact for a future re-solve. Source-reform
+        provenance must be confirmed before attributing the macro result to that policy.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \source{ogclews_link/channels.py: carbon_tax and emit_carbon_penalty; ogclews_link/experiments.py: coupled; docs/design/methods-paper-review-follow-up.md.}
+\end{frame}
+
+% 7 ---------------------------------------------------------------------------
+\begin{frame}{Three capital channels act on different equations}
+  \footnotesize
+  \renewcommand{\arraystretch}{1.12}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.20\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}p{0.22\textwidth} >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Mechanism & Economic object & Model entry & Interpretation \\
+    \midrule
+    Public investment & grid and transmission & $\alphaI \to \Kg$ & productive public capital; financing may crowd out private investment \\
+    Capital intensity & production factor mix & energy-industry $\gammam$ & changes factor shares, unit cost and electricity price \\
+    Energy capex & private investment incentive & tax credit in user cost & shifts private capital demand toward generation \\
+    \bottomrule
+  \end{tabularx}
+  \vfill
+  {\color{sub}\normalsize The capital-share lever and the investment incentive are not interchangeable;
+  they act on different equations and can move energy capital in opposite directions.\par}
+  \source{paper/sections/05-channels.tex, ``Capital intensity vs. capital demand''; paper/sections/03-models.tex, firm FOC.}
+\end{frame}
+
+% 8 ---------------------------------------------------------------------------
+\begin{frame}{Capital demand follows the firm's FOC}
+  \footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      For Cobb--Douglas production, the energy industry's capital demand satisfies
+      \[
+        K_E = \frac{\gamma_E p_E Y_E}{\rho_E},
+        \qquad
+        \widehat K_E = \widehat\gamma_E\,\widehat p_E\,\widehat Y_E
+      \]
+      when the user-cost terms are unchanged between the two solves.
+      \smallskip
+
+      A higher capital share need not raise the capital stock. Price and output determine
+      sectoral revenue and therefore capital demand.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \renewcommand{\arraystretch}{1.25}
+      \begin{tabular}{@{}lr@{}}
+        \toprule
+        Earlier M=8 solve & Change \\
+        \midrule
+        capital exponent $\gamma_E$ & $+12.2\%$ \\
+        electricity price $p_E$ & $-42.8\%$ \\
+        electricity output $Y_E$ & $+20.9\%$ \\
+        electricity capital $K_E$ & $-22.4\%$ \\
+        identity gap & $0.023$ pp \\
+        \bottomrule
+      \end{tabular}
+      \smallskip
+
+      {\color{claret}\bfseries Evidence status}\par
+      {\color{sub}Recomputed from earlier solved outputs; a run under the re-blessed
+      baseline is queued.}
+    \end{column}
+  \end{columns}
+  \source{paper/sections/05-channels.tex, Table 2; docs/design/methods-paper-review-response.md.}
+\end{frame}
+
+% 9 ---------------------------------------------------------------------------
+\begin{frame}{Health enters through survival and effective labour}
+  \small
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\color{clews}\Large\bfseries Physical and epidemiological path}\par\medskip
+      \begin{itemize}\setlength\itemsep{6pt}
+        \item CLEWS supplies the reform/base PM$_{2.5}$ emissions path.
+        \item GBD supplies the attributable burden and age profile.
+        \item An external dose-response scales emissions into a mortality target.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      {\color{ogc}\Large\bfseries Economic path}\par\medskip
+      \begin{itemize}\setlength\itemsep{6pt}
+        \item mortality changes survival and age composition;
+        \item morbidity changes effective labour;
+        \item both enter the household and fiscal equilibrium.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vfill
+  {\color{sub}\centering A $2.7\%$ emissions reduction maps to about 95 fewer deaths per year;
+  the morbidity productivity elasticity remains an application assumption.\par}
+  \source{paper/sections/05-channels.tex, ``Health''; paper/sections/06-calibration.tex; ogclews_link/data/pm25_health.json.}
+\end{frame}
+
+% 10 --------------------------------------------------------------------------
+\begin{frame}{Returns and activity flow back to CLEWS}
+  \small
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\color{ogc}\Large\bfseries Discount-rate channel}\par\medskip
+      The post-reform return is written to the CLEWS planning-rate input.
+      \medskip
+
+      \textbf{Still to establish}
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item social rate versus financing cost
+        \item real/nominal and annualisation conventions
+        \item public/private risk and tax adjustments
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      {\color{clews}\Large\bfseries Demand channel}\par\medskip
+      Sectoral output or consumption scales annual energy-service demand.
+      \medskip
+
+      \textbf{Current evidence}
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item the artifact is produced after the OG solve
+        \item a controlled $+10\%$ demand patch raises production $+4.3\%$
+        \item the outer controller has not passed the emitted artifact end to end
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \source{paper/sections/05-channels.tex, discount-rate and demand channels; paper/sections/04-framework.tex, architecture; docs/design/INTEGRATION-HANDOFF.md.}
+\end{frame}
+
+% 11 --------------------------------------------------------------------------
+\begin{frame}{Validation is mechanism-specific}
+  \centering
+  \scriptsize
+  \renewcommand{\arraystretch}{1.08}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.19\textwidth} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{0.26\textwidth}@{}}
+    \toprule
+    Evidence layer & What it establishes & Current boundary \\
+    \midrule
+    Transform tests & shapes, bounds, concordance and fail-fast behaviour & not an economic calibration \\
+    Controlled runs & solve completion, direction, FOC or identity checks & some coefficients remain provisional \\
+    Golden record & selected aggregates and sectoral output remain stable & excludes emitted artifacts and some inputs \\
+    Re-solve seam & demand patch survives case copy, solve and read-back & no emitted OG artifact passed end to end \\
+    Closed-loop test & convergence and error propagation & outer controller not implemented \\
+    \bottomrule
+  \end{tabularx}
+  \source{paper/sections/07-results.tex, validation; VALIDATION.md; ogclews_link/golden.py; docs/design/methods-paper-review-follow-up.md.}
+\end{frame}
+
+% 12 --------------------------------------------------------------------------
+\begin{frame}{Current frontier: one pass plus a tested re-solve seam}
+  \footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.47\textwidth}
+      {\color{gain}\Large\bfseries Established}\par\medskip
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item principal CLEWS-to-OG mechanisms solve on the Philippine calibration
+        \item price, capital and health have controlled validation evidence
+        \item return artifacts are emitted and the CLEWS demand seam responds
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      {\color{claret}\Large\bfseries Next verification steps}\par\medskip
+      \begin{itemize}\setlength\itemsep{4pt}
+        \item confirm carbon-policy provenance
+        \item regenerate the matched cumulative decomposition
+        \item regression-test emitted CLEWS artifacts
+        \item reproduce dual and capital evidence; implement the damped outer controller
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vspace{4pt}
+  \centering
+  {\color{sub}\small The interface is explicit, testable, and open to mechanism-by-mechanism criticism.\par}
+  \source{paper/sections/01-introduction.tex; docs/design/methods-paper-review-response.md; docs/design/methods-paper-review-follow-up.md.}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,58 @@
+\section{Discussion and Policy Implications}
+\label{sec:policy}
+
+\subsection{Questions the linked framework can answer}
+\label{sec:new-questions}
+
+The contribution of the link is a set of questions that move from outside the model
+to outputs of the model. For an energy-transition package expressed as a \CLEWS{}
+scenario, the coupled framework can now quantify: the incidence of the implied
+electricity-price path by age and lifetime income, with and without revenue
+recycling; the impact, medium-run, and steady-state effects, which can differ in
+sign because the economy solves a full transition; the health co-benefits in lives,
+age structure, and effective labour, from the country's own burden data; the fiscal
+accounting, with carbon revenue, grid investment, transfers, and debt inside one
+consistent budget; and the discount rate the plan itself should use, read from the
+economy's equilibrium cost of capital rather than assumed
+(Section~\ref{sec:feedback-channels}). Each answer is attributable to a named
+channel, which is what makes the framework usable in policy argument: a contested
+number can be traced to its mechanism, its signal, and its stated assumptions.
+
+\subsection{Portability and country ownership}
+\label{sec:ownership}
+
+The framework is designed to be portable across countries. Both parent models are
+open source. The link reads a country's existing \CLEWS{} case as produced by its
+national team, and discovers the country's \OGCore{} calibration---how many
+industries and goods it resolves, and which is electricity---at run time rather than
+hard-coding any country's structure. Channels whose data prerequisites a country
+cannot meet report a skip rather than fabricating an input. Applications require
+four core country inputs: a solved \CLEWS{} scenario pair (baseline and reform), a
+country calibration of \OGCore{} that identifies the electricity industry and good,
+the social accounting matrix shares that allocate electricity use between industries
+and households, and the country's burden-of-disease export where the health channel
+is used. Given these inputs, the same structural mapping generates country-specific
+transition paths for output, consumption, incidence, and the other welfare-relevant
+aggregates. The intended user is the analyst in a ministry or country office who
+already runs one of the two models and needs the other half of the answer, on
+infrastructure the country controls and can audit.
+
+\subsection{Limitations and extension roadmap}
+\label{sec:scope}
+
+Three limitations define the current scope, each with a designed extension. First,
+the coupling runs one validated \CLEWS{}$\to$\OGCore{} pass; the return signals (the
+equilibrium rate and activity) are emitted and ready, and closing the loop---
+iterating until the electricity price the economy faces and the demand the planner
+meets agree---is the next step. Second, the conversion between \CLEWS{} monetary
+units and the \OGCore{} numéraire is not yet calibrated, so the carbon and
+investment magnitudes are illustrative until the bridge is pinned to the country's
+accounts. Third, energy enters firm costs in reduced form; the structural extension
+prices energy as a production input within \OGCore{} itself. Fourth, the channel
+library currently reads the energy side of a \CLEWS{} case; the land and water
+sides carry economically analogous signals---food and crop prices, irrigation
+investment, water scarcity---that enter through the same signal-wedge-channel
+architecture, and extending the library to them is a natural next application. None
+of these limitations is implicit in the output: illustrative levels are labelled
+where they appear, and validated mechanics are distinguished from calibrated
+magnitudes throughout.

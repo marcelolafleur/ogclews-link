@@ -1,0 +1,90 @@
+\section{Introduction}
+\label{sec:intro}
+
+How should a bottom-up model of a country's energy system be joined to a
+general-equilibrium model of its economy so that each quantity crossing the boundary has
+a stated economic meaning, enters the receiving model once, and can be audited?
+Least-cost planning frameworks in the \CLEWS{} tradition
+\citep{howells_clews_2013,howells_osemosys_2011} determine what a national energy
+transition builds and operates, but they contain no households, firms, or government and
+no behavioural response to the prices implied by the plan. Overlapping-generations (OLG)
+general-equilibrium platforms such as \OGCore{} \citep{debacker_evans_ogcore} represent
+forward-looking households, fiscal closure, and incidence across ages and lifetime-income
+groups, but contain no energy technology; in the shipped model, energy is not a priced
+input to production. Neither model alone can determine how a transition plan affects
+output, the public budget, or the households that bear its costs.
+
+This paper presents an auditable soft link between \CLEWS{}/\OSeMOSYS{} and \OGCore{},
+explains the economic representation of each cross-model mapping, and tests the
+implemented forward pass and re-solve seam in a Philippine application. We use
+\emph{channel} as a compact label for a named mapping. Four channels carry outputs of a
+solved \CLEWS{} scenario into \OGCore{}: the electricity-cost path, public grid
+investment, generation capital intensity, and air-quality health effects. Two apply
+scenario policy inputs: a carbon price and an investment tax credit. Two write
+\OGCore{} outputs back to \CLEWS{}: the equilibrium return and sectoral activity. For
+each mapping, the interface records the transferred quantity, the receiving-model
+parameter, the accounting treatment, the admissible range, and the evidence currently
+available for the mapping. The same contract supplies country-specific concordances and
+units rather than embedding a particular country or industry index in the channel code.
+
+The models remain separate programs that exchange a small set of files. This architecture
+follows from their solution concepts. \OSeMOSYS{} solves one perfect-foresight linear
+program over the planning horizon, whereas \OGCore{} computes an equilibrium among
+overlapping cohorts along a transition path. The classic hard-link formulation, which
+places a macroeconomic planner's objective inside the energy optimisation, is therefore
+not available without recasting both models as a new simultaneous equilibrium system.
+The implemented sequence solves the \OGCore{} baseline, solves the \CLEWS{} scenario,
+applies the forward mappings, solves the economic reform, and emits the return and
+activity paths. A controlled \CLEWS{} re-solve confirms that a patched demand path
+survives the model boundary. The outer controller that would damp and repeat these steps
+to a price--quantity fixed point is not yet implemented.
+
+The principal economic design problem is electricity-cost transmission. The theoretically
+preferred signal is the shadow price on the \OSeMOSYS{} commodity-balance constraint: the
+marginal system cost of supplying another unit. In the Philippine application that dual
+is degenerate, binding in scattered years and approaching zero elsewhere. The deployed
+signal is therefore the reform-to-baseline ratio of a curated electricity-cost index or,
+where that index is unavailable, reconstructed levelized cost of electricity. It is a
+dense average-cost proxy, not a market-clearing price. This distinction limits the
+interpretation of any fixed point obtained with it.
+
+Transmitting the cost proxy also requires an explicit approximation because \OGCore{}
+does not contain intermediate energy purchases. Household electricity expenditure is
+represented by a revenue-neutral consumption-price wedge. Industrial electricity
+expenditure is represented by an input--output-calibrated cost-push on industry
+productivities. These are disjoint expenditure bases: households and firms each face the
+same proportional electricity-cost change, while the social accounting matrix determines
+how much of total expenditure lies on each route. Electricity self-use is removed before
+the upstream cost propagation is applied. The resulting composite carries the change into
+both household budgets and production costs; it does not reproduce substitution away from
+energy or clear an intermediate energy market. Energy as a priced production input is the
+structural extension beyond the present paper.
+
+The OLG partner changes the questions the coupling can answer. Age-specific pollution
+effects enter survival and effective labour rather than an external valuation appended to
+the resource-model result. Household heterogeneity permits incidence analysis, while the
+government budget makes the financing and recycling of price or investment interventions
+explicit. This is a different analytical margin from neighbouring frameworks: IEEM
+emphasises land use, ecosystem services, and natural-capital accounts, while CLEWs--IO
+emphasises employment consequences within resource planning. The present interface
+emphasises intertemporal macroeconomic adjustment, demography, fiscal closure, and
+distribution across cohorts and income groups.
+
+The Philippine application demonstrates the implemented mechanisms rather than evaluates
+the underlying policy scenario. The coupled forward run combines the electricity-cost
+mapping, public grid investment, and health. Output rises by about $0.2\%$ during the
+first decade, consistent with the working-age morbidity improvement, and is $0.14\%$
+below baseline in the long-run steady state, where higher production costs and the age
+composition of the survival gain operate together. The recycled household price experiment
+produces regressive incidence. Separate experiments test individual mechanisms, but they
+are not an additive decomposition of the coupled run because their configurations do not
+collectively reproduce it. A matched cumulative decomposition is therefore required before
+the difference between the isolated and coupled results can be attributed.
+
+\Cref{sec:background} situates the framework in the integration literature.
+\Cref{sec:models} describes the parts of the two models touched by the interface.
+\Cref{sec:framework} presents the price signal, architecture, interface contract, and
+accounting rules. \Cref{sec:channels} describes the economic mappings and their evidence.
+\Cref{sec:calibration} documents the data and calibration, and \Cref{sec:results}
+reports the Philippine demonstration. \Cref{sec:discussion} states the limitations and
+\Cref{sec:conclusion} the development priorities.

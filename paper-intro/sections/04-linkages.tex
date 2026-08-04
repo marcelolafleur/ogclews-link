@@ -1,0 +1,140 @@
+\section{The Linkage Framework}
+\label{sec:linkages}
+
+The interface between the two models is organised around three objects. A
+\textbf{signal} is a quantity read from a solved \CLEWS{} scenario: the electricity
+price, the grid investment the build-out requires, the emissions path. A
+\textbf{wedge} is the single \OGCore{} parameter that carries a signal into the
+economy: a consumption-tax wedge, an industry productivity, the public-investment
+share, a survival rate. A \textbf{channel} maps one signal to one wedge and attaches
+a diagnostic guard that reports when the mapping is too large or ill-posed for the
+reduced form to be reliable. Three rules give the interface its audit trail: every
+signal enters through exactly one channel, so nothing is counted twice; every
+channel is a named economic mechanism with stated assumptions, so nothing enters as
+an opaque adjustment; and a channel whose data prerequisites a country cannot meet
+reports a skip rather than substituting a fabricated input. The companion paper
+\citep{lafleur_companion} states these as formal principles and validates each
+mechanism; here we describe the channels and their economic content.
+Table~\ref{tab:channels-glance} lists all eight.
+
+\begin{table}[t]
+\centering\small
+\caption{The eight channels. C$\to$O carries a \CLEWS{} signal into \OGCore{};
+O$\to$C returns an \OGCore{} outcome to \CLEWS{}; policy levers are applied once,
+consistently, to both models.}
+\label{tab:channels-glance}
+\begin{tabularx}{\textwidth}{@{}l c L L@{}}
+\toprule
+\textbf{Channel} & \textbf{Dir.} & \textbf{Signal / lever} & \textbf{Carried by} \\
+\midrule
+Energy price & C$\to$O & electricity price (levelized cost) & industry cost-push $+$ household consumption wedge \\
+Carbon price & policy & carbon price (\$/tCO$_2$) & energy-wedge add-on; emissions penalty in \CLEWS{} \\
+Public investment & C$\to$O & grid build cost & public-investment share $\to$ public capital \\
+Capital intensity & C$\to$O & power-fleet capital-cost share & energy industry's capital share \\
+Investment incentive & policy & tax-credit rate & energy industry's cost of capital \\
+Health & C$\to$O & PM$_{2.5}$ emissions change & survival rates $+$ worker productivity \\
+Discount rate & O$\to$C & economy's equilibrium return & \CLEWS{} planning discount rate \\
+Energy demand & O$\to$C & economy's activity change & \CLEWS{} specified annual demand \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The price channels}
+\label{sec:price-channels}
+
+The principal signal is the electricity price, taken as the levelized cost of
+electricity: the all-in average cost---capital recovery, operation and maintenance,
+fuel---of a delivered unit, reconstructed from the solved system's costs and
+generation, and passed as a reform/baseline ratio so that uncalibrated monetary
+units cancel. The theoretically cleaner marginal cost, the shadow price on the
+program's commodity-balance constraint, is degenerate in practice---it binds only in
+scattered years---and is reserved for scarcity analyses. Transmitting the price to
+the economy supplies the two elements the energy model lacks: quantities that
+respond to price, and incidence.
+
+Because \OGCore{} firms do not purchase energy explicitly, the price is transmitted
+through the two uses of electricity in the country's own accounts. Industries
+purchase most of it as an intermediate input (about $73\%$ of use in the Philippine
+social accounting matrix), so each industry's productivity is reduced in proportion
+to electricity's share of its input costs; this cost-push carries the output and
+wage effects of the price change. Households purchase the remainder directly (about
+$25\%$), so the energy good receives a consumption-tax wedge scaled by electricity's
+value share $\sigma$ of that good:
+\begin{equation}
+  1+\tau^{c,r}_{i_e} \;=\; \bigl(1+\sigma(g-1)\bigr)\bigl(1+\tau^{c,b}_{i_e}\bigr),
+  \label{eq:wedge}
+\end{equation}
+where $g$ is the price ratio and $i_e$ the energy good. This is the cost-of-living
+side of the price change, and it is regressive because energy is a partial necessity
+\citep{stone_1954}. The two components form one composite channel; the electricity
+industry's own electricity use is netted out to prevent double counting. The carbon
+price uses the same infrastructure as a policy lever applied once to both models: an
+emissions penalty that shifts the \CLEWS{} build, and an add-on to the household
+energy wedge on the macroeconomic side. It is deliberately not also inferred from
+the energy model's implied carbon cost, which would price the same policy twice.
+
+\subsection{The capital channels}
+\label{sec:capital-channels}
+
+Three channels carry the investment side of the transition, and the framework keeps
+them separate because they act on different objects. Public investment adds the
+grid's build cost to the public-investment share, which accumulates into productive
+public capital; this channel is where crowding-out operates if the spending is
+debt-financed. Capital intensity carries the higher capital share of a clean power
+fleet into the energy industry's production technology, and its sign is not
+automatic: a higher capital share lowers the sector's unit cost, the electricity
+price falls, sector revenue falls, and the capital stock---which follows
+revenue---can decline. The investment incentive, a tax credit, is the lever that
+draws capital in, operating through the sector's cost of capital rather than its
+factor shares. The three can move energy investment in opposite directions, and a
+coupling that merged them into a single investment effect would lose distinctions
+that are material for fiscal policy.
+
+\subsection{The health channel}
+\label{sec:health-channel}
+
+The channel that requires age structure is health. Cleaner power reduces particulate
+emissions, and the framework converts the reform's emissions change into lives and
+labour using the country's Global Burden of Disease data \citep{gbd_2019_risk} and a
+calibrated dose-response $M$ that reflects two facts: power generation is one source
+of ambient pollution among several, and mortality responds less than proportionally
+to concentration changes \citep{burnett_gemm_2018}. The mortality effect is
+\begin{equation}
+  \Delta\text{deaths} \;=\; D_{\mathrm{PM}} \times M \times \Delta\text{em},
+  \label{eq:health}
+\end{equation}
+where $D_{\mathrm{PM}}$ is the attributable-deaths burden and $\Delta\text{em}$ the
+emissions change. The results enter the economy as demographic shocks: avoided
+deaths shift the age-specific survival rates, changing the population's age
+composition, and morbidity gains scale the effective-labour profile of the
+working-age population. Both wedges are age-specific. This is why the channel's
+macroeconomic signature---a near-term productivity gain and a long-run increase in
+retirees per worker---exists at all, and why it can be expressed only in a model
+whose households have ages.
+
+\subsection{The feedback channels}
+\label{sec:feedback-channels}
+
+Two channels run from the economy to the energy planner, after the economy solves.
+The discount-rate channel writes \OGCore{}'s equilibrium market return---the first
+decade's mean of the household portfolio return---into \CLEWS{}'s planning discount
+rate, so that the energy planner discounts at the economy's own cost of capital
+rather than at an assumed social rate. Given the sensitivity of least-cost plans to
+this single parameter (Section~\ref{sec:iams}), harmonising it is substantive rather
+than cosmetic. The energy-demand channel scales the demand path \CLEWS{} must meet
+by the economy's solved activity change. In a single pass these channels stage the
+next iteration; they are the interface of the loop closure discussed in
+Section~\ref{sec:policy}.
+
+\subsection{Limitations of the interface}
+\label{sec:honesty}
+
+Three simplifications are stated rather than implicit. The industry cost-push is
+reduced-form: energy is not yet a priced production input, so the input side of the
+price change is carried through productivity, calibrated by input shares. The
+conversion between \CLEWS{} monetary units and the \OGCore{} numéraire is currently
+set to unity, so the channels that depend on it (carbon and investment) have
+validated mechanics but illustrative levels. And the coupling currently runs one
+full pass; the return signals exist, but the fixed-point iteration between the
+models is not yet closed. Each limitation is a defined interface with a designed
+extension, and Section~\ref{sec:policy} returns to the roadmap.

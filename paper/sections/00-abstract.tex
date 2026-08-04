@@ -1,0 +1,20 @@
+Bottom-up resource-planning models resolve technologies and physical constraints but
+abstract from household behaviour, fiscal closure, and distribution; overlapping-
+generations (OLG) general-equilibrium models represent those mechanisms but contain
+little energy-system detail. This paper presents an
+auditable soft link between \CLEWS{}/\OSeMOSYS{} and \OGCore{}, explains the economic
+representation of each cross-model mapping, and tests the implemented forward pass and
+re-solve seam in a Philippine application. Four mappings carry electricity costs, public
+investment, generation capital intensity, and pollution-related health effects into the
+economy; two apply exogenous carbon-pricing and investment-incentive paths; and
+two write equilibrium returns and activity back to the resource model. For each mapping,
+the interface records the quantity transferred, its receiving-model entry, its accounting
+treatment, and its validation status. Because the commodity-balance shadow price is degenerate in the
+application, the interface uses a reform-to-baseline levelized-cost ratio as a price proxy,
+applied to disjoint household and intermediate-use expenditures through a recycled
+consumption wedge and an input--output-calibrated industry cost-push. The Philippine
+application tests the principal forward mechanisms jointly and other mappings separately;
+the results illustrate mechanism behaviour rather than constitute a policy assessment.
+The forward pass and a controlled \CLEWS{} re-solve are implemented and tested, but the
+emitted return and activity paths have not yet been passed through a closed loop. The
+outer iteration controller and monetary-unit bridge remain open.
