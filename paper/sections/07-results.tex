@@ -142,13 +142,13 @@ to within $0.03\%$. It is a factor-share and energy-price lever, not a capital-d
 
 \subsection{Validation}
 \label{sec:validation}
-The coupling is exercised by a continuable, grouped \emph{battery}
-(\texttt{experiments/run\_battery.py}) run the canonical cross-environment way---the link
-orchestrates in its own environment and subprocesses the country's \OGCore{} model in the
-\texttt{ogphl} environment via the model registry, exchanging data files (no shared
-interpreter). All items pass the hard gate (the solve completes); macro aggregates are
-regression-locked in the committed golden record (\texttt{results/golden.json}), checked
-by \texttt{tests/test\_golden.py}, alongside a transform-level unit suite. One documented
+The coupling is exercised by a continuable, grouped \emph{battery} of runs executed
+the canonical cross-environment way---the link orchestrates in its own environment
+and runs the country's \OGCore{} model in the country model's own environment,
+exchanging data files (no shared interpreter). All items pass the hard gate (the
+solve completes); macro aggregates are regression-locked in the committed golden
+record (\texttt{results/golden.json}) and re-checked automatically, alongside a
+transform-level unit suite. One documented
 exception: the lives-saved health reform leaves an intrinsic Walras residual that scales
 with the target, so its steady-state resource-constraint gate is loosened to $10^{-5}$
 (an order of magnitude under \OGCore{}'s own transition-path default), while the

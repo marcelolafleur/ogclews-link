@@ -33,19 +33,10 @@ public-investment share $\alphaI$, and the demographic objects $\rho(s,t)$ and
 $e(t,s,j)$---``wedge'' in its public-finance sense, since the simplest channel
 (\Cref{sec:routes}) literally inserts a tax wedge between the producer and consumer
 price of energy. A channel composes an extractor and its applicators with the
-validation that fires when a mapping is large or ill-posed.
-
-\begin{remark}[Realisation]
-The channels are plain functions in \texttt{channels.py} (those that run
-\OGCore{}$\to$\CLEWS{} carry an \texttt{emit\_} prefix and execute after the reform
-solves); extraction lives in \texttt{signals.py}, application in \texttt{og\_wedge.py},
-the per-run interface and sector concordance in \texttt{contract.py}/\texttt{discovery.py},
-orchestration in \texttt{framework.py}, and the cross-environment solve---which runs the
-country's \OGCore{} model in its own interpreter and exchanges data files---in
-\texttt{registry.py}/\texttt{models.py}/\texttt{og\_runner.py}. Everything is
-country-agnostic: no hard-coded country, industry index, or industry count are baked in;
-those are read from the calibration and the declared concordance (\Cref{sec:architecture}).
-\end{remark}
+validation that fires when a mapping is large or ill-posed. Nothing country-specific
+is fixed in the framework: which industry is electricity, and how many industries and
+goods the country resolves, are read from the calibration and the declared concordance
+at run time (\Cref{sec:architecture}).
 
 \subsection{The levelized cost of electricity as the load-bearing signal}
 \label{sec:signal}
@@ -155,7 +146,7 @@ dividing the electricity industry's productivity by the price ratio,
 $\TFP_{m_e}\to\TFP_{m_e}/g_t$, makes the model \emph{produce} the higher electricity
 price endogenously---with the full general-equilibrium response of wages, the
 interest rate, and the sector's own inputs that a tax wedge does not have. This route
-is implemented (\texttt{energy\_price\_tfp}). Now trace where the higher price goes.
+is implemented. Now trace where the higher price goes.
 It flows through the consumption bridge into the energy good, and households pay it.
 It goes nowhere else: manufacturing's costs, prices, and decisions are untouched,
 because manufacturing buys no electricity in the model. The route is not wrong---it is
@@ -290,8 +281,8 @@ and, in the closed loop, (v)~re-solve \CLEWS{} and repeat to the fixed point of
 \diagramfig{architecture}{The structural seam. The two models stay separate and pass
 signals across a contract; a hard link is precluded by \Cref{ass:hardlink}.}{fig:architecture}
 
-What makes the exchange auditable is an explicit interface contract
-(\texttt{contract.py}): a \emph{scenario pair} naming the baseline and reform runs, the
+What makes the exchange auditable is an explicit interface contract:
+a \emph{scenario pair} naming the baseline and reform runs, the
 \CLEWS{} scenario, and the country; a \emph{concordance} mapping \OGCore{} industries
 $m$ and goods $i$ to \CLEWS{} commodities, technologies, and demands---supplied by the
 country configuration, since \OGCore{} has no native notion of a resource; and a
