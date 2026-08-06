@@ -7,14 +7,15 @@ phased in, then the population is recomputed. Two inputs come from data:
 
 - The emissions→deaths dose-response multiplier **ships with the repo** (`M = 0.082` for the
   Philippines, in `ogclews_link/data/pm25_health.json`) — nothing to do.
-- The GBD burden CSV **does not ship**. It is machine-local and git-ignored, so **every fresh clone
-  starts without it and the health channel skips** (cleanly, with a message) until you download it —
-  ~5 minutes, recipe in §1 below. The link looks for it at `IHME-GBD_2023_DATA/` in the repo root.
+- The GBD burden CSV **ships with the repo** at `IHME-GBD_2023_DATA/IHME-GBD_2023_DATA-a20a92ea-1.csv` —
+  nothing to do on a fresh clone. §1 below documents its provenance and how to refresh it if a newer
+  GBD round is needed.
 
-## 1. The age profile h(s) — IHME GBD (required)
+## 1. The age profile h(s) — IHME GBD (included; provenance + refresh recipe)
 
-Download from the IHME GBD Results tool as below and place the export at `IHME-GBD_2023_DATA/` in the
-repo root (one multi-country CSV covers PHL + IDN/ZAF/ETH).
+Already on disk at `IHME-GBD_2023_DATA/` in the repo root (one multi-country CSV covers PHL +
+IDN/ZAF/ETH). To refresh it or pull a newer GBD round, download from the IHME GBD Results tool as
+below and replace the export in place.
 
 - Portal: https://vizhub.healthdata.org/gbd-results/
 - GBD round: **GBD 2023** (to match the HIV extract used in CostOfDisease)
