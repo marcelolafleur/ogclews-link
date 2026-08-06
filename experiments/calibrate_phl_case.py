@@ -118,8 +118,20 @@ CAPACITY_FACTOR_SCALE = {
 AVAILABILITY_FACTOR = {
     "PHL_POW_GEO_OLD": (1.0, 0.629, "PHL geothermal achieved 2024, DOE-derived"),
 }
-# Onshore wind resource ceiling, PJ/yr. 664 PJ = 184.4 TWh.
+# Wind resource ceilings, PJ/yr.
+#   onshore  664 PJ = 184.4 TWh -- NREL/USAID 2020 "Restricted" screened potential.
+#   offshore 823 PJ = 228.6 TWh -- 58 GW (the upper bound of the World Bank/ESMAP
+#            screened range 27-58 GW) at the roadmap's 45% capacity factor.
+#
+# The offshore cap was MISSED in the first calibration pass: onshore was capped and
+# its sibling was left at the inherited 3,949 PJ placeholder. The consequence was
+# real but much milder than the defect it replaced -- the model built 63.3 GW
+# offshore, 1.09x the upper screened bound but 0.94x the capacity the Philippine DOE
+# has already awarded in offshore service contracts, against onshore's 92% of the
+# entire national resource on twice the available land. Fixing one resource ceiling
+# without checking the technology that substitutes for it is the general trap.
 WIND_ONSHORE_CAP_PJ = 664.0
+WIND_OFFSHORE_CAP_PJ = 823.0
 
 # The national land total, 10^3 km2, forced as a LOWER limit on the land resource.
 # Iteration 2 lesson: pinning Forest to its observed value freed ~74,500 km2, and
@@ -146,6 +158,8 @@ SOURCES = {
     "wind_onshore_cap": "NREL/USAID 2020 Restricted potential 184.4 TWh/yr",
     "wind_offshore_cf": "World Bank/ESMAP Offshore Wind Roadmap for the "
                         "Philippines, Apr 2022, 45-47% CF",
+    "wind_offshore_cap": "World Bank/ESMAP Offshore Wind Roadmap, 27-58 GW after "
+                         "environmental and social screening; 58 GW at 45% CF",
     "geothermal_cf": "Derived from DOE Power Statistics 2024: generation / "
                      "(installed capacity x 8760) = 62.9% in 2024",
     "discount_neda": "NEDA/ICC Memorandum 30 Sep 2016, social discount rate "
@@ -309,15 +323,16 @@ def main() -> int:
     for t, (was, now, _) in AVAILABILITY_FACTOR.items():
         patch_ryt(ryt, "AF", t, now); af_ch[t] = {"from": was, "to": now}
     changed["availability_factor"] = af_ch
-    # onshore wind resource ceiling -- keep the 2020 value (observed), cap later years
-    for rows in ryt["TAU"].values():
-        for r in rows:
-            if r.get("TechId") != tid["PHL_POW_PP_WON_T1"]:
-                continue
-            for k in year_keys(r):
-                if k != "2020" and isinstance(r[k], (int, float)) \
-                        and r[k] > WIND_ONSHORE_CAP_PJ:
-                    r[k] = WIND_ONSHORE_CAP_PJ
+    # wind resource ceilings -- keep the 2020 values (observed), cap later years
+    for tech, cap in (("PHL_POW_PP_WON_T1", WIND_ONSHORE_CAP_PJ),
+                      ("PHL_POW_PP_WOF_T1", WIND_OFFSHORE_CAP_PJ)):
+        for rows in ryt["TAU"].values():
+            for r in rows:
+                if r.get("TechId") != tid.get(tech):
+                    continue
+                for k in year_keys(r):
+                    if k != "2020" and isinstance(r[k], (int, float)) and r[k] > cap:
+                        r[k] = cap
     # force the land resource to the full national total (see the constant's note)
     for rows in ryt["TAL"].values():
         for r in rows:
@@ -327,6 +342,7 @@ def main() -> int:
                         r[k] = LAND_RESOURCE_TOTAL_KKM2
     save(p, ryt)
     changed["wind_onshore_cap_pj"] = WIND_ONSHORE_CAP_PJ
+    changed["wind_offshore_cap_pj"] = WIND_OFFSHORE_CAP_PJ
     changed["land_resource_floor_kkm2"] = LAND_RESOURCE_TOTAL_KKM2
     del ryt
 

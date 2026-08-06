@@ -659,3 +659,60 @@ arguably the more honest label, since nothing in the model gives it a reason to 
 
 **For anyone porting this method to another country:** check the slack before adding the last pin.
 `sum(pins) + exogenous demand ≤ land total`, with room to spare, or the model will not solve.
+
+---
+
+## 14. Does the calibration change the policy answer? Yes, decisively
+
+This was the open question that determines whether the calibration bought anything: if the policy
+pathway barely moved, the model would be driven by structure rather than evidence.
+
+`PEP_v12` solved on both the uncalibrated and calibrated cases:
+
+| 2053 generation, TWh | uncal Base | uncal PEP | cal Base | **cal PEP** |
+|---|---:|---:|---:|---:|
+| **onshore wind** | 0.0 | **165.3** | 0.0 | **0.0** |
+| **offshore wind** | 0.0 | 0.0 | 64.5 | **249.5** |
+| coal | 203.5 | 43.8 | 200.5 | 35.7 |
+| solar | 108.6 | 74.6 | 100.4 | 33.2 |
+| nuclear SMR | 0.0 | 50.1 | 0.0 | 29.9 |
+| geothermal | 35.0 | 35.0 | 6.3 | 22.0 |
+| gas | 17.6 | 31.4 | 2.7 | 16.2 |
+
+**The physically impossible pathway is gone.** The uncalibrated model built 165 TWh of onshore wind —
+92% of the entire national resource, on 1.9–2.6× the available good-to-excellent windy land, at 300×
+the historical build rate. The calibrated model builds **zero** onshore wind and goes offshore, which
+is where the Philippine resource actually is.
+
+Two parameters did it: the offshore capacity factor corrected from 15.4% to the observed 45% (LCOE
+257 → 88 USD/MWh, below onshore's 95), and the onshore activity cap reduced from 442.8 to the
+screened 184.4 TWh. Offshore now also appears in the **baseline** at 64.5 TWh, so it is economic on
+its own merits rather than only under a coal constraint.
+
+### But the technology answer moved and the climate answer did not
+
+Cumulative CO2e: 4,828 → 4,704 Mt, a change of **2.6%**.
+
+So a ministry asking *"how much can we cut?"* would have been served adequately by the uncalibrated
+model. One asking *"with what?"* would have been given an answer that cannot be built. That
+asymmetry is worth stating in any write-up: aggregate emissions were robust to a day of parameter
+corrections; the technology pathway was not.
+
+### The fix is itself 9% loose — a second-order omission
+
+The offshore build of 249.5 TWh implies **63.3 GW** at 45% capacity factor:
+
+| against | | |
+|---|---:|---|
+| World Bank/ESMAP **screened** potential | 27–58 GW | **1.09× the upper bound** |
+| DOE awarded offshore service contracts | ~66–68 GW | 0.94× |
+| raw unscreened potential | 178 GW | 0.36× |
+
+Cause: the onshore cap was applied and **its substitute was not** — offshore was left at the
+inherited 3,949 PJ placeholder. Capping one resource ceiling without checking the technology that
+substitutes for it is the general trap, and it is now fixed in the script
+(`WIND_OFFSHORE_CAP_PJ = 823.0`, i.e. 58 GW at 45%), pending a verification solve.
+
+The overshoot is real but not comparable to the defect it replaced: 9% above a screened bound and
+below already-contracted capacity, versus 92% of an entire national resource on twice the available
+land.
