@@ -45,8 +45,15 @@ So the honest summary of what this model can answer today:
 | Irrigation and water questions | **no** | water is free; the nexus is inert |
 | Land use, forest, biodiversity, land carbon | **no** | forest is a residual, 2.5× observed |
 
-The land defects **do not contaminate the energy answers**. That was measured, not assumed: fixing
-the crop yields moved the objective by 0.0015% and emissions not at all.
+The land defects **do not contaminate the energy answers within CLEWs**. That was measured, not
+assumed: fixing the crop yields moved the objective by 0.0015% and emissions not at all.
+
+> **Correction (2026-08-06):** that covers the CLEWs solve only, *not* the OG-CLEWS link, which is a
+> separate question with a different answer. The link's default electricity-price path allocates
+> land-technology *costs* into the price it ships to OG-Core, so a change that leaves the LP objective
+> flat can still move the macro result. Measured at 0.18% on PHL today — negligible, but only because
+> the PHL land block has almost no costs, and it would rise by roughly an order of magnitude if crop
+> production costs were added. See `og-clews-seam-contamination.md`.
 
 ## The pending items, ranked by value for the money
 
