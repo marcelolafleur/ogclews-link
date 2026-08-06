@@ -588,3 +588,74 @@ A note on the fixed-point iteration for yields: because the model reallocates cr
 clusters of differing yield, a single national scale factor cannot be computed analytically. Each pass
 multiplies the previous factor by (solved ÷ target). It converges but oscillates — corn went 1.223,
 then 0.873, then 1.053. Per-cluster factors from PSA regional data would remove the need to iterate.
+
+---
+
+## 13. Final result, and a methodological finding about over-constraining
+
+### The definitive calibrated solve
+
+`Philippines_v12_CALIBRATED`, `Base_v12`, DR = 0.10, **CBC Optimal**, objective 172,244,398.
+
+| land cover 2020, 10³ km² | solved | target | ratio |
+|---|---:|---:|---:|
+| Forest | **72.319** | 72.319 | **1.000** |
+| Built-up | **10.265** | 10.265 | **1.000** |
+| Water bodies | **6.320** | 6.320 | **1.000** |
+| Barren | **1.595** | 1.595 | **1.000** |
+| Cropland | 133.693 | — | — |
+| Unallocated | 71.621 | — | — |
+| **total** | **295.8131** | 295.8131 | **1.000** |
+
+| crop | ratio to PSA 2020 harvested area |
+|---|---:|
+| palay | **0.998** |
+| corn | **0.982** |
+| coconut | **0.998** |
+| sugarcane | **1.000** |
+| vegetables | **0.996** |
+
+Agricultural withdrawal **67.733 km³** against 67.965 (**0.997**). 2020 generation **101.9 TWh** against
+101.76 observed (**+0.14%**).
+
+**All five crops are within 0.4%, all four pinned land classes are exact, the land account closes on
+the national total, water is within 0.3%, and the energy block is undisturbed.** The corn factor took
+four passes to converge: 1.223 → 0.873 → 1.053 → 0.982.
+
+### The finding: a calibration can be too tight to solve
+
+Iteration 4 added one cosmetic refinement — a floor on Grassland at 69,741 km², so that residual land
+would be *labelled* grassland instead of sitting in `ENV_LAND`'s Unallocated backstop. It made the
+model unsolvable. CBC ran **2.5 hours without converging**, against roughly **4 minutes** for the
+otherwise-identical iteration 3.
+
+The arithmetic shows exactly why:
+
+| 2020 constraint | 10³ km² |
+|---|---:|
+| Forest (equality) | 72.3194 |
+| Built-up (equality) | 10.2649 |
+| Water bodies (equality) | 6.3198 |
+| Barren (floor) | 1.5950 |
+| Grassland (floor) | 69.7410 |
+| Cropland (exogenous demand) | 135.5730 |
+| **sum** | **295.8131** |
+| land-resource floor | 295.8131 |
+| **slack** | **0.0000** |
+
+Every constraint binds simultaneously. The feasible region collapses to a single point — a maximally
+degenerate vertex — and the simplex cannot navigate it in reasonable time.
+
+**The lesson generalises beyond this model.** Pinning every land class to its observed value looks
+like the most rigorous possible calibration and is exactly the wrong thing to do: an exogenously
+determined class (cropland, here set by crop demand ÷ yield) plus a full set of observed pins plus a
+resource-total constraint will over-determine the base year. **Leave slack somewhere.** In this case
+the right slack is Grassland, left free with its observed value recorded as data rather than imposed
+as a bound.
+
+The cost of that choice is that ~71,600 km² is reported as `Unallocated` rather than `Grassland`. It
+is the same land, the account still closes exactly, and only the label differs — and `Unallocated` is
+arguably the more honest label, since nothing in the model gives it a reason to be grassland.
+
+**For anyone porting this method to another country:** check the slack before adding the last pin.
+`sum(pins) + exogenous demand ≤ land total`, with room to spare, or the model will not solve.

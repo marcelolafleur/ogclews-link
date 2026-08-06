@@ -65,15 +65,22 @@ LAND_MODES = {
     # An equality in the BASE YEAR ONLY forces the residual into grassland, which is
     # the intended swing pool. Later years stay free, so land-use change still runs.
     27: {"km2": 72319.4, "pin": "equality", "name": "Forest land"},
-    # Grassland is pinned at 69,741 km2, NOT its NAMRIA value of 77,745.6.
-    # Iteration 3 lesson: with the land-resource floor in place the residual land was
-    # fully accounted for, but it landed in ENV_LAND's "Unallocated" backstop mode
-    # (69.741 x10^3 km2) rather than in Grassland, because Grassland had no floor and
-    # nothing rewards it. Pinning it at the residual labels that land as what NAMRIA
-    # observes it to be. The 8,005 km2 shortfall against NAMRIA is exactly the
-    # model's cropland excess (135,573 - 125,280) net of the unused Other-agricultural
-    # class (2,288) -- i.e. the multi-cropping deficit made explicit. See DECISIONS.
-    28: {"km2": 69741.0, "pin": "floor", "name": "Grassland and woodland"},
+    # Grassland is left FREE and given its NAMRIA value as data only.
+    #
+    # Iteration 4 pinned it as a floor at 69,741 km2 so the residual land would be
+    # LABELLED grassland rather than sitting in ENV_LAND's "Unallocated" backstop.
+    # That was cosmetic and it cost solvability: with Forest, Built-up and Water as
+    # equalities, Barren and Grassland as floors, and Cropland fixed by exogenous
+    # demand, the 2020 constraints summed to EXACTLY the land-resource floor of
+    # 295.8131 -- slack 0.0000. The feasible region collapsed to a single point, a
+    # maximally degenerate vertex, and CBC ran 2.5 hours without converging against
+    # the ~4 minutes iteration 3 took.
+    #
+    # So: accept the residual sitting in Unallocated. It is the same land and the
+    # account still closes on the national total exactly; only the label differs, and
+    # arguably "Unallocated" is the more honest label because the model has no reason
+    # to call that land grassland. The lesson generalises: leave slack somewhere.
+    28: {"km2": 77745.6, "pin": None, "name": "Grassland and woodland"},
     29: {"km2": 2287.9, "pin": None, "name": "Other agricultural land"},
     30: {"km2": 6319.8, "pin": "equality", "name": "Water bodies"},
 }
