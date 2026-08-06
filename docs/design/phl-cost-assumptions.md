@@ -136,3 +136,132 @@ the model's own accounting.**
 
 That is a conditional statement, and the conditions are checkable. The discount rate alone is worth
 testing before any of these numbers are presented — which is the sensitivity run recorded below.
+
+## Tested against benchmarks, and against a 10% discount rate (2026-08-06)
+
+Two things changed my diagnosis. Both are corrections to what is written above.
+
+### Correction 1 — the discount rate is NOT the main driver
+
+I built `Philippines_v12_DISCOUNT10` (inputs copied, `DR` = 0.10, original untouched) and solved both
+runs. Both reached optimality.
+
+| | Base | PEP | policy cost |
+|---|---:|---:|---:|
+| DR = 5% | 375,930,821 | 375,953,763 | **0.0061%** |
+| DR = 10% | 172,241,781 | 172,250,477 | **0.0050%** |
+
+The policy cost gets *smaller* at 10%, not larger — a discounting artefact, because the coal cap
+bites after 2040 and a higher rate shrinks late costs. And the technology choice is largely robust:
+
+| 2053 generation, TWh | PEP @5% | PEP @10% |
+|---|---:|---:|
+| onshore wind | 165.3 | **140.7** |
+| solar PV | 74.6 | **123.3** |
+| nuclear SMR | 50.1 | **57.9** |
+| gas CCGT | 31.4 | 45.2 |
+| coal | 43.8 | 32.8 |
+
+Wind and nuclear are still built at 10%. So the qualitative story — coal out, wind/solar/nuclear/gas
+in — **survives a doubling of the discount rate.** The LCOE merit-order inversion computed above is
+real arithmetic, but in the full system optimisation it does not flip the build, because the model
+builds wind and nuclear when it **runs out of cheaper options**, not because they are cheap. Solar and
+geothermal are resource-limited; wind and nuclear fill the remaining gap at whatever they cost.
+
+That is a more robust result than I expected, and it is good news for the policy conclusion. The
+discount rate should still be corrected — 5% is half the mandatory rate and any Philippine government
+audience will measure against 10% — but it is not what makes decarbonisation look nearly free.
+
+### Correction 2 — coal capital cost is 37% too high, and that IS a driver
+
+| technology | model | Philippines benchmark | Vietnam catalogue | IEA India |
+|---|---:|---:|---:|---:|
+| coal | **2200** | **1605** (BNEF 2025) | 1460–1630 | 1200 |
+| gas CCGT | 1200 | 1123 | 770 | 700 |
+| onshore wind | 1497 | 1593 | 1500 | 1120 |
+| solar PV | 995 | 548 | 930 | 640 |
+| nuclear SMR | **4482** | none exists | — | 2800 (large) |
+
+USD/kW. The model's 2200 for coal sits at the **United States** level (IEA WEO puts US coal at 2100)
+and is 1.37× the Philippine benchmark, 1.8× India, 1.4–1.5× Vietnam. Real Philippine projects
+corroborate: GNPower Dinginin ≈1310, GNPower Mariveles ≈1580 USD/kW.
+
+The consequence, computed with Philippine-grounded inputs throughout: **at 5% real, onshore wind and
+the model's 2200 USD/kW coal both come out at 64.6 USD/MWh — an exact tie.** Correct coal to its real
+Philippine cost and move to 10%, and wind becomes **25% more expensive** than coal. So the model
+penalises coal and that is a large part of why the alternatives look free.
+
+### Correction 3 — the wind resource ceiling is physically impossible
+
+This is the most serious problem in the model and it is not a cost problem at all.
+
+The onshore wind activity cap is 1594.08 PJ = **442.8 TWh/yr**:
+
+| against | TWh/yr | model allows |
+|---|---:|---:|
+| NREL unconstrained good-to-excellent resource | 195.2 | **2.27×** |
+| NREL/USAID screened "Restricted" potential | 184.4 | **2.40×** |
+| DOE PEP total wind plan to 2050 | 92.8 | **4.77×** |
+
+And what it actually builds — 165.3 TWh — needs **70.7 GW** at the capacity factor Burgos actually
+achieves. That is 92% of NREL's *entire unconstrained* good-to-excellent resource, on 21,000–29,000
+km² at modern turbine density, which is **1.9–2.6 times all the good-to-excellent windy land in the
+country**. Installed capacity today is 0.502 GW and has sat at 0.427 GW for ten straight years. The
+implied build rate is 2,307 MW/yr for 27 consecutive years against a realised 7.5 MW/yr.
+
+**Where the Philippine wind resource actually is: offshore.** 27–58 GW after environmental and social
+screening, at 45–47% capacity factor — 40 GW offshore delivers ~161 TWh, the same as the model's
+onshore build from a fifth of the capacity. The model has an offshore technology,
+`PHL_POW_PP_WOF_T1`, and gives it a capacity factor of **15.4% against a real 45–47%**. That single
+error makes offshore uneconomic and forces the build onshore, where the resource does not exist.
+
+### Other corrections from the benchmark set
+
+- **2020 generation was 101.76 TWh, not 106** (2020 was the COVID dip). So the model's 102.0 TWh is
+  **+0.2% — essentially exact**, better than the 4% gap reported earlier in this repo.
+- **Philippine geothermal achieves 63%**, not the 80–90% of generic catalogues. The model gives it no
+  timeslice capacity factor at all, so it runs at 100% availability.
+- **Onshore wind capacity factor**: operator-reported Burgos averages 26.7% over 2019–2024. The
+  model's 17.7% is low; the DOE-derived national 33% is too high and fails a consistency check.
+- **Coal delivered 2020 was 2.48 USD/GJ** against the model's 3.03 — the model is 22% high for 2020,
+  though its flat path does bracket 2023–24 actuals (5.07, 3.76). Verify the calorific value is
+  ~22.1 GJ/t (the DOE official figure); assuming 17.6 GJ/t would overstate USD/GJ by 25%.
+- **The Philippines imported no LNG before April 2023.** A 2020 gas price should be Malampaya, not
+  LNG. Malampaya is oil-linked and now ~12.1 USD/GJ, at parity with imported LNG, and the field is
+  expected dry around 2027.
+- **Nuclear SMR at 4482 USD/kW** against NREL ATB Moderate 8000, Conservative 10,000, and the
+  cancelled NuScale project's implied ~20,130. A Philippine first-of-a-kind belongs at the
+  conservative end or above. The 50 TWh built implies 6.3 GW against a government ambition of
+  1.2 GW by 2032.
+- **Actual contracted Philippine prices** (Green Energy Auction, pay-as-bid): GEA-2 onshore wind
+  100.9 USD/MWh nominal, roughly 80 constant-real; solar 75.4 nominal, roughly 60 real. The model's
+  implied 2053 wind cost of ~65 is optimistic against those.
+- **The discount rate should be technology-differentiated, not just raised.** Philippine hurdle rates
+  run the *opposite* way to a low uniform rate: BNEF puts Philippine coal at 16% and CCGT at 18%
+  nominal against solar 13% and wind 14%; IEA uses 4–7% for solar and wind but 8–9% for coal, gas and
+  nuclear. A single 5% prices a first-of-a-kind nuclear plant at the same risk as a solar farm.
+- The NEDA social discount rate of **10% real is mandatory** for public investment appraisal (ICC
+  Memorandum, 30 September 2016, updating from 15%), and a published Philippine OSeMOSYS study
+  (Dixon et al., *Climate* 13(1):14, 2025) uses 10%.
+
+### Revised verdict
+
+The `PEP_v12` pathway is **more robust than I first thought on cost, and less credible than I thought
+on physics.**
+
+1. The technology choice survives doubling the discount rate. That is a genuine result.
+2. But coal is penalised by a capital cost 37% above the Philippine benchmark, which is a large part
+   of why the switch looks costless.
+3. And the onshore wind build is physically impossible — 92% of the entire national resource, on
+   twice the available land, at 300× the historical build rate.
+
+**Ranked fixes, all single-parameter and within the existing structure:**
+
+1. **Cap onshore wind at the screened resource** — 184.4 TWh (664 PJ), not 442.8 TWh. This is the one
+   that changes the answer most, and it is a one-line change.
+2. **Fix the offshore wind capacity factor** — 15.4% → 45%. Lets the model use the resource the
+   country actually has.
+3. **Coal capital cost** 2200 → ~1605 USD/kW.
+4. **Discount rate** 5% → 10% central, ideally technology-differentiated.
+5. **Nuclear SMR capital** 4482 → 8000–10,000 USD/kW.
+6. **Geothermal capacity factor** → 63%.
