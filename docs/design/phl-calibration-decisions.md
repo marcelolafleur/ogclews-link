@@ -481,8 +481,17 @@ Test results are recorded in §11 below.
 
 ## 11. Test results
 
-`Philippines_v12_CALIBRATED`, run `Base_v12`, DR = 0.10. **CBC Optimal.** Four iterations were needed
-and the failures of the first three are recorded in §12 because they are instructive.
+`Philippines_v12_CALIBRATED`, run `Base_v12`, DR = 0.10. **CBC Optimal.**
+
+**Provenance of these numbers, stated precisely.** Every figure in this section was verified from the
+**iteration-3** solve. Iteration 4 changed exactly two things — it pinned Grassland at the residual so
+that land is *labelled* grassland rather than sitting in `ENV_LAND`'s Unallocated backstop, and it
+re-iterated the corn factor. Neither affects any other row. In the table below, the Grassland figure of
+69,741 km² is therefore where iteration 3 put that land (in Unallocated) and where iteration 4 pins it
+(in Grassland); the quantity is identical and it is the same land either way, because the ENV_LAND
+terminal totalled 295.8131 exactly in iteration 3.
+
+Corn's 1.053 is the iteration-3 value; iteration 4 re-iterates it and should improve it.
 
 ### Land — crop area against PSA 2020 harvested area
 
@@ -568,7 +577,12 @@ disappears.** Nothing rewards grassland and nothing required the land to be supp
 same reason as pass 1 — no floor, no reward. *Fix:* pin grassland as a floor at the residual, 69,741
 km², which is NAMRIA's 77,746 less the multi-cropping deficit.
 
-**Pass 4** is the reported result.
+**Pass 4** applies the grassland label and a further corn iteration. The numbers reported in §11 are
+**pass 3's**, verified; pass 4 changes only the two things named above. A first attempt at pass 4 was
+lost when the MUIOGO server stopped mid-solve — worth recording because the case directory had already
+been rebuilt, so a verified solve was destroyed to run an unverified one. Rebuild from the source case
+and re-run the script rather than assuming a calibrated case on disk is the one that produced a given
+table.
 
 A note on the fixed-point iteration for yields: because the model reallocates crops across eight
 clusters of differing yield, a single national scale factor cannot be computed analytically. Each pass
