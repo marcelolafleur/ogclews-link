@@ -476,3 +476,101 @@ muiogo-ai run --case <new case> --run Base_v12
 ```
 
 Test results are recorded in §11 below.
+
+---
+
+## 11. Test results
+
+`Philippines_v12_CALIBRATED`, run `Base_v12`, DR = 0.10. **CBC Optimal.** Four iterations were needed
+and the failures of the first three are recorded in §12 because they are instructive.
+
+### Land — crop area against PSA 2020 harvested area
+
+| crop | before | after | PSA 2020 | ratio |
+|---|---:|---:|---:|---:|
+| palay | 22.976 | **47.116** | 47.189 | **0.998** |
+| corn | 9.781 | 26.882 | 25.538 | 1.053 |
+| coconut | 31.014 | **36.538** | 36.513 | **1.001** |
+| sugarcane | 22.181 | **3.991** | 3.991 | **1.000** |
+| vegetables | 12.218 | **5.891** | 5.912 | **0.996** |
+| other (no target) | 15.493 | 15.155 | — | — |
+| total | 113.663 | 135.573 | — | — |
+
+10³ km². Four of five crops land within 0.5%. Corn is 5.3% over after a further iteration; the
+fixed-point iteration oscillates around it and a fifth pass or per-cluster factors would close it.
+
+### Land — cover against NAMRIA 2020
+
+| class | before | after | NAMRIA | ratio |
+|---|---:|---:|---:|---:|
+| Forest | 179.782 | **72.319** | 72.319 | **1.000** |
+| Built-up | 0.770 | **10.265** | 10.265 | **1.000** |
+| Water bodies | 1.598 | **6.320** | 6.320 | **1.000** |
+| Barren | 0.000 | **1.595** | 1.595 | **1.000** |
+| Cropland | 113.663 | 135.573 | 125.280 | 1.082 |
+| Grassland and woodland | 0.000 | 69.741 | 77.746 | 0.897 |
+| **total (ENV_LAND terminal)** | **295.8131** | **295.8131** | 295.813 | **1.000** |
+
+**Forest 179.8 → 72.3, exactly the observed figure.** This is the headline result: forest is no longer
+an accounting residual. Built-up corrects a 13× error. The land account closes on the national total
+to 1e-4.
+
+The two classes that miss are the multi-cropping tension of §4, and they miss by exactly offsetting
+amounts: cropland is 10.293 ×10³ km² above NAMRIA, of which 2.288 is the unused Other-agricultural
+class, leaving grassland 8.005 short. That is the model's inability to multi-crop, made explicit and
+visible rather than hidden.
+
+### Water
+
+| | before | after | target |
+|---|---:|---:|---:|
+| agricultural withdrawal | 2.710 | **67.880 km³** | 67.965 (ratio **0.999**) |
+| irrigated area | 19.35 | 21.55 | — |
+| rainfed area | 94.31 | 114.02 | — |
+
+### Energy — undisturbed, which was the point
+
+| | before | after | observed |
+|---|---:|---:|---:|
+| 2020 generation | 102.0 | **101.9 TWh** | 101.76 |
+| 2020 CO2e | 97.3 | **97.3 Mt** | — |
+| objective (DR=0.10) | 172,241,781 | 172,244,608 | — |
+
+The objective moves **+0.0016%** and 2020 emissions not at all. The energy block, which was already
+sound, is essentially untouched by a recalibration that moved forest by 107,000 km² and irrigation
+withdrawal by a factor of 25. That separation was the design goal and it held.
+
+---
+
+## 12. Iteration history — what failed and why
+
+Recorded in full because a reviewer needs to know the traps, and three of the four passes failed.
+
+**Pass 1 — forest still absorbed the residual.** Forest was pinned as a *floor* at 72,319 km² and came
+out at **134,225**. A floor stops forest falling, not rising, and forest carries the `-10` reward while
+grassland carries nothing, so it remained the preferred destination for unallocated land. *Fix:* make
+forest a base-year **equality**. Later years stay free so land-use change still runs.
+
+**Pass 1 — the irrigation cap distorted rather than guarded.** The irrigated-area cap was apportioned
+pro rata to cluster area and thereby became binding per mode per cluster, collapsing irrigated area
+from 25.0 to **8.1** ×10³ km². *Fix:* give every mode the national figure, so no single mode-cluster
+pair is constrained. The national sum is not expressible with a per-mode parameter; that limitation is
+accepted and recorded.
+
+**Pass 2 — 74,500 km² left the accounts.** With forest pinned to its observed value, total land fell
+from 295,813 to **221,292** km² and grassland stayed at zero. The lesson generalises and is worth
+stating plainly: **in OSeMOSYS, land you do not constrain does not sit in a residual class — it
+disappears.** Nothing rewards grassland and nothing required the land to be supplied. *Fix:* force
+`MINLNDTOT` to the national total as a lower limit.
+
+**Pass 3 — the residual was accounted for but mislabelled.** The land-resource floor worked, but the
+69,741 km² residual landed in `ENV_LAND`'s "Unallocated" backstop mode rather than in Grassland, for the
+same reason as pass 1 — no floor, no reward. *Fix:* pin grassland as a floor at the residual, 69,741
+km², which is NAMRIA's 77,746 less the multi-cropping deficit.
+
+**Pass 4** is the reported result.
+
+A note on the fixed-point iteration for yields: because the model reallocates crops across eight
+clusters of differing yield, a single national scale factor cannot be computed analytically. Each pass
+multiplies the previous factor by (solved ÷ target). It converges but oscillates — corn went 1.223,
+then 0.873, then 1.053. Per-cluster factors from PSA regional data would remove the need to iterate.

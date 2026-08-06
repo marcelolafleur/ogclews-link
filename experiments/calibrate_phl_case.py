@@ -44,7 +44,7 @@ CROP_TARGETS = {
     # one step of a fixed-point iteration. Pass-1 results: RCP 49.620, MZE 31.226,
     # CON 37.307, SGC 3.991 (exact), TOM 6.109.
     "CRPRCP": (24.156, 47.189, "palay 4,718,896 ha, PSA OpenSTAT"),
-    "CRPMZE": (10.441, 25.538, "corn 2,553,781 ha, PSA OpenSTAT"),
+    "CRPMZE": (10.990, 25.538, "corn 2,553,781 ha, PSA OpenSTAT"),
     "CRPCON": (31.687, 36.513, "coconut 3,651,289 ha, PSA OpenSTAT"),
     "CRPSGC": (22.181, 3.991, "sugarcane 399,086 ha, PSA OpenSTAT"),
     "CRPTOM": (12.625, 5.912, "vegetables+root crops 591,243 ha, PSA summed"),
@@ -65,7 +65,15 @@ LAND_MODES = {
     # An equality in the BASE YEAR ONLY forces the residual into grassland, which is
     # the intended swing pool. Later years stay free, so land-use change still runs.
     27: {"km2": 72319.4, "pin": "equality", "name": "Forest land"},
-    28: {"km2": 77745.6, "pin": None, "name": "Grassland and woodland"},
+    # Grassland is pinned at 69,741 km2, NOT its NAMRIA value of 77,745.6.
+    # Iteration 3 lesson: with the land-resource floor in place the residual land was
+    # fully accounted for, but it landed in ENV_LAND's "Unallocated" backstop mode
+    # (69.741 x10^3 km2) rather than in Grassland, because Grassland had no floor and
+    # nothing rewards it. Pinning it at the residual labels that land as what NAMRIA
+    # observes it to be. The 8,005 km2 shortfall against NAMRIA is exactly the
+    # model's cropland excess (135,573 - 125,280) net of the unused Other-agricultural
+    # class (2,288) -- i.e. the multi-cropping deficit made explicit. See DECISIONS.
+    28: {"km2": 69741.0, "pin": "floor", "name": "Grassland and woodland"},
     29: {"km2": 2287.9, "pin": None, "name": "Other agricultural land"},
     30: {"km2": 6319.8, "pin": "equality", "name": "Water bodies"},
 }
