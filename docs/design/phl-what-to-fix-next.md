@@ -194,3 +194,59 @@ Stated so this brief is not read as broader than it is.
 - The observed figures used throughout — generation mix, harvested areas, water withdrawals — were
   taken from recollection during the session and are right in magnitude, but should be re-pulled from
   PSA, DOE and AQUASTAT before anything is published.
+
+## Item 1 done — the first policy result this model has ever produced (2026-08-06)
+
+`PEP_v12` solved: CBC Optimal, 260 s, objective 375,953,763 against `Base_v12`'s 375,930,821 — a
+difference of only **0.0061%**. That near-identical cost is the first thing to understand about this
+result, and it is explained below.
+
+### It produces a coherent decarbonisation pathway
+
+| | 2020 | 2030 | 2040 | 2053 |
+|---|---:|---:|---:|---:|
+| CO2e, Base | 97.3 | 148.8 | 186.2 | 263.9 |
+| CO2e, PEP | 97.3 | 146.6 | 132.1 | 139.5 |
+| change | 0% | −1.5% | **−29.1%** | **−47.1%** |
+
+Cumulative 2020–2053: **6,321 → 4,828 MtCO2e, −23.6%.**
+
+By 2053 the policy run replaces 160 TWh of coal with 165 TWh of wind, 50 TWh of nuclear SMR
+(`PHL_POW_PP_NUSMR`) and 14 TWh of extra gas.
+
+### Two things a reader must know before quoting it
+
+**1. Coal generation RISES in 2030, by 16 TWh, under the coal phase-out.** This is not an error but
+it is counterintuitive, and it comes from how the phase-out is implemented:
+
+- `PHL_POW_CHP_COAL_OLD` gets a declining *activity* cap: 209.45 → 178.56 → 0.
+- `PHL_POW_PP_COAL` gets a *capacity* cap that only reaches 0 in the final year; its activity is
+  never capped.
+
+So in the interim the model retires old coal CHP (65.6 → 13.3 TWh in 2030) and substitutes into the
+other coal plant (18.3 → 87.1 TWh), which is unconstrained. Coal-to-coal substitution, plus the extra
+EV demand, makes 2030 coal higher than baseline. The phase-out is real by 2040; before then it moves
+coal between technologies rather than out of the system. **Anyone presenting a 2030 number from this
+scenario needs to know that.**
+
+**2. The mix change is driven almost entirely by the coal caps, not by the renewables scenario.**
+Wind's activity upper limit is 1594.08 in *both* runs, and nuclear SMR has no scenario-specific limit
+either. Both are available in the baseline and the baseline simply does not build them. They appear
+only once coal is constrained. So `RE` and `EV` shift demand and costs, but the generation-mix result
+is a response to the coal constraint.
+
+That also explains the near-identical objective: the alternatives were already close to coal in cost,
+so forcing the switch costs almost nothing in the model's own terms. Whether that is a finding about
+Philippine energy economics or an artefact of uninspected cost assumptions **cannot be settled from
+this run** — see the costs gap below. It is the most important open question about this result.
+
+### What it is worth
+
+This is a usable policy result and the capability is demonstrated: the model runs a multi-scenario
+policy case, reaches optimality in about four minutes, and produces a decarbonisation pathway with a
+sensible structure. For proof-of-concept purposes that is the headline.
+
+But two of its three headline numbers rest on technologies with essentially no deployment today —
+165 TWh of wind from a base of zero, and 50 TWh of nuclear SMR — and their cost and resource
+assumptions have not been checked. **Costs are now the highest-value unexamined area in this model**,
+ahead of anything remaining in the land block.
