@@ -103,31 +103,36 @@ def patch_eacr(case_dir: Path) -> None:
         tech.setdefault("EAR", []).append(CO2E)
         gd_path.write_text(json.dumps(gd))
 
+    # The datafile writer iterates EVERY mode in the case and does a raw nested
+    # lookup (DataFileClass.gen_RYTEM: `rytem[id][sc][year][tech][emis][mod]`),
+    # so a (tech, emis) pair must carry a row for ALL modes or generation dies
+    # with a KeyError mid-write, truncating data.txt -- verified: 53 of 54
+    # params, the file ending inside the EACR block. UI-created grids always
+    # carry the full mode set (30 here); hand-added rows must too.
+    n_modes = int(json.loads((case_dir / "genData.json").read_text())["osy-mo"])
+
     path = case_dir / "RYTEM.json"
     data = json.loads(path.read_text())
     for code in ("EAR", "EACR"):
         for sc, rows in data[code].items():
-            mine = [
-                r for r in rows
-                if r.get("TechId") == FOREST_TECH
-                and r.get("EmisId") == CO2E
-                and int(r.get("MoId", 0)) == FOREST_MODE
-            ]
-            if len(mine) > 1:
-                raise RuntimeError(f"{path}: {len(mine)} duplicate rows in {code}/{sc}")
-            row = mine[0] if mine else {
-                "TechId": FOREST_TECH, "EmisId": CO2E, "MoId": FOREST_MODE,
+            mine = {
+                int(r["MoId"]): r
+                for r in rows
+                if r.get("TechId") == FOREST_TECH and r.get("EmisId") == CO2E
             }
-            # (Re)write the values in place -- repairs an earlier ungated row.
-            for y in _years(rows):
-                if sc != "SC_0":
-                    row[y] = None
-                elif code == "EAR":
-                    row[y] = 0
-                else:
-                    row[y] = EACR_VALUE if int(y) >= EACR_START_YEAR else 0
-            if not mine:
-                rows.append(row)
+            for mode in range(1, n_modes + 1):
+                row = mine.get(mode)
+                if row is None:
+                    row = {"TechId": FOREST_TECH, "EmisId": CO2E, "MoId": mode}
+                    rows.append(row)
+                # (Re)write values in place -- repairs earlier partial patches.
+                for y in _years(rows):
+                    if sc != "SC_0":
+                        row[y] = None
+                    elif code == "EACR" and mode == FOREST_MODE:
+                        row[y] = EACR_VALUE if int(y) >= EACR_START_YEAR else 0
+                    else:
+                        row[y] = 0
     path.write_text(json.dumps(data))
 
 
@@ -157,14 +162,21 @@ def verify(case_dir: Path, want_eacr: bool, want_ep: bool) -> list[str]:
     if want_eacr:
         ear_ok = CO2E in tech.get("EAR", [])
         report.append(f"genData EAR declared: {'OK' if ear_ok else 'WRONG -- generator will drop the row'}")
-        gated = {k: v for r in eacr_rows for k, v in r.items()
-                 if k not in ("TechId", "EmisId", "MoId")}
-        pre = {v for y, v in gated.items() if int(y) < EACR_START_YEAR}
-        post = {v for y, v in gated.items() if int(y) >= EACR_START_YEAR}
-        ok = len(eacr_rows) == 1 and pre <= {0} and post == {EACR_VALUE}
+        n_modes = int(gd["osy-mo"])
+        by_mode = {int(r["MoId"]): r for r in eacr_rows}
+        forest = by_mode.get(FOREST_MODE, {})
+        pre = {v for y, v in forest.items()
+               if y not in ("TechId", "EmisId", "MoId") and int(y) < EACR_START_YEAR}
+        post = {v for y, v in forest.items()
+                if y not in ("TechId", "EmisId", "MoId") and int(y) >= EACR_START_YEAR}
+        others = {v for m, r in by_mode.items() if m != FOREST_MODE
+                  for y, v in r.items() if y not in ("TechId", "EmisId", "MoId")}
+        ok = (len(by_mode) == n_modes and pre <= {0}
+              and post == {EACR_VALUE} and others <= {0})
         report.append(
-            f"EACR row: {'OK' if ok else 'WRONG'} "
-            f"({len(eacr_rows)} rows, pre-{EACR_START_YEAR} {pre or '{}'}, after {post})"
+            f"EACR rows: {'OK' if ok else 'WRONG'} "
+            f"({len(by_mode)}/{n_modes} modes, forest pre-{EACR_START_YEAR} {pre or '{}'}, "
+            f"after {post}, other modes {others or '{}'})"
         )
     else:
         report.append(f"EACR absent: {'OK' if not eacr_rows else 'WRONG -- row present'}")
