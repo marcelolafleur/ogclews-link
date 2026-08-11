@@ -128,15 +128,38 @@ what the economic side can represent.
 heterogeneous households, lifetime welfare by cohort, income-group incidence, fiscal closure,
 demographic transition. Provable from the models' equations; no priority claim needed.
 
-**(ii) The exchanged signal is a genuine shadow price, not a proxy.** We drive the coupling from
-the dual of the OSeMOSYS commodity-balance constraint — the marginal cost of supplying one more
-unit — rather than an average cost index or an assumed elasticity. Worth stating explicitly
-because it is a methodological choice reviewers will recognise as correct, and because it makes
-the next point possible.
+**(ii) ~~The exchanged signal is a genuine shadow price, not a proxy.~~ CORRECTED 2026-08-11 —
+do not make this claim. It is false about our own code.**
+
+The commodity-balance dual was renamed `'marginal'` and **demoted to an explicit opt-in**; the
+default price source is `'lcoe'`, a levelized cost reconstructed from the CLEWS cost/production
+CSVs. The reason is on record in `signals.py` on `main`: the dual is *"degenerate in OSeMOSYS
+(it binds in scattered, scenario-specific years)"*. A guardrail (commit `f8eff19`) now **refuses**
+a dual with fewer than three overlapping base/reform years, because on PHL a single 2029 overlap
+point was being broadcast into a spurious permanent **+32%** economy-wide price shock.
+
+The correct claim is the opposite and stronger one: **we established that the naive choice —
+driving the coupling from the LP dual — is unsafe in OSeMOSYS, and we say so.** That belongs in
+(iii), not here.
 
 **(iii) Shadow-price hygiene as method.** This is the most original and least expected
 contribution, and it should be a titled subsection, not a footnote. Duals from an LP are only
-meaningful under conditions practitioners rarely check. On the Philippine model we found:
+meaningful under conditions practitioners rarely check.
+
+**Independently cross-validated on two commodities, by two workstreams that did not consult each
+other — which is what makes it a finding rather than an anecdote.**
+
+*Electricity* (the coupled-model workstream, `feature/lcoe-price`, June–July 2026): the EBb4 dual
+binds in scattered years that differ between base and reform, so the base/reform overlap
+collapsed to a single 2029 point, which was then broadcast into a permanent **+32%** price shock.
+Response: a guardrail refusing fewer than three overlapping years, the dual demoted to opt-in,
+and a levelized cost made the default.
+
+*Land* (this workstream, August 2026): nonzero in 1 of 16 demo years and 6 of 34 PHL years; the
+PHL value is the token variable cost, below solver reporting resolution; and two runs at the
+**same optimum with identical land in every year** report it in *different years*.
+
+Same pathology, different commodity, different investigators. On the Philippine model we found:
 
 - The land shadow price is **1.0e-4** — exactly the token variable cost on the land resource, an
   order of magnitude below the solver's own shadow-price reporting resolution.
