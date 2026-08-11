@@ -573,3 +573,30 @@ country-average. Fiji FCPF ER-PD per-hectare figures could not be retrieved (sit
 ⚠ Do not splice FRA 2020 and FRA 2025 into one series: PHL revised the same year 2020 from 127.92 to
 141.57 tC/ha (+10.7%) and reversed its growing-stock trend; Fiji changed its carbon fraction from
 0.47 to 0.49.
+
+## 12. Calibration doctrine for the forest fix (2026-08-11)
+
+Marcelo's ruling on the `-10.0` options, and the reason — record it so no future session
+re-proposes the rejected route.
+
+**Option B (pin forest with lower limits calibrated to the FRL trajectory) is REJECTED.** Our
+calibration work has drawn external criticism for *forcing* values instead of *fitting* them —
+constraining the model to reproduce an observed value rather than letting it derive the value
+endogenously. A forest lower-limit path is exactly that pattern. Do not propose it upstream.
+
+The line to hold: **endowments and physics may be constrained** (the eight cluster land caps are
+a fact about how much land exists); **observed outcomes may not** (forest area is an outcome of
+economics and policy — pinning it imports the answer).
+
+**Option A (price the conversion) is the doctrine-consistent fix**: forest→cropland conversion
+releases 292 tCO2/ha (PHL FRL, UNFCCC-defended), carried by the model's existing emission
+machinery. The optimiser stays free; the observed deforestation rate becomes the *validation
+target* — if the endogenous rate lands near it, the calibration fits; if not, that reveals
+missing non-carbon forest values, which is information, not a licence to constrain.
+
+Note the `-10.0` itself is the right *kind* of mechanism (a price the optimiser can respond to,
+not a constraint) — its defect is only that the number is unsourced. Any upstream write-up should
+say so; the original author's instinct was correct.
+
+Neither option goes upstream yet (Marcelo, 2026-08-11) — this section governs *how* the
+suggestion is framed when it does.
