@@ -49,6 +49,7 @@ while :; do
     # run stalled because a benign diagnostic plateaued. The real convergence signal
     # is the "Distance:" line, which reads ~1e-10 on a converged steady state.
     STEPS=$(grep -c "continuation t=" "$LOG" 2>/dev/null); STEPS=${STEPS:-0}
+    GEN=$(grep -c "GE loop errors" "$LOG" 2>/dev/null); GEN=${GEN:-0}
     TPOS=$(grep -oE "continuation t=[0-9.]+" "$LOG" 2>/dev/null | tail -1 | cut -d= -f2)
     [ -n "$TPOS" ] || TPOS="0"
     SSOK=$(grep -cE "^Iteration: 1 " "$LOG" 2>/dev/null); SSOK=${SSOK:-0}
@@ -60,31 +61,34 @@ while :; do
     MAXERR="$LASTDIST"
     LAST="$STEPS"
 
-    # Stall test: this solver PLATEAUS -- it repeats an identical error vector for
-    # a dozen-plus iterations and then steps down. Identical consecutive vectors are
-    # therefore NOT evidence of a stall; I misread exactly that earlier in this
-    # session and called a converging run dead. The real test is whether the maximum
-    # error has IMPROVED over a long window.
-    if [ -n "$MAXERR" ] && [ "$MAXERR" != "-" ]; then
-        if [ -z "$BESTERR" ] || awk "BEGIN{exit !($MAXERR < $BESTERR)}"; then
-            BESTERR="$MAXERR"; NOIMPROVE=0
-        else
-            NOIMPROVE=$((NOIMPROVE+1))
-        fi
+    # Liveness test. Two earlier versions of this were wrong, both by watching a
+    # metric that does not move during normal work:
+    #   v1 watched identical "GE loop errors" vectors -- but the solver plateaus by
+    #      design, so identical vectors are not a stall.
+    #   v2 watched "best distance so far" -- but distance only updates when a
+    #      continuation STEP COMPLETES, so a long step looks like stagnation. It
+    #      false-alarmed on a run that was demonstrably alive.
+    # The only reliable signal is whether the log is still being written to: GE
+    # iterations accumulating, or a step completing. Flag only if BOTH are frozen.
+    PROGRESS="${STEPS}:${GEN}"
+    if [ "$PROGRESS" = "$PREV" ]; then
+        NOIMPROVE=$((NOIMPROVE+1))
+    else
+        NOIMPROVE=0
     fi
-    PREV="$LAST"
+    PREV="$PROGRESS"
 
     FLAG=""
     # no improvement in the best-ever max error across this many intervals
     [ "$NOIMPROVE" -ge "$STALL_INTERVALS" ] && \
-        FLAG=" NO-IMPROVEMENT($((NOIMPROVE*INT/60))min, best=$BESTERR)"
+        FLAG=" FROZEN($((NOIMPROVE*INT/60))min: no GE iterations AND no step)"
     # Only real failures. "Failed to retrieve population data from UN" is a benign
     # startup warning that fires on every run and would otherwise flag every line.
     grep -qiE "Traceback|MemoryError|KeyboardInterrupt|Segmentation" "$LOG" 2>/dev/null \
         && FLAG="$FLAG ERROR-IN-LOG"
     ls ogclews_runs/*/macro_table.csv >/dev/null 2>&1 && FLAG="$FLAG OUTPUT-WRITTEN"
 
-    echo "[$MM] CLEWS$(clews_state) | OG $PHASE t=$TPOS steps=$STEPS ss_ok=$SSOK dist=$LASTDIST$FLAG"
+    echo "[$MM] CLEWS$(clews_state) | OG $PHASE t=$TPOS steps=$STEPS ge=$GEN dist=$LASTDIST$FLAG"
 
     # stop when the deliverable exists, or the process is gone
     ls ogclews_runs/*/macro_table.csv >/dev/null 2>&1 && { echo "[$MM] DONE -- macro_table.csv written"; exit 0; }
