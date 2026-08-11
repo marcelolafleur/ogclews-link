@@ -1,7 +1,9 @@
 # Drafts: upstream reports for the ogcore 0.19.1 payroll double count
 
-Not posted anywhere. Both drafts below are ready for review; posting needs your
-go-ahead (and would come from your account).
+**Status:** the OG-Core issue is FILED as
+https://github.com/PSLmodels/OG-Core/issues/1199 (2026-08-11, cc @jdebacker),
+in a plainer two-color-trace form than Draft 1 below. Draft 2 (the OG-PHL #85
+comment) is NOT posted; where it says NNNN read 1199.
 
 ---
 
