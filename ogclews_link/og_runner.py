@@ -435,10 +435,30 @@ def _apply_health(p, health):
                          "baseline via _build_baseline_specs so demographics know which country this is.")
     if target < 0:
         p.RC_SS = float(health.get("rc_ss", 1e-6))
+    # Apply the CLEAN mortality marginal, not the raw shocked population. disease_pop's omega comes
+    # from a different construction than the baseline's (infer_pop from a single seed row vs observed
+    # multi-year UN population), and its own docstring warns the construction mismatch is ~1000x the
+    # mortality signal (measured here: 4.3e-05 vs 7.9e-09 on omega_SS -- 5,500x). Updating the reform
+    # with the shocked pop_dict directly therefore compares two differently-built populations, and the
+    # macro "health effect" is dominated by the artifact (a -46-deaths shock read as +0.21% GDP).
+    # The documented cure: shocked minus zero-shock under the SAME window/seed/inference, added onto
+    # the baseline's own arrays -- only the mortality signal crosses over.
+    zero_dict, _ = health_pop.disease_pop(p, aux, 0.0, profile, phase_years=ny, un_country_code=un)
     pop_dict, scale = health_pop.disease_pop(p, aux, target, profile, phase_years=ny, un_country_code=un)
     print(f"[og_runner] disease_pop: excess_deaths target {target:+,.0f} -> shock_scale {scale:+.5g}",
           file=sys.stderr)
-    p.update_specifications(pop_dict)
+    marginal = {}
+    for k, v in pop_dict.items():
+        s, z = np.asarray(v, dtype=float), np.asarray(zero_dict[k], dtype=float)
+        cur = np.asarray(getattr(p, k), dtype=float)
+        if s.shape != z.shape or s.shape != cur.shape:
+            raise ValueError(f"health marginal: shape mismatch on '{k}' (shocked {s.shape}, "
+                             f"zero {z.shape}, baseline {cur.shape}); constructions must align.")
+        out = cur + (s - z)
+        if k.startswith(("rho", "imm")):    # rates: the ~1e-9 marginal must not cross zero
+            out = np.maximum(out, 0.0)
+        marginal[k] = out.tolist() if out.ndim else float(out)
+    p.update_specifications(marginal)
     return p
 
 
