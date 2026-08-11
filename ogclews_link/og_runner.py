@@ -455,7 +455,10 @@ def _apply_health(p, health):
             raise ValueError(f"health marginal: shape mismatch on '{k}' (shocked {s.shape}, "
                              f"zero {z.shape}, baseline {cur.shape}); constructions must align.")
         out = cur + (s - z)
-        if k.startswith(("rho", "imm")):    # rates: the ~1e-9 marginal must not cross zero
+        if k.startswith("rho"):    # mortality: the ~1e-9 marginal must not push a rate below zero.
+            # imm_rates are deliberately NOT clipped: the Philippines is a net-emigration country and
+            # 42% of its imm_rates cells are legitimately negative -- clipping them at zero added
+            # phantom population and broke the numeraire industry's resource balance by 8e-3.
             out = np.maximum(out, 0.0)
         marginal[k] = out.tolist() if out.ndim else float(out)
     p.update_specifications(marginal)
