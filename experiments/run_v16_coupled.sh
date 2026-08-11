@@ -13,6 +13,22 @@
 #   - OG baseline cache is stack-keyed and CLEWS-independent -> reused, so the coupled
 #     step is a reform-only solve.
 #
+# BEFORE RUNNING (Marcelo, 2026-08-11): one more staging pass is agreed first --
+# a best effort to source and set up the section-14 conversion-cost changes:
+#   1. Find a Philippine land-clearing / land-development cost per hectare (site
+#      preparation, labour, machinery -- order hundreds of USD/ha). Candidate
+#      sources: DA/PhilMech land development costings, NIA project unit costs,
+#      DENR reforestation contract rates (the reverse direction), World Bank /
+#      ADB project appraisals. Record source + derivation in the assumption
+#      register -- this is the discipline the -10 skipped.
+#   2. Build the one-way forest->cropland conversion technology carrying that
+#      VariableCost and a plain EAR of 292 tCO2/ha (sections 14 items 3+4 share
+#      this one implementation; regrowth credited at 6.81 only, if at all).
+#   3. Only if a defensible source emerges: tiered conversion tranches (the
+#      rising supply curve, land-stickiness-options.md item c).
+# If sourcing fails, document the failure and run WITHOUT conversion costs --
+# the accounting variant and both-sides land pin stand on their own.
+#
 # Usage: run_v16_coupled.sh [workers]
 set -u
 cd "$(dirname "$0")/.." || exit 1
