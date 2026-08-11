@@ -158,7 +158,12 @@ PHL = CountryConfig(
         base_dir=clews_scenario_dir("base"),       # from the MUIOGO install / config, not hardcoded
         reform_dir=clews_scenario_dir("reform"),
         years=tuple(range(2020, 2054)),
-        og_start_year=2026,
+        # OG-PHL's calibration start year. Moved 2026 -> 2025 by the remittances/fiscal
+        # recalibration (OG-PHL PR #85): the start year is the most recent year the
+        # calibration observes, and its anchors (initial debt, remittance share, sovereign
+        # rate) are 2025 observations. Every CLEWS signal is aligned to this year, and
+        # og_runner warns on mismatch with the loaded model's own start_year.
+        og_start_year=2025,
     ),
     gbd_burden_csv=_resolve_gbd_csv(),  # IHME-GBD_2023_DATA/*.csv if present, else None (placeholders)
     pm25_dose_response=_resolve_dose_response("Philippines"),  # M ~= 0.082 (energy 9.8% x CRF elast 0.84)
