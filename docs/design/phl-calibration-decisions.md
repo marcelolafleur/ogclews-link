@@ -823,12 +823,24 @@ near-zero is a defensible finding, unlike the artifact's +0.21%.
 | capital_intensity | -0.000 | +0.276 | +0.029 |
 | energy_capex | -0.023 | +0.080 | +0.007 |
 
-The coupled effect IS the energy effect (identical to 3 decimals); within it the
-inter-industry cost-push carries -0.50 of the -0.53 and the household bill -0.03.
-The decomposition closes (components -0.557 vs coupled -0.525; the small
-sub-additivity is carbon/energy overlap on the consumption side). Headline
-robustness: -0.527% on the old stack, -0.525% after recalibrating the fiscal
-base, remittances, ogcore version, and start year.
+The coupled effect IS the energy effect -- and the three-decimal equality is
+exact BY CONSTRUCTION, not a fortunate netting of interactions. Inside
+`coupled`, carbon enters only as `emit_carbon_penalty`, which writes a CLEWS
+EmissionsPenalty artifact for a FUTURE CLEWs solve and touches nothing in the
+OG run (the code comments "carbon priced on the CLEWS side only here"). The
+standalone `carbon` experiment's -0.032% comes from an OG consumption-side tax
+that `coupled` deliberately omits, so it must NOT be summed against the coupled
+headline. Correct identity: coupled = energy composite (-0.525) + investment
+(0, no grid-capex delta) + health (0), exactly. Within the energy composite the
+inter-industry cost-push carries -0.50 and the household bill -0.03.
+
+Corollary that must accompany the headline: this is a ONE-PASS soft link. The
+emitted artifacts (carbon penalty, discount rate, energy demand) only bind if a
+second CLEWS iteration consumes them; the CLEWS runs behind these results were
+solved without the penalty, so the $50/tCO2 carbon price affects nothing in the
+reported numbers, on either side. Headline robustness: -0.527% on the old
+stack, -0.525% after recalibrating the fiscal base, remittances, ogcore
+version, and start year.
 
 Solver note: all channels run nu=0.2 with the Anderson accelerator (verified in
 each run's saved parameters). capital_intensity alone self-damps to nu=0.1 /
