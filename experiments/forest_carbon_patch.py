@@ -1,0 +1,165 @@
+"""Option A test: price forest-conversion carbon in the PHL CALIBRATED case.
+
+Design (docs/design/phl-testcase-plan.md §12): forest must stay FREE -- no constraint
+touches it. Conversion carbon enters through OSeMOSYS's inter-year activity-change
+emission (E10 in model.v.5.4.txt):
+
+    (Activity[t,m,y] - Activity[t,m,y-1]) * EACR[t,e,m,y] = EmissionByActivityChange
+
+so EACR = -29.2 MTon CO2e per 10^3 km^2 on (LNDFORTOT, mode 1) makes each unit of
+forest DECLINE emit +29.2 MTon = 292 tCO2/ha, the Philippine FRL gross deforestation
+factor (UNFCCC FCCC/TAR/2023/PHL). Sign note: the mechanism is symmetric, so forest
+regrowth would earn a credit at the same rate; in this model forest only declines.
+First model year is zeroed by E11 (no phantom emission from initial allocation).
+
+Three single-edit copies of Philippines_v12_CALIBRATED, one solve each; the control
+is the source case's already-solved Base_v12:
+
+    FC_ACCT    EACR only, unpriced   -> allocation must be IDENTICAL to control;
+                                        CO2e rises by ~29.2 x annual forest decline
+    FC_TAX     EP=30 USD/tCO2 only   -> the energy system responds to a carbon price
+                                        that cannot see land carbon
+    FC_TAXLUC  both                  -> TAXLUC vs TAX isolates the forest response
+
+Units verified against the case: currency USD (values in millions), emissions MTon,
+so EP=30 (million USD per MTon) = $30/tCO2 exactly, and 29.2 MTon/10^3km^2 = 292 t/ha.
+The CO2e AEL is a 999999 placeholder in every year (never binding; solved max 243.2).
+
+Usage (from the worktree, its own venv):
+    uv run python experiments/forest_carbon_patch.py           # copy + patch + verify
+    uv run python experiments/forest_carbon_patch.py --solve   # ... then solve all three
+
+Copies are created fresh; the script refuses to overwrite an existing copy so a
+re-run cannot clobber solved results. The source case is never written to.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+from ogclews_link.clews_driver import copy_case
+
+DATA_STORAGE = "/Users/marcelolafleur/muiogoai/MUIOGO/WebAPP/DataStorage"
+SRC = "Philippines_v12_CALIBRATED"
+
+FOREST_TECH = "TEC_hjgww"   # LNDFORTOT, operates in mode 1 only (IAR/OAR verified)
+CO2E = "EMI_0"              # CO2e, MTon
+FOREST_MODE = 1
+EACR_VALUE = -29.2          # MTon CO2e per 10^3 km^2 of forest CHANGE (see docstring)
+EP_VALUE = 30.0             # million USD per MTon = $30/tCO2
+RUN = "Base_v12"            # activates only the BASE scenario in every copy
+
+VARIANTS = {
+    "Philippines_v12_FC_ACCT": {"eacr": True, "ep": False},
+    "Philippines_v12_FC_TAX": {"eacr": False, "ep": True},
+    "Philippines_v12_FC_TAXLUC": {"eacr": True, "ep": True},
+}
+
+
+def _years(rows: list[dict]) -> list[str]:
+    """Year columns of a parameter grid, taken from its first row."""
+    return [k for k in rows[0] if k not in ("TechId", "EmisId", "CommId", "MoId")]
+
+
+def patch_eacr(case_dir: Path) -> None:
+    """Add the forest conversion-carbon row to EACR in every scenario slice.
+
+    The value lives in the base slice (SC_0); other scenario slices get an
+    all-None row so the grid stays structurally parallel across scenarios.
+    """
+    path = case_dir / "RYTEM.json"
+    data = json.loads(path.read_text())
+    block = data["EACR"]
+    for sc, rows in block.items():
+        if any(
+            r.get("TechId") == FOREST_TECH
+            and r.get("EmisId") == CO2E
+            and int(r.get("MoId", 0)) == FOREST_MODE
+            for r in rows
+        ):
+            raise RuntimeError(f"{path}: EACR row already present in {sc}")
+        fill = EACR_VALUE if sc == "SC_0" else None
+        row = {"TechId": FOREST_TECH, "EmisId": CO2E, "MoId": FOREST_MODE}
+        row.update({y: fill for y in _years(rows)})
+        rows.append(row)
+    path.write_text(json.dumps(data))
+
+
+def patch_ep(case_dir: Path) -> None:
+    """Set the CO2e emissions penalty to EP_VALUE in the base slice."""
+    path = case_dir / "RYE.json"
+    data = json.loads(path.read_text())
+    rows = data["EP"]["SC_0"]
+    hits = [r for r in rows if r.get("EmisId") == CO2E]
+    if len(hits) != 1:
+        raise RuntimeError(f"{path}: expected exactly one EP row for {CO2E}, got {len(hits)}")
+    for y in _years(rows):
+        hits[0][y] = EP_VALUE
+    path.write_text(json.dumps(data))
+
+
+def verify(case_dir: Path, want_eacr: bool, want_ep: bool) -> list[str]:
+    """Read the edits back from disk and report what is actually there."""
+    report = []
+    rytem = json.loads((case_dir / "RYTEM.json").read_text())
+    eacr_rows = [
+        r for r in rytem["EACR"]["SC_0"]
+        if r.get("TechId") == FOREST_TECH and r.get("EmisId") == CO2E
+    ]
+    if want_eacr:
+        vals = {v for r in eacr_rows for k, v in r.items()
+                if k not in ("TechId", "EmisId", "MoId")}
+        ok = len(eacr_rows) == 1 and vals == {EACR_VALUE}
+        report.append(f"EACR row: {'OK' if ok else 'WRONG'} ({len(eacr_rows)} rows, values {vals})")
+    else:
+        report.append(f"EACR absent: {'OK' if not eacr_rows else 'WRONG -- row present'}")
+
+    rye = json.loads((case_dir / "RYE.json").read_text())
+    ep_row = next(r for r in rye["EP"]["SC_0"] if r.get("EmisId") == CO2E)
+    ep_vals = {v for k, v in ep_row.items() if k != "EmisId"}
+    if want_ep:
+        report.append(f"EP: {'OK' if ep_vals == {EP_VALUE} else 'WRONG'} (values {ep_vals})")
+    else:
+        report.append(f"EP zero: {'OK' if ep_vals <= {0, None} else 'WRONG'} (values {ep_vals})")
+    return report
+
+
+def main(argv: list[str]) -> int:
+    solve = "--solve" in argv
+    for name, edits in VARIANTS.items():
+        dst = Path(DATA_STORAGE) / name
+        if dst.exists():
+            print(f"== {name}: already exists, NOT overwriting (delete manually to redo)")
+        else:
+            print(f"== {name}: copying from {SRC} (4.1 GB, takes a minute)...")
+            copy_case(DATA_STORAGE, SRC, name)
+            if edits["eacr"]:
+                patch_eacr(dst)
+            if edits["ep"]:
+                patch_ep(dst)
+        for line in verify(dst, edits["eacr"], edits["ep"]):
+            print(f"   {line}")
+
+    if not solve:
+        print("\npatched only; re-run with --solve to launch the three solves")
+        return 0
+
+    for name in VARIANTS:
+        print(f"\n== solving {name} / {RUN} ...")
+        r = subprocess.run(
+            ["muiogo-ai", "run", "--case", name, "--run", RUN],
+            capture_output=True, text=True, timeout=3600, check=False,
+        )
+        tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
+        print("   " + "\n   ".join(tail))
+        if r.returncode != 0:
+            print(f"   SOLVE FAILED for {name} -- stopping; see output above")
+            return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
