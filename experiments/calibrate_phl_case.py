@@ -333,13 +333,20 @@ def main() -> int:
                 for k in year_keys(r):
                     if k != "2020" and isinstance(r[k], (int, float)) and r[k] > cap:
                         r[k] = cap
-    # force the land resource to the full national total (see the constant's note)
-    for rows in ryt["TAL"].values():
-        for r in rows:
-            if r.get("TechId") == tid.get("MINLNDTOT"):
-                for k in year_keys(r):
-                    if isinstance(r[k], (int, float)):
-                        r[k] = LAND_RESOURCE_TOTAL_KKM2
+    # force the land resource to the full national total -- on BOTH sides. The floor (TAL)
+    # makes all land be accounted for; the ceiling (TAU) is the §14 lesson from the
+    # forest-carbon falsification: with a floor only, the endowment is an open bound, and
+    # the moment ANY future term makes land valuable (the -10 forest reward already does)
+    # the LP can conjure land -- the symmetric-price test "planted" 300 Philippines and
+    # collected $43bn before the ceiling existed. The endowment is a physical fact; pinning
+    # it both ways is doctrine-consistent (phl-testcase-plan.md sections 12 and 14).
+    for blk in ("TAL", "TAU"):
+        for rows in ryt[blk].values():
+            for r in rows:
+                if r.get("TechId") == tid.get("MINLNDTOT"):
+                    for k in year_keys(r):
+                        if isinstance(r[k], (int, float)):
+                            r[k] = LAND_RESOURCE_TOTAL_KKM2
     save(p, ryt)
     changed["wind_onshore_cap_pj"] = WIND_ONSHORE_CAP_PJ
     changed["wind_offshore_cap_pj"] = WIND_OFFSHORE_CAP_PJ

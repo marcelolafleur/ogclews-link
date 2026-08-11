@@ -57,7 +57,20 @@ t = {x["Tech"]: x["TechId"] for x in g["osy-tech"]}
 d = json.load(open(f"{C}/RYT.json"))
 row = next(x for x in d["TAMaxCI"]["SC_3hgjb"] if x.get("TechId") == t["PHL_POW_PP_COAL"])
 assert row.get("2027") == 0 and row.get("2026") == 999999, "moratorium cells wrong"
-print("  case: calibration + moratorium staged  OK")
+# §14 priority 1: the national land endowment must be pinned on BOTH sides -- floor-only
+# is the open bound the forest-carbon falsification exploited (300 Philippines, $43bn).
+lnd = t["MINLNDTOT"]
+for blk in ("TAU", "TAL"):
+    r2 = next(x for x in d[blk]["SC_0"] if x.get("TechId") == lnd)
+    assert all(abs(v - 295.8131) < 1e-6 for k, v in r2.items() if k.isdigit()), f"land {blk} not pinned"
+# §14 priority 2: the accounting variant (EACR unpriced) must be staged.
+em = json.load(open(f"{C}/RYTEM.json"))
+eacr = [x for x in em["EACR"]["SC_0"] if x.get("TechId") == "TEC_hjgww" and x.get("EmisId") == "EMI_0"]
+assert eacr and any(v == -29.2 for x in eacr for k, v in x.items() if k.isdigit()), "EACR accounting not staged"
+rye = json.load(open(f"{C}/RYE.json"))
+ep = next(x for x in rye["EP"]["SC_0"] if x.get("EmisId") == "EMI_0")
+assert {v for k, v in ep.items() if k != "EmisId"} <= {0, None}, "CO2e is PRICED -- accounting variant must be unpriced"
+print("  case: calibration + moratorium + land pin + EACR accounting staged  OK")
 PY
 echo "=== PREFLIGHT PASSED ==="
 
@@ -89,11 +102,29 @@ for run in ("Base_v16", "PEP_v16"):
     mx = max(pa.values() or [0])
     assert mx <= 823.0 + 1e-6, f"{run}: offshore wind activity {mx:.1f} > 823 PJ cap"
 print("  gate offshore cap: <= 823 PJ in both runs  OK")
-# gate 3: land closure (total land activity vs the national total)
+# gate 3: land closure EVERY year (both-sides pin: never above or below the endowment)
 la = col("Base_v16", "TotalTechnologyAnnualActivity.csv", "MINLNDTOT")
-v2020 = la.get("2020", 0)
-assert abs(v2020 - 295.8131) < 0.01, f"land closure {v2020} != 295.8131"
-print(f"  gate land closure: {v2020:.4f}  OK")
+bad = {y: v for y, v in la.items() if abs(v - 295.8131) > 0.01}
+assert not bad, f"land closure violated: {dict(list(bad.items())[:3])}"
+print(f"  gate land closure (all {len(la)} years): 295.8131  OK")
+# gate 4 (§14 priority 4): the EACR gate year must fit v16's own forest path -- the 2022
+# gate assumes the only artefact jump is 2020->2021 and the path declines from 2021 on.
+fo = col("Base_v16", "TotalTechnologyAnnualActivity.csv", "LNDFORTOT")
+ys = sorted(fo)
+rises = [(ys[i], ys[i+1]) for i in range(1, len(ys)-1)
+         if fo[ys[i+1]] > fo[ys[i]] + 0.5]   # allow noise; flag real regrowth
+assert not rises, (f"forest path rises after 2021 at {rises[:3]} -- the symmetric EACR would "
+                   "credit regrowth at the stock rate; re-derive the gate year or move to the "
+                   "one-way flow tech (see phl-testcase-plan.md section 14, priority 3)")
+print(f"  gate forest path: monotone decline from 2021 ({fo[ys[1]]:.1f} -> {fo[ys[-1]]:.1f})  OK")
+# gate 5: conversion carbon is actually booked (the accounting variant landed end to end)
+try:
+    fe = col("Base_v16", "AnnualTechnologyEmission.csv", "LNDFORTOT")
+    tot = sum(v for y, v in fe.items() if int(y) >= 2022)
+    assert tot > 100, f"forest conversion CO2e only {tot:.1f} Mt booked -- EACR row dropped by the generator?"
+    print(f"  gate conversion carbon: {tot:.0f} Mt booked 2022-2053  OK")
+except FileNotFoundError:
+    print("  gate conversion carbon: AnnualTechnologyEmission.csv missing -- VERIFY MANUALLY")
 print("  (energy-mix and water-withdrawal comparisons: report, not gate -- see analysis step)")
 PY
 
