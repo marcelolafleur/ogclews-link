@@ -668,17 +668,34 @@ anything made land valuable.
    on the forest tech, gated past the first optimized year) is proven exact and behaviour-neutral:
    allocation identical to the cent, emissions matching the FRL-based prediction to 0.1 Mt. It
    closes a ~25% gap in national emissions coverage at zero solver cost.
-3. **If pricing land carbon: one-way, never symmetric.** Model deforestation as a directional
+3. **Add land-conversion costs.** Clearing forest costs real money — site preparation, labour,
+   machinery, of order hundreds of USD/ha — and the model currently converts land for FREE,
+   which is why allocation flips instantly to whatever is marginally profitable. A sourced
+   clearing cost is a physical-economic fact, not a forced outcome, so it is fully
+   doctrine-consistent (§12) — and it is probably the best unforced calibration lever the land
+   block has: it disciplines the conversion rate without touching any observed area. If the
+   one-way conversion technology from item 4 is built, its `VariableCost` is exactly where this
+   number lives, so items 3 and 4 share one implementation. Needs a Philippine source (land
+   development / clearing cost per hectare); record it in the assumption register — this is the
+   discipline the `-10` skipped.
+4. **If pricing land carbon: one-way, never symmetric.** Model deforestation as a directional
    flow technology (activity ≥ 0 by construction) carrying a plain `EAR` of 292 tCO2/ha
    (PHL FRL, UNFCCC-defended). Credit regrowth — if at all — at the FRL *removal* rate
    (6.81 tCO2e/ha/yr), never the stock rate. Symmetric `EACR` plus a nonzero penalty is
    structurally gameable and the LP finds the exploit on the first solve.
-4. **Check v16's forest path before reusing the gate.** The 2022 start year in the patch script
+5. **Check v16's forest path before reusing the gate.** The 2022 start year in the patch script
    was chosen for v12's first-optimized-year jump (72.3 → 161.5); v16's path decides its own gate.
-5. **Fleet rule worth keeping:** never attach a symmetric price to a quantity with an open
+6. **Fleet rule worth keeping:** never attach a symmetric price to a quantity with an open
    bound. Test any pricing mechanism on a copy, with a falsification check (allocation frozen
    when the price is zero; a country-area sanity band on land), before it nears a real
    calibration.
+
+The standard behind items 1–4, worth carrying beyond PHL: **bounds encode physics and
+institutions; values drive allocation; observations judge the result.** Land uses should compete
+on returns (cropland already bids via crop demands; forest currently bids nothing, which is the
+hole the `-10` papered over), with conversion costs making land sticky, and the observed forest
+trajectory used as the fit test — a gap between modelled and observed rates then points to a
+missing land value, which is information, not a residual to constrain away.
 
 **Tooling to reuse:** `experiments/forest_carbon_patch.py` (idempotent; takes any case name;
 verifies its own edits). Two MUIOGO generator constraints it works around, both worth upstream
