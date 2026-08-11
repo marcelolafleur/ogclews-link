@@ -639,4 +639,51 @@ by the tech's `EAR` attribute so EACR-only techs are silently dropped (`Osemosys
 and `gen_RYTEM` raw-indexes every mode so hand-added rows must cover all 30 modes or data.txt
 truncates mid-block as an HTTP 500 (`DataFileClass.gen_RYTEM`).
 
-The three `FC_*` copies (~12 GB, muiogoai world) are now read; disposable at Marcelo's say-so.
+The three `FC_*` copies were deleted on Marcelo's authorization (2026-08-11) after the results
+were read and recorded; the source case was never touched. Everything needed to reproduce them
+is `experiments/forest_carbon_patch.py` plus this section.
+
+## 14. Hand-off to the v16 calibration
+
+The plain-language verdict, then what v16 should actually do. Written to be read without §13.
+
+**What we tested:** should cutting forest cost carbon money? Three variants on copies of
+v12_CALIBRATED: bookkeeping only, a carbon tax blind to forests, a carbon tax that sees them.
+
+**What happened:** bookkeeping worked perfectly — same decisions, same cost, and it revealed the
+model omits land-conversion emissions worth **about a quarter of national CO2e**. The seeing tax
+broke the model: our rule paid for forest *growth* at the same rate it charged for clearing, so
+the optimiser "planted" three hundred Philippines of imaginary forest and earned $43bn collecting
+the payments. It could do that because the land data gives the country a floor (at least
+295,813 km²) and **no ceiling** — harmless while land was worthless, catastrophic the moment
+anything made land valuable.
+
+**For v16, in priority order:**
+
+1. **Pin the national land endowment on BOTH sides.** "The Philippines has this much land" is a
+   physical fact, not a forced outcome — fully consistent with the §12 doctrine. Today's
+   floor-only `MINLNDTOT` (TAL=295.8131, TAU=default) is a dormant hazard under *any* future
+   land value — including the `-10` forest reward, which sits on the same open bounds.
+2. **Adopt the accounting variant now.** The unpriced conversion-carbon coefficient (EACR −29.2
+   on the forest tech, gated past the first optimized year) is proven exact and behaviour-neutral:
+   allocation identical to the cent, emissions matching the FRL-based prediction to 0.1 Mt. It
+   closes a ~25% gap in national emissions coverage at zero solver cost.
+3. **If pricing land carbon: one-way, never symmetric.** Model deforestation as a directional
+   flow technology (activity ≥ 0 by construction) carrying a plain `EAR` of 292 tCO2/ha
+   (PHL FRL, UNFCCC-defended). Credit regrowth — if at all — at the FRL *removal* rate
+   (6.81 tCO2e/ha/yr), never the stock rate. Symmetric `EACR` plus a nonzero penalty is
+   structurally gameable and the LP finds the exploit on the first solve.
+4. **Check v16's forest path before reusing the gate.** The 2022 start year in the patch script
+   was chosen for v12's first-optimized-year jump (72.3 → 161.5); v16's path decides its own gate.
+5. **Fleet rule worth keeping:** never attach a symmetric price to a quantity with an open
+   bound. Test any pricing mechanism on a copy, with a falsification check (allocation frozen
+   when the price is zero; a country-area sanity band on land), before it nears a real
+   calibration.
+
+**Tooling to reuse:** `experiments/forest_carbon_patch.py` (idempotent; takes any case name;
+verifies its own edits). Two MUIOGO generator constraints it works around, both worth upstream
+issues: RYTEM rows are dropped unless the tech declares the emission in its `EAR` attribute
+(`OsemosysClass.py:475`), and hand-added rows must cover all 30 modes or generation truncates
+`data.txt` and surfaces as an HTTP 500 (`DataFileClass.gen_RYTEM`). Also known: the `muiogo-ai`
+CLI cannot distinguish a busy server from a dead one — "no server is answering" during a long
+solve usually means busy; retry, don't restart.
