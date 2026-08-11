@@ -151,9 +151,17 @@ def disease_pop(p, aux, excess_deaths, profile, phase_years=5, *, un_country_cod
     # clean mortality marginal is THIS omega minus a ZERO-shock disease_pop omega (SAME window/seed/
     # inference, only mort_rates differs on the ny model rows -- the pre-period row 0 is unshocked). NB:
     # this is NOT baseline_pop's window/inference (see the docstring); do not diff against that omega.
+    # income_percentiles must be the model's own lambdas (the second of the two call sites that needs
+    # this -- see _demog.baseline_pop for the full story). Without it, ogcore >=0.18.1 defaults to a
+    # SINGLE income group and returns (T, S, 1) arrays; update_specifications then fails reshaping them
+    # to the model's J=7 ("cannot reshape array of size 80 into shape (1,80,7)"). With no gradients
+    # supplied the J columns are the aggregate spread by lambdas -- identical rates per group -- which is
+    # exactly OG-PHL's own baked convention. This site was unreachable until the baseline_pop fix landed
+    # (the shock always skipped), so the first bug hid this one.
     pop_dict = demographics.get_pop_objs(
         p.E, p.S, p.T, 0, 99, country_id=un_country_code,
         fert_rates=fert, mort_rates=alt_mort, infmort_rates=infmort, imm_rates=imm,
         infer_pop=True, pop_dist=pop_dist[:1, :],
+        income_percentiles=np.asarray(p.lambdas, dtype=float).flatten(),
         initial_data_year=p.start_year - 1, final_data_year=p.start_year + ny - 1, GraphDiag=False)
     return pop_dict, scale
