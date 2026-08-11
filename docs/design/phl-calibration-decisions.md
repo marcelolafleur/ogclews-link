@@ -760,3 +760,78 @@ substitutes for it is the general trap, and it is now fixed in the script
 The overshoot is real but not comparable to the defect it replaced: 9% above a screened bound and
 below already-contracted capacity, versus 92% of an entire national resource on twice the available
 land.
+
+---
+
+## 15. The integrated-stack battery (2026-08-11): five stacked bugs, then the clean decomposition
+
+Run on the composed stack: OG-PHL `calib/multi-industry-remittances` (multi-industry
+overlay on PR #85's fiscal/remittances base, start 2025), ogcore v0.19.1 + PR #1189
++ a local revert of PR #1184, CLEWs `Philippines_v12_CALIBRATED` with the offshore
+wind cap, GBD 2023 PM2.5 export on disk. Baseline rebuilt once; eleven reform
+solves. Every energy figure uses the real CLEWS price (`_auto_price_ratio`), never
+the demo stimulus.
+
+### The bug chain
+
+Five defects, each hidden by the one above it; the health channel had never
+produced a number before this session.
+
+1. `_demog.baseline_pop` omitted `income_percentiles` -> every live demographic
+   fetch raised inside ogcore >= 0.18.0 -> `_pop_aux` stayed `None` -> the health
+   mortality shock silently skipped, logged as if the UN portal were down.
+2. With (1) fixed, ogcore v0.19.1's payroll revenue double count surfaced
+   (PSLmodels/OG-Core#1199): households pay `tau_payroll` inside their tax bill,
+   PR #1184 adds `tau_payroll x w x L` on top -> phantom revenue = 0.0675 x 0.412
+   x Y, resource constraint off by exactly that (0.0806 predicted, 0.0808
+   observed), from any solver guess. Reverted locally (6 lines); PR #85's own
+   revenue table then reproduces to 0.01% of GDP (0.1945 vs 0.1946).
+3. With (2) reverted, the second bare `get_pop_objs` call (health_pop.disease_pop)
+   hit the same missing-argument bug as (1), now as a shape error (J=1 arrays
+   against a J=7 model).
+4. With (3) fixed, the shock ran -- and read -46 deaths as +0.21% GDP. Artifact:
+   the shocked population uses a different construction than the baseline's
+   (measured 5,500x the mortality signal on omega_SS). Cure per the module's own
+   docstring: apply shocked-minus-zero-shock under one construction onto the
+   baseline's arrays.
+5. The marginal's zero-clip covered imm_rates -- but the Philippines is a
+   net-emigration country (42% of cells negative), so clipping added phantom
+   population and broke the numeraire industry's balance by 8e-3. Clip mortality
+   only.
+
+### Health, finally measured
+
+-46.1 deaths (GBD total x M=0.082 x PM2.5 change -1.28%), age profile and
+morbidity both GBD-sourced. Macro effect: below 0.005% everywhere. Real lives,
+negligible GDP -- PM2.5 mortality is 93.5% outside working ages and this reform's
+emissions cut is small. The channel is now fully provenance-tracked and its
+near-zero is a defensible finding, unlike the artifact's +0.21%.
+
+### The attribution table (steady state, % vs baseline)
+
+| experiment | Y | C | w |
+|---|---:|---:|---:|
+| coupled | -0.525 | -0.385 | -0.486 |
+| energy_full_real | -0.525 | -0.385 | -0.487 |
+| energy_cost_push_real | -0.496 | -0.426 | -0.559 |
+| energy_price | -0.026 | -0.225 | -0.032 |
+| energy_price_tfp_real | +0.026 | -0.210 | -0.045 |
+| carbon | -0.032 | +0.019 | +0.086 |
+| investment | 0.000 | 0.000 | 0.000 |
+| health | 0.000 | 0.000 | 0.000 |
+| clean_incidence | -0.022 | -0.064 | +0.050 |
+| capital_intensity | -0.000 | +0.276 | +0.029 |
+| energy_capex | -0.023 | +0.080 | +0.007 |
+
+The coupled effect IS the energy effect (identical to 3 decimals); within it the
+inter-industry cost-push carries -0.50 of the -0.53 and the household bill -0.03.
+The decomposition closes (components -0.557 vs coupled -0.525; the small
+sub-additivity is carbon/energy overlap on the consumption side). Headline
+robustness: -0.527% on the old stack, -0.525% after recalibrating the fiscal
+base, remittances, ogcore version, and start year.
+
+Solver note: all channels run nu=0.2 with the Anderson accelerator (verified in
+each run's saved parameters). capital_intensity alone self-damps to nu=0.1 /
+maxiter=500 -- at nu=0.2 its transition limit-cycles (documented in og_runner) --
+which is why the biggest structural shock costs 43 minutes against ~10 for the
+price shocks.
