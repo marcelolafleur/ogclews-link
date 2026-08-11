@@ -117,6 +117,11 @@ assert not rises, (f"forest path rises after 2021 at {rises[:3]} -- the symmetri
                    "credit regrowth at the stock rate; re-derive the gate year or move to the "
                    "one-way flow tech (see phl-testcase-plan.md section 14, priority 3)")
 print(f"  gate forest path: monotone decline from 2021 ({fo[ys[1]]:.1f} -> {fo[ys[-1]]:.1f})  OK")
+# report (not gate): the stickiness diagnostic for land-stickiness-options.md -- how lurchy
+# is the unsmoothed decline? Feeds the data-only-vs-formulation decision (menu items b/c/f).
+steps = sorted(((fo[ys[i]] - fo[ys[i+1]], f"{ys[i]}->{ys[i+1]}") for i in range(1, len(ys)-1)), reverse=True)
+print(f"  report forest stickiness: max annual loss {steps[0][0]:.2f} kkm2 ({steps[0][1]}), "
+      f"top3 {[f'{v:.1f}@{y}' for v, y in steps[:3]]}, mean {sum(v for v,_ in steps)/len(steps):.2f}")
 # gate 5: conversion carbon is actually booked (the accounting variant landed end to end)
 try:
     fe = col("Base_v16", "AnnualTechnologyEmission.csv", "LNDFORTOT")
