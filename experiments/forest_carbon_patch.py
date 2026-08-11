@@ -52,6 +52,21 @@ EACR_VALUE = -29.2          # MTon CO2e per 10^3 km^2 of forest CHANGE (see docs
 EP_VALUE = 30.0             # million USD per MTon = $30/tCO2
 RUN = "Base_v12"            # activates only the BASE scenario in every copy
 
+# The CALIBRATED case's solved forest path jumps 72.32 -> 161.45 between 2020 and
+# 2021 (a first-optimized-year artefact of the calibration), then declines
+# monotonically to 112.34 by 2053. E11 zeroes only the first model year, so a
+# symmetric EACR would book a ~2,600 Mt phantom CREDIT on the 2021 jump. Gate the
+# ratio to 0 through EACR_START_YEAR-1 and price changes from 2022 onward, where
+# the path is a genuine, monotone deforestation trajectory (~49.1 units).
+EACR_START_YEAR = 2022
+
+# Two known limitations of this representation, disclosed here on purpose:
+# (1) symmetry -- if forest GREW after 2022 the same ratio would credit 292 t/ha
+#     for regrowth, which overstates young-forest sequestration (~6.81 tCO2e/ha/yr
+#     per the PHL FRL); acceptable here only because the post-2021 path declines.
+# (2) the -10.0 forest reward stays in place: this experiment measures the carbon
+#     price's marginal effect ON TOP OF the current calibration, not a replacement.
+
 VARIANTS = {
     "Philippines_v12_FC_ACCT": {"eacr": True, "ep": False},
     "Philippines_v12_FC_TAX": {"eacr": False, "ep": True},
@@ -65,26 +80,54 @@ def _years(rows: list[dict]) -> list[str]:
 
 
 def patch_eacr(case_dir: Path) -> None:
-    """Add the forest conversion-carbon row to EACR in every scenario slice.
+    """Wire the forest conversion-carbon emission into the case.
 
-    The value lives in the base slice (SC_0); other scenario slices get an
-    all-None row so the grid stays structurally parallel across scenarios.
+    Three coordinated edits, all required:
+      1. genData.json: declare CO2e on LNDFORTOT's `EAR` attribute. MUIOGO's
+         datafile generator filters ALL RYTEM rows (EAR and EACR alike) by
+         `tech['EAR']` (OsemosysClass.py:475), so an EACR row on a tech with an
+         empty EAR list is silently dropped -- verified the hard way: the first
+         solve produced `param EmissionToActivityChangeRatio default 0 := ;`.
+      2. RYTEM.json: an all-zero EAR row for (LNDFORTOT, CO2e, mode 1), so the
+         generator's EAR lookup for the now-declared tech finds data.
+      3. RYTEM.json: the EACR row -- 0 before EACR_START_YEAR, EACR_VALUE after.
+
+    Values live in the base slice (SC_0); other scenario slices get all-None
+    rows so the grid stays structurally parallel across scenarios. Idempotent:
+    re-running on a patched case is a no-op, so --repair can fix live copies.
     """
+    gd_path = case_dir / "genData.json"
+    gd = json.loads(gd_path.read_text())
+    tech = next(t for t in gd["osy-tech"] if t["TechId"] == FOREST_TECH)
+    if CO2E not in tech.get("EAR", []):
+        tech.setdefault("EAR", []).append(CO2E)
+        gd_path.write_text(json.dumps(gd))
+
     path = case_dir / "RYTEM.json"
     data = json.loads(path.read_text())
-    block = data["EACR"]
-    for sc, rows in block.items():
-        if any(
-            r.get("TechId") == FOREST_TECH
-            and r.get("EmisId") == CO2E
-            and int(r.get("MoId", 0)) == FOREST_MODE
-            for r in rows
-        ):
-            raise RuntimeError(f"{path}: EACR row already present in {sc}")
-        fill = EACR_VALUE if sc == "SC_0" else None
-        row = {"TechId": FOREST_TECH, "EmisId": CO2E, "MoId": FOREST_MODE}
-        row.update({y: fill for y in _years(rows)})
-        rows.append(row)
+    for code in ("EAR", "EACR"):
+        for sc, rows in data[code].items():
+            mine = [
+                r for r in rows
+                if r.get("TechId") == FOREST_TECH
+                and r.get("EmisId") == CO2E
+                and int(r.get("MoId", 0)) == FOREST_MODE
+            ]
+            if len(mine) > 1:
+                raise RuntimeError(f"{path}: {len(mine)} duplicate rows in {code}/{sc}")
+            row = mine[0] if mine else {
+                "TechId": FOREST_TECH, "EmisId": CO2E, "MoId": FOREST_MODE,
+            }
+            # (Re)write the values in place -- repairs an earlier ungated row.
+            for y in _years(rows):
+                if sc != "SC_0":
+                    row[y] = None
+                elif code == "EAR":
+                    row[y] = 0
+                else:
+                    row[y] = EACR_VALUE if int(y) >= EACR_START_YEAR else 0
+            if not mine:
+                rows.append(row)
     path.write_text(json.dumps(data))
 
 
@@ -104,16 +147,25 @@ def patch_ep(case_dir: Path) -> None:
 def verify(case_dir: Path, want_eacr: bool, want_ep: bool) -> list[str]:
     """Read the edits back from disk and report what is actually there."""
     report = []
+    gd = json.loads((case_dir / "genData.json").read_text())
+    tech = next(t for t in gd["osy-tech"] if t["TechId"] == FOREST_TECH)
     rytem = json.loads((case_dir / "RYTEM.json").read_text())
     eacr_rows = [
         r for r in rytem["EACR"]["SC_0"]
         if r.get("TechId") == FOREST_TECH and r.get("EmisId") == CO2E
     ]
     if want_eacr:
-        vals = {v for r in eacr_rows for k, v in r.items()
-                if k not in ("TechId", "EmisId", "MoId")}
-        ok = len(eacr_rows) == 1 and vals == {EACR_VALUE}
-        report.append(f"EACR row: {'OK' if ok else 'WRONG'} ({len(eacr_rows)} rows, values {vals})")
+        ear_ok = CO2E in tech.get("EAR", [])
+        report.append(f"genData EAR declared: {'OK' if ear_ok else 'WRONG -- generator will drop the row'}")
+        gated = {k: v for r in eacr_rows for k, v in r.items()
+                 if k not in ("TechId", "EmisId", "MoId")}
+        pre = {v for y, v in gated.items() if int(y) < EACR_START_YEAR}
+        post = {v for y, v in gated.items() if int(y) >= EACR_START_YEAR}
+        ok = len(eacr_rows) == 1 and pre <= {0} and post == {EACR_VALUE}
+        report.append(
+            f"EACR row: {'OK' if ok else 'WRONG'} "
+            f"({len(eacr_rows)} rows, pre-{EACR_START_YEAR} {pre or '{}'}, after {post})"
+        )
     else:
         report.append(f"EACR absent: {'OK' if not eacr_rows else 'WRONG -- row present'}")
 
@@ -131,15 +183,15 @@ def main(argv: list[str]) -> int:
     solve = "--solve" in argv
     for name, edits in VARIANTS.items():
         dst = Path(DATA_STORAGE) / name
-        if dst.exists():
-            print(f"== {name}: already exists, NOT overwriting (delete manually to redo)")
-        else:
+        if not dst.exists():
             print(f"== {name}: copying from {SRC} (4.1 GB, takes a minute)...")
             copy_case(DATA_STORAGE, SRC, name)
-            if edits["eacr"]:
-                patch_eacr(dst)
-            if edits["ep"]:
-                patch_ep(dst)
+        else:
+            print(f"== {name}: exists -- re-applying patches (idempotent)")
+        if edits["eacr"]:
+            patch_eacr(dst)
+        if edits["ep"]:
+            patch_ep(dst)
         for line in verify(dst, edits["eacr"], edits["ep"]):
             print(f"   {line}")
 
