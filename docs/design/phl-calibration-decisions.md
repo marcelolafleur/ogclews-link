@@ -317,6 +317,7 @@ wind and 50 TWh of nuclear SMR at an objective cost of 0.0061%.
 | **offshore wind capacity factor** | **15.4%** | **45.0%** | World Bank/ESMAP *Offshore Wind Roadmap for the Philippines*, Apr 2022. **The most consequential energy fix** — see below. |
 | geothermal availability | 1.00 | **0.629** | Derived from DOE Power Statistics 2024: generation ÷ (capacity × 8760) = 62.9%, well below the 80–90% in generic catalogues. |
 | onshore wind activity cap | 1594.08 PJ | **664 PJ** | NREL/USAID 2020 **Restricted** potential, 184.4 TWh/yr. |
+| **offshore wind activity cap** | **3949.31 PJ** | **823 PJ** | World Bank/ESMAP, 58 GW after environmental and social screening, at 45% capacity factor. See below — this one was specified late and is the reason the case had to be re-solved. |
 | discount rate | 0.05 | **0.10** | NEDA/ICC Memorandum, 30 Sep 2016 — 10% real, mandatory for public investment appraisal. |
 
 ### The offshore wind fix is the one that matters
@@ -341,6 +342,49 @@ At the correct 45% its LCOE is **88.0 USD/MWh — cheaper than onshore's 95.4.**
 
 So this single parameter was redirecting the entire wind build onto land that does not exist. Fixing it
 lets the model use the resource the country actually has.
+
+### Capping offshore wind too — and the error of fixing one ceiling at a time
+
+Raising offshore wind's capacity factor to 45% made it the cheapest thing in the model, so the cap that
+had been left on the *onshore* technology no longer bound anything. The offshore technology kept a
+3,949 PJ placeholder, which is 4.8× the screened resource. Capping onshore without capping the
+technology that substitutes for it is the general trap, and I fell into it: the constant
+`WIND_OFFSHORE_CAP_PJ = 823.0` was added to the calibration script but the packaged case was never
+rebuilt, so every result circulated before this section came from a case where offshore wind was
+effectively unbounded.
+
+That was corrected by patching the 33 post-2020 year-cells of `TAU` for `PHL_POW_PP_WOF_T1` and
+re-solving both runs (optimal, 160 s and 270 s). Only that one parameter was patched: the yield and
+water steps of `calibrate_phl_case.py` are multiplicative, so re-running the whole script over an
+already-calibrated case would have applied them twice.
+
+**What it changed.** Nothing in the baseline — `Base_v12` builds 13.25 GW of offshore wind, comfortably
+under the cap, and its objective is unmoved at 172,244,397.81. The policy run is where it binds, and
+only late:
+
+| `PEP_v12`, accumulated new capacity, GW | 2030 | 2040 | 2053 |
+|---|---:|---:|---:|
+| offshore wind, uncapped | 0.00 | 16.88 | 50.17 |
+| offshore wind, capped | 0.00 | 16.88 | **46.00** |
+| onshore wind, uncapped | 0.13 | 0.13 | 0.00 |
+| onshore wind, capped | 0.13 | 0.13 | **6.09** |
+
+The objective moves by 0.47 in 172 million. That near-zero cost change is the informative part: the
+model gives up 4.2 GW of offshore and replaces it with 6.1 GW of onshore at almost no penalty, which
+says the two technologies now sit close together on cost — the intended consequence of fixing the
+capacity factor, and a check that 45% did not overshoot into making offshore dominant.
+
+**What it means for the macro side.** The electricity price path is what the OG model consumes, and it
+does move, slightly upward, because the reform can no longer use quite as much of the cheapest option:
+
+| | mean reform/base price ratio | min | max |
+|---|---:|---:|---:|
+| uncapped | 1.139843 | 0.999324 | 1.206431 |
+| capped | **1.140643** | 0.999522 | 1.206432 |
+
+An 0.08 percentage-point rise in the mean, about 0.6% of the shock's own magnitude. Too small to change
+any macro conclusion, but it is the input to every energy channel, so the corrected solve is the one
+all reported macro results should be built on.
 
 ### Deliberately not changed
 
