@@ -600,3 +600,43 @@ say so; the original author's instinct was correct.
 
 Neither option goes upstream yet (Marcelo, 2026-08-11) — this section governs *how* the
 suggestion is framed when it does.
+
+## 13. Option A tested on v12_CALIBRATED: mechanism proven, symmetric design falsified (2026-08-11)
+
+Three single-edit copies of `Philippines_v12_CALIBRATED`, solved against its `Base_v12` as
+control. Script: `experiments/forest_carbon_patch.py` (branch `experiment/forest-conversion-carbon`).
+
+**Test 1 — accounting, unpriced (FC_ACCT): PASS, exactly.** Objective identical to the cent,
+forest identical to 6 decimals, and conversion CO2e of **1,434.1 Mt** cumulative, matching the
+hand prediction 29.2 × (forest[2021]−forest[2053]) to 0.1 Mt, first firing in 2022 as gated.
+Land conversion would be ~62 Mt/yr against 97–243 Mt/yr energy CO2e — a quarter of national
+emissions that the model currently omits entirely.
+
+**Test 2 — $30/t, land-blind (FC_TAX): PASS.** Forest untouched; energy abates 2,900 Mt for
++$41.3bn system cost.
+
+**Test 3 — $30/t seeing land carbon (FC_TAXLUC): the LP invented carbon-credit farming.**
+Forest "grows" to 99,821 ×10³km² (~300 Philippines), the objective *falls* $43bn (the system
+earns), net CO2e −2.9 **million** Mt. Root cause is a three-way interaction:
+1. the EACR is **symmetric**, so growth is credited at the full 292 tCO2/ha stock rate;
+2. `MINLNDTOT` is bounded **below only** (TAL=295.8131, TAU=default 999999 — §9's "two-sided
+   pin" was a misreading; the control only *looked* pinned because worthless land was never
+   demanded); and
+3. credits near the horizon are never repaid (terminal gaming), with discounting sweetening it.
+
+**Design conclusion for v16:** symmetric change-pricing (`EACR`) must never be combined with a
+nonzero penalty. Price the conversion *direction* instead: a one-way flow technology
+(activity ≥ 0 by construction) carrying a plain `EAR` at 292 tCO2/ha for forest→cropland, with
+regrowth — if wanted — credited separately at the FRL removal rate (6.81 tCO2e/ha/yr), not the
+stock rate. The unpriced accounting variant (Test 1) is safe as-is.
+
+**Also learned:** the closure check validates internal consistency, not physical plausibility —
+cover and resource exploded *together*, so closure alone would not flag 300 Philippines of
+forest. A country-area sanity band belongs next to it.
+
+Two MUIOGO generator bugs found en route (both worth upstream issues): RYTEM rows are filtered
+by the tech's `EAR` attribute so EACR-only techs are silently dropped (`OsemosysClass.py:475`),
+and `gen_RYTEM` raw-indexes every mode so hand-added rows must cover all 30 modes or data.txt
+truncates mid-block as an HTTP 500 (`DataFileClass.gen_RYTEM`).
+
+The three `FC_*` copies (~12 GB, muiogoai world) are now read; disposable at Marcelo's say-so.
