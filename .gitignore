@@ -1,5 +1,5 @@
 exp01_out/
-ogclews_runs/
+ogclews_runs*/
 figs/
 __pycache__/
 *.pyc

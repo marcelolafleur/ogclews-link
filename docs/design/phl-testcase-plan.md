@@ -2,7 +2,7 @@
 
 **Status:** live plan. Start here; `ieem-comparative-assessment.md` is the background.
 **Date:** 2026-08-03
-**Branch:** `research/ieem-comparative-assessment` (worktree `~/Projects/ogclews-link-ieem`)
+**Branch:** `research/env-accounting` (worktree `~/Projects/ogclews-link-ieem`)
 
 Read this before touching anything. It records a multi-repo recon whose main result was to
 **invalidate the first step of the earlier plan**. Repeating that recon costs an hour; reading
