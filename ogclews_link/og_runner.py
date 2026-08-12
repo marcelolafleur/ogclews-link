@@ -107,6 +107,10 @@ def _load_calibration(p, og_package, params_resource, calibration):
     if calibration:
         with importlib.resources.open_text(og_package, calibration) as f:
             p.update_specifications(json.load(f))
+    # House rule (2026-08-12): every SS solve uses the Anderson root method.
+    # Applied here so all three Specifications sites (baseline, continuation
+    # step, reform) inherit it; caller overrides applied later still win.
+    p.update_specifications({"SS_root_method": "anderson"})
 
 
 def _update_demographics(p, un_code, cache_dir):
