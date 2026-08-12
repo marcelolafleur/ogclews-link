@@ -132,7 +132,11 @@ def _save_discovered(key: str, findings: dict, registry_file: str | None) -> Non
 
 def list_models(registry_file: str | None = None) -> list[tuple]:
     """Registered models as (key, package, version, calibration, couplable_count, interpreter_exists).
-    ``couplable_count`` is from the saved discovery status (None if never discovered)."""
+    ``couplable_count`` is from the saved discovery status (None if never discovered). Same resolution
+    as ``registry.lookup``: unless an explicit registry is pinned, a MUIOGO install's register fills
+    what the link's own lacks (own entries win) -- so the health check shows what lookup would use."""
     reg = registry.load_registry(registry_file)
+    if not registry_file and not os.environ.get(registry.ENV_VAR):
+        reg = {**registry.load_muiogo_registry(), **reg}
     return [(k, e.package, e.version, e.calibration, (e.discovered or {}).get("couplable_count"),
              os.path.exists(e.env_python)) for k, e in sorted(reg.items())]

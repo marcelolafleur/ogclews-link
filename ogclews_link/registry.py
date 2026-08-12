@@ -6,13 +6,16 @@ installer. An entry is a pure INSTALL RECORD -- ``{package, env_python, version}
 coupling or calibration, and NOT the UN country code (the OG package owns that: ``ogphl.UN_COUNTRY_CODE``).
 
 The link only READS registries; it never installs. Resolution: an explicit registry (the ``path`` arg or
-``$OGCLEWS_MODEL_REGISTRY``) is used ALONE; otherwise the link's own register (``./og_model_registry.json``
-> the packaged EMPTY default) is overlaid by a present MUIOGO install's register
-(``$OGCLEWS_MUIOGO_HOME/WebAPP/DataStorage/OGCore/og_calibrations_installed.json`` -- written by MUIOGO's
-OG installer, PR #487) -- so a MUIOGO-managed model is the source of truth for what MUIOGO installed, with
-the link's own register as the fallback. The link maps MUIOGO's record (``python_path`` / ``local_path`` /
-``package_name``) to an entry and picks the couplable calibration with its OWN discovery (MUIOGO needn't
-know anything about energy-coupling). A missing/unbuilt model raises an actionable ModelNotInstalledError.
+``$OGCLEWS_MODEL_REGISTRY``) is used ALONE; otherwise MUIOGO's installed-OG register fills what the link's
+own register (``./og_model_registry.json`` > the packaged EMPTY default) lacks. MUIOGO's register lives at
+``$MUIOGO_OG_DATA_DIR``/``~/.muiogo/og-state``/``og_calibrations_installed.json`` (MUIOGO PR #502 moved OG
+state out of the DataStorage tree; the pre-#502 in-tree path is still read as a legacy fallback, since #502
+shipped no migration). On a key collision the link's OWN registration wins: an explicit ``models register``
+is a deliberate pin (e.g. a dev worktree) that a later MUIOGO install of the same model must not silently
+shadow -- stale-code contamination is exactly the failure the pin exists to prevent. The link maps MUIOGO's
+record (``python_path`` / ``local_path`` / ``package_name``) to an entry and picks the couplable calibration
+with its OWN discovery (MUIOGO needn't know anything about energy-coupling). A missing/unbuilt model raises
+an actionable ModelNotInstalledError.
 """
 from __future__ import annotations
 
@@ -139,16 +142,33 @@ def _muiogo_home() -> str | None:
     return sibling if os.path.isdir(sibling) else None
 
 
+MUIOGO_OG_STATE_ENV = "MUIOGO_OG_DATA_DIR"
+
+
+def _muiogo_og_state_file() -> str | None:
+    """MUIOGO's installed-OG register file, or None. Since MUIOGO PR #502 OG state lives OUTSIDE the
+    MUIOGO checkout at ``~/.muiogo/og-state`` (override: ``$MUIOGO_OG_DATA_DIR`` -- MUIOGO's own env var,
+    honored here so both tools read the same file). #502 shipped no migration, so a pre-#502 install's
+    in-tree ``WebAPP/DataStorage/OGCore/`` register is still read as a legacy fallback."""
+    name = "og_calibrations_installed.json"
+    state_dir = os.environ.get(MUIOGO_OG_STATE_ENV, "").strip() or os.path.join(
+        os.path.expanduser("~"), ".muiogo", "og-state")
+    candidates = [os.path.join(state_dir, name)]
+    home = _muiogo_home()
+    if home:
+        candidates.append(os.path.join(home, "WebAPP", "DataStorage", "OGCore", name))
+    return next((c for c in candidates if os.path.isfile(c)), None)
+
+
 def load_muiogo_registry() -> dict[str, ModelEntry]:
     """MUIOGO's installed-OG register as ``{repo_key: ModelEntry}``, or ``{}`` when there is no MUIOGO
     install / file / usable record. Read-only and FULLY TOLERANT: a missing or corrupt MUIOGO registry
     must never break the link -- it just falls back to the link's own. MUIOGO records where a model is
     installed (``python_path`` / ``local_path`` / ``package_name``); the link's own discovery picks the
     couplable calibration, so the link never depends on MUIOGO understanding coupling."""
-    home = _muiogo_home()
-    if not home:
+    f = _muiogo_og_state_file()
+    if not f:
         return {}
-    f = os.path.join(home, "WebAPP", "DataStorage", "OGCore", "og_calibrations_installed.json")
     try:
         with open(f, encoding="utf-8-sig") as fh:        # utf-8-sig: tolerate a BOM (MUIOGO writes utf-8)
             records = json.load(fh)["calibrations"].values()
@@ -189,13 +209,15 @@ def lookup(model, path: str | None = None, *, require_env: bool = True) -> Model
     rp = registry_path(path)
     reg = load_registry(path)
     # Unless an explicit registry is pinned (the arg or $OGCLEWS_MODEL_REGISTRY -- the override/escape
-    # hatch), overlay a present MUIOGO install's register on top of the link's own, so MUIOGO is the
-    # source of truth for the models it installed. A missing/corrupt MUIOGO registry yields {} -> no-op.
+    # hatch), a present MUIOGO install's register fills what the link's own lacks. On a key collision
+    # the link's OWN registration wins: an explicit `models register` is a deliberate pin (e.g. a dev
+    # worktree) that a later MUIOGO install of the same model must not silently shadow. A
+    # missing/corrupt MUIOGO registry yields {} -> no-op.
     saw_muiogo = False
     if not path and not os.environ.get(ENV_VAR):
         muiogo = load_muiogo_registry()
         if muiogo:
-            reg = {**reg, **muiogo}
+            reg = {**muiogo, **reg}
             saw_muiogo = True
     entry = reg.get(ident) or next((e for e in reg.values() if e.package == ident), None)
     if entry is None:

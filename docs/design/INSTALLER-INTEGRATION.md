@@ -1,8 +1,10 @@
 # The link installer: what MUIOGO expects
 
-**Date:** 2026-08-12. MUIOGO's OG-link integration (branch `feature/oglink-framework`,
-commits `823a2d87`..`a879d945`) hard-codes a discovery contract. An installer that
-follows it needs **zero configuration** on the user's machine.
+**Date:** 2026-08-12 (rev 2, same day: the registry seam is now fixed and the bootstrap
+exists — `scripts/install.sh` / `install.ps1`). MUIOGO's OG-link integration (branch
+`feature/oglink-framework`, commits `823a2d87`..`a879d945`) hard-codes a discovery
+contract. An installer that follows it needs **zero configuration** on the user's
+machine.
 
 ## Install location and layout
 
@@ -18,31 +20,31 @@ MUIOGO probes, in order: `$OGCLEWS_LINK_PYTHON` → `$OGCLEWS_LINK_HOME/.venv` �
 `~/.muiogo/ogclews-link/.venv` → `../ogclews-link/.venv` (dev sibling). The env vars are
 overrides for unusual setups; the installer should NOT need to set any of them.
 
-## Register the OG models MUIOGO already installed
+## OG models MUIOGO installed: discovered automatically, no registration step
 
-MUIOGO's calibration installer puts each country at `~/.muiogo/og-models/<RepoName>/`
-with its own `.venv` (registry: `~/.muiogo/og-state/og_calibrations_installed.json`).
-Each is exactly what `models register` expects:
+The link reads MUIOGO's installed-OG register directly
+(`$MUIOGO_OG_DATA_DIR` / `~/.muiogo/og-state` / `og_calibrations_installed.json`; the
+pre-#502 in-tree path is a legacy fallback) and maps each installed record into its
+model registry at lookup time, running its own calibration discovery. So a model
+installed from MUIOGO's OG tab — before or after the link's install — just appears;
+the installer performs **no registration sweep**. Precedence on a key collision: the
+link's **own** `models register` entry wins (an explicit pin, e.g. a dev worktree);
+MUIOGO's register fills the gaps; `$OGCLEWS_MODEL_REGISTRY`/`path=` overrides both.
+`models list` remains the health check, now showing the merged view.
 
-```bash
-~/.muiogo/ogclews-link/.venv/bin/python -m ogclews_link models register \
-    --path ~/.muiogo/og-models/OG-PHL
-```
+`models register --path <dir>` / `setup.py --install-og <key>` remain for standalone
+(non-MUIOGO) use and for deliberately pinning a specific checkout.
 
-The installer should iterate MUIOGO's installed-calibrations registry and register each
-model, then print `models list` as its health check. (Also do this in reverse on
-upgrade: re-register after a model update so versions in the registry stay honest.)
+## Installer form (built)
 
-## Installer form
-
-Mirror the working precedents:
-
-- **MUIOGO's** `scripts/install.sh` / `install.ps1` (uv bootstrap, clone, `uv sync`,
-  verify, offer to start) and **OG-Core's** uv one-liners (marcelolafleur/OG-Core) —
-  same idiom: `curl -fsSL <raw url> | bash` on macOS/Linux, a PowerShell one-liner on
-  Windows.
-- **MUIOGO-AI's** installer discipline: one installation per machine, an uninstaller,
-  and an offline health check (`models list` + import probe, no solve).
+`scripts/install.sh` / `scripts/install.ps1` bootstrap the install: clone (or
+`git pull --ff-only` update) to `~/.muiogo/ogclews-link`, then run the existing
+cross-platform `scripts/setup.py` (link venv via uv, CLI verify). Mirrors MUIOGO's and
+OG-Core's installer idiom. While the repo is **private**, the clone rides the user's
+ambient git auth and the `curl | bash` one-liner form must wait for the repo going
+public — until then: clone manually (or run a local copy of `install.sh`).
+Still to add, per **MUIOGO-AI's** discipline: an uninstaller and a fully offline
+health check.
 
 ## What MUIOGO exposes back
 
