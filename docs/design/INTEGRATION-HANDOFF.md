@@ -1,5 +1,9 @@
 # OG-CLEWS integration — status & handoff
 
+> **Superseded for MUIOGO work (2026-08-12):** the MUIOGO-side plan now lives in
+> [`MUIOGO-HANDOFF-2026-08.md`](MUIOGO-HANDOFF-2026-08.md). This doc's lane map predates the
+> trunk consolidation (main is the trunk; `deployment-framework` was retired).
+
 **Purpose:** one orientation doc for the multi-lane integration of `ogclews-link` (OG-PHL ⇄ CLEWS) into
 a runnable tool. Read this first to know what exists, who owns what, how it merges, and how to run it.
 Lives on the `energy-production-input-design` branch; **promote into the trunk's `STATUS.md` once the
