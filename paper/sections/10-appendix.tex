@@ -1,18 +1,106 @@
 \section{Notation}
 \label{app:notation}
-% TODO: glossary table of symbols -- S, J, M, I; tau^c, tau^b, alpha_I, alpha_T;
-% K, K_g, gamma_m, gamma_{g,m}, Z; r, r_p, w, p_m; rho(s,t), e(t,s,j), c_min; theta_m.
 
-\section{OG-Core equations}
+\begin{table}[H]
+\centering\footnotesize
+\caption{Symbols used in the text.}
+\begin{tabular}{@{}llp{0.62\linewidth}@{}}
+\toprule
+& symbol & meaning \\
+\midrule
+dimensions
+& $S$ & periods of economic life (model age) \\
+& $J$ & lifetime-income (ability) types \\
+& $\Mind$ & production industries \\
+& $\Igood$ & consumption goods \\
+\addlinespace
+policy
+& $\tau^{c}_{i}$ & consumption-tax wedge on good $i$ (the energy wedge enters here) \\
+& $\tau^{b}$ & business income tax rate \\
+& $\alpha_I$ & public investment as a share of GDP \\
+& $\alpha_T$ & lump-sum transfers as a share of GDP (recycling enters here) \\
+\addlinespace
+production
+& $K$, $K_g$ & private and public capital \\
+& $\gamma_m$ & capital share of value added in industry $m$ \\
+& $\gamma_{g,m}$ & public-capital share in industry $m$ \\
+& $Z_m$ & total factor productivity in industry $m$ \\
+\addlinespace
+prices
+& $r$, $r_p$ & interest rate; household portfolio return \\
+& $w$ & wage \\
+& $p_m$ & output price of industry $m$ \\
+\addlinespace
+demography and labour
+& $\rho(s,t)$ & mortality hazard at age $s$, period $t$ \\
+& $e(t,s,j)$ & effective labour units by period, age, and type \\
+& $c_{\min,i}$ & subsistence (necessity) consumption of good $i$ \\
+\addlinespace
+mappings
+& $\theta_{m,i}$ & industry-to-consumption-good weights \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{The economy-model objects the mappings touch}
 \label{app:og-equations}
-% TODO: the household problem, firm FOCs, government budget, and market clearing in
-% full -- the detail compressed in Sec. 3.1.
+The complete statement of the household problem, firm first-order conditions,
+government budget, and market clearing is maintained in the \OGCore{} documentation
+and is not duplicated here; this appendix fixes which objects of that statement the
+mappings read or move, so the channel specifications of \Cref{sec:channels} can be
+checked against the host model.
 
-\section{The full channel-to-variable map}
+\emph{Households} choose consumption and labour over $S$ periods across $J$ types.
+The mappings touch: the consumption-tax vector $\tau^{c}_{i}$, where the household
+energy wedge enters the demand condition, the budget, and the composite price; the
+transfer share $\alpha_T$, where recycling returns the notional revenue; the
+mortality hazard $\rho(s,t)$ and the implied population, which the health mapping
+recomputes under a shocked survival schedule; the effective-labour profile
+$e(t,s,j)$, which the morbidity component scales on working ages; and the
+subsistence floor $c_{\min,i}$, which makes energy a partial necessity.
+
+\emph{Firms} in industry $m$ produce with private capital, public capital, and
+labour. The mappings touch: the capital share $\gamma_m$ of the electricity industry
+(the capital-intensity lever); the investment tax treatment inside the user cost of
+capital (the capital-demand lever); and industry unit costs, where the
+inter-industry cost-push applies exposure-weighted wedges.
+
+\emph{Government} taxes, spends, transfers, and borrows. The mappings touch: the
+public-investment share $\alpha_I$ (grid investment becomes public capital), the
+booking of consumption-tax revenue (the wedge and the standalone carbon payment),
+and, through $\alpha_T$, the transfer side of recycling.
+
+\emph{From the solved equilibrium}, the return mappings read the portfolio return
+$r_p$ (the planning-rate candidate) and industry output or household consumption
+(the demand-path candidate); they write files for the energy model and change
+nothing inside the economy.
+
+\section{The channel-to-object map}
 \label{app:channel-map}
-% TODO: the appendix-level diagram (reuse presentation diagram `channels`): each of the
-% eight channels at the variable level, with direction (colour + arrowhead) and theory
-% status (line style). NB the deck diagram currently shows seven -- add energy_capex.
+
+\begin{table}[H]
+\centering\footnotesize
+\caption{Every registered mapping, its direction, the object it moves, and its role
+in the application. ``Emitted'' mappings write energy-model inputs after the solve
+and bind nothing in a single pass.}
+\begin{tabularx}{\linewidth}{@{}l l L l@{}}
+\toprule
+mapping & direction & object moved & role \\
+\midrule
+\chan{energy\_price}      & \CLEWS$\to$\OGCore & $\tau^{c}_{i}$ on the energy good; optional recycle via $\alpha_T$ & applied in \chan{coupled} \\
+\chan{energy\_cost\_push} & \CLEWS$\to$\OGCore & industry unit costs via input--output exposure & applied in \chan{coupled} \\
+\chan{energy\_price\_tfp} & \CLEWS$\to$\OGCore & sectoral productivity $Z_m$ (alternative routing) & diagnostic alternative \\
+\chan{investment}         & \CLEWS$\to$\OGCore & $\alpha_I$ (public grid capex delta) & applied in \chan{coupled} \\
+\chan{health}             & \CLEWS$\to$\OGCore & $\rho(s,t)$ + population; $e(t,s,j)$ & applied in \chan{coupled} \\
+\chan{capital\_intensity} & \CLEWS$\to$\OGCore & $\gamma_m$ of the electricity industry & standalone lever \\
+\chan{energy\_capex}      & policy$\to$\OGCore & investment tax credit in the user cost & standalone lever \\
+\chan{carbon\_tax}        & policy$\to$\OGCore & consumption-side carbon payment + revenue & standalone lever; omitted from \chan{coupled} \\
+\chan{emit\_carbon\_penalty} & \OGCore$\to$\CLEWS & emissions-penalty input & emitted; inert in one pass \\
+\chan{emit\_discount\_rate}  & \OGCore$\to$\CLEWS & planning discount rate from $r_p$ & emitted; inert in one pass \\
+\chan{emit\_energy\_demand}  & \OGCore$\to$\CLEWS & demand path from activity & emitted; inert in one pass \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \section{The archived run record}
 \label{app:run-record}
@@ -31,11 +119,28 @@ rather than a stale number. The record comprises:
 \item the run's figure set, from which \Cref{fig:transition,fig:incidence} are taken.
 \end{itemize}
 Two quoted quantities are supplied rather than derived from the record: the employment
-base behind the full-time-equivalent working-time figure (49 million employed), and
-the economy-model build identity, which appears in no run artifact and is recorded
-with the run's coordination notes.
+base behind the full-time-equivalent working-time figure (48.91 million employed ---
+the PSA Labour Force Survey 2024 annual average, derived from the published ratio of
+5.82 million underemployed = 11.9\% of the employed), and the economy-model build
+identity, which appears in no run artifact and is recorded with the run's coordination
+notes.
 
-\section{Battery items and full golden tables}
+\section{The run battery and the golden record}
 \label{app:battery}
-% TODO: the complete list of 24 battery items and the full per-run golden.json metrics
-% (SS + TPI t0/t10 aggregates, sectoral Y_m, residuals).
+The grouped battery executes the link in its own environment and the country
+\OGCore{} model in the country model's environment, exchanging files; a battery item
+passes when its solve completes and its read-outs are produced. The regression record
+(\texttt{results/golden.json}, v9 scenario pair) stores, for the baseline and each of
+eleven experiment configurations ---
+\chan{coupled}; \chan{energy\_price} (with a steady-state-only variant);
+\chan{clean\_incidence}; \chan{carbon}; \chan{investment} (with a steady-state-only
+variant); \chan{capital\_intensity} (with a steady-state-only variant);
+\chan{health}; \chan{demand}; and \chan{discount\_rate} ---
+the base and reform levels of $Y$, $C$, $K$, $L$, $r$, and $w$ at the steady state
+and at transition periods $t_0$ and $t_{10}$, together with sectoral outputs $Y_m$.
+The automated re-check enforces the recorded macro aggregates; the lock does not
+extend to emitted artifacts or the electricity-cost path
+(\Cref{sec:validation}). Two experiment names in the record predate the current
+registry naming (\chan{demand}, \chan{discount\_rate} --- now the \chan{emit\_}
+mappings of \Cref{app:channel-map}); the record is retained under its committed names
+because it is the evidence file the v9 claims cite.

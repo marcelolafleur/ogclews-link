@@ -1,14 +1,39 @@
 \section{Conclusion and Roadmap}
 \label{sec:conclusion}
 
-% TODO: short. Restate the contribution (a small, careful library of auditable cause-
-% and-effect links -- a step beyond classic energy-economy models, using a richer
-% economy that tracks households, government, and who is affected) and the roadmap:
-%  1. Feed the real commodity marginal costs from a full CLEWS/MUIOGO run.
-%  2. Calibrate the unit/deflator bridge so cost and revenue sizes can be trusted.
-%  3. Close the loop -- the CLEWS re-solve seam is built+validated (clews_driver); what
-%     remains is the outer iteration controller (damping/convergence) that drives it to the
-%     price/quantity fixed point.
-%  4. Calibrate the health link on real Philippine PM2.5-and-health (GBD) data.
-%  5. Energy as a priced production input (the structural ideal for the energy channel).
-%  6. Integrate as the economic engine behind MUIOGO.
+The framework presented here is a small library of separately specified, separately
+validated economic mappings between a least-cost energy--land--water plan and an
+overlapping-generations economy. Each mapping carries one mechanism, enters the economy
+on one account, and is tested at the layer of the claim it makes; the coupled
+application composes them without hiding them, so any aggregate result can be traced
+back to the mapping --- and the assumption --- that produced it. Relative to the
+aggregate energy--economy couplings this literature descends from, the economy side
+here prices the consequences onto households that differ by age and lifetime income,
+onto industries that differ in exposure, and onto a government that must finance what
+the plan implies --- which is what makes incidence, cohort, and fiscal questions
+answerable at all.
+
+The path from here is concrete, and each step removes a named limitation:
+\begin{enumerate}
+\item \textbf{A marginal price signal.} The commodity dual is degenerate in the
+  present case, so the deployed signal is a levelized cost; a case where the dual is
+  informative --- or an explicit average-cost interpretation carried through the
+  theory --- closes the gap between the deployed price and the marginal-cost ideal.
+\item \textbf{The unit/deflator bridge.} Auditing the currency translation, channel by
+  channel, is what turns carbon and investment levels from illustrative into
+  quotable.
+\item \textbf{Loop closure.} The re-solve seam is built and tested; what remains is
+  the outer iteration controller --- damping and convergence on the price/quantity
+  fixed point --- after which the energy plan reacts to the economy it shapes.
+\item \textbf{A calibrated health translation.} The country dose--response and a
+  morbidity magnitude replace the placeholder, on the sourced Global Burden of
+  Disease scaffolding already in place.
+\item \textbf{Energy as a priced production input.} The structural resolution of the
+  transmission ambiguity documented in \Cref{sec:discussion} --- the single change
+  that would let the model, rather than an assumption, decide how system costs reach
+  the economy.
+\item \textbf{Deployment behind the planning interface.} The link runs from its own
+  environment against the energy model's own solver and case store, so the natural
+  end state is as the economic engine behind the planning tool's interface, invoked
+  after each energy solve.
+\end{enumerate}

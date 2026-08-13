@@ -1,19 +1,95 @@
 \section{Discussion and Limitations}
 \label{sec:discussion}
 
-% TODO: be honest and specific (this is the paper's credibility section).
-%  - Calibrated vs illustrative: what is solid (mechanics, signs, the energy-demand
-%    response, incidence direction, health decomposition) vs what scales with data
-%    (carbon/investment magnitudes via the deflator; energy price once the real marginal cost is wired).
-%  - The maturity ladder: each channel is an approximation toward the marginal-cost-
-%    exchanging theoretical ideal (reuse presentation diagram `maturity`).
-%  - One-pass vs iterated: discount_rate and demand are latent until loop closure. The CLEWS
-%    re-solve seam is now built+validated (clews_driver: patch a case copy -> re-solve in
-%    MUIOGO's env -> re-read; +4.3% production for +10% demand on PHL v9; deterministic to
-%    0.002%), so what remains is only the outer damping/convergence controller -- state the
-%    fixed-point and that plan.
-%  - Structural gap: energy is not yet a priced production input (the structural ideal); consequences
-%    (no factor substitution away from energy, no inter-industry energy flows in the
-%    shipped core) and why the cost-push proxy is a defensible interim.
-%  - Health is reduced-form: the dose-response is an external GBD bridge, not endogenous.
-%  - Threats to validity / what would change the conclusions.
+\subsection{What is established, and what scales with data}
+The layered validation of \Cref{sec:validation} separates two kinds of claims, and the
+distinction should govern how the results are read. What the evidence establishes: the
+transforms are dimensionally guarded and fail loudly rather than silently; every
+implemented forward mapping is accepted by the economy solve; the response directions
+follow the stated mechanisms (a resource cost contracts, the factor-share lever is not
+a capital draw-in, the survival gain skews old and therefore carries almost no output);
+and the composition of the coupled response is pinned by construction and confirmed by
+matched runs. What remains conditional is every \emph{level}. The unit/deflator bridge
+between the energy model's money and the economy's num\'eraire is not yet audited, so
+any currency magnitude that crosses it --- carbon revenue, investment cost --- is
+illustrative. The electricity-cost signal is ratio-based and thus immune to the
+deflator, but it is a levelized cost, not a marginal price. The morbidity multiplier is
+a placeholder pending a country dose--response estimate. This is why every magnitude in
+\Cref{sec:results} travels as a relative change with its evidence base named.
+
+\subsection{The transmission choice is first-order}
+The single most consequential specification in the system is not a parameter but a
+routing. The composite's inter-industry leg treats the sectoral electricity-cost change
+as an exogenous unit-cost shift, scaled by input--output exposure; it is a reduced-form
+mapping, not a factor-demand system derived from the production block. Nearly the whole
+coupled response arrives through it, and a structural alternative that routes the same
+cost signal through sectoral productivity reverses the aggregate sign
+(\Cref{sec:decomposition}). The two routings embody different economic claims about
+what a costlier power system does to the rest of the economy, and the present framework
+cannot adjudicate between them because electricity is not a priced input inside
+production. Until it is, the choice is an assumption --- which is why the headline is
+never quoted without the transmission named.
+
+\subsection{One pass, not yet a fixed point}
+The emitted inputs --- the carbon-price artifact, the planning rate, the revised demand
+path --- bind nothing until a second energy-model solve consumes them. The mechanical
+seam for that second solve is built and tested: a controlled demand patch survives
+copy, re-solve, and read-back, deterministically. What does not yet exist is the outer
+controller --- damping, a convergence criterion, and control of propagated error across
+repeated solutions --- and the validation table lists closed-loop iteration as untested
+for exactly that reason. Until it lands, the system is a forward evaluator: the
+reported responses are conditional on an energy plan that has not yet been allowed to
+react to them.
+
+\subsection{The structural gap behind the proxy}
+The economy's production block takes capital and labour; electricity is not a priced
+intermediate. Two consequences follow. First, firms cannot substitute away from energy
+when it becomes dear, so the cost-push mapping, which imports input--output exposures
+from the social accounting matrix, has no behavioural margin behind it. Second,
+inter-industry energy flows cannot reallocate endogenously; the exposure weights are
+data, not decisions. The proxy is nonetheless a defensible interim: the exposures are
+country-sourced, the mapping is transparent enough to audit line by line, and the
+structural alternative --- adding a priced energy factor to the host model's
+production block --- would modify the host rather than link to it, breaking the
+non-invasive constraint the architecture is built on (\Cref{sec:framework}). The
+structural ideal belongs on the roadmap, not in the link.
+
+\subsection{Health is a sourced bridge, not an endogenous channel}
+The health mapping's inputs are sourced --- the burden total and both age profiles come
+from the Global Burden of Disease --- but the translation from power-sector emissions
+to that burden is a constructed dose--response scalar whose linearity is assumed, and
+the morbidity productivity multiplier is a placeholder. One further point is easy to
+miss: because ambient-particulate mortality is concentrated at post-working ages,
+aggregate output is nearly invariant to the mortality gain, and GDP is therefore the
+wrong summary statistic for this channel. The framework reports lives and returned
+working time as first-class outputs beside the aggregates for that reason, not as
+decoration.
+
+\subsection{Calibration discipline, checked externally}
+Every energy-side parameter the application touched was derived from a named source
+rather than tuned toward an observed outcome (\Cref{sec:calibration}), and each
+derivation is recorded with its source in the calibration register. That discipline
+recently acquired an external check: a subsequent, independently prepared release of
+the underlying country energy dataset adopted the same values for the coal capital
+cost, the small-modular-reactor capital cost, the large-hydro lifetime, the LNG
+chronology, the onshore-wind resource ceiling, and the two-sided land-endowment pin
+--- and removed the one incentive parameter the register had flagged as unsourced.
+Independent convergence on the same sourced values is the strongest evidence available
+that the register reflects the energy system being modelled rather than the
+calibrator's target.
+
+\subsection{Threats to validity}
+Compactly, what would change the conclusions:
+\begin{itemize}
+\item the transmission assumption --- sign-critical, as shown, and unresolved until
+  energy is priced in production;
+\item the unaudited deflator --- level-critical for carbon and investment;
+\item one-pass conditionality --- the energy plan has not reacted to the economy;
+\item the degenerate commodity dual --- the price signal is an average cost, and no
+  marginal interpretation survives it;
+\item the reduced-form health translation --- magnitude-critical for the health
+  channel's non-demographic content;
+\item scope --- one country, one scenario pair per evidence base, with the
+  composition established on a different pair than the illustration until the matched
+  runs are repeated there, and the regression lock covering the v9 pair only.
+\end{itemize}
