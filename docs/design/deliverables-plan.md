@@ -221,3 +221,13 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   Known non-derivable: the ogcore build and OG-PHL branch@commit appear in NO run
   artifact (the link env has no ogcore by design) -- figures label them
   "SUPPLIED, not derived" until a content digest exists.
+- 2026-08-13 (viz): v16 ledger + heatmap rendered, all magnitudes derived from the
+  manifest (its own hand-typed "46 deaths" literal self-caught when the derivation
+  replaced it -- lesson 4 landing on its preacher, their words). FIGURE-INTEGRITY
+  CONVENTION adopted for every session: a check that cannot be evaluated on the current
+  case prints "MISSING, NOT RESOLVED" in red and names the absent experiments; prior-
+  case conclusions are never carried forward silently. OPEN VERIFICATIONS on v16 (held
+  on v12, treated as unknown until run): (a) coupled == energy composite; (b) the
+  Option A vs A-prime sign disagreement. Both need energy_full_real,
+  energy_cost_push_real, energy_price_tfp_real on v16 -- same runs as the queued
+  matched-leg pair; one decision covers all.
