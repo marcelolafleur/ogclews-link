@@ -37,12 +37,27 @@ Do not delete another session's entry; append a correction under a new date.
   presentation where the channel explanations did not land. Channel 1 (energy price) is done.
 - **This branch**: comparative assessments complete; PHL land/water defects diagnosed;
   reference PDFs indexed in `docs/references/README.md`.
+- **2026-08-13 — ieem worktree** (`experiment/forest-conversion-carbon`, pushed @ 0770258):
+  full state in `docs/design/deliverables-plan.md` and the cross-assistant brief
+  `docs/design/coordination-ieem-v16-2026-08-12.md` (divergence table + four asks) on that
+  branch. Headlines: (1) three link correctness fixes main does not have — two missing
+  `income_percentiles` (the health mortality shock silently skipped until 2026-08-11),
+  the clean-marginal health application, mortality-only clipping; (2) released ogcore
+  0.19.1 cannot solve any `tau_payroll != 0` model (PSLmodels/OG-Core#1199, filed; local
+  fixed build in use); (3) `Philippines_v16_CALIBRATED` staged with recalibration + 2027
+  coal moratorium + both-sides land pin + conversion-carbon accounting (~25% of national
+  CO2e); single-command run staged, awaiting Marcelo; (4) open-work item 1 (matched
+  cumulative decomposition) HAS AN ANSWER on v12: an 11-experiment battery with
+  real-price variants — coupled == energy composite exactly (identity, carbon is
+  emit-only, confirming the 2026-08-04 fact), cost-push -0.496 vs household -0.026 of
+  the -0.525 total.
 
 ## Claims — say what you are working on, to avoid collisions
 
 | Since | Who / where | Working on | Touching |
 |---|---|---|---|
 | 2026-08-04 | this machine (session A) | channel-by-channel rebuild of the explanations | `paper/linkages-intro`: `docs/design/channel-notes/`, `paper/sections/04–05`, `presentation/mechanisms.tex` |
+| 2026-08-13 | ieem-worktree machine (v16/stack session, coordinator of 3 local peers) | v16 coupled run (staged, awaiting Marcelo's "run"); link correctness fixes; deliverables inputs | `experiment/forest-conversion-carbon`; MUIOGO DataStorage `Philippines_v16*`; OG-PHL `calib/multi-industry-remittances`; local ogcore build `integrate/v0191-plus-1189` |
 
 Add a row when you start; remove it when you stop.
 
@@ -105,3 +120,15 @@ scripted download — fetch it in a browser).
   (first committed on the research branch, then moved here to `main` so every branch
   sees it). On the writing branch: paper de-inflation passes, companion-paper mentions
   removed, channel 1 rewritten across paper/deck/notes.
+- **2026-08-13 (ieem worktree, v16/stack session)** — Read this file; adopted the protocol.
+  Pushed our branch (0b14e1f→0770258) with: the demographics/health fixes (see Current
+  state — session A should verify whether the golden's −95.4 health number predates them),
+  ogcore #1199 + the local fixed build, the staged v16 case and run button, the sourced
+  land-conversion cost (implementation deferred: case data cannot express one-way change
+  costs; the symmetric workaround is the falsified pattern), and the matched real-price
+  decomposition on v12 answering open-work #1 on that evidence base. Divergences to
+  reconcile before submission (v9 vs v12/v16; two GBD exports; ogcore pins) are tabled in
+  `docs/design/coordination-ieem-v16-2026-08-12.md` with four asks. Our stack sits on the
+  pre-rename branch history; the shared worktree branch will NOT be rebased (pushed,
+  multi-session) — reconcile at merge time. The five coupling diagrams close our
+  channel-diagram gap; we reuse them.
