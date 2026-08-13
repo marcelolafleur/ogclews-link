@@ -205,3 +205,19 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   in both papers: 94% of the headline rides on the cost-push leg (Option A-prime), a
   reduced-form proxy by channels.py's own docstring; the structural alternative (Option A,
   TFP route) flips the sign (+0.026). Any headline quote names the transmission.
+- 2026-08-13 THE V16 COUPLED RUN IS DONE, end to end, gates green. Steady state:
+  Y -0.579, C -0.422, K -0.550, L +0.015, r -0.111, w -0.537 (transition-window
+  2025-34 avg Y -0.181). vs v12: Y -0.525 -- the moratorium binds (7.94 GW pipeline
+  then zero new coal; system loses its cheapest expansion option) and the headline
+  deepens ~10%, as predicted when the moratorium was added. Health on v16:
+  PM2.5 -7.03% (v13's calibrated emissions layer) -> -253.2 deaths (GBD-anchored),
+  5.5x the v12 signal. Conversion carbon booked: 1,474 Mt (2022-53). Offshore cap
+  binds exactly (823.0). Investment still ~0 (0.0097% GDP cumulative). Results:
+  ogclews_runs_v16/coupled/ (macro_table, manifest, deck, clews_inputs for the
+  future loop closure). Evidence-base recommendation to upstream stands: v16.
+  Interface-contract upgrade (from the viz session): ogclews_manifest.json is the
+  AUTHORITATIVE record of applied channels (channels[]) and realized magnitudes
+  (provenance[]); figures derive from it, never from experiments.py readings.
+  Known non-derivable: the ogcore build and OG-PHL branch@commit appear in NO run
+  artifact (the link env has no ogcore by design) -- figures label them
+  "SUPPLIED, not derived" until a content digest exists.
