@@ -15,7 +15,7 @@ the build README, not assumed.
 | LNG chronology | zero through 2022 | "no LNG before Apr 2023" | same point |
 | onshore wind ceiling | 663.84 PJ | 664 (NREL Restricted) | same screen |
 | land endowment | TAL = TAU = 295.8131 | both-sides pin (§14 item 1) | same |
-| the `-10` forest reward | REMOVED (VC ≈ 0.0001) | flagged unsourced | **UNDER VERIFICATION (Marcelo, 2026-08-13): possibly an ERROR in v17/v18, not a design choice.** If accidental, the PR gains a fourth item: restore a forest value (ideally sourced) or flag the silent loss. Until verified, no text may present the removal as deliberate uptake |
+| the `-10` forest reward | **PRESENT AND INTACT** — all 8 cluster techs (LNDAGRPHLC01-08), forest mode 27, -10.0 every year 2020-2053, identical across v12/v16/v18 | flagged unsourced | **MY EARLIER "REMOVED" CLAIM WAS FALSE** (2026-08-13, retracted same day): I probed LNDFORTOT, the aggregate accounting terminal, which never carried the reward in any version. Marcelo's suspicion of an error was correct — the error was in my assessment, not in v18. The -10 remains the live (still unsourced) forest value; our benchmark and sourcing work applies to v18 unchanged |
 | deployment envelopes | TAMaxCI realism bounds from 2026 | (new, theirs) | good addition |
 | irrigated rice water | corrected (IAR total ×8 vs source) | national ×14.4 to AQUASTAT | partial overlap |
 
@@ -54,9 +54,10 @@ DOE-derived 0.629 (compare sources); SMR 60-y life retained vs our FOAK-40 argum
    forest_carbon_patch.py (`TEC_hjgww`), gates, mix/sankey chart tech lists.
 2. **The land block is restructured** (v17 "safeguarded land account"): crop OAR differs
    from the v12 source, so our yield factors DO NOT transplant; forest TAMLL/TAMUL carry
-   99999 placeholders (not real pins) and with the -10 gone, what disciplines land
-   allocation is the v17 account structure — READ ITS LEDGER before porting any land item
-   or re-deriving yields. The 2020 partition reproduces v17 exactly per their validation.
+   99999 placeholders. The -10 forest reward IS present (cluster techs, mode 27) and,
+   combined with the v17 account, produces a far more plausible base forest path than
+   v12's (72.3 -> peak ~97 -> 78.4 by 2053, vs v12's jump to 161): READ THE v17 LEDGER
+   before porting any land item or re-deriving yields.
 3. **Water base differs** (their rice correction), so our 14.4128 factor is INVALID on
    v18 — a fresh two-pass against AQUASTAT is required if we recalibrate water at all.
 4. Scenario names unchanged (BASE/COAL_PHASEOUT/RE/EV); envelope machinery now occupies
