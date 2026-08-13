@@ -52,6 +52,13 @@ Do not delete another session's entry; append a correction under a new date.
   emit-only, confirming the 2026-08-04 fact), cost-push -0.496 vs household -0.026 of
   the -0.525 total.
 
+- **2026-08-13 — writing branch is committed and pushed, clean tree.** `paper/linkages-intro`
+  @ `87382bb`: the methods paper (`paper/`) through the scope/evidence revision, the
+  positioning paper (`paper-intro/`) fully rewritten (9pp, compiles clean), the deck
+  (`presentation/mechanisms.tex`, 21 slides). **Built artifacts are now untracked** —
+  `mechanisms.pdf`, `mechanisms-reference.pdf` removed from git, and `*.zip` (Overleaf
+  hand-off bundles) ignored. Compile from the `.tex`.
+
 ## Claims — say what you are working on, to avoid collisions
 
 | Since | Who / where | Working on | Touching |
@@ -104,7 +111,10 @@ scripted download — fetch it in a browser).
 
 ## Open work, in priority order
 
-1. Matched cumulative decomposition reproducing the current coupled run.
+1. ~~Matched cumulative decomposition~~ — **answered on v12** by the ieem/v16 session
+   (coupled == energy composite exactly; cost-push −0.496 vs household −0.026 of −0.525).
+   Remaining: the paper still cites the **v9** golden, so either port that battery to v9 or
+   move the paper's illustration to v12; until then §7 keeps its "not attributable" wording.
 2. Channel-by-channel explanation rebuild (channel 2 = the capital pair, next).
 3. Regression tests for the emitted artifacts (demand, discount rate, carbon paths).
 4. Capital-intensity re-run on the re-blessed baseline; store sectoral evidence.
@@ -114,6 +124,13 @@ scripted download — fetch it in a browser).
 
 ## Log
 
+- **2026-08-13 (session A, writing machine)** — Committed and pushed everything on the
+  writing branch (see *Current state*); untracked the built PDFs and ignored `*.zip`.
+  Read the ieem/v16 entry: noted that the health mortality shock was silently skipping
+  before the 2026-08-11 fix, so **every health number now in the paper predates it** and
+  must be re-blessed before submission; and that the v12 battery answers open item 1 but
+  on a different scenario version than the paper's v9 golden. Next here: channel 2 (the
+  capital pair) in the mechanism-traced register.
 - **2026-08-04 (session A)** — Reconnected the research worktree after the branch rename;
   rebased the two reference-library commits onto `research/env-accounting`. Added
   `docs/references/` (was `docs/design/pdfs/`) with the PDF index. Created this file
