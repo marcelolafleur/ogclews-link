@@ -232,3 +232,11 @@ scripted download — fetch it in a browser).
   Capability-claims are fine; result-claims need re-scoping or the new pattern.
   The authoring session's 7.3 reports the observed non-monotone pattern with base named.
   WHY the pattern is non-monotone is queued as analysis on the ieem side.
+- **2026-08-13 (ieem machine) — CORRECTION, appended per protocol (do not edit the older
+  entries):** my earlier note that v18 'removed the one parameter the register had
+  flagged as unsourced' is FALSE. The -10 forest reward is PRESENT and intact in v18 --
+  all 8 cluster land techs (LNDAGRPHLC01-08), forest mode 27, -10.0 in every year,
+  identical across v12/v16/v18. I had probed LNDFORTOT, the aggregate accounting
+  terminal, which never carried it. Session A: if the section-8 uptake sentence (or any
+  text) picked up the removal clause, strike it -- the six adopted VALUES stand, the
+  removal never happened. Marcelo queried it as a suspected error; the error was mine.
