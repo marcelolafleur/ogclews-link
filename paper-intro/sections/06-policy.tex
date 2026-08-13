@@ -50,7 +50,9 @@ the adjustment required for a particular application.
 
 The validation runs produced the responses summarised in Table~\ref{tab:validation}.
 They are evidence about the operation of the economic mechanisms, not estimates of the
-benefits or costs of a particular policy.
+benefits or costs of a particular policy. Each result names its evidence base: the
+current coupled application (the v16 scenario pair), the v12 mechanism battery, or an
+earlier controlled solve.
 
 \begin{table}[H]
 \centering\scriptsize
@@ -60,14 +62,14 @@ benefits or costs of a particular policy.
 \toprule
 Relationship & Economic proposition & Observed result \\
 \midrule
-Electricity cost & system costs affect household purchasing power and industry costs & a roughly $5\%$ cost increase reduced steady-state household consumption by $0.062\%$; with the payment recycled, the proportional burden was larger for lower-income households \\
-Public grid investment & infrastructure raises public capital and must be financed & the source scenario contained almost no additional grid investment, and the public-capital and aggregate responses were correspondingly close to zero \\
+Electricity cost & system costs affect household purchasing power and industry costs & the household wedge alone moved steady-state consumption by $\atrWedgeC\%$, and by $\atrCleanIncC\%$ with the payment recycled as transfers (v12 battery); on the coupled run (v16) the incidence across income groups is strongly heterogeneous and not budget-share driven --- baseline energy spending is a similar share of the basket in every group \\
+Public grid investment & infrastructure raises public capital and must be financed & the source scenario contained almost no additional grid investment ($\cplInvestCumPctGDP\%$ of GDP cumulatively, v16), and the public-capital and aggregate responses were correspondingly close to zero \\
 Generation capital intensity & technology choice changes the electricity industry's production structure & a $12.2\%$ increase in the capital share lowered the electricity price $42.8\%$, raised sector output $20.9\%$, and reduced sector capital $22.4\%$; the firm identity reproduced the capital response within $0.03\%$ \\
 Private investment incentive & policy changes the cost of private generation capital & a $20\%$ investment tax credit raised private capital in electricity by $5.0\%$, while other industries moved by less than $0.02\%$ and aggregate output was essentially unchanged \\
-Health & particulate emissions affect survival and effective labour & a $2.7\%$ emissions reduction produced about $95$ lives saved and a near-term output gain of about $0.19\%$; the long-run output effect was near zero because the survival gain was concentrated among older ages \\
-Carbon price & one policy changes resource costs, payments, and public revenue & the recycled standalone experiment reduced output by $0.021\%$, capital by $0.019\%$, and labour by $0.045\%$, while consumption increased by $0.026\%$ \\
-Economic activity & industry and household activity determine service demand & a controlled $10\%$ increase in household electricity demand raised CLEWS electricity production by $4.28\%$ \\
-Equilibrium return & the economy's opportunity cost of capital informs resource planning & the equilibrium-return path was produced as the planning-rate input; its effect on resource choices has not yet been measured in the recorded validation runs \\
+Health & particulate emissions affect survival and effective labour & particulate exposure changed by $\cplPMPct\%$ (v16), translated into roughly \cplDeaths{} avoided deaths and about \cplMorbFTE{} full-time-equivalent workers per year of reduced illness; the aggregate output effect stayed below reporting precision because the survival gain accrues mostly at older ages \\
+Carbon price & one policy changes resource costs, payments, and public revenue & the standalone carbon-price experiment (revenue recycled) moved output by $\atrCarbonY\%$ while consumption rose by $\atrCarbonC\%$ (v12 battery); in the coupled configuration the carbon price is only emitted for a future energy-model solve and affects nothing reported \\
+Economic activity & industry and household activity determine service demand & a controlled $10\%$ increase in household electricity demand raised CLEWS electricity production by $4.28\%$ (v9 case); the coupled run emitted a mean demand-path change of $\cplDemandMeanPct\%$ (v16) for the next energy-model solve \\
+Equilibrium return & the economy's opportunity cost of capital informs resource planning & the coupled run emitted a $\cplEmitDRPct\%$ planning-rate input (v16); its effect on resource choices has not yet been measured in the recorded validation runs \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -75,9 +77,12 @@ Equilibrium return & the economy's opportunity cost of capital informs resource 
 \subsection{What the validation supports}
 
 The observed responses follow the economic mechanisms represented by the linkages. Costs
-reduce purchasing power, distribution reflects expenditure patterns, a change in factor
-shares is distinct from an investment incentive, health effects differ by horizon, and
-recycling changes who ultimately bears a policy cost. The results also identify where
+reduce purchasing power; a change in factor shares is distinct from an investment
+incentive; recycling changes who ultimately bears a policy cost. The distributional
+evidence carries its own lesson: incidence need not follow expenditure patterns --- with
+energy a similar share of every group's budget in this calibration, who gains and who
+loses is decided by earnings, asset holdings, and transfers, which is precisely the
+information an age- and income-structured economy adds. The results also identify where
 interpretation depends on calibration. The
 electricity-cost relationship uses an average-cost proxy rather than an observed tariff or
 marginal price. The health effect requires a country-specific pollution and disease

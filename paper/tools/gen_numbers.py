@@ -35,12 +35,18 @@ from pathlib import Path
 # this block with a reader over that battery's own macro tables.
 ATTRIBUTION_V12 = {
     "base_label": "CLEWs Philippines v12 (matched real-price battery)",
+    # (name, Y, C, w, in_methods_table)
     "rows": [
-        ("coupled",                        -0.525, -0.385, -0.486),
-        ("energy composite",               -0.525, -0.385, -0.487),
-        ("inter-industry cost-push leg",   -0.496, -0.426, -0.559),
-        ("household wedge leg",            -0.026, -0.225, -0.032),
-        ("structural TFP alternative",     +0.026, -0.210, -0.045),
+        ("coupled",                        -0.525, -0.385, -0.486, True),
+        ("energy composite",               -0.525, -0.385, -0.487, True),
+        ("inter-industry cost-push leg",   -0.496, -0.426, -0.559, True),
+        ("household wedge leg",            -0.026, -0.225, -0.032, True),
+        ("structural TFP alternative",     +0.026, -0.210, -0.045, True),
+        # standalone experiments from the same battery (macros only):
+        ("carbon",                         -0.032, +0.019, +0.086, False),
+        ("clean incidence",                -0.022, -0.064, +0.050, False),
+        ("capital intensity",              -0.000, +0.276, +0.029, False),
+        ("energy capex",                   -0.023, +0.080, +0.007, False),
     ],
 }
 
@@ -166,22 +172,41 @@ def main():
         "\\midrule\n" + coupled_rows + "\n\\bottomrule\n\\end{tabular}\n"
     )
 
-    # Prose-facing macros for the attribution split (same static v12 data
-    # as the table — one source, two renderings).
-    attr_by_name = {n: (y, c, w) for n, y, c, w in ATTRIBUTION_V12["rows"]}
+    # Prose-facing macros for the battery rows (same static v12 data as the
+    # table — one source, two renderings). \atr<Row><Var> for every row/var.
     with open(args.out / "numbers.tex", "a") as fh:
         fh.write(macro("atrBase", ATTRIBUTION_V12["base_label"]) + "\n")
-        for key, name in (("atrCoupledY", "coupled"),
-                          ("atrCompositeY", "energy composite"),
-                          ("atrCostPushY", "inter-industry cost-push leg"),
-                          ("atrWedgeY", "household wedge leg"),
-                          ("atrTfpY", "structural TFP alternative")):
-            fh.write(macro(key, texnum(attr_by_name[name][0])) + "\n")
+        fh.write(macro("cplEmitDRPct",
+                       texnum(100 * prov["emit_discount_rate"]
+                              ["clews_discount_rate"], 1),
+                       "emitted planning discount rate, %")
+                 if "emit_discount_rate" in prov else
+                 missing("cplEmitDRPct", "discount-rate provenance"))
+        fh.write("\n")
+        fh.write(macro("cplDemandMeanPct",
+                       texnum(100 * (prov["emit_energy_demand"]
+                                     ["mean_ratio"] - 1), 1),
+                       "emitted mean demand-path change, %")
+                 if "emit_energy_demand" in prov else
+                 missing("cplDemandMeanPct", "demand provenance"))
+        fh.write("\n")
+        stems = {"coupled": "atrCoupled",
+                 "energy composite": "atrComposite",
+                 "inter-industry cost-push leg": "atrCostPush",
+                 "household wedge leg": "atrWedge",
+                 "structural TFP alternative": "atrTfp",
+                 "carbon": "atrCarbon",
+                 "clean incidence": "atrCleanInc",
+                 "capital intensity": "atrCapInt",
+                 "energy capex": "atrCapex"}
+        for name, y, c, w, _ in ATTRIBUTION_V12["rows"]:
+            for var, val in (("Y", y), ("C", c), ("W", w)):
+                fh.write(macro(stems[name] + var, texnum(val)) + "\n")
 
     attr = ATTRIBUTION_V12
     attr_rows = "\n".join(
         f"{name:32s}& ${texnum(y)}$ & ${texnum(c)}$ & ${texnum(w)}$ \\\\"
-        for name, y, c, w in attr["rows"]
+        for name, y, c, w, in_table in attr["rows"] if in_table
     )
     (args.out / "table_attribution.tex").write_text(
         "% GENERATED — see numbers.tex header. STATIC v12 data (see script).\n"

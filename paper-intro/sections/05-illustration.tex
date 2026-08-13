@@ -26,9 +26,10 @@ cost of capital and shifts its demand for private capital. It is economically di
 from the generation capital-intensity relationship, which changes production shares but
 does not subsidise investment.
 
-The mapping is defined but has not been exercised in the current validation runs. Its use will
-also require a calibrated monetary bridge and a policy specification that distinguishes
-the incentive from the underlying generation investment.
+The mapping has been exercised as a standalone validation lever
+(Section~\ref{sec:policy}). Its use in application will also require a calibrated
+monetary bridge and a policy specification that distinguishes the incentive from the
+underlying generation investment.
 
 \subsection{Equilibrium return}
 
@@ -41,7 +42,8 @@ The two rates are not automatically equivalent. A planning rate may reflect soci
 objectives, while an equilibrium return reflects market conditions. Risk, tax treatment,
 maturity, and real-versus-nominal conventions also differ. The link therefore exposes a
 choice that analysts must harmonise; it does not determine the correct social discount
-rate. The return path is emitted but has not yet been passed through a repeated solution.
+rate. The return path is emitted --- a $\cplEmitDRPct\%$ rate in the current coupled
+run --- but has not yet been passed through a repeated solution.
 
 \subsection{Economic activity and electricity demand}
 
@@ -56,5 +58,6 @@ required. Investment and health effects may raise activity and demand in other p
 
 The mechanism for copying a revised demand path into CLEWS, solving the model, and reading
 the result back has been tested with a controlled demand change. The activity path emitted
-by OG-Core has not yet travelled through the complete outer loop. Convergence and the
+by OG-Core --- a mean demand change of $\cplDemandMeanPct\%$ in the current coupled run ---
+has not yet travelled through the complete outer loop. Convergence and the
 propagation of uncertainty across repeated solutions therefore remain untested.
