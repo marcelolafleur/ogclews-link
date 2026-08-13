@@ -16,7 +16,7 @@ handoffs; this file for truth.
 |---|---|---|
 | v16/stack (this file's owner) | results producer + coordinator: calibrated stack, CLEWs v16 case, channel battery, coupled runs, comparison assessment | active; run staged, awaiting "run" |
 | env-accounting / comparative-methods | owns the COMPARISON CONTENT (deliverable 4) and the forest-carbon findings (§13/§14, stickiness menu, patch script — absorbed). Read-only on the branch and off the MUIOGO server; active on paper content | active (content committed) |
-| authoring session (ogclews-link-b5) | ADVANCES the existing corpus per charter v2: paper/ 07-10, paper-intro/ 05-07 refresh, deck results block via routed proposal. Onboarded 2026-08-13, confirmation pending | onboarding sent |
+| authoring session | CONFIRMED: worktree ~/Projects/ogclews-link-writing, branch writing/results-and-closing off paper/linkages-intro. Correction absorbed: paper 07-results is DRAFTED on the v9 golden, so the work is a REBASE + new composition subsection, per its committed plan (docs/design/plan-07-results.md on its branch). Green-lit lanes: 07-rebase per plan, paper-intro 07-conclusion, the TeX number-macro generator (derive-don-t-retype with a sign-flip check) | active |
 | "Model linkage visualization" (OG-Core structure plots) | OG-SIDE figures only: ogcore/structure_plots.py on OG-Core feature/structure-plots (HEAD 8b358be8, pushed to the fork) -- circular flow of institutional linkages, io_matrix heatmap, calibration-status and fit plots, Mermaid render, worked OG-PHL M=8 example. Explicitly does NOT cover the CLEWS<->OG channel diagrams; has touched nothing in this repo | active |
 | CLEWS<->OG channel visualization ("Graphics for ogclews-link") | CONFIRMED 2026-08-13: worktree ~/Projects/ogclews-link-viz, branch viz/channel-diagrams off main, nothing pushed. First sketch delivered (fixed-layout ledger, AST-derived channels -- no imports, no hand lists; symlog effect axis; baseline block on-figure). Its review found: the upstream channels.tex carries the forbidden "dual/marginal price" wording, symmetric carbon arrows, 7-of-11 channels, 3 stale names (routed to session A via COORDINATION.md); the Option A vs A-prime sign flip (+0.026 vs -0.496) is now on the figure; per-row numbers captioned as ATTRIBUTION not decomposition (matched-pair runs queued on the v16 base); "identical" overclaim on coupled==energy corrected in section 15. Decision taken: ledger prints Y only, C/K/w in a companion heatmap | active |
 
@@ -274,3 +274,14 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   artifacts where possible. INPUTS READY: impact deck scripts (+.venv-viz sankey),
   coupled deck, attribution + caveats (section 15), comparative brief, channel notes,
   both papers' TeX, the review exchange (register exemplars).
+- 2026-08-13 authoring Q&A (decisions): (1) v16+ evidence citations stay GENERIC in prose
+  ("the archived run record"); exact filenames live in the appendix (authoring lane) --
+  no unilateral extension of the golden.json code-name exception; proposed to session A
+  via the log if they prefer a named exception. (2) A GOLDEN RE-BLESS on the final
+  evidence base is QUEUED (stack session runs it after the v18 decision); until then the
+  papers scope "regression-locked" to v9 explicitly. (3) The v9 morbidity-transition
+  narrative is DROPPED -- it predates the 2026-08-11 demographics fixes and describes an
+  artifact. (4) Mixed-base presentation confirmed: headline v16, decomposition v12,
+  bases named on-face, re-verification note; until the matched legs run on the final
+  base. (5) Figure split: methods paper = the coupled deck (mechanism figures); impact
+  deck (sankey, CO2e-by-source, lives+working-time) = short paper + presentation.
