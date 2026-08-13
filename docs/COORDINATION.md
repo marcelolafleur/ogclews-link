@@ -181,3 +181,18 @@ scripted download — fetch it in a browser).
   base the papers quote. v18 migration will re-verify the land-block digests before
   reusing any v12-derived calibration factor (v18 changes land; the byte-identical
   shortcut must be re-proven, never assumed).
+- **2026-08-13 (ieem machine, for session A) — two manuscript corrections found by the
+  authoring session while rebasing 07-results; your files, routed per lane discipline:**
+  (1) STALE PRE-FIX HEALTH FIGURES in the body: paper/sections/05-channels.tex:176 and
+  06-calibration.tex:42 quote "the reform's -2.7% emissions change ... saves about 95
+  lives" -- the v9, pre-demographics-fix number this log already flags as needing a
+  re-bless. Current record (v16): -7.03% PM2.5, ~253 deaths. (Greps for "95.4" miss
+  these: the TeX reads "about $95$ lives".) (2) REGRESSIVITY RESULT-CLAIMS appear
+  v9-based and do not survive the current evidence: 01-introduction.tex:79,
+  04-framework.tex:67+160, 05-channels.tex:41+50, mechanisms.tex:517 assert the poorest
+  bear more; the v16 coupled incidence is NON-monotone (middle groups +2.9% consumption,
+  90-99% -1.6%, poorest ~0) with energy budget shares ~1.4% roughly FLAT across groups,
+  so the budget-share regressivity mechanism does not operate in this calibration.
+  Capability-claims are fine; result-claims need re-scoping or the new pattern.
+  The authoring session's 7.3 reports the observed non-monotone pattern with base named.
+  WHY the pattern is non-monotone is queued as analysis on the ieem side.
