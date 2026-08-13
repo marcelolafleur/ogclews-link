@@ -15,7 +15,7 @@ handoffs; this file for truth.
 | session | role | status |
 |---|---|---|
 | v16/stack (this file's owner) | results producer + coordinator: calibrated stack, CLEWs v16 case, channel battery, coupled runs, comparison assessment | active; run staged, awaiting "run" |
-| env-accounting / forest-carbon | COMPLETE, read-only consultant. Deliverables absorbed: §13/§14, stickiness menu, patch script | stood down |
+| env-accounting / comparative-methods | owns the COMPARISON CONTENT (deliverable 4) and the forest-carbon findings (§13/§14, stickiness menu, patch script — absorbed). Read-only on the branch and off the MUIOGO server; active on paper content | active (content committed) |
 | linkage visualization | presentation/diagram assets for the channels | active (identify: og-core-23 or muiogo-55) |
 
 ## Deliverable tree and inputs
@@ -35,11 +35,32 @@ handoffs; this file for truth.
    ogclews_runs/coupled/figures/, 19 PNGs; v16 lands in ogclews_runs_v16/coupled/figures/);
    attribution table; visualization session's assets (interface below).
 4. **Comparison with IEEM / CLEWs-IO** — a section in both papers + slides.
-   Inputs: docs/design/ieem-comparative-assessment.md (existing); env_accounts layer
-   (IEEM-parity: land cover, biodiversity index, carbon damage, depletion — DONE, stage 0-1);
-   the v16 emissions-coverage upgrade (conversion carbon now booked, ~25% of national CO2e —
-   an explicit advantage over energy-only accounting); paper-comparative-assessment.md
-   (STALLED workflow, resumable).
+   OWNER: the env-accounting/comparative-methods session. Its committed content:
+   paper-comparative-methods-brief.md (the drafting brief; contribution claims graded by
+   evidence strength — strongest: Keppo et al. 2026, the field's own linking review, has
+   zero OLG/cohort/intergenerational hits vs seven for CGE; the 'nobody has done it' claim
+   is flagged UNVERIFIED pending a systematic search), ieem-comparative-assessment.md
+   (IEEM's feedback = one 8% erosion coefficient; genuine-savings terms computable from a
+   solved case), clews-io-employment-assessment.md (their 'endogenized employment' is a
+   jobs-per-PJ coefficient, no iteration; IO table confidential), method-comparison-brief.md.
+   Shadow-price hygiene is a titled contribution (cross-validated three ways: energy-side
+   LCOE guardrail, land-side degeneracy, §13 falsification). This session's v16 inputs feed
+   it: the emissions-coverage upgrade (~25% of national CO2e) and the moratorium-corrected
+   PEP. The earlier stalled paper-comparative-assessment.md workflow is SUPERSEDED by the
+   brief; do not resume it.
+
+## Submission blockers (tracked here, with owners)
+
+1. **Unit deflator hardcoded 1.0** (`ogclews_link/contract.py:115`, UnitMap.deflator) —
+   carbon/investment magnitudes are illustrative until audited/fixed. OWNER: v16/stack
+   session (it is link code). Audit scope: which channels actually flow a currency
+   magnitude through UnitMap (percent-of-GDP normalizations are unitless and immune);
+   fix or document per channel BEFORE paper numbers are quoted as calibrated.
+2. **Keppo item-xiii epistemic map** (least-cost planner vs decentralized equilibrium —
+   what linking an LP to an OLG means epistemically) — unwritten. OWNER: comparative-methods
+   session (its brief), unless Marcelo reassigns.
+3. **'Nobody has linked OSeMOSYS/CLEWs to an OLG' claim** — UNVERIFIED; needs a systematic
+   search before any submission. OWNER: comparative-methods session.
 
 ## Interface contract for the visualization session
 
@@ -51,6 +72,12 @@ handoffs; this file for truth.
 - Figures: `ogclews_runs/coupled/figures/` — reuse or restyle, don't recompute.
 - The stack fingerprint (what produced the numbers): og-clews-linked-run skill,
   "Fingerprint the stack" section.
+- TERMINOLOGY (hard requirement from the comparative-methods session, learned from its own
+  corrected over-claim): the energy-price channel's exchanged signal is the LEVELIZED COST
+  ('auto' resolves to the cost-of-electricity workbook or LCOE reconstruction). It is NOT
+  the shadow price/dual — the marginal source is opt-in only and degenerate. Any figure
+  narrating the channels must say "levelized cost"; "shadow price" in print repeats the
+  mistake.
 
 ## Status log
 
