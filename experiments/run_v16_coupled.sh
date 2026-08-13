@@ -13,21 +13,18 @@
 #   - OG baseline cache is stack-keyed and CLEWS-independent -> reused, so the coupled
 #     step is a reform-only solve.
 #
-# BEFORE RUNNING (Marcelo, 2026-08-11): one more staging pass is agreed first --
-# a best effort to source and set up the section-14 conversion-cost changes:
-#   1. Find a Philippine land-clearing / land-development cost per hectare (site
-#      preparation, labour, machinery -- order hundreds of USD/ha). Candidate
-#      sources: DA/PhilMech land development costings, NIA project unit costs,
-#      DENR reforestation contract rates (the reverse direction), World Bank /
-#      ADB project appraisals. Record source + derivation in the assumption
-#      register -- this is the discipline the -10 skipped.
-#   2. Build the one-way forest->cropland conversion technology carrying that
-#      VariableCost and a plain EAR of 292 tCO2/ha (sections 14 items 3+4 share
-#      this one implementation; regrowth credited at 6.81 only, if at all).
-#   3. Only if a defensible source emerges: tiered conversion tranches (the
-#      rising supply curve, land-stickiness-options.md item c).
-# If sourcing fails, document the failure and run WITHOUT conversion costs --
-# the accounting variant and both-sides land pin stand on their own.
+# PRE-RUN STAGING PASS: COMPLETE (2026-08-11). Outcome, in full in
+# docs/design/land-conversion-cost-sourcing.md:
+#   - Conversion cost SOURCED: USD 500-1,500/ha, central 800 (= 80 MUSD per
+#     10^3 km^2), triangulated from the IUCN/WWF FireFight Sarawak costing
+#     (RM 1,920/ha, 2002, itemized), oil-palm establishment guides, and DENR
+#     reforestation (~USD 1,000/ha, reverse flow). Same order as the -10 once
+#     annualized -- the unsourced parameter it will one day discipline.
+#   - Implementation DEFERRED by design, not failure: case data cannot express
+#     a one-way change cost, and the symmetric EACR+penalty workaround is the
+#     falsified pattern. Needs the Tier-2f split-variable GMPL edit (upstream)
+#     or the land-as-stock restructure. The run proceeds WITHOUT conversion
+#     costs; the accounting variant and both-sides land pin stand on their own.
 #
 # Usage: run_v16_coupled.sh [workers]
 set -u
@@ -118,10 +115,21 @@ for run in ("Base_v16", "PEP_v16"):
     mx = max(pa.values() or [0])
     assert mx <= 823.0 + 1e-6, f"{run}: offshore wind activity {mx:.1f} > 823 PJ cap"
 print("  gate offshore cap: <= 823 PJ in both runs  OK")
-# gate 3: land closure EVERY year (both-sides pin: never above or below the endowment)
+# gate 3: land closure EVERY year (both-sides pin: never above or below the endowment).
+# Closure validates CONSISTENCY, not plausibility -- so pair it with a country-area
+# sanity band on the summed land-class activities themselves (the fleet-rule check).
 la = col("Base_v16", "TotalTechnologyAnnualActivity.csv", "MINLNDTOT")
 bad = {y: v for y, v in la.items() if abs(v - 295.8131) > 0.01}
 assert not bad, f"land closure violated: {dict(list(bad.items())[:3])}"
+classes = ("LNDFORTOT", "LNDAGRTOT", "LNDGRSTOT", "LNDBLTTOT", "LNDWATTOT", "LNDBARTOT", "LNDOTHTOT")
+tot = {}
+for t in classes:
+    for y, v in col("Base_v16", "TotalTechnologyAnnualActivity.csv", t).items():
+        tot[y] = tot.get(y, 0.0) + v
+if tot:  # class-tech names vary by build; sanity-band whatever resolved
+    off = {y: v for y, v in tot.items() if not (0.9 * 295.8131 <= v <= 1.1 * 295.8131)}
+    assert not off, f"summed land classes outside the country-area band: {dict(list(off.items())[:3])}"
+    print(f"  gate land sanity band: class sum within 10% of the country area  OK")
 print(f"  gate land closure (all {len(la)} years): 295.8131  OK")
 # gate 4 (§14 priority 4): the EACR gate year must fit v16's own forest path -- the 2022
 # gate assumes the only artefact jump is 2020->2021 and the path declines from 2021 on.
@@ -138,6 +146,16 @@ print(f"  gate forest path: monotone decline from 2021 ({fo[ys[1]]:.1f} -> {fo[y
 steps = sorted(((fo[ys[i]] - fo[ys[i+1]], f"{ys[i]}->{ys[i+1]}") for i in range(1, len(ys)-1)), reverse=True)
 print(f"  report forest stickiness: max annual loss {steps[0][0]:.2f} kkm2 ({steps[0][1]}), "
       f"top3 {[f'{v:.1f}@{y}' for v, y in steps[:3]]}, mean {sum(v for v,_ in steps)/len(steps):.2f}")
+# report: LU3 zero-trap candidates -- any land tech at zero activity could never start
+# under a multiplicative growth-rate limit (land-stickiness-options.md item a caveat).
+import subprocess as _sp  # noqa: F401  (kept minimal; names resolved from the same CSV)
+allland = {}
+for row in csv.DictReader(open(f"{C}/res/Base_v16/csv/TotalTechnologyAnnualActivity.csv")):
+    if row["t"].startswith("LND"):
+        allland.setdefault(row["t"], 0.0)
+        allland[row["t"]] += abs(float(row["TotalTechnologyAnnualActivity"]))
+zeros = sorted(t for t, v in allland.items() if v < 1e-9)
+print(f"  report LU3 zero-trap candidates (land techs at zero, cannot start under a rate limit): {zeros or 'none'}")
 # gate 5: conversion carbon is actually booked (the accounting variant landed end to end)
 try:
     fe = col("Base_v16", "AnnualTechnologyEmission.csv", "LNDFORTOT")
