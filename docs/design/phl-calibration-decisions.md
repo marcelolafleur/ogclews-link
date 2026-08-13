@@ -823,8 +823,10 @@ near-zero is a defensible finding, unlike the artifact's +0.21%.
 | capital_intensity | -0.000 | +0.276 | +0.029 |
 | energy_capex | -0.023 | +0.080 | +0.007 |
 
-The coupled effect IS the energy effect -- and the three-decimal equality is
-exact BY CONSTRUCTION, not a fortunate netting of interactions. Inside
+The coupled effect IS the energy effect at printed precision on Y, C, K, L and r --
+BY CONSTRUCTION, not by netting. (Not bit-exact everywhere: w reads -0.486 vs -0.487,
+because investment and health, while ~0, move the fourth decimal. Do not write
+"identical" unqualified -- caught by the channel-viz session, 2026-08-13.) Inside
 `coupled`, carbon enters only as `emit_carbon_penalty`, which writes a CLEWS
 EmissionsPenalty artifact for a FUTURE CLEWs solve and touches nothing in the
 OG run (the code comments "carbon priced on the CLEWS side only here"). The

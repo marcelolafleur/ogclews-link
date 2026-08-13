@@ -17,7 +17,7 @@ handoffs; this file for truth.
 | v16/stack (this file's owner) | results producer + coordinator: calibrated stack, CLEWs v16 case, channel battery, coupled runs, comparison assessment | active; run staged, awaiting "run" |
 | env-accounting / comparative-methods | owns the COMPARISON CONTENT (deliverable 4) and the forest-carbon findings (§13/§14, stickiness menu, patch script — absorbed). Read-only on the branch and off the MUIOGO server; active on paper content | active (content committed) |
 | "Model linkage visualization" (OG-Core structure plots) | OG-SIDE figures only: ogcore/structure_plots.py on OG-Core feature/structure-plots (HEAD 8b358be8, pushed to the fork) -- circular flow of institutional linkages, io_matrix heatmap, calibration-status and fit plots, Mermaid render, worked OG-PHL M=8 example. Explicitly does NOT cover the CLEWS<->OG channel diagrams; has touched nothing in this repo | active |
-| CLEWS<->OG channel visualization (`ogclews-link-8e`) | dedicated session, onboarded 2026-08-13 with the brief below + first work package: the channel-map figure derived programmatically from channels.py (direction, quantity+unit, receiving entry, one-pass binding status, v12 Y_ss beside each), baseline stated on-figure, layout proposed before polish. Own worktree/branch required (suggested viz/channel-diagrams off main). Prior art to reconcile: the five upstream diagrams | onboarding sent, confirmation pending |
+| CLEWS<->OG channel visualization ("Graphics for ogclews-link") | CONFIRMED 2026-08-13: worktree ~/Projects/ogclews-link-viz, branch viz/channel-diagrams off main, nothing pushed. First sketch delivered (fixed-layout ledger, AST-derived channels -- no imports, no hand lists; symlog effect axis; baseline block on-figure). Its review found: the upstream channels.tex carries the forbidden "dual/marginal price" wording, symmetric carbon arrows, 7-of-11 channels, 3 stale names (routed to session A via COORDINATION.md); the Option A vs A-prime sign flip (+0.026 vs -0.496) is now on the figure; per-row numbers captioned as ATTRIBUTION not decomposition (matched-pair runs queued on the v16 base); "identical" overclaim on coupled==energy corrected in section 15. Decision taken: ledger prints Y only, C/K/w in a companion heatmap | active |
 
 ## Deliverable tree and inputs
 
@@ -197,3 +197,11 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   degeneracy reproduce (magnitude reproducing while years move would STRENGTHEN the
   degeneracy finding). Queue after the v16 run. Paper rule: report which solver produced
   every dual quoted.
+- 2026-08-13 (viz session confirmed): see roster. QUEUED after the v16 run: the MATCHED
+  composite-leg pair on the v16 base (the composite's cost-push leg with self-use zeroed
+  at composite phi, and the diluted+recycled wedge alone) -- quantifies the
+  attribution-vs-decomposition gap the ledger currently captions (also answers upstream
+  open-work #1 with matched treatments). PAPER-GRADE CAVEAT now on the figure and to be
+  in both papers: 94% of the headline rides on the cost-push leg (Option A-prime), a
+  reduced-form proxy by channels.py's own docstring; the structural alternative (Option A,
+  TFP route) flips the sign (+0.026). Any headline quote names the transmission.
