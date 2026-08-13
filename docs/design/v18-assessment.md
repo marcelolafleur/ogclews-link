@@ -15,7 +15,7 @@ the build README, not assumed.
 | LNG chronology | zero through 2022 | "no LNG before Apr 2023" | same point |
 | onshore wind ceiling | 663.84 PJ | 664 (NREL Restricted) | same screen |
 | land endowment | TAL = TAU = 295.8131 | both-sides pin (§14 item 1) | same |
-| the `-10` forest reward | REMOVED (VC ≈ 0.0001) | flagged unsourced | resolved their way |
+| the `-10` forest reward | REMOVED (VC ≈ 0.0001) | flagged unsourced | **UNDER VERIFICATION (Marcelo, 2026-08-13): possibly an ERROR in v17/v18, not a design choice.** If accidental, the PR gains a fourth item: restore a forest value (ideally sourced) or flag the silent loss. Until verified, no text may present the removal as deliberate uptake |
 | deployment envelopes | TAMaxCI realism bounds from 2026 | (new, theirs) | good addition |
 | irrigated rice water | corrected (IAR total ×8 vs source) | national ×14.4 to AQUASTAT | partial overlap |
 

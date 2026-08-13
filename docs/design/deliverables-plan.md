@@ -295,3 +295,9 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   flat)? Report-not-explain until investigated. Investment-figure semantics confirmed:
   channel_inputs shows RAW pre-scoping CLEWs signals (gross power investment ~30% GDP
   cumulative); the channel transmits only the public-infrastructure delta (0.0097%).
+- 2026-08-13 HOLDS (Marcelo): (1) NOTHING PUSHES anywhere until he reviews the PR text --
+  the CLEWs-PHL branch calibration/v18-energy-and-carbon exists locally only (script +
+  documentation), solve-validation in progress. (2) The v18 forest-value removal (-10 ->
+  ~0) is SUSPECTED AN ERROR, Marcelo verifying -- the assessment table is amended; the
+  methods paper's section-8 uptake sentence must not imply the removal was deliberate
+  until he rules (authoring session warned).
