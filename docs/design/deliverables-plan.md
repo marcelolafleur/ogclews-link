@@ -191,3 +191,9 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   manuscript. The env-accounting session's socket is gone (work all committed); the
   branch rename (research/ieem-comparative-assessment -> research/env-accounting) is
   official; the shared worktree branch stays un-rebased, reconcile at merge.
+- 2026-08-13 (from the comparative session, quiescent): the different-solver half of brief
+  §8 item 4 is one flag away — muiogoai ships glpk alongside cbc, so re-solving a staged
+  case with --solver glpk tests whether the 20-35x dual overstatement and year-placement
+  degeneracy reproduce (magnitude reproducing while years move would STRENGTHEN the
+  degeneracy finding). Queue after the v16 run. Paper rule: report which solver produced
+  every dual quoted.
