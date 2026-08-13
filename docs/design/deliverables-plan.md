@@ -34,7 +34,17 @@ handoffs; this file for truth.
    Inputs: channel table with directions (ogclews-link `channels`; the emit-only caveat
    in the og-clews-linked-run skill); coupled figure deck (v12 DONE at
    ogclews_runs/coupled/figures/, 19 PNGs; v16 lands in ogclews_runs_v16/coupled/figures/);
-   attribution table. OG-side structure figure: REUSE ogcore.structure_plots
+   attribution table. OG-side structure figure: currently BLOCKED by a two-way version
+   mismatch -- structure_plots lives on an OG-Core branch based at upstream 0.18.1-era
+   master, which REJECTS OG-PHL's current JSON (initial_wealth_ratio is unknown there,
+   paramtools ValidationError), while the 1189 build that reads it lacks structure_plots.
+   Options (Marcelo's call): (a) rebase structure-plots onto integrate/v0191-plus-1189 --
+   works now, couples an upstream-destined branch to a local one; (b) wait for #1189 on
+   master; (c) synthetic example, decoupled but not PHL; (d) PROPOSED by this session:
+   run structure_plots.py AS A MODULE on top of the pinned 1189 environment (PYTHONPATH
+   or direct import from the structure-plots worktree) -- no installs, no rebase, current
+   PHL figures immediately, viable iff the module has no post-0.18.1 API dependencies.
+   REUSE ogcore.structure_plots
    (plot_circular_flow for the institutional linkages, plot_calibration_status for
    own-evidence-vs-US-defaults) from OG-Core branch feature/structure-plots -- render from
    that branch's own environment; NEVER install branch ogcore into OG-PHL's venv (the
@@ -90,3 +100,9 @@ handoffs; this file for truth.
 - 2026-08-11: file created. v12 battery complete (11/11); v16 case staged (calibration +
   moratorium + land pin + accounting variant); conversion cost sourced, implementation
   deferred; run button ready (experiments/run_v16_coupled.sh), awaiting Marcelo's "run".
+- 2026-08-11 (later): OG-side figure blocker recorded (version mismatch, options a-d
+  above). Unattributed actor note: something switched the shared ~/Projects/OG-Core
+  checkout to pension-replacement-rate-adjust and committed d03f6ac2 (unpushed gallery
+  fix) to feature/structure-plots -- neither this session nor structure-plots did it;
+  candidates are the unidentified peers (og-core-23 / muiogo-55). Sessions working in
+  OG-Core should use their OWN worktrees, not the shared checkout.
