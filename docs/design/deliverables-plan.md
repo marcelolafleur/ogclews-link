@@ -16,7 +16,8 @@ handoffs; this file for truth.
 |---|---|---|
 | v16/stack (this file's owner) | results producer + coordinator: calibrated stack, CLEWs v16 case, channel battery, coupled runs, comparison assessment | active; run staged, awaiting "run" |
 | env-accounting / comparative-methods | owns the COMPARISON CONTENT (deliverable 4) and the forest-carbon findings (§13/§14, stickiness menu, patch script — absorbed). Read-only on the branch and off the MUIOGO server; active on paper content | active (content committed) |
-| linkage visualization | presentation/diagram assets for the channels | active (identify: og-core-23 or muiogo-55) |
+| "Model linkage visualization" (OG-Core structure plots) | OG-SIDE figures only: ogcore/structure_plots.py on OG-Core feature/structure-plots (HEAD 8b358be8, pushed to the fork) -- circular flow of institutional linkages, io_matrix heatmap, calibration-status and fit plots, Mermaid render, worked OG-PHL M=8 example. Explicitly does NOT cover the CLEWS<->OG channel diagrams; has touched nothing in this repo | active |
+| (unowned) CLEWS<->OG channel diagram | the presentation's centerpiece figure -- the coupling channels themselves. NOT covered by any session; falls to the coordinator unless Marcelo assigns it | GAP |
 
 ## Deliverable tree and inputs
 
@@ -33,7 +34,12 @@ handoffs; this file for truth.
    Inputs: channel table with directions (ogclews-link `channels`; the emit-only caveat
    in the og-clews-linked-run skill); coupled figure deck (v12 DONE at
    ogclews_runs/coupled/figures/, 19 PNGs; v16 lands in ogclews_runs_v16/coupled/figures/);
-   attribution table; visualization session's assets (interface below).
+   attribution table. OG-side structure figure: REUSE ogcore.structure_plots
+   (plot_circular_flow for the institutional linkages, plot_calibration_status for
+   own-evidence-vs-US-defaults) from OG-Core branch feature/structure-plots -- render from
+   that branch's own environment; NEVER install branch ogcore into OG-PHL's venv (the
+   solve stack is fingerprint-pinned). The CLEWS<->OG channel diagram itself is UNOWNED
+   (see roster) and is the presentation's centerpiece.
 4. **Comparison with IEEM / CLEWs-IO** — a section in both papers + slides.
    OWNER: the env-accounting/comparative-methods session. Its committed content:
    paper-comparative-methods-brief.md (the drafting brief; contribution claims graded by
