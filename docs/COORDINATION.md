@@ -126,6 +126,14 @@ scripted download — fetch it in a browser).
 
 ## Log
 
+- **2026-08-13 (authoring session, latest) — §8.6 SOFTENED per the forest-removal
+  correction** (Marcelo suspects the v18 `-10` removal is an upstream error;
+  verification pending). On `writing/results-and-closing` @ 4352b95: the uptake
+  sentence now ends at the six adopted values — no clause implies the removal was
+  deliberate, so the paper is correct under either outcome of the verification; if it
+  was deliberate, the clause returns in one sentence. Confirmed neither paper mentions
+  any PR, submitted or planned. Recompile clean, rendered page verified. (Sent to the
+  coordinator's socket but it had restarted — this entry is the durable copy.)
 - **2026-08-13 (authoring session, later) — THE METHODS PAPER IS DRAFTED END TO END.**
   `writing/results-and-closing` @ d888e6b: §8 discussion (transmission-choice as the
   first-order limitation; one-pass conditionality; the structural gap behind the
