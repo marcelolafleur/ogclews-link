@@ -113,9 +113,15 @@ handoffs; this file for truth.
   OG-Core should use their OWN worktrees, not the shared checkout.
 - 2026-08-11 (later still): baseline footer shipped by the structure-plots session
   (local 85457d6e, unpushed): "Judged against OG-Core <version>, <N> parameters" -- the
-  parameter COUNT discriminates builds the version string cannot (1189 build: 139 params;
-  0.18.1 base: 133; released 0.19.1 would also read "0.19.1"). Verified against both
-  builds; 32 tests pass. PARAM_BLOCKS coverage drift remains open (theirs).
+  parameter COUNT discriminates BUILD FAMILIES, NOT BUILDS -- the peer's own correction,
+  measured on this machine: OG-Core-1189 and OG-Core-pr1189 both count 140 keys (identical
+  footers for different builds); the 0.18.1 base counts 134. The footer separates the
+  0.18.1-vs-1189-family confusion that bit the PHL figure, and no further. The technical
+  paper must not claim more. Exact fix (proposed, deliberately NOT built pending Marcelo:
+  the peer is holding on peer suggestions until he weighs in): a short content digest of
+  default_parameters.json next to the version -- identity, not proxy. Complementary to
+  this session's source-grep preflight (grep = known threat, digest = identity).
+  PARAM_BLOCKS coverage drift remains open (theirs).
   MARCELO'S OPEN CALLS, consolidated: (1) "run" for the v16 coupled run; (2) confirm
   (d)+(c) for the OG-side figures; (3) authorize pushes on feature/structure-plots
   (d03f6ac2 gallery fix + 85457d6e footer); (4) push of this branch's local commits;
