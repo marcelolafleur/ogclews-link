@@ -285,3 +285,13 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   bases named on-face, re-verification note; until the matched legs run on the final
   base. (5) Figure split: methods paper = the coupled deck (mechanism figures); impact
   deck (sankey, CO2e-by-source, lives+working-time) = short paper + presentation.
+- 2026-08-13 authoring milestone: paper/ 07-results REBASED to v16 and compiled clean
+  (22pp, zero undefined refs) on writing/results-and-closing (b033c6c generator with
+  missing-not-resolved TeX flags + sign-flip check; 9bccb32 the section). Two manuscript
+  defects found and routed to session A via COORDINATION.md (stale 95-lives figures at
+  file:line; regressivity result-claims unsupported on v16 -- incidence is NON-monotone
+  there). QUEUED ANALYSIS (stack session): why is the v16 coupled incidence non-monotone
+  (middle groups +2.9% consumption, 90-99% -1.6%, poorest ~0; energy budget shares ~1.4%
+  flat)? Report-not-explain until investigated. Investment-figure semantics confirmed:
+  channel_inputs shows RAW pre-scoping CLEWs signals (gross power investment ~30% GDP
+  cumulative); the channel transmits only the public-infrastructure delta (0.0097%).
