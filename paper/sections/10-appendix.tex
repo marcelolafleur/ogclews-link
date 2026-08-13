@@ -14,6 +14,27 @@
 % eight channels at the variable level, with direction (colour + arrowhead) and theory
 % status (line style). NB the deck diagram currently shows seven -- add energy_capex.
 
+\section{The archived run record}
+\label{app:run-record}
+Every magnitude quoted in \Cref{sec:results} is generated from the coupled run's own
+archived record, never transcribed by hand; if a source artifact is absent at
+generation time, the text renders a visible \textbf{[MISSING, NOT RESOLVED]} flag
+rather than a stale number. The record comprises:
+\begin{itemize}
+\item \texttt{ogclews\_manifest.json} --- the authoritative statement of the applied
+  channels and their realized magnitudes (price-source resolution, cost-push haircuts
+  by industry, household wedge, investment delta, emissions change, mortality target,
+  morbidity response), plus the \CLEWS{} case/run identifiers and the economy-model
+  version;
+\item \texttt{macro\_table.csv} --- the transition-path and steady-state macro
+  aggregates behind \Cref{tab:phl-coupled};
+\item the run's figure set, from which \Cref{fig:transition,fig:incidence} are taken.
+\end{itemize}
+Two quoted quantities are supplied rather than derived from the record: the employment
+base behind the full-time-equivalent working-time figure (49 million employed), and
+the economy-model build identity, which appears in no run artifact and is recorded
+with the run's coordination notes.
+
 \section{Battery items and full golden tables}
 \label{app:battery}
 % TODO: the complete list of 24 battery items and the full per-run golden.json metrics

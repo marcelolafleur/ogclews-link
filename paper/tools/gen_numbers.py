@@ -166,6 +166,18 @@ def main():
         "\\midrule\n" + coupled_rows + "\n\\bottomrule\n\\end{tabular}\n"
     )
 
+    # Prose-facing macros for the attribution split (same static v12 data
+    # as the table — one source, two renderings).
+    attr_by_name = {n: (y, c, w) for n, y, c, w in ATTRIBUTION_V12["rows"]}
+    with open(args.out / "numbers.tex", "a") as fh:
+        fh.write(macro("atrBase", ATTRIBUTION_V12["base_label"]) + "\n")
+        for key, name in (("atrCoupledY", "coupled"),
+                          ("atrCompositeY", "energy composite"),
+                          ("atrCostPushY", "inter-industry cost-push leg"),
+                          ("atrWedgeY", "household wedge leg"),
+                          ("atrTfpY", "structural TFP alternative")):
+            fh.write(macro(key, texnum(attr_by_name[name][0])) + "\n")
+
     attr = ATTRIBUTION_V12
     attr_rows = "\n".join(
         f"{name:32s}& ${texnum(y)}$ & ${texnum(c)}$ & ${texnum(w)}$ \\\\"
