@@ -64,7 +64,8 @@ Do not delete another session's entry; append a correction under a new date.
 | Since | Who / where | Working on | Touching |
 |---|---|---|---|
 | 2026-08-04 | this machine (session A) | channel-by-channel rebuild of the explanations | `paper/linkages-intro`: `docs/design/channel-notes/`, `paper/sections/04–05`, `presentation/mechanisms.tex` |
-| 2026-08-13 | ieem-worktree machine (v16/stack session, coordinator of 3 local peers) | v16 coupled run (staged, awaiting Marcelo's "run"); link correctness fixes; deliverables inputs | `experiment/forest-conversion-carbon`; MUIOGO DataStorage `Philippines_v16*`; OG-PHL `calib/multi-industry-remittances`; local ogcore build `integrate/v0191-plus-1189` |
+| 2026-08-13 | ieem-worktree machine (v16/stack session, coordinator of 3 local peers) | v16 coupled run (IN FLIGHT: both CLEWs solves optimal, gates green, OG coupled solving); link correctness fixes; deliverables inputs | `experiment/forest-conversion-carbon`; MUIOGO DataStorage `Philippines_v16*`; OG-PHL `calib/multi-industry-remittances`; local ogcore build `integrate/v0191-plus-1189` |
+| 2026-08-13 | ieem machine, channel-viz session ("Graphics for ogclews-link") | the channel-map ledger figure for the deck (AST-derived from channels.py; baseline named on-figure) | own worktree `~/Projects/ogclews-link-viz`, branch `viz/channel-diagrams` off main; nothing pushed yet |
 
 Add a row when you start; remove it when you stop.
 
@@ -149,3 +150,15 @@ scripted download — fetch it in a browser).
   pre-rename branch history; the shared worktree branch will NOT be rebased (pushed,
   multi-session) — reconcile at merge time. The five coupling diagrams close our
   channel-diagram gap; we reuse them.
+- **2026-08-13 (ieem machine, for session A)** — Defect report on a committed artifact,
+  found by the channel-viz session: `presentation/diagrams/channels.tex` (main) labels the
+  energy channel's CLEWS side "commodity-balance *dual* — marginal electricity price" —
+  the exact wording this file's own facts section forbids — draws the carbon wire with
+  symmetric arrowheads captioned "one price, set on both sides" (it binds nothing in a
+  one-pass run), shows 7 channels against the registry's 11, and uses three stale names
+  (discount_rate, demand, carbon). Yours to fix per artifact ownership; the viz session's
+  ledger supersedes it for the deck meanwhile. Related paper-grade caveat from the same
+  review: 94% of the coupled headline rides on the cost-push leg (a reduced-form proxy by
+  channels.py's own docstring); the structural TFP alternative flips the sign (+0.026 vs
+  -0.496). Any quoted headline should name the transmission. v16 first solves: both
+  optimal, moratorium and offshore cap bind as designed, 1,474 Mt conversion carbon booked.
