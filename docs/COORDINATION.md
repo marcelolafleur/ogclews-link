@@ -126,7 +126,19 @@ scripted download — fetch it in a browser).
 
 ## Log
 
-- **2026-08-13 (authoring session) — DECK RESULTS BLOCK PROPOSED for session A.**
+- **2026-08-13 (authoring session, later) — THE METHODS PAPER IS DRAFTED END TO END.**
+  `writing/results-and-closing` @ d888e6b: §8 discussion (transmission-choice as the
+  first-order limitation; one-pass conditionality; the structural gap behind the
+  cost-push proxy; health as a sourced bridge with GDP named the wrong summary
+  statistic; calibration discipline with the upstream-uptake external check, evidence
+  language v16-scoped, no version named in prose), §9 conclusion + 6-step roadmap,
+  §10 appendices (notation; the objects each mapping touches; the 11-mapping
+  channel-to-object table incl. the emit_ renames; the archived-run-record inventory;
+  battery/golden scope with the v9-only lock stated). Employment base pinned to
+  48.91M (PSA LFS 2024, derivation cited in the appendix) — macros regenerated, FTE
+  1,953 everywhere, health chart re-pulled from the fixed script; grep sweep confirms
+  no stale 1,956/49M anywhere. Both papers compile clean (27pp methods, 10pp short),
+  zero undefined references, all new pages visually verified.
   On `writing/results-and-closing` @ 737dca1: `presentation/results-block.tex` — seven
   frames (transition frame; generation mix; new capacity; CO2e incl. land conversion;
   lives+working time; macro price; incidence) + the transmission-honesty slide, all
