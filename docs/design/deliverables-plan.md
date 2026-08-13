@@ -250,21 +250,26 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   avoided annotated), 3 PM2.5-and-lives, 4 what-gets-built capacity bins, 5 macro
   GDP/C/w transition. Incidence, cohort, and fiscal figures reuse the coupled deck.
   Regenerates on v18 with one command once its runs exist.
-- 2026-08-13 AUTHORING SESSION CHARTER (drafted, session to be created by Marcelo;
-  coordinated by the v16/stack session). SCOPE: owns the SHORT paper and the deck's
-  results/impact narrative; contributes results + comparison sections to the TECHNICAL
-  paper as patches routed through the coordinator; NEVER edits session A's artifacts
-  directly (methods-paper channel sections, mechanisms.tex -- theirs per COORDINATION.md
-  claims; corrections route via the coordination log). WORKSPACE: own worktree (suggest
-  ~/Projects/ogclews-link-writing), branch writing/short-paper off paper/linkages-intro
-  (where all writing lives). BINDING RULES: the COORDINATION.md writing register
-  (methodology only, no contribution-claiming, no code names, mechanism-traced); the
-  figure-integrity conventions (baseline named per side, missing-not-resolved); the
-  emit-only carbon and levelized-cost wording; comparative-brief section 8 blockers
-  respected (esp. the deflator: magnitude claims scoped to relative changes until
-  audited). V18 DISCIPLINE: every quoted magnitude carries its evidence base and derives
-  from run artifacts (manifest/macro_table) wherever possible, so the v18 swap is
-  mechanical -- write around the numbers now, drop v18 numbers in later. INPUTS READY:
-  the impact deck (experiments/scenario_impact_charts.py + sankey_energy.py in .venv-viz),
-  the coupled deck, the attribution table + caveats (section 15), the comparative brief,
-  channel notes, and both papers' TeX on paper/linkages-intro.
+- 2026-08-13 AUTHORING SESSION CHARTER v2 (corrected: there is SUBSTANTIAL existing
+  authoring in the repo -- the session ADVANCES it, never restarts). The corpus, all on
+  paper/linkages-intro: paper-intro/ IS the short paper, drafted end to end (only the
+  conclusion is a 9-line stub); paper/ IS the technical paper (sections 1-7 drafted,
+  8-9 + appendix stubs); presentation/mechanisms.tex IS the deck (18 frames, session A
+  mid-rebuild of the channel explanations). LANES, non-colliding with session A's claim
+  (channel sections 04-05, channel notes, deck channel frames):
+    1. paper-intro/: refresh 05-illustration and 06-policy with the final-evidence-base
+       results (derive-don't-retype; v18-swap discipline); write 07-conclusion.
+    2. paper/: fill 07-results from the attribution table + impact deck; draft
+       08-discussion, 09-conclusion, 10-appendix. Sections 01-06 are session A's --
+       patches to those route through the coordinator.
+    3. Deck: results/impact frames (the scenario story: sankey, mix, CO2e-by-source,
+       lives+working-time, macro) proposed as a block to session A via COORDINATION.md,
+       since mechanisms.tex is their artifact -- they integrate or delegate the block.
+  WORKSPACE: own worktree (~/Projects/ogclews-link-writing), branch
+  writing/results-and-closing off paper/linkages-intro. BINDING: COORDINATION.md
+  register; figure-integrity conventions; emit-only carbon + levelized-cost wording;
+  comparative-brief section 8 blockers (deflator: magnitudes as relative changes until
+  audited); every quoted magnitude names its evidence base and derives from run
+  artifacts where possible. INPUTS READY: impact deck scripts (+.venv-viz sankey),
+  coupled deck, attribution + caveats (section 15), comparative brief, channel notes,
+  both papers' TeX, the review exchange (register exemplars).
