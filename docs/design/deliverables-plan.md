@@ -17,7 +17,7 @@ handoffs; this file for truth.
 | v16/stack (this file's owner) | results producer + coordinator: calibrated stack, CLEWs v16 case, channel battery, coupled runs, comparison assessment | active; run staged, awaiting "run" |
 | env-accounting / comparative-methods | owns the COMPARISON CONTENT (deliverable 4) and the forest-carbon findings (§13/§14, stickiness menu, patch script — absorbed). Read-only on the branch and off the MUIOGO server; active on paper content | active (content committed) |
 | "Model linkage visualization" (OG-Core structure plots) | OG-SIDE figures only: ogcore/structure_plots.py on OG-Core feature/structure-plots (HEAD 8b358be8, pushed to the fork) -- circular flow of institutional linkages, io_matrix heatmap, calibration-status and fit plots, Mermaid render, worked OG-PHL M=8 example. Explicitly does NOT cover the CLEWS<->OG channel diagrams; has touched nothing in this repo | active |
-| (unowned) CLEWS<->OG channel diagram | the presentation's centerpiece figure -- the coupling channels themselves. NOT covered by any session; falls to the coordinator unless Marcelo assigns it | GAP |
+| (gap CLOSED upstream) CLEWS<->OG channel diagram | the main-branch assistant's presentation carries five coupling diagrams + mechanisms.tex/pdf (origin/main, origin/presentation-narrative); reuse, don't redraw. See coordination-ieem-v16-2026-08-12.md | resolved upstream |
 
 ## Deliverable tree and inputs
 
@@ -126,3 +126,11 @@ handoffs; this file for truth.
   (d)+(c) for the OG-side figures; (3) authorize pushes on feature/structure-plots
   (d03f6ac2 gallery fix + 85457d6e footer); (4) push of this branch's local commits;
   (5) assign the CLEWS<->OG channel diagram (gap); (6) upstream package (parked).
+- 2026-08-12: upstream surveyed (origin/main 844a821). The other assistant has: the
+  methods paper (paper/) + intro paper (paper-intro/), the deck with five coupling
+  diagrams, a 16-item golden on CLEWs v9 (coupled -0.138%, health -95.4 -- PRE our
+  demographics fixes, needs verification), a review exchange that independently reached
+  the emit-only-carbon conclusion, a shipped GBD export (different pull id than ours),
+  and MUIOGO-integration briefs. STATUS.md is the cross-session coordination file
+  (stale). Our side written up in coordination-ieem-v16-2026-08-12.md with the
+  divergence table and four asks. Local main fast-forwarded to 844a821.
