@@ -23,3 +23,7 @@ results/battery-state.json
 
 # per-machine installed OG-model register (written by the installer / models register)
 og_model_registry.json
+
+# distribution bundles of the papers (Overleaf hand-offs etc.) -- the .tex sources ARE
+# tracked, so rebuild with: zip -r paper.zip paper/ (never commit the bundle)
+*.zip
