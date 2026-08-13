@@ -41,6 +41,17 @@ for exactly that reason. Until it lands, the system is a forward evaluator: the
 reported responses are conditional on an energy plan that has not yet been allowed to
 react to them.
 
+The cost of closing the loop is expected to be bookkeeping rather than compute, for
+one reason on each side. Each iteration re-solves the energy model's linear program
+with only a handful of coefficients changed --- the emitted demand path, discount
+rate, and carbon penalty --- and a solver warm-started from the prior optimal basis
+reoptimizes such a neighbouring problem at what is typically a small fraction of a
+cold solve. At the outer level, the exchanged vector is small and smooth, and driving
+it to consistency is a fixed-point problem of exactly the kind Anderson mixing
+accelerates --- the same scheme the economy model's equilibrium solver already applies
+internally, used one level up. Neither technique is exotic, and neither has been
+exercised here; the convergence controller above is where both would live.
+
 \subsection{The structural gap behind the proxy}
 The economy's production block takes capital and labour; electricity is not a priced
 intermediate. Two consequences follow. First, firms cannot substitute away from energy
