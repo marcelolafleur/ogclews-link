@@ -17,7 +17,7 @@ handoffs; this file for truth.
 | v16/stack (this file's owner) | results producer + coordinator: calibrated stack, CLEWs v16 case, channel battery, coupled runs, comparison assessment | active; run staged, awaiting "run" |
 | env-accounting / comparative-methods | owns the COMPARISON CONTENT (deliverable 4) and the forest-carbon findings (§13/§14, stickiness menu, patch script — absorbed). Read-only on the branch and off the MUIOGO server; active on paper content | active (content committed) |
 | "Model linkage visualization" (OG-Core structure plots) | OG-SIDE figures only: ogcore/structure_plots.py on OG-Core feature/structure-plots (HEAD 8b358be8, pushed to the fork) -- circular flow of institutional linkages, io_matrix heatmap, calibration-status and fit plots, Mermaid render, worked OG-PHL M=8 example. Explicitly does NOT cover the CLEWS<->OG channel diagrams; has touched nothing in this repo | active |
-| (gap CLOSED upstream) CLEWS<->OG channel diagram | the main-branch assistant's presentation carries five coupling diagrams + mechanisms.tex/pdf (origin/main, origin/presentation-narrative); reuse, don't redraw. See coordination-ieem-v16-2026-08-12.md | resolved upstream |
+| CLEWS<->OG channel visualization | ASSIGNED by Marcelo to a NEW dedicated session (2026-08-13). Onboarding brief below. Prior art it must reconcile with: the main assistant's five coupling diagrams + mechanisms.tex (origin/main presentation/), which follow the COORDINATION.md register rules | new session pending |
 
 ## Deliverable tree and inputs
 
@@ -99,6 +99,50 @@ handoffs; this file for truth.
   the shadow price/dual — the marginal source is opt-in only and degenerate. Any figure
   narrating the channels must say "levelized cost"; "shadow price" in print repeats the
   mistake.
+
+## Onboarding brief for the incoming channel-visualization session
+
+Read first: docs/COORDINATION.md on main (protocol + writing register), this file's
+interface contract above, then coordination-ieem-v16-2026-08-12.md. Prior art: the five
+coupling diagrams in presentation/ on main -- reconcile, don't duplicate.
+
+Hard-won lessons from the OG-structure-plots session (each cost real rework there):
+
+1. NAME THE BASELINE ON THE FIGURE. "Calibrated/changed/differs" is relative to whatever
+   supplied the comparison; unstated, the error is silent (its 7/12-vs-10/12 miss reached
+   committed artifacts). For channel work: state build, case, and scenario for EACH side
+   of any coupled-vs-uncoupled or tool-vs-tool comparison, on the figure itself.
+2. VERSION STRINGS DO NOT IDENTIFY BUILDS. Two local ogcore builds both say "0.19.1";
+   two of them also share a 140-parameter count. Fingerprint by content where identity
+   matters. This session spans ogclews_link + ogcore + a country package + MUIOGO case
+   data, each independently pinned -- the hazard compounds.
+3. NEVER INSTALL INTO A PINNED ENVIRONMENT. Ride on top: import your module by file path
+   so its ogcore import resolves to the pinned build (the verified "option (d)" pattern;
+   writes nothing anywhere).
+4. DERIVE WHAT YOU DRAW; never hand-list it. Read channels from channels.py
+   programmatically. Direction is semantic: emit-only channels bind nothing in a one-pass
+   run -- a diagram with symmetric arrows everywhere is WRONG, not loose.
+5. NO MIXED STOCKS/FLOWS OR UNITS in one diagram. PJ, GW, prices, and shares of GDP are
+   different kinds; a Sankey spanning them means nothing. Normalize and print the unit.
+   (Capital enters magnitude figures as the rental payment (r+delta)K, not the stock.)
+6. DEVIATION AXES NEED SYMMETRIC LOG -- cross-model comparisons are heavy-tailed; one
+   1600% outlier flattens everything else onto the centre line.
+7. MERMAID SPECIFICS: arrowhead size is not controllable from source (several documented
+   failures, one erases arrowheads); ELK routing needs a plugin GitHub won't load -- so
+   render PNG via the Mermaid CLI (mmdc 11.16.0, installed globally on the ieem machine);
+   collapse whole-group fan-outs onto the group node or automatic layout is destroyed.
+8. MARCELO'S EVIDENCED TASTE: kept -- composed fixed-layout diagrams, heatmaps, tile
+   grids, dot plots with the numbers beside the geometry. Rejected -- ribbon bundles,
+   chord diagrams, Graphviz output, two-parameterization diffs, any single encoding that
+   visually dominates (a coverage bar was replaced by per-parameter chips). Numbers stay
+   visible; auto-laid-out node-edge graphs get rejected.
+9. PROCESS: use your OWN git worktree (a shared checkout was branch-switched under a
+   session here), and treat result directories as regenerable-underneath-you while
+   rendering. TERMINOLOGY: the energy channel exchanges a LEVELIZED COST, never "shadow
+   price" (see interface contract above).
+10. Do NOT use ogcore.structure_plots' committed files as reference yet -- its example
+    gallery still carries a known-wrong figure (7/12); wait for Marcelo to clear that
+    session's queue.
 
 ## Status log
 
