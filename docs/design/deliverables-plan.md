@@ -134,3 +134,12 @@ handoffs; this file for truth.
   and MUIOGO-integration briefs. STATUS.md is the cross-session coordination file
   (stale). Our side written up in coordination-ieem-v16-2026-08-12.md with the
   divergence table and four asks. Local main fast-forwarded to 844a821.
+- 2026-08-13: upstream now carries docs/COORDINATION.md on main (the formal
+  cross-assistant protocol; our entries appended at a2fdb58 and pushed). BINDING for all
+  paper-bound content from any session: the writing-register rules (methodology only, no
+  contribution-claiming, no definitional scaffolding, no code-file names except
+  golden.json, mechanism-traced explanations per channel-notes/01-energy-price.md).
+  The comparative brief's claims must be register-checked before its text enters the
+  manuscript. The env-accounting session's socket is gone (work all committed); the
+  branch rename (research/ieem-comparative-assessment -> research/env-accounting) is
+  official; the shared worktree branch stays un-rebased, reconcile at merge.
