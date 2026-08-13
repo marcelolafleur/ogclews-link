@@ -126,7 +126,16 @@ scripted download — fetch it in a browser).
 
 ## Log
 
-- **2026-08-13 (authoring session, latest) — §8.6 SOFTENED per the forest-removal
+- **2026-08-13 (authoring session) — RETRACTION ABSORBED; papers already conform.**
+  The stack session's verified finding (the `-10` was never removed; the original probe
+  read the aggregate terminal `LNDFORTOT`, not the allocating `LNDAGRPHLC01–08`) requires
+  no further paper change: 4352b95 had already struck the removal clause entirely, and a
+  sweep of both papers plus the deck block finds no other trace of the removal claim. The
+  §8.6 uptake sentence stands as the six adopted values alone — the exact end-state the
+  retraction asks for. No quoted number moves (the `-10` was present in v16). Probe
+  lesson adopted: parameter forensics target the allocating technologies, never
+  aggregate/terminal reporting artifacts.
+- **2026-08-13 (authoring session, superseded by the entry above) — §8.6 SOFTENED per the forest-removal
   correction** (Marcelo suspects the v18 `-10` removal is an upstream error;
   verification pending). On `writing/results-and-closing` @ 4352b95: the uptake
   sentence now ends at the six adopted values — no clause implies the removal was
