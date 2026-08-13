@@ -94,63 +94,89 @@ def main():
         foot)
     fig.savefig(f"{out}/impact_generation_mix.png"); plt.close(fig)
 
-    # ---- 2. National CO2e: base vs reform (energy + booked land conversion) ----
-    def co2(run):
-        e = read_by_year(case, run, "AnnualTechnologyEmission.csv", "AnnualTechnologyEmission", emis="CO2e")
-        c = read_by_year(case, run, "EmissionByActivityChange.csv", "EmissionByActivityChange", emis="CO2e")
-        return {y: e.get(y, 0.0) + max(c.get(y, 0.0), 0.0) for y in sorted(set(e) | set(c))}
-    cb, cr = co2(base), co2(reform)
-    ys = sorted(set(cb) & set(cr))
-    avoided = sum(cb[y] - cr[y] for y in ys)
-    fig, ax = plt.subplots(figsize=(9.6, 5.2))
-    ax.plot(ys, [cb[y] for y in ys], color=GRAY, lw=2.2)
-    ax.plot(ys, [cr[y] for y in ys], color=BLUE, lw=2.6)
-    ax.fill_between(ys, [cr[y] for y in ys], [cb[y] for y in ys],
-                    where=[cb[y] >= cr[y] for y in ys], color=BLUE, alpha=0.10)
-    ax.annotate("no-policy path", xy=(ys[-1], cb[ys[-1]]), xytext=(6, 0),
-                textcoords="offset points", color=GRAY, fontsize=10, fontweight="bold", va="center")
-    ax.annotate("scenario", xy=(ys[-1], cr[ys[-1]]), xytext=(6, 0),
-                textcoords="offset points", color=BLUE, fontsize=10, fontweight="bold", va="center")
-    mid = ys[len(ys) * 3 // 4]
-    ax.annotate(f"cumulative avoided:\n{avoided:,.0f} Mt CO2e",
-                xy=(mid, (cb[mid] + cr[mid]) / 2), fontsize=11, color=BLUE,
-                fontweight="bold", ha="center", va="center")
+    # ---- 2. National CO2e BY SOURCE: scenario stacked, no-policy total for contrast ----
+    SRC_GROUPS = [("Coal", ["PHL_PRO_PROC_COAL"], "#6b7280"),
+                  ("Gas", ["PHL_PRO_PROC_NG"], "#a8a29e"),
+                  ("Oil", ["PHL_PRO_PROC_OIL", "PHL_HOU_COOK_OIL"], "#78716c"),
+                  ("Land conversion", ["LNDFORTOT"], "#b45309")]
+
+    def co2_by_source(run):
+        te, out = {}, {}
+        with open(os.path.join(case, "res", run, "csv", "AnnualTechnologyEmission.csv")) as fh:
+            for r in csv.DictReader(fh):
+                if r["e"] == "CO2e":
+                    te.setdefault(r["t"], {})
+                    y = int(r["y"])
+                    te[r["t"]][y] = te[r["t"]].get(y, 0.0) + float(r["AnnualTechnologyEmission"])
+        with open(os.path.join(case, "res", run, "csv", "EmissionByActivityChange.csv")) as fh:
+            for r in csv.DictReader(fh):
+                if r["e"] == "CO2e":
+                    te.setdefault(r["t"], {})
+                    y = int(r["y"])
+                    te[r["t"]][y] = te[r["t"]].get(y, 0.0) + float(r["EmissionByActivityChange"])
+        for name, techs, _ in SRC_GROUPS:
+            out[name] = {}
+            for t in techs:
+                for y, v in te.get(t, {}).items():
+                    out[name][y] = out[name].get(y, 0.0) + v
+        return out
+    sb, sr = co2_by_source(base), co2_by_source(reform)
+    ys = sorted(set().union(*[set(d) for d in sr.values()]))
+    base_tot = {y: sum(d.get(y, 0.0) for d in sb.values()) for y in ys}
+    ref_tot = {y: sum(d.get(y, 0.0) for d in sr.values()) for y in ys}
+    avoided = sum(base_tot[y] - ref_tot[y] for y in ys)
+    fig, ax = plt.subplots(figsize=(9.6, 5.4))
+    stacks = [[max(sr[name].get(y, 0.0), 0.0) for y in ys] for name, _, _ in SRC_GROUPS]
+    ax.stackplot(ys, *stacks, colors=[c for _, _, c in SRC_GROUPS],
+                 labels=[n for n, _, _ in SRC_GROUPS], alpha=0.9)
+    ax.plot(ys, [base_tot[y] for y in ys], color="#4d4d4d", lw=1.8, ls="--")
+    ax.annotate("no-policy total", xy=(ys[-1], base_tot[ys[-1]]), xytext=(6, 0),
+                textcoords="offset points", color="#4d4d4d", fontsize=9.5,
+                fontweight="bold", va="center")
+    ax.annotate(f"cumulative avoided vs no-policy:\n{avoided:,.0f} Mt CO2e",
+                xy=(ys[len(ys)//2], base_tot[ys[len(ys)//2]] * 0.55), fontsize=11,
+                color="#1a1a1a", fontweight="bold", ha="center")
     ax.set_ylabel("Mt CO2e per year", fontsize=10)
+    ax.legend(frameon=False, fontsize=9, loc="upper left")
     _ed(fig, ax, "Emissions",
-        "What the scenario avoids: national CO2e against the no-policy path",
-        f"Includes land-conversion carbon, newly booked at 292 tCO2 per hectare cleared · {label}",
+        "Where the carbon comes from, and what the scenario avoids",
+        f"National CO2e by source under the scenario; dashed line is the no-policy total · {label}",
         foot)
     fig.savefig(f"{out}/impact_co2e.png"); plt.close(fig)
 
-    # ---- 3. Air quality and lives: PM2.5 base vs reform, deaths averted from the manifest ----
+    # ---- 3. Health: cleaner air -> lives AND working time ----
     import json
     man = json.load(open(os.path.join(coupled_dir, "ogclews_manifest.json")))
-    deaths = pmchg = None
+    deaths = pmchg = morb = None
     for p in man.get("provenance", []):
         if p.get("channel") == "health":
             deaths = -p["mortality_excess_deaths"]; pmchg = p["emissions_change"] * 100
+            morb = p.get("morbidity_benefit")
     pb = read_by_year(case, base, "AnnualTechnologyEmission.csv", "AnnualTechnologyEmission", emis="PM2_5")
     pr = read_by_year(case, reform, "AnnualTechnologyEmission.csv", "AnnualTechnologyEmission", emis="PM2_5")
     ys = sorted(set(pb) & set(pr))
-    fig, ax = plt.subplots(figsize=(9.6, 5.2))
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(10.6, 5.0), width_ratios=[1.7, 1.0])
     ax.plot(ys, [pb[y] for y in ys], color=GRAY, lw=2.2)
     ax.plot(ys, [pr[y] for y in ys], color="#E3120B", lw=2.6)
     ax.fill_between(ys, [pr[y] for y in ys], [pb[y] for y in ys],
                     where=[pb[y] >= pr[y] for y in ys], color="#E3120B", alpha=0.08)
-    ax.annotate("no-policy path", xy=(ys[-1], pb[ys[-1]]), xytext=(6, 0),
-                textcoords="offset points", color=GRAY, fontsize=10, fontweight="bold", va="center")
-    ax.annotate("scenario", xy=(ys[-1], pr[ys[-1]]), xytext=(6, 0),
-                textcoords="offset points", color="#E3120B", fontsize=10, fontweight="bold", va="center")
-    if deaths is not None:
-        mid = ys[len(ys) // 2]
-        ax.annotate(f"{pmchg:+.1f}% PM2.5 → ≈{deaths:,.0f} deaths averted",
-                    xy=(mid, (pb[mid] + pr[mid]) / 2), fontsize=11, color="#E3120B",
-                    fontweight="bold", ha="center", va="center")
+    ax.annotate("no-policy", xy=(ys[-1], pb[ys[-1]]), xytext=(4, 0), textcoords="offset points",
+                color=GRAY, fontsize=9.5, fontweight="bold", va="center")
+    ax.annotate("scenario", xy=(ys[-1], pr[ys[-1]]), xytext=(4, 0), textcoords="offset points",
+                color="#E3120B", fontsize=9.5, fontweight="bold", va="center")
     ax.set_ylabel("PM2.5 emissions, kt per year", fontsize=10)
+    EMPLOYED = 48.9e6   # PSA employed persons, 2024
+    fte = (morb or 0.0) * EMPLOYED
+    ax2.axis("off")
+    ax2.text(0.0, 0.86, f"≈{deaths:,.0f}", fontsize=34, fontweight="bold", color="#E3120B")
+    ax2.text(0.0, 0.72, "lives saved\n(mortality, all ages, GBD-anchored)", fontsize=10, color="#444444")
+    ax2.text(0.0, 0.42, f"≈{fte:,.0f}", fontsize=34, fontweight="bold", color="#0F5499")
+    ax2.text(0.0, 0.28, "full-time workers' worth of\nillness-time returned each year\n(morbidity: GBD YLD-based)", fontsize=10, color="#444444")
+    ax2.text(0.0, 0.06, f"derived: {morb:.2e} productivity gain\n× ≈49M employed (PSA 2024)", fontsize=8, color="#888888")
     _ed(fig, ax, "Health",
-        "Cleaner air, counted in lives",
-        "Fine-particle emissions under the scenario; deaths averted from the GBD 2023 dose-response, "
-        f"age-profiled · {label}", foot)
+        "Cleaner air, counted in lives and working time",
+        f"{pmchg:+.1f}% PM2.5 from the scenario · mortality and morbidity both from the GBD 2023 dose-response · {label}",
+        foot)
     fig.savefig(f"{out}/impact_air_health.png"); plt.close(fig)
 
     # ---- 4. What gets built: new capacity by technology, 5-year bins (reform) ----
@@ -184,13 +210,14 @@ def main():
     yrs = sorted(y for y in rows if y.isdigit())
     fig, ax = plt.subplots(figsize=(9.6, 5.2))
     ax.axhline(0, color="#cccccc", lw=0.9)
+    offsets = {"Y": -8, "C": 10, "w": -22}   # staggered so end labels never collide
     for k, colr, lbl in (("Y", BLUE, "GDP"), ("C", AMBER, "consumption"), ("w", "#0D7680", "wage")):
         ax.plot([int(y) for y in yrs], [float(rows[y][k]) for y in yrs], color=colr, lw=2.4)
-        ax.annotate(f"{lbl}  ({float(rows['SS'][k]):+.2f}% steady state)",
-                    xy=(int(yrs[-1]), float(rows[yrs[-1]][k])), xytext=(8, 0),
+        ax.annotate(f"{lbl} {float(rows['SS'][k]):+.2f}%",
+                    xy=(int(yrs[-1]), float(rows[yrs[-1]][k])), xytext=(8, offsets[k]),
                     textcoords="offset points", fontsize=10, color=colr, fontweight="bold", va="center")
-    ax.set_ylabel("% vs baseline", fontsize=10)
-    ax.set_xlim(int(yrs[0]), int(yrs[-1]) + 9)
+    ax.set_ylabel("% vs baseline (steady state labeled)", fontsize=10)
+    ax.set_xlim(int(yrs[0]), int(yrs[-1]) + 6)
     _ed(fig, ax, "Macroeconomy",
         "The transition's economic price, and who feels it first",
         f"GDP, consumption and wages against the no-policy baseline, transition years · {label}", foot)
