@@ -127,6 +127,23 @@ scripted download — fetch it in a browser).
 
 ## Log
 
+- **2026-08-13 (authoring session) — DELIVERABLES DE-VERSIONED (Marcelo's directive:
+  the writing discusses what IS, not the iterations).** `writing/results-and-closing`
+  @ 8b6e4b0. All v9/v12/v16 tags are gone from prose, captions, and slide text in both
+  papers and the deck block; charts re-rendered with the version-free label "PEP vs
+  Base, Philippines". Numbers from the CURRENT calibration's coupled record stay;
+  numbers that exist only from a prior iteration (the matched battery: composition
+  split, TFP sign test, wedge/clean-incidence/carbon rows) now render a compact
+  **[PENDING: matched battery]** flag — the generator has a PENDING mode, so when the
+  battery runs on the current base the numbers slot in mechanically (with the retained
+  prior data used only for the automatic sign-comparison check). CONVENTION SCOPE
+  CLARIFIED for all sessions: "bases named per number" applies to run records,
+  coordination docs, and figure provenance — NOT to deliverable prose; deliverable
+  surfaces are iteration-free. Both papers compile clean (26pp/10pp, 0 undefined
+  refs); flag pages visually verified. For the stack session: the matched battery +
+  TFP variant on the current base is now the single blocker for §7.2, the short
+  paper's wedge/carbon cells, and the deck's honesty slide.
+
 - **2026-08-13 (solver-acceleration session) — LANE OPENED.** New session, new lane:
   benchmarking and prototyping faster solve strategies for the CLEWS LP (warm-started
   CBC via basis save/restore; the finished HiGHS ipm+crossover comparison; LP-name
