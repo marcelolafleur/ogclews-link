@@ -231,3 +231,13 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   Option A vs A-prime sign disagreement. Both need energy_full_real,
   energy_cost_push_real, energy_price_tfp_real on v16 -- same runs as the queued
   matched-leg pair; one decision covers all.
+- 2026-08-13 PAUSED (Marcelo): CLEWs-PHL v18 is coming soon and includes land changes.
+  Consequences until it lands: the evidence-base decision (v16 proposed) is REOPENED;
+  the queued v16 component runs / matched-leg pair are ON HOLD (run them on whichever
+  base the papers will quote); v16 results stand as current-best and all v16 figures
+  carry their baseline on-face, so nothing needs retraction if v18 supersedes. When
+  v18 arrives, the migration path is the proven one: checksum-verify, install copy,
+  one-pass calibration (verify the land block digest FIRST -- v18 changes land, so the
+  byte-identical shortcut that justified water factor 14.4128 and the crop factors MUST
+  be re-checked, not assumed), moratorium script, land pin + EACR only if v18 does not
+  already carry them, run button gates.
