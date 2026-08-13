@@ -165,14 +165,15 @@ def main():
     ax.annotate("scenario", xy=(ys[-1], pr[ys[-1]]), xytext=(4, 0), textcoords="offset points",
                 color="#E3120B", fontsize=9.5, fontweight="bold", va="center")
     ax.set_ylabel("PM2.5 emissions, kt per year", fontsize=10)
-    EMPLOYED = 48.9e6   # PSA employed persons, 2024
+    EMPLOYED = 48.91e6  # PSA LFS 2024 annual average employed (derived from PSA's published
+                        # underemployment ratio: 5.82M underemployed = 11.9% of employed)
     fte = (morb or 0.0) * EMPLOYED
     ax2.axis("off")
-    ax2.text(0.0, 0.86, f"≈{deaths:,.0f}", fontsize=34, fontweight="bold", color="#E3120B")
-    ax2.text(0.0, 0.72, "lives saved\n(mortality, all ages, GBD-anchored)", fontsize=10, color="#444444")
-    ax2.text(0.0, 0.42, f"≈{fte:,.0f}", fontsize=34, fontweight="bold", color="#0F5499")
-    ax2.text(0.0, 0.28, "full-time workers' worth of\nillness-time returned each year\n(morbidity: GBD YLD-based)", fontsize=10, color="#444444")
-    ax2.text(0.0, 0.06, f"derived: {morb:.2e} productivity gain\n× ≈49M employed (PSA 2024)", fontsize=8, color="#888888")
+    ax2.text(0.0, 0.93, f"≈{deaths:,.0f}", fontsize=30, fontweight="bold", color="#E3120B", va="top")
+    ax2.text(0.0, 0.76, "lives saved\n(mortality, all ages, GBD-anchored)", fontsize=10, color="#444444", va="top")
+    ax2.text(0.0, 0.55, f"≈{fte:,.0f}", fontsize=30, fontweight="bold", color="#0F5499", va="top")
+    ax2.text(0.0, 0.38, "full-time workers' worth of illness-time\nreturned each year (morbidity, GBD YLD)", fontsize=10, color="#444444", va="top")
+    ax2.text(0.0, 0.14, f"derived: {morb:.2e} productivity gain\n× 48.91M employed (PSA LFS 2024 annual avg)", fontsize=8, color="#888888", va="top")
     _ed(fig, ax, "Health",
         "Cleaner air, counted in lives and working time",
         f"{pmchg:+.1f}% PM2.5 from the scenario · mortality and morbidity both from the GBD 2023 dose-response · {label}",
