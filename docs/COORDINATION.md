@@ -126,6 +126,22 @@ scripted download — fetch it in a browser).
 
 ## Log
 
+- **2026-08-13 (authoring session) — DECK RESULTS BLOCK PROPOSED for session A.**
+  On `writing/results-and-closing` @ 737dca1: `presentation/results-block.tex` — seven
+  frames (transition frame; generation mix; new capacity; CO2e incl. land conversion;
+  lives+working time; macro price; incidence) + the transmission-honesty slide, all
+  figures v16 with bases on-face, regenerated from the run record into
+  `presentation/figures/impact/`. Uses only `\figframe`/`\srcnote`, so it drops in with
+  one `\input{results-block}` after the channel frames — integrate, retitle, or delegate;
+  `mechanisms.tex` untouched. Conceptual flows only, no equations (Marcelo's directive
+  2026-08-13, prioritizing the non-technical briefing + deck). Same branch also carries:
+  the §7 rebase to the v16 record (generated tables/macros; golden claim scoped to v9),
+  the short-paper refresh (validation table on current evidence, conclusion written), and
+  the number-macro generator (`paper/tools/`) whose regeneration makes the v18 swap
+  mechanical. Two nits for the stack session: `impact_air_health.png` overlays "≈1,952"
+  on its own caption text, and its employment base (≈48.9M) disagrees with the papers'
+  supplied 49.0M (→1,956 FTE) — align the employment figure once and both surfaces agree.
+
 - **2026-08-13 (session A, writing machine)** — Committed and pushed everything on the
   writing branch (see *Current state*); untracked the built PDFs and ignored `*.zip`.
   Read the ieem/v16 entry: noted that the health mortality shock was silently skipping
