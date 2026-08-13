@@ -241,3 +241,12 @@ Hard-won lessons from the OG-structure-plots session (each cost real rework ther
   byte-identical shortcut that justified water factor 14.4128 and the crop factors MUST
   be re-checked, not assumed), moratorium script, land pin + EACR only if v18 does not
   already carry them, run button gates.
+- 2026-08-13 (during pause) DELIVERABLE REORIENTATION (Marcelo): the run output shows THE
+  SCENARIO'S IMPACT AND THE COUNTRY'S TRENDS -- CO2e, health, power system, land (CLEWs
+  side) and economic trends (OG side). NO calibration-version comparisons in the
+  deliverable. Built and proven on v16: experiments/scenario_impact_charts.py generates
+  the impact deck from any (base, reform, coupled) triple -- 1 generation-mix
+  transformation, 2 national CO2e vs no-policy path (incl. land conversion, cumulative
+  avoided annotated), 3 PM2.5-and-lives, 4 what-gets-built capacity bins, 5 macro
+  GDP/C/w transition. Incidence, cohort, and fiscal figures reuse the coupled deck.
+  Regenerates on v18 with one command once its runs exist.
