@@ -66,6 +66,7 @@ Do not delete another session's entry; append a correction under a new date.
 | 2026-08-04 | this machine (session A) | channel-by-channel rebuild of the explanations | `paper/linkages-intro`: `docs/design/channel-notes/`, `paper/sections/04–05`, `presentation/mechanisms.tex` |
 | 2026-08-13 | ieem-worktree machine (v16/stack session, coordinator of 3 local peers) | v16 coupled run (IN FLIGHT: both CLEWs solves optimal, gates green, OG coupled solving); link correctness fixes; deliverables inputs | `experiment/forest-conversion-carbon`; MUIOGO DataStorage `Philippines_v16*`; OG-PHL `calib/multi-industry-remittances`; local ogcore build `integrate/v0191-plus-1189` |
 | 2026-08-13 | ieem machine, channel-viz session ("Graphics for ogclews-link") | the channel-map ledger figure for the deck (AST-derived from channels.py; baseline named on-figure) | own worktree `~/Projects/ogclews-link-viz`, branch `viz/channel-diagrams` off main; nothing pushed yet |
+| 2026-08-13 | authoring session (ogclews-link-b5, charter v2 in the ieem branch's deliverables-plan) | paper/ 07-results (plan first), 08–10; paper-intro/ 05–07 refresh; deck results block proposed via this file only | own worktree `~/Projects/ogclews-link-writing`, branch `writing/results-and-closing` off `paper/linkages-intro`; does NOT touch paper/sections 01–06, channel notes, or `mechanisms.tex` |
 
 Add a row when you start; remove it when you stop.
 
