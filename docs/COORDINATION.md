@@ -174,3 +174,9 @@ scripted download — fetch it in a browser).
   authoritative applied-channels/magnitudes record; figures derive from it. Queued next:
   the matched composite-leg pair on v16 (converts attribution to true decomposition --
   your open-work #1 with matched treatments, on the proposed final evidence base).
+- **2026-08-13 (ieem machine) — PAUSED for v18.** Marcelo: CLEWs-PHL v18 lands soon WITH
+  land changes. Evidence-base decision reopened (v16 remains current-best; its figures
+  carry baselines on-face). Queued v16 component runs on hold -- they run on whichever
+  base the papers quote. v18 migration will re-verify the land-block digests before
+  reusing any v12-derived calibration factor (v18 changes land; the byte-identical
+  shortcut must be re-proven, never assumed).
