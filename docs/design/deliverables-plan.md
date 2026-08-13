@@ -111,3 +111,12 @@ handoffs; this file for truth.
   fix) to feature/structure-plots -- neither this session nor structure-plots did it;
   candidates are the unidentified peers (og-core-23 / muiogo-55). Sessions working in
   OG-Core should use their OWN worktrees, not the shared checkout.
+- 2026-08-11 (later still): baseline footer shipped by the structure-plots session
+  (local 85457d6e, unpushed): "Judged against OG-Core <version>, <N> parameters" -- the
+  parameter COUNT discriminates builds the version string cannot (1189 build: 139 params;
+  0.18.1 base: 133; released 0.19.1 would also read "0.19.1"). Verified against both
+  builds; 32 tests pass. PARAM_BLOCKS coverage drift remains open (theirs).
+  MARCELO'S OPEN CALLS, consolidated: (1) "run" for the v16 coupled run; (2) confirm
+  (d)+(c) for the OG-side figures; (3) authorize pushes on feature/structure-plots
+  (d03f6ac2 gallery fix + 85457d6e footer); (4) push of this branch's local commits;
+  (5) assign the CLEWS<->OG channel diagram (gap); (6) upstream package (parked).
