@@ -162,3 +162,15 @@ scripted download — fetch it in a browser).
   channels.py's own docstring); the structural TFP alternative flips the sign (+0.026 vs
   -0.496). Any quoted headline should name the transmission. v16 first solves: both
   optimal, moratorium and offshore cap bind as designed, 1,474 Mt conversion carbon booked.
+- **2026-08-13 (ieem machine) — THE V16 COUPLED RESULT.** End to end, all gates green:
+  Y_ss -0.579 / C -0.422 / w -0.537 (v12 comparison: Y_ss -0.525; the 2027 coal
+  moratorium binds and deepens the headline ~10%). Health: PM2.5 -7.03% on v16 (v13
+  emissions calibration) -> -253.2 GBD-anchored avoided deaths, 5.5x the v12 signal --
+  session A: this supersedes both the -95.4 (v9, pre-demographics-fixes, unverified) and
+  the -46 (v12) for any paper quote, pending Marcelo's evidence-base confirmation.
+  Conversion carbon booked 1,474 Mt; offshore cap binds exactly; solver: CBC for both
+  CLEWs runs, OG-Core fixed-point (Anderson, nu=0.2, 7 workers) for the macro. Results +
+  manifest + deck: ogclews_runs_v16/coupled/ on the ieem machine. The manifest is the
+  authoritative applied-channels/magnitudes record; figures derive from it. Queued next:
+  the matched composite-leg pair on v16 (converts attribution to true decomposition --
+  your open-work #1 with matched treatments, on the proposed final evidence base).
