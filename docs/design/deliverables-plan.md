@@ -34,16 +34,21 @@ handoffs; this file for truth.
    Inputs: channel table with directions (ogclews-link `channels`; the emit-only caveat
    in the og-clews-linked-run skill); coupled figure deck (v12 DONE at
    ogclews_runs/coupled/figures/, 19 PNGs; v16 lands in ogclews_runs_v16/coupled/figures/);
-   attribution table. OG-side structure figure: currently BLOCKED by a two-way version
-   mismatch -- structure_plots lives on an OG-Core branch based at upstream 0.18.1-era
-   master, which REJECTS OG-PHL's current JSON (initial_wealth_ratio is unknown there,
-   paramtools ValidationError), while the 1189 build that reads it lacks structure_plots.
-   Options (Marcelo's call): (a) rebase structure-plots onto integrate/v0191-plus-1189 --
-   works now, couples an upstream-destined branch to a local one; (b) wait for #1189 on
-   master; (c) synthetic example, decoupled but not PHL; (d) PROPOSED by this session:
-   run structure_plots.py AS A MODULE on top of the pinned 1189 environment (PYTHONPATH
-   or direct import from the structure-plots worktree) -- no installs, no rebase, current
-   PHL figures immediately, viable iff the module has no post-0.18.1 API dependencies.
+   attribution table. OG-side structure figure: UNBLOCKED via option (d), verified by the
+   structure-plots session end to end -- structure_plots.py loaded by file path from its
+   worktree, ogcore resolving to the pinned 1189 build, nothing installed; it read today's
+   OG-PHL parameters (M=8, I=5, initial_wealth_ratio=2.783) and produced the full set.
+   Its ogcore surface is a single lazy `from ogcore.parameters import Specifications`.
+   THE FINDING THAT MAKES (d) CORRECTNESS, NOT CONVENIENCE: calibration_status judges
+   "calibrated" against Specifications() defaults, so the verdict is BASELINE-RELATIVE --
+   under the 1189 defaults PHL's government block is 10/12 calibrated; under the 0.18.1
+   baseline the committed figure says 7/12, understating the fiscal calibration by three
+   parameters (h/m/p_wealth). The meaningful baseline is the build the country model runs
+   on, so the deck figure MUST be generated per (d); the synthetic example (c) remains the
+   right upstream artifact -- complements, not alternatives. Known gap, owner
+   structure-plots session: PARAM_BLOCKS is hand-maintained and omits initial_wealth_ratio
+   entirely, so a demonstrably calibrated parameter is invisible; will drift as ogcore
+   moves. Corrected figures exist in that session's scratch pending Marcelo's confirmation.
    REUSE ogcore.structure_plots
    (plot_circular_flow for the institutional linkages, plot_calibration_status for
    own-evidence-vs-US-defaults) from OG-Core branch feature/structure-plots -- render from
