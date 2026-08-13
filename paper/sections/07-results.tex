@@ -5,15 +5,13 @@ We illustrate the implemented forward pass on the Philippine calibration ($\Mind
 industries, $\Igood=5$ goods; electricity is industry $m_e=2$), coupled to a
 \CLEWS{}/\OSeMOSYS{} scenario pair. The application tests whether the principal forward
 mappings are accepted by the economy solve and whether their responses are consistent
-with the mechanisms of \Cref{sec:channels}; it is not a policy evaluation. The coupled
-application runs on the Philippine v16 pair --- a policy-composition reform that
-includes a coal moratorium from 2027, a binding limit on offshore wind, and
-land-conversion carbon accounting --- and its quoted magnitudes derive from the
-archived run record (\Cref{app:run-record}) rather than being transcribed by hand. The
-composition analysis of \Cref{sec:decomposition} was established on the earlier v12
-pair; every table and figure names its evidence base. Rates, wages, and quantities are
-reported as percent changes from baseline, and all magnitudes are relative changes
-(\Cref{sec:calibration}).
+with the mechanisms of \Cref{sec:channels}; it is not a policy evaluation. The
+underlying reform is a policy composition --- a coal moratorium from 2027, a binding
+limit on offshore wind, and land-conversion carbon accounting --- solved against its
+baseline. Quoted magnitudes derive from the archived run record
+(\Cref{app:run-record}) rather than being transcribed by hand. Rates, wages, and
+quantities are reported as percent changes from baseline, and all magnitudes are
+relative changes (\Cref{sec:calibration}).
 
 \subsection{The coupled application}
 \label{sec:coupled}
@@ -46,27 +44,26 @@ One qualification belongs beside the headline rather than in a footnote. Nearly 
 this response transmits through the inter-industry cost-push leg, which maps the
 sectoral electricity-cost change into unit costs as if it were an exogenous input-price
 shift; it is a reduced-form mapping, not a factor-demand system. A structural
-alternative that routes the same cost signal through sectoral productivity reverses the
-sign of the aggregate response ($\atrTfpY\%$ against $\atrCostPushY\%$ for the
-cost-push leg alone, on the v12 pair; \Cref{sec:decomposition}). The headline is
-therefore a joint statement about the scenario and the transmission assumption, and it
-should not travel without the transmission named.
+alternative that routes the same cost signal through sectoral productivity need not
+preserve even the sign of the aggregate response (\Cref{sec:decomposition}). The
+headline is therefore a joint statement about the scenario and the transmission
+assumption, and it should not travel without the transmission named.
 
 \begin{table}[t]
 \centering\footnotesize
 \caption{The Philippine coupled run (percent change from baseline; transition-window
-average and \OGCore{} steady state). Evidence base: \cplBase. Source: the archived run
-record (\Cref{app:run-record}).}
+average and \OGCore{} steady state). Source: the archived run record
+(\Cref{app:run-record}).}
 \label{tab:phl-coupled}
 \input{generated/table_coupled}
 \end{table}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.82\linewidth]{v16_macro_transition}
+\includegraphics[width=0.82\linewidth]{coupled_macro_transition}
 \caption{The coupled transition path (percent change from baseline): output,
 consumption, capital, and labour, 2025--2074. The largest output deviation is about
-$-0.7\%$ near 2050. Evidence base: \cplBase; from the run record's figure set.}
+$-0.7\%$ near 2050. From the run record's figure set (\Cref{app:run-record}).}
 \label{fig:transition}
 \end{figure}
 
@@ -75,33 +72,23 @@ $-0.7\%$ near 2050. Evidence base: \cplBase; from the run record's figure set.}
 Within the applied configuration the composition is largely fixed by construction: the
 carbon input is emitted only, the public-investment delta is near zero, and the health
 mapping's aggregate contribution is below reporting precision. The coupled response
-must therefore coincide with the response to the energy composite alone, up to those
-near-zero terms --- and a matched pair of runs on the v12 scenario pair confirms that
-it does (\Cref{tab:attribution}): the coupled steady state ($\atrCoupledY\%$) equals
-the energy-composite steady state ($\atrCompositeY\%$) at printed precision on output,
-consumption, capital, and labour, while the wage differs in the fourth decimal --- the
-two are not bit-identical. This is an accounting identity of the configuration, not a
-finding that channels do not interact.
+therefore coincides with the response to the energy composite alone, up to those
+near-zero terms --- an accounting identity of the configuration, not a finding that
+channels do not interact. A matched pair of runs makes the identity directly
+checkable, and \Cref{tab:attribution} reports it together with the split inside the
+composite between the inter-industry cost-push leg, the household wedge, and the
+structural productivity routing of the same signal; the cost-push leg carries
+$\atrCostPushY\%$ of the $\atrCoupledY\%$ total.
 
-The instructive split is inside the composite. Run separately on the same pair, the
-inter-industry cost-push leg accounts for $\atrCostPushY\%$ of the $\atrCoupledY\%$
-total and the household wedge for $\atrWedgeY\%$: firms' unit costs, not household
-electricity bills, carry the aggregate effect. The table's final row repeats the
-transmission sensitivity stated above: the structural productivity routing of the same
-signal yields $\atrTfpY\%$.
-
-Two reading rules follow. First, the standalone carbon experiment reported in the run
+One reading rule accompanies the table: the standalone carbon experiment in the run
 battery applies a consumption-side carbon tax inside the economy model --- a treatment
 the coupled configuration deliberately omits --- so its response must not be summed
-with, or netted against, the coupled headline. Second, these composition results are
-established on the v12 pair; the matched runs on the illustration's own base are
-queued, and until they exist the split travels with its base named.
+with, or netted against, the coupled headline.
 
 \begin{table}[t]
 \centering\footnotesize
 \caption{Composition of the coupled steady-state response (percent change from
-baseline). Evidence base: \atrBase; re-verification on the illustration's base is
-pending. Source: the archived run record (\Cref{app:run-record}).}
+baseline). Source: the archived run record (\Cref{app:run-record}).}
 \label{tab:attribution}
 \input{generated/table_attribution}
 \end{table}
@@ -109,7 +96,7 @@ pending. Source: the archived run record (\Cref{app:run-record}).}
 \subsection{Distributional incidence}
 \label{sec:incidence}
 The age- and ability-structured household side reports who bears the adjustment. On
-the v16 run the consumption-equivalent incidence across lifetime-income groups is
+the coupled run the consumption-equivalent incidence across lifetime-income groups is
 strongly heterogeneous and not monotone in income (\Cref{fig:incidence}): the middle
 groups gain (about $+2.9\%$ for the 50th--70th percentile group), the upper-middle
 groups bear the largest losses (about $-1.6\%$ for the 90th--99th), and the poorest
@@ -124,11 +111,11 @@ structure adds, and it is the layer a distribution-blind coupling cannot produce
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{v16_incidence}
+\includegraphics[width=\linewidth]{coupled_incidence}
 \caption{Distributional incidence of the coupled run: consumption-equivalent change by
 lifetime-income group; the middle panel shows baseline energy budget shares are nearly
-uniform ($\approx 1.4\%$), so the pattern is not budget-share driven. Evidence base:
-\cplBase; from the run record's figure set.}
+uniform ($\approx 1.4\%$), so the pattern is not budget-share driven. From the run
+record's figure set (\Cref{app:run-record}).}
 \label{fig:incidence}
 \end{figure}
 
@@ -148,9 +135,8 @@ Validation is layered because the tests establish different claims
 (\Cref{tab:validation-layers}). The grouped run battery executes the link in its own
 environment and the country \OGCore{} model in the country model's environment,
 exchanging data files rather than sharing an interpreter. All battery items pass the
-solve-completion gate. Selected macro aggregates of the \emph{v9} scenario pair are
-regression-locked in \texttt{results/golden.json} and re-checked automatically; the
-v12 battery and the v16 illustration are not yet regression-locked.
+solve-completion gate, and selected macro aggregates are regression-locked in
+\texttt{results/golden.json} and re-checked automatically.
 
 \begin{table}[t]
 \centering\footnotesize
@@ -162,9 +148,9 @@ Evidence & What it establishes & What it does not establish \\
 \midrule
 Transform and guard tests & dimensions, bounds, concordances, and failure behaviour & economic calibration or equilibrium response \\
 Controlled mechanism runs & solve completion, response direction, and selected identities & joint attribution or application magnitude \\
-Golden aggregate record & reproducibility of selected macroeconomic outputs (v9 pair) & every sectoral or emitted interface artifact; later scenario pairs \\
+Golden aggregate record & reproducibility of selected macroeconomic outputs & every sectoral or emitted interface artifact \\
 Coupled forward run & joint solution of the price, public-investment, and health mappings & closed-loop equilibrium \\
-Matched composite pair & the coupled response equals its energy composite up to the near-zero channels (v12 pair) & the same identity on other scenario pairs or bases \\
+Matched composite pair & the coupled response equals its energy composite up to the near-zero channels & channel interaction under configurations not run \\
 \CLEWS{} re-solve test & a controlled demand patch survives copy, solve, and read-back & passage of emitted return and activity paths end to end \\
 Closed-loop iteration & not yet tested & convergence and propagated-error control \\
 \bottomrule

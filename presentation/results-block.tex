@@ -7,10 +7,10 @@
 % delete this file. It uses only macros mechanisms.tex already defines
 % (\figframe, \srcnote) and figures under figures/impact/ (committed on the
 % writing branch; regenerate from the run record with the impact-chart script
-% against any (case, base, reform, coupled) quadruple — one command on v18).
+% against any (case, base, reform, coupled) quadruple — one command on the next calibration).
 %
 % Register: conceptual flows only, no equations (Marcelo, 2026-08-13). Every
-% chart carries its evidence base on-face (PEP vs Base, Philippines v16).
+% chart carries its evidence base on-face (PEP vs Base, Philippines).
 % ============================================================================
 
 % -- transition frame: from mechanism to application -------------------------
@@ -31,32 +31,31 @@
   {impact/impact_generation_mix}%
   {Generation by technology under the reform. Demand roughly quadruples by 2053;
    coal exits after the 2027 moratorium; offshore wind carries the expansion to
-   its binding build limit. PEP vs Base, Philippines v16.}
+   its binding build limit. PEP vs Base, Philippines.}
 
 \figframe{What gets built, and when}%
   {impact/impact_new_capacity}%
   {New capacity by era. The near decade is solar-led; offshore wind dominates
-   the 2030s; the long tail adds onshore wind and gas peaking. PEP vs Base,
-   Philippines v16.}
+   the 2030s; the long tail adds onshore wind and gas peaking. PEP vs Base, Philippines.}
 
 \figframe{Where the carbon comes from --- and what the scenario avoids}%
   {impact/impact_co2e}%
   {National CO2e by source, including land-conversion carbon (newly accounted;
    the sawtooth is conversion pulses). The cumulative avoided total vs the
-   no-policy path is printed on the chart. PEP vs Base, Philippines v16.}
+   no-policy path is printed on the chart. PEP vs Base, Philippines.}
 
 \figframe{Cleaner air, counted in lives and working time}%
   {impact/impact_air_health}%
   {The particulate change is converted through Global Burden of Disease
    dose--response and age profiles: avoided deaths (mostly at older ages) and
    returned working time (morbidity). Aggregate GDP effect below reporting
-   precision. PEP vs Base, Philippines v16.}
+   precision. PEP vs Base, Philippines.}
 
 \figframe{The economy pays modestly, and mostly through wages}%
   {impact/impact_macro}%
   {GDP, consumption, and wages against the no-policy baseline over the
    transition window; steady-state values labelled. The wage carries the
-   adjustment; employment barely moves. PEP vs Base, Philippines v16.}
+   adjustment; employment barely moves. PEP vs Base, Philippines.}
 
 % -- the reading rules for the headline (no equations; the honesty slide) ----
 \begin{frame}{Read the macro headline with its transmission named}
@@ -70,12 +69,13 @@
     \item Inside the applied bundle, carbon is \emph{emitted only} (no carbon
           price acts in these numbers), and investment and health contribute
           $\approx 0$ to the aggregate --- the coupled response is the energy
-          composite by construction (verified on the v12 battery; re-check on
-          this base queued).
+          composite by construction --- an accounting identity of the
+          configuration, not a zero-interaction finding.
   \end{itemize}
-  \srcnote{docs/design/phl-calibration-decisions.md \S 15 (attribution table,
-    v12); ogclews\_manifest.json channels[]/provenance[]; the Option A vs
-    A-prime sign flip (+0.026 vs -0.496, v12).}
+  \srcnote{ogclews\_manifest.json channels[]/provenance[] (emit-only carbon,
+    near-zero investment and health); the matched composition battery and the
+    transmission sign-flip re-run are pending on the current calibration ---
+    quote neither until they land.}
 \end{frame}
 
 \figframe{Who gains and who loses is not a budget-share story}%
@@ -83,4 +83,4 @@
   {Consumption-equivalent incidence by lifetime-income group on the coupled
    run: middle groups gain, the 90th--99th percentile group loses most, and
    baseline energy budget shares are nearly uniform --- the dispersion runs
-   through earnings, assets, and transfers. PEP vs Base, Philippines v16.}
+   through earnings, assets, and transfers. PEP vs Base, Philippines.}

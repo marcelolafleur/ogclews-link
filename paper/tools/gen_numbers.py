@@ -33,8 +33,18 @@ from pathlib import Path
 # recorded in the calibration record's attribution table (2026-08-11).
 # Re-verification on the final evidence base is queued; when it lands, replace
 # this block with a reader over that battery's own macro tables.
+# The deliverables discuss the CURRENT calibration only (Marcelo, 2026-08-13):
+# no iteration tags in prose, and no number quoted from an older iteration.
+# While the matched composition battery on the current calibration is pending,
+# every attribution macro and the attribution table render an explicit
+# MISSING flag; flip PENDING_ATTRIBUTION to False (and repoint the data below
+# at the new battery's own record) when those runs land.
+PENDING_ATTRIBUTION = True
+
+# Prior-generation data, retained ONLY for the sign-comparison check when the
+# new battery lands — never emitted while PENDING_ATTRIBUTION is True.
 ATTRIBUTION_V12 = {
-    "base_label": "CLEWs Philippines v12 (matched real-price battery)",
+    "base_label": "matched real-price battery (prior iteration; not quotable)",
     # (name, Y, C, w, in_methods_table)
     "rows": [
         ("coupled",                        -0.525, -0.385, -0.486, True),
@@ -80,14 +90,18 @@ def macro(name, value, comment=""):
     return f"\\newcommand{{\\{name}}}{{{value}}}{tail}"
 
 
-def missing(name, what):
+def missing(name, what, pending=False):
     """Absent source -> a macro that RENDERS a visible flag.
 
     Never skip an expected macro: skipping leaves stale prose compiling
     against an old generation, and absent must never read as resolved.
+    ``pending=True`` renders the compact [PENDING: ...] form for runs that
+    are expected and will be generated; the severe MISSING form is for
+    sources that should exist now and do not.
     """
-    return (f"\\newcommand{{\\{name}}}{{\\genMISSING{{{what}}}}}"
-            f"  % SOURCE ABSENT")
+    cmd = "genPENDING" if pending else "genMISSING"
+    return (f"\\newcommand{{\\{name}}}{{\\{cmd}{{{what}}}}}"
+            f"  % SOURCE {'PENDING' if pending else 'ABSENT'}")
 
 
 def main():
@@ -117,6 +131,7 @@ def main():
         "% A \\genMISSING render in the compiled paper means a macro's source",
         "% artifact was absent at generation time — absent never reads as resolved.",
         "\\providecommand{\\genMISSING}[1]{\\textbf{[MISSING, NOT RESOLVED: #1]}}",
+        "\\providecommand{\\genPENDING}[1]{\\textbf{[PENDING: #1]}}",
         macro("cplBase", args.base_label, "evidence base, print on-face"),
         macro("cplWindow", window_key.replace("-", "--"), "transition window"),
     ]
@@ -175,7 +190,9 @@ def main():
     # Prose-facing macros for the battery rows (same static v12 data as the
     # table — one source, two renderings). \atr<Row><Var> for every row/var.
     with open(args.out / "numbers.tex", "a") as fh:
-        fh.write(macro("atrBase", ATTRIBUTION_V12["base_label"]) + "\n")
+        fh.write((missing("atrBase", "matched battery", pending=True)
+                  if PENDING_ATTRIBUTION else
+                  macro("atrBase", ATTRIBUTION_V12["base_label"])) + "\n")
         fh.write(macro("cplEmitDRPct",
                        texnum(100 * prov["emit_discount_rate"]
                               ["clews_discount_rate"], 1),
@@ -199,22 +216,37 @@ def main():
                  "clean incidence": "atrCleanInc",
                  "capital intensity": "atrCapInt",
                  "energy capex": "atrCapex"}
-        for name, y, c, w, _ in ATTRIBUTION_V12["rows"]:
-            for var, val in (("Y", y), ("C", c), ("W", w)):
-                fh.write(macro(stems[name] + var, texnum(val)) + "\n")
+        if PENDING_ATTRIBUTION:
+            for stem in stems.values():
+                for var in ("Y", "C", "W"):
+                    fh.write(missing(stem + var, "matched battery",
+                                     pending=True) + "\n")
+        else:
+            for name, y, c, w, _ in ATTRIBUTION_V12["rows"]:
+                for var, val in (("Y", y), ("C", c), ("W", w)):
+                    fh.write(macro(stems[name] + var, texnum(val)) + "\n")
 
-    attr = ATTRIBUTION_V12
-    attr_rows = "\n".join(
-        f"{name:32s}& ${texnum(y)}$ & ${texnum(c)}$ & ${texnum(w)}$ \\\\"
-        for name, y, c, w, in_table in attr["rows"] if in_table
-    )
-    (args.out / "table_attribution.tex").write_text(
-        "% GENERATED — see numbers.tex header. STATIC v12 data (see script).\n"
-        f"% Evidence base: {attr['base_label']}\n"
-        "\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n"
-        "experiment & $Y$ & $C$ & $w$ \\\\\n\\midrule\n"
-        + attr_rows + "\n\\bottomrule\n\\end{tabular}\n"
-    )
+    if PENDING_ATTRIBUTION:
+        (args.out / "table_attribution.tex").write_text(
+            "% GENERATED — see numbers.tex header. Composition battery pending.\n"
+            "\\begin{tabular}{@{}c@{}}\n"
+            "\\genPENDING{matched composition battery on the current "
+            "calibration}\\\\\n"
+            "\\end{tabular}\n"
+        )
+    else:
+        attr = ATTRIBUTION_V12
+        attr_rows = "\n".join(
+            f"{name:32s}& ${texnum(y)}$ & ${texnum(c)}$ & ${texnum(w)}$ \\\\"
+            for name, y, c, w, in_table in attr["rows"] if in_table
+        )
+        (args.out / "table_attribution.tex").write_text(
+            "% GENERATED — see numbers.tex header.\n"
+            f"% Evidence base: {attr['base_label']}\n"
+            "\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n"
+            "experiment & $Y$ & $C$ & $w$ \\\\\n\\midrule\n"
+            + attr_rows + "\n\\bottomrule\n\\end{tabular}\n"
+        )
 
     # Loud sign check vs whatever numbers.tex said before this run.
     prev = {}
