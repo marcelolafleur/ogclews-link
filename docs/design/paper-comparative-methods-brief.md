@@ -257,6 +257,12 @@ the complementarities that motivate future linkage rather than as absences.
    degeneracy behaviour is solver-specific.
 5. **Decide the PHL question** — a mechanism demonstration on an uncalibrated model is publishable
    *if framed as such*, but it cannot carry country policy conclusions.
+6. **Baseline-identity claims at build-family granularity only, until a content digest exists**
+   (og-core-23's version+param-count figure footer does not separate builds: two different
+   OG-Core builds on this machine both report 0.19.1 with 140 parameters). If the paper claims
+   baseline-naming/provenance discipline as method, scope the claim accordingly or wait on the
+   digest — deliberately unbuilt pending Marcelo. *(Added 2026-08-13 by the v16/stack session,
+   routed from the comparative-methods session with og-core-23's attribution.)*
 
 ---
 

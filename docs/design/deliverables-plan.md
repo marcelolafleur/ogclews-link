@@ -82,6 +82,10 @@ handoffs; this file for truth.
    session (its brief), unless Marcelo reassigns.
 3. **'Nobody has linked OSeMOSYS/CLEWs to an OLG' claim** — UNVERIFIED; needs a systematic
    search before any submission. OWNER: comparative-methods session.
+4. **Baseline-identity claims: build-family granularity only** until a content digest exists
+   (the version+param-count footer cannot separate builds — two local OG-Core builds share
+   "0.19.1, 140 parameters"). In the brief's §8 as item 6. OWNER: comparative-methods
+   session (claim scoping); digest itself is on Marcelo's queue (og-core-23).
 
 ## Interface contract for the visualization session
 
