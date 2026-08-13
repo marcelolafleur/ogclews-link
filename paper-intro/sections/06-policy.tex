@@ -1,58 +1,92 @@
-\section{Discussion and Policy Implications}
+\section{Economic Validation of the Linkages}
 \label{sec:policy}
 
-\subsection{Questions the linked framework can answer}
-\label{sec:new-questions}
+The link is economically valid if the information passed between the models represents
+the same real-world object on both sides and produces the response implied by economic
+theory. This requires more than showing that a number can be transferred. The receiving
+model must place it on the correct households, industries, or government account; the
+direction of the response must make sense; and the same cost, investment, or revenue must
+not enter through two routes.
 
-The contribution of the link is a set of questions that move from outside the model
-to outputs of the model. For an energy-transition package expressed as a \CLEWS{}
-scenario, the coupled framework can now quantify: the incidence of the implied
-electricity-price path by age and lifetime income, with and without revenue
-recycling; the impact, medium-run, and steady-state effects, which can differ in
-sign because the economy solves a full transition; the health co-benefits in lives,
-age structure, and effective labour, from the country's own burden data; the fiscal
-accounting, with carbon revenue, grid investment, transfers, and debt inside one
-consistent budget; and the discount rate the plan itself should use, read from the
-economy's equilibrium cost of capital rather than assumed
-(Section~\ref{sec:feedback-channels}). Each answer is attributable to a named
-channel, which is what makes the framework usable in policy argument: a contested
-number can be traced to its mechanism, its signal, and its stated assumptions.
+\subsection{The economic tests}
 
-\subsection{Portability and country ownership}
-\label{sec:ownership}
+The electricity-cost relationship passes a system-cost change to the two agents that pay
+for electricity: households through final consumption and firms through their direct and
+indirect electricity exposure. A higher cost should reduce household purchasing power,
+raise costs most in electricity-intensive industries, and impose a larger proportional
+burden on households for whom electricity is a necessity. Returning the notional revenue
+to households isolates this price effect; otherwise the relationship would silently add a
+tax and transfer policy that did not originate in CLEWS.
 
-The framework is designed to be portable across countries. Both parent models are
-open source. The link reads a country's existing \CLEWS{} case as produced by its
-national team, and discovers the country's \OGCore{} calibration---how many
-industries and goods it resolves, and which is electricity---at run time rather than
-hard-coding any country's structure. Channels whose data prerequisites a country
-cannot meet report a skip rather than fabricating an input. Applications require
-four core country inputs: a solved \CLEWS{} scenario pair (baseline and reform), a
-country calibration of \OGCore{} that identifies the electricity industry and good,
-the social accounting matrix shares that allocate electricity use between industries
-and households, and the country's burden-of-disease export where the health channel
-is used. Given these inputs, the same structural mapping generates country-specific
-transition paths for output, consumption, incidence, and the other welfare-relevant
-aggregates. The intended user is the analyst in a ministry or country office who
-already runs one of the two models and needs the other half of the answer, on
-infrastructure the country controls and can audit.
+The two capital relationships answer different questions. Grid investment adds public
+infrastructure and requires an explicit financing assumption. Generation capital
+intensity changes the way the electricity industry produces. An investment incentive,
+by contrast, changes the industry's cost of acquiring capital. These effects should not
+be collapsed into a single ``investment'' adjustment: a more capital-intensive technology
+mix does not by itself determine how much private capital the economy will ultimately
+employ.
 
-\subsection{Limitations and extension roadmap}
-\label{sec:scope}
+The health relationship follows a separate causal path. Lower particulate emissions reduce
+pollution-related mortality and morbidity; this changes survival, population, and effective
+labour. Its economic logic is well established, but its magnitude depends on the
+emissions-to-exposure and exposure-to-health translations. Validation therefore requires
+both the expected demographic and labour responses and epidemiological calibration suited
+to the country application.
 
-Three limitations define the current scope, each with a designed extension. First,
-the coupling runs one validated \CLEWS{}$\to$\OGCore{} pass; the return signals (the
-equilibrium rate and activity) are emitted and ready, and closing the loop---
-iterating until the electricity price the economy faces and the demand the planner
-meets agree---is the next step. Second, the conversion between \CLEWS{} monetary
-units and the \OGCore{} numéraire is not yet calibrated, so the carbon and
-investment magnitudes are illustrative until the bridge is pinned to the country's
-accounts. Third, energy enters firm costs in reduced form; the structural extension
-prices energy as a production input within \OGCore{} itself. Fourth, the channel
-library currently reads the energy side of a \CLEWS{} case; the land and water
-sides carry economically analogous signals---food and crop prices, irrigation
-investment, water scarcity---that enter through the same signal-wedge-channel
-architecture, and extending the library to them is a natural next application. None
-of these limitations is implicit in the output: illustrative levels are labelled
-where they appear, and validated mechanics are distinguished from calibrated
-magnitudes throughout.
+The carbon-price relationship must distinguish a resource cost from a government payment.
+A carbon price can change the CLEWS technology plan, create a payment by households or
+firms, and generate public revenue. These are different consequences of the same policy.
+They may be represented together, but each monetary flow must appear only once and any
+revenue returned to households must have been collected first.
+
+The return relationships are also economically interpretable, with different degrees of
+directness. Economic activity is the appropriate basis for revising demand for energy
+services: industrial demand should follow the activity of the industries using electricity,
+while household demand should follow household consumption. Using the equilibrium return
+as a planning discount rate is a harmonisation of the opportunity cost of capital across
+the models. It is not an assertion that a market return, a social discount rate, and a
+project financing rate are identical; taxes, risk, maturity, and policy objectives determine
+the adjustment required for a particular application.
+
+The validation runs produced the responses summarised in Table~\ref{tab:validation}.
+They are evidence about the operation of the economic mechanisms, not estimates of the
+benefits or costs of a particular policy.
+
+\begin{table}[H]
+\centering\scriptsize
+\caption{Observed economic behaviour in the OG--CLEWS validation runs.}
+\label{tab:validation}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{0.20\linewidth} >{\raggedright\arraybackslash}p{0.27\linewidth} L@{}}
+\toprule
+Relationship & Economic proposition & Observed result \\
+\midrule
+Electricity cost & system costs affect household purchasing power and industry costs & a roughly $5\%$ cost increase reduced steady-state household consumption by $0.062\%$; with the payment recycled, the proportional burden was larger for lower-income households \\
+Public grid investment & infrastructure raises public capital and must be financed & the source scenario contained almost no additional grid investment, and the public-capital and aggregate responses were correspondingly close to zero \\
+Generation capital intensity & technology choice changes the electricity industry's production structure & a $12.2\%$ increase in the capital share lowered the electricity price $42.8\%$, raised sector output $20.9\%$, and reduced sector capital $22.4\%$; the firm identity reproduced the capital response within $0.03\%$ \\
+Private investment incentive & policy changes the cost of private generation capital & a $20\%$ investment tax credit raised private capital in electricity by $5.0\%$, while other industries moved by less than $0.02\%$ and aggregate output was essentially unchanged \\
+Health & particulate emissions affect survival and effective labour & a $2.7\%$ emissions reduction produced about $95$ lives saved and a near-term output gain of about $0.19\%$; the long-run output effect was near zero because the survival gain was concentrated among older ages \\
+Carbon price & one policy changes resource costs, payments, and public revenue & the recycled standalone experiment reduced output by $0.021\%$, capital by $0.019\%$, and labour by $0.045\%$, while consumption increased by $0.026\%$ \\
+Economic activity & industry and household activity determine service demand & a controlled $10\%$ increase in household electricity demand raised CLEWS electricity production by $4.28\%$ \\
+Equilibrium return & the economy's opportunity cost of capital informs resource planning & the equilibrium-return path was produced as the planning-rate input; its effect on resource choices has not yet been measured in the recorded validation runs \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{What the validation supports}
+
+The observed responses follow the economic mechanisms represented by the linkages. Costs
+reduce purchasing power, distribution reflects expenditure patterns, a change in factor
+shares is distinct from an investment incentive, health effects differ by horizon, and
+recycling changes who ultimately bears a policy cost. The results also identify where
+interpretation depends on calibration. The
+electricity-cost relationship uses an average-cost proxy rather than an observed tariff or
+marginal price. The health effect requires a country-specific pollution and disease
+translation. Monetary carbon and investment flows require a common unit and deflator.
+The discount-rate relationship requires a stated choice between social, market, and
+financing concepts.
+
+These qualifications do not weaken the economic case for the linkages. They define the
+evidence needed to use each one credibly. The central validation claim is therefore that
+the linked system represents distinct and defensible pathways from resource decisions to
+households, production, health, demography, and public finance---and back from economic
+conditions to resource demand and planning assumptions.

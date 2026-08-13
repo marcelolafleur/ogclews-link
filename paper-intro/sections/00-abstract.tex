@@ -1,32 +1,13 @@
-% TODO(abstract): ~150 words, written LAST. Cover, in order:
-%  - the question: energy-transition policy questions are distributional, fiscal,
-%    and demographic -- asked of tools that cannot answer them.
-%  - the tool: a channel-based soft link between CLEWS (least-cost energy-water-land)
-%    and OG-Core (overlapping-generations general equilibrium), both open source.
-%  - what it answers that neither parent can: who pays (by age x income), what the
-%    health co-benefits are worth in lives and labour, how the budget closes.
-%  - the Philippine illustration: LCOE +5%, transition +0.2% / steady state -0.14%,
-%    ~95 lives per year, regressive incidence even with revenue recycling.
-%  - honest scope: one validated CLEWS->OG pass; iteration designed, not yet closed.
-% STYLE ANCHOR: register of CostOfDisease_JDE.tex ("We develop a framework for...
-% We illustrate the framework using [country]... More broadly, ...").
-We develop a framework for quantifying the macroeconomic and distributional effects
-of national climate, land, energy and water strategies. The framework links an
-integrated resource-systems planning model (\CLEWS{}/\OSeMOSYS{}) with an
-overlapping-generations general equilibrium model (\OGCore{}) through a small set of
-auditable channels, currently instantiated for the energy system: each signal from
-the solved scenario---the electricity price, grid investment, emissions---is
-carried into the economy by exactly one model parameter, and the economy's
-equilibrium return and activity are passed back. Both models are open source and
-calibrated by countries to their own data, so the same structural mapping is
-portable across settings. We illustrate the framework using the Philippines,
-coupling the country's own energy-reform scenario to a multi-industry Philippine
-calibration of \OGCore{}. The reform raises the levelized cost of electricity by
-about $5\%$. Output rises roughly $0.2\%$ over the first decade of the transition,
-driven by health co-benefits that raise working-age productivity and save about $95$
-lives per year, but settles $0.14\%$ below baseline in the long run, where the
-survival gains add retirees and the price channels accumulate. Incidence is
-regressive even with full revenue recycling. These results are outputs of the
-coupled framework and are not expressible in either model alone. More broadly, the
-framework moves the distributional, fiscal, and demographic consequences of energy
-policy from assumptions outside the model to outputs of it.
+The OG--CLEWS link currently connects energy results from the Climate, Land, Energy and
+Water Systems model to OG-Core, an economy with households, industries, government, and
+overlapping generations. CLEWS supplies changes in
+electricity cost, grid investment, generation capital intensity, and particulate
+emissions. OG-Core translates them into effects on living costs, production, public
+capital, health, labour, population, and public finance. The interface can prepare a
+carbon-price input for each model and defines a private-generation investment incentive
+in OG-Core. The link then converts OG-Core activity and return paths into inputs for a
+subsequent CLEWS solve. It preserves the economic meaning of each relationship and guards
+against entering the same cost twice. The forward
+CLEWS-to-OG-Core pass and a controlled CLEWS re-solve are implemented and tested. The
+repeated two-way solution, the monetary-unit bridge, and parts of the policy calibration
+remain incomplete.
