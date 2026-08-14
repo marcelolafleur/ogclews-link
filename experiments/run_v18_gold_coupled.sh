@@ -90,16 +90,26 @@ for pr in 63 85; do
 done
 # 5. The registry must serve the 8-sector multisector calibration, and the Anderson house
 #    rule must be active in the runner (every SS solve; examples-script path, nothing bespoke).
-"$LINK"/.venv/bin/python - <<'PY' || fail "registry calibration / Anderson house rule"
-import json
+"$LINK"/.venv/bin/python - "$OGPHL_DIR" <<'PY' || fail "registry calibration / Anderson config"
+import json, sys, os
 r = json.load(open("og_model_registry.json"))
 m = r["models"]["og-phl"]
 assert m["calibration"] == "ogphl_multisector_default_parameters.json", m["calibration"]
 cand = [c for c in m["discovered"]["candidates"] if c["file"] == m["calibration"]][0]
 assert cand["M"] == 8 and cand["couplable"], (cand["M"], cand["couplable"])
+# Anderson where it is PROVEN: the calibration must pin the TPI outer loop to anderson
+# (nu=0.2) and must NOT have its explicit SS hybr choice force-overridden (the forced
+# SS-anderson crashed the first GOLD baseline -- scipy's line search raises on NaN trial
+# residuals; see og_runner._load_calibration).
+over = json.load(open(os.path.join(sys.argv[1], "ogphl",
+                                   "ogphl_multisector_default_parameters.json")))
+assert over.get("TPI_outer_method") == "anderson" and over.get("nu") == 0.2, \
+    (over.get("TPI_outer_method"), over.get("nu"))
 src = open("ogclews_link/og_runner.py").read()
-assert '"SS_root_method": "anderson"' in src, "Anderson house rule missing from og_runner"
-print("  registry: 8-sector multisector calibration, couplable; Anderson house rule active  OK")
+assert '"SS_root_method": "anderson"' not in src or "OGCLEWS_SS_ROOT_METHOD" in src, \
+    "forced SS-anderson override present in og_runner"
+print("  registry: 8-sector multisector calibration, couplable; TPI Anderson (nu=0.2) pinned "
+      "by the calibration; SS root = calibration's hybr  OK")
 PY
 # 6. Link stack: couplable model, GBD data.
 (cd "$LINK" && .venv/bin/ogclews-link models list 2>/dev/null | grep -q "couplable=1") || fail "no couplable OG model registered"

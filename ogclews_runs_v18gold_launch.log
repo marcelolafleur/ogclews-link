@@ -1,0 +1,118 @@
+world: muiogoai (installed) · http://127.0.0.1:5102 · /Users/marcelolafleur/muiogoai/MUIOGO [pinned by launcher]
+=== PREFLIGHT ===
+  ogclews_link -> /Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link  OK
+  health fixes present (income_percentiles in health_pop.py)  OK
+  ogcore 0.19.1: #1184 reverted, #1189 present  OK
+  OG-PHL: calib/multi-industry-remittances @ ad9af7b (0 dirty)
+  ogclews-link-coupled: experiment/v18-gold-coupled @ b20e47d (1 dirty)
+  OG-PHL contains PR#63 head ec2ee98d  OK
+  OG-PHL contains PR#85 head 52b77ca7  OK
+  registry: 8-sector multisector calibration, couplable; Anderson house rule active  OK
+  health channel: GBD a2dc02fe resolves, PHL M=0.082, in coupled composition  OK
+
+=== GOLD RESULTS VERIFICATION (read-only) ===
+  GOLD_BASE: Optimal, objective matches the blessed record  OK
+  GOLD_PEP: Optimal, objective matches the blessed record  OK
+  gate moratorium: no new coal 2028+ in GOLD_PEP  OK
+  gate offshore cap: <= 823 PJ in both runs  OK
+  conversion carbon: identical in both runs; EXCLUDED from all coupled inputs (v18.0.1 net-growing forest + symmetric EACR; one-way redesign pending)  OK
+
+=== COUPLED RUN (GOLD_BASE vs GOLD_PEP) ===
+[og_runner] ogphl: loaded ogphl_default_parameters.json + ogphl_multisector_default_parameters.json overlay (M=8, I=5)
+Please enter your UN API token (press return if you do not have one): Failed to retrieve population data from UN. Reading  from https://github.com/EAPD-DRB/Population-Data instead of UN WPP API
+Please enter your UN API token (press return if you do not have one): Failed to retrieve population data from UN. Reading  from https://github.com/EAPD-DRB/Population-Data instead of UN WPP API
+Please enter your UN API token (press return if you do not have one): Failed to retrieve population data from UN. Reading  from https://github.com/EAPD-DRB/Population-Data instead of UN WPP API
+Demographics data: Initial Data year =  2024 , Final Data year =  2026
+Please enter your UN API token (press return if you do not have one): Failed to retrieve population data from UN. Reading  from https://github.com/EAPD-DRB/Population-Data instead of UN WPP API
+Please enter your UN API token (press return if you do not have one): Failed to retrieve population data from UN. Reading  from https://github.com/EAPD-DRB/Population-Data instead of UN WPP API
+Please enter your UN API token (press return if you do not have one): Failed to retrieve population data from UN. Reading  from https://github.com/EAPD-DRB/Population-Data instead of UN WPP API
+[og_runner] demographics: live update applied (UN portal -> github backup) for country 608
+[og_runner] baseline: heterogeneous gamma (spread 0.32) -> solving SS by continuation (M=8)
+making dir:  /Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_runs_v18gold/_og_baseline_cache/og-phl-0.1.1-ogphl_multisector_default_parameters/_continuation/anchor/SS
+making dir:  /Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_runs_v18gold/_og_baseline_cache/og-phl-0.1.1-ogphl_multisector_default_parameters/_continuation/anchor/TPI
+In runner, baseline is  True
+SS using initial guess factors for r and TR of 1.0 and 1.0 respectively.
+GE loop errors = ['3.335e-02', '3.253e-02', '-1.345e+00', '-5.948e-01', '-7.373e-01', '-6.819e-01', '-7.366e-01', '-6.475e-01', '-5.965e-01', '-5.283e-01', '0.000e+00', '3.204e+00', '8.435e-03', '5.036e-03', '1.812e-03', '9.064e-04', '4.301e-03', '1.548e-01', '4.338e-02', '1.435e-01', '-1.068e-02']
+GE loop errors = ['nan', '-7.202e+02', '2.982e+04', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', '0.000e+00', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan']
+GE loop errors = ['2.319e-02', '2.139e-02', '-8.142e-01', '-5.441e-01', '-7.044e-01', '-6.422e-01', '-7.037e-01', '-6.034e-01', '-5.461e-01', '-4.693e-01', '0.000e+00', '3.927e+00', '7.731e-02', '2.578e-02', '1.328e-01', '8.373e-02', '1.129e-01', '1.534e-01', '4.298e-02', '1.759e-01', '-5.611e-02']
+GE loop errors = ['nan', '-7.202e+02', '2.982e+04', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', '0.000e+00', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan', 'nan']
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/og_runner.py", line 626, in <module>
+    main()
+    ~~~~^^
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/og_runner.py", line 622, in main
+    a.func(a)
+    ~~~~~~^^^
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/og_runner.py", line 511, in export_baseline
+    p, sol = _solve_baseline(a.og_package, a.params_resource, a.og_start_year,
+             ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                             a.num_workers, a.out_dir, a.calibration, a.ss, not a.no_progress)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/og_runner.py", line 418, in _solve_baseline
+    sol = _continuation_baseline(og_package, params_resource, calibration, num_workers, out_dir, p,
+                                 ss, show_progress)
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/og_runner.py", line 285, in _continuation_baseline
+    runner(build_step(anchor_gamma, anchor_Z, True, anchor_dir), time_path=False, client=client)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/ogcore/execute.py", line 46, in runner
+    ss_outputs = SS.run_SS(p, client=client)
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/ogcore/SS.py", line 1567, in run_SS
+    sol = opt.root(
+        SS_fsolve,
+    ...<3 lines>...
+        tol=p.mindist_SS,
+    )
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/scipy/optimize/_root.py", line 264, in root
+    sol = _root_nonlin_solve(_wrapped_fun, x0, args=args, jac=jac,
+                             _method=meth, _callback=callback,
+                             **options)
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/scipy/optimize/_root.py", line 373, in _root_nonlin_solve
+    x, info = nonlin.nonlin_solve(f, x0, jacobian=jacobian(**jac_options),
+              ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                  iter=nit, verbose=verbose,
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+                                  callback=_callback, full_output=True,
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                  raise_exception=False)
+                                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/scipy/optimize/_nonlin.py", line 232, in nonlin_solve
+    s, x, Fx, Fx_norm_new = _nonlin_line_search(func, x, Fx, dx,
+                            ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+                                                line_search)
+                                                ^^^^^^^^^^^^
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/scipy/optimize/_nonlin.py", line 323, in _nonlin_line_search
+    Fx_norm = norm(Fx)
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/scipy/linalg/_misc.py", line 148, in norm
+    a = np.asarray_chkfinite(a)
+  File "/Users/marcelolafleur/Projects/OG-PHL/.venv/lib/python3.13/site-packages/numpy/lib/_function_base_impl.py", line 665, in asarray_chkfinite
+    raise ValueError(
+        "array must not contain infs or NaNs")
+ValueError: array must not contain infs or NaNs
+Country: Philippines (un 608, OG model og-phl)
+CLEWS base   scenario: /Users/marcelolafleur/muiogoai/MUIOGO/WebAPP/DataStorage/Philippines_v18_GOLD/res/GOLD_BASE/csv  [ok]
+  CLEWS export check (base): all 9 expected CSV stems present
+CLEWS reform scenario: /Users/marcelolafleur/muiogoai/MUIOGO/WebAPP/DataStorage/Philippines_v18_GOLD/res/GOLD_PEP/csv  [ok]
+  CLEWS export check (reform): all 9 expected CSV stems present
+Traceback (most recent call last):
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/.venv/bin/ogclews-link", line 10, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/cli.py", line 195, in main
+    ctx = framework.run(
+        exp, country,
+        export_baseline=partial(runtime.export_baseline, cfg=cfg),
+        solve_reform=partial(runtime.solve_reform, cfg=cfg),
+        out_root=args.out)
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/framework.py", line 97, in run
+    template, ctx.base_tpi, base_dir, baseline_arrays = export_baseline(country, out_root)
+                                                        ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/runtime.py", line 160, in export_baseline
+    _run(entry, args, "export-baseline", log_path=os.path.join(cache, "solve.log"))
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_link/runtime.py", line 70, in _run
+    raise RuntimeError(f"og_runner {label} failed (exit {rc}) in the {entry.package} "
+                       f"env [{entry.env_python}].{where}")
+RuntimeError: og_runner export-baseline failed (exit 1) in the ogphl env [/Users/marcelolafleur/Projects/OG-PHL/.venv/bin/python]. Solve log: /Users/marcelolafleur/Projects/ogclews-link-coupled/ogclews_runs_v18gold/_og_baseline_cache/og-phl-0.1.1-ogphl_multisector_default_parameters/solve.log
