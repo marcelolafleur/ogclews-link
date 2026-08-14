@@ -93,6 +93,25 @@ PY
 # 6. Link stack: couplable model, GBD data.
 (cd "$LINK" && .venv/bin/ogclews-link models list 2>/dev/null | grep -q "couplable=1") || fail "no couplable OG model registered"
 ls "$LINK"/IHME-GBD_2023_DATA/*.csv >/dev/null 2>&1 || fail "GBD export missing"
+# 7. HEALTH CHANNEL ACTIVE (Marcelo, 2026-08-14): the blessed export must resolve (a2dc02fe,
+#    the one every blessed health number used -- NOT main's a20a92ea; the resolver takes
+#    min(glob), so both being present would silently pick the wrong one), the PHL
+#    dose-response must exist, and health must be in the coupled composition. The run-time
+#    skip (demographics fallback -> _pop_aux None) is caught POST-SOLVE below.
+"$LINK"/.venv/bin/python - <<'PY' || fail "health channel activation"
+import json
+from ogclews_link.country import _resolve_gbd_csv
+p = _resolve_gbd_csv()
+assert p and "a2dc02fe" in p, f"GBD export is not the blessed a2dc02fe: {p}"
+d = json.load(open("ogclews_link/data/pm25_health.json", encoding="utf-8-sig"))
+m = (d["countries"].get("PHL") or d["countries"].get("Philippines"))["multiplier_M"]
+assert m and m > 0, "PHL dose-response multiplier missing"
+src = open("ogclews_link/experiments.py").read()
+body = src[src.index("def coupled("):]
+body = body[:body.index("\ndef ", 10)]
+assert "channels.health(ctx)" in body, "health not in the coupled composition"
+print(f"  health channel: GBD a2dc02fe resolves, PHL M={m}, in coupled composition  OK")
+PY
 
 echo; echo "=== GOLD RESULTS VERIFICATION (read-only) ==="
 # Objectives must match the blessed record byte-for-byte (gold-baseline-v18_0_1.md).
@@ -152,6 +171,23 @@ cd "$LINK"
     --clews-run    "$CASE_NAME/GOLD_PEP" \
     --workers "$W" \
     --out "$OUT" || exit 1
+
+# POST-SOLVE GATE: health must have actually APPLIED (the 2026-08-11 defect was a SILENT skip).
+# The manifest's channels list + provenance are the authoritative applied-channels record.
+python3 - "$OUT" <<'PY' || { echo "HEALTH DID NOT APPLY -- do not bless this run" >&2; exit 1; }
+import glob, json, sys
+hits = glob.glob(f"{sys.argv[1]}/coupled/**/*manifest*.json", recursive=True)
+assert hits, "no run manifest found under the coupled output"
+man = json.load(open(max(hits)))
+ids = [c.get("id") for c in man.get("channels", [])]
+assert "health" in ids, f"health missing from applied channels: {ids}"
+hp = [pr for pr in man.get("provenance", []) if pr.get("channel") == "health"]
+assert hp, "no health provenance record"
+assert not hp[0].get("skipped"), f"health SKIPPED: {hp[0].get('reason')}"
+tgt = hp[0].get("mortality_excess_deaths")
+assert tgt not in (None, 0), f"health applied but mortality_excess_deaths is empty: {hp[0]}"
+print(f"  post-solve gate: health APPLIED, mortality_excess_deaths {tgt}  OK")
+PY
 
 # Stamp the blessing caveats next to the manifest so no deliverable is built without them.
 cat > "$OUT/coupled/RUN_NOTES.md" <<'NOTES'
