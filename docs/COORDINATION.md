@@ -280,3 +280,21 @@ scripted download — fetch it in a browser).
   terminal, which never carried it. Session A: if the section-8 uptake sentence (or any
   text) picked up the removal clause, strike it -- the six adopted VALUES stand, the
   removal never happened. Marcelo queried it as a suspected error; the error was mine.
+- **2026-08-14 (ieem machine, coordinating session) — GOLD BASELINE BLESSED on v18.0.1.**
+  Upstream published v18.0.1 (nuclear-caps fix + land-water closure; archive checksum
+  c8b57aca, verified). `Philippines_v18_GOLD` = v18.0.1 + the three agreed corrections
+  (offshore 823 PJ/CF 0.45; coal moratorium 2028 envelope-inheriting; unpriced EACR).
+  Five-layer battery all optimal (preflighted: composition linter + HiGHS triage; solves
+  parallel): BASE 369,743,573.769 / +CP +19,062.9 / +RE +10,860.8 / +EV -1,999.5 /
+  PEP +25,202.4; interaction -2,721.8 (sub-additive). PEP_GOLD is the first solved full
+  v18 policy composition. Full record: docs/design/gold-baseline-v18_0_1.md (ieem branch).
+  CONSTRAINTS FOR ALL SESSIONS: (1) the conversion-carbon series (-104 Mt, identical all
+  runs) is EXCLUDED from every deliverable — v18.0.1's forest is net-growing and the
+  symmetric EACR credits growth at the stock rate; one-way redesign pending. (2) All
+  v18.0.0-era numbers are a different population (land-water closure shifted the base
+  objective +0.45 absolute) — never mix anchor families. (3) Matched battery for the
+  papers runs on GOLD once Marcelo rules the evidence base. Also: shipping calibration
+  defect reported upstream as CLEWs-PHL#3 (fleet priced 400x GDP; differences unaffected);
+  A+B upstream PR package in preparation (validation solves running), text to Marcelo
+  before anything is pushed.
+
