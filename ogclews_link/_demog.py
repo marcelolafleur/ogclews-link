@@ -98,7 +98,18 @@ def baseline_pop(p, un_country_code, download_path):
     # dimensions + country_id + the start_year-1 .. start_year+1 window, and let ogcore fetch + infer
     # the population and rates internally. Passing our own fetched rates/pop_dist here is what shifted
     # the baseline g_n away from the country model's; this restores the exact match.
+    # income_percentiles is REQUIRED, not optional. ogcore >=0.18 expands the aggregate demographics
+    # to age x income-group objects and asserts income_percentiles is not None BEFORE it checks
+    # whether any income-specific input was actually supplied -- so omitting it raises even in the
+    # pure-aggregate case its own docstring says is supported. The country model passes
+    # p.lambdas.flatten() (ogphl/calibrate.py get_pop_objs, both calls); this wrapper claimed to
+    # mirror that call but dropped this one argument, so every live fetch raised AssertionError and
+    # fell back to BUILT-IN demographics with _pop_aux=None -- which silently disables the health
+    # channel's mortality shock. The fallback logged as though the UN portal were unreachable, so the
+    # failure read as a network problem rather than a wrong call.
     pop_dict = demographics.get_pop_objs(
         p.E, p.S, p.T, 0, 99, country_id=un_country_code,
-        initial_data_year=s0, final_data_year=s1, GraphDiag=False, download_path=download_path)
+        initial_data_year=s0, final_data_year=s1,
+        income_percentiles=np.asarray(p.lambdas, dtype=float).flatten(),
+        GraphDiag=False, download_path=download_path)
     return (pop_dict, pop_dist, pre_pop_dist, fert_rates, mort_rates, infmort_rates, imm_rates, deaths)

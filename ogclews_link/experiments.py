@@ -134,6 +134,41 @@ def energy_cost_push(ctx, solve):
     solve(ctx)
 
 
+def energy_cost_push_real(ctx, solve):
+    """The inter-industry cost-push half at the country's REAL CLEWS electricity price.
+
+    `energy_cost_push` applies a controlled +20% so the transmission can be studied in
+    isolation; it deliberately ignores what CLEWS actually produced. That makes it
+    unusable as a decomposition component of `coupled`, which drives BOTH halves of the
+    energy_full composite from `_auto_price_ratio`. This is the missing piece: the same
+    cost-push channel, at the real ratio, so `coupled` can be attributed as
+    cost-push + recycled household wedge + investment + carbon + health.
+    """
+    channels.energy_cost_push(ctx, price_ratio=_auto_price_ratio(ctx),
+                              electricity_intensity=_electricity_intensity(ctx))
+    solve(ctx)
+
+
+def energy_price_tfp_real(ctx, solve):
+    """Option A at the REAL CLEWS price: the electricity industry's TFP (Z) route.
+
+    The stock `energy_price_tfp` uses a controlled +20% as a comparison stimulus. This
+    runs the same transmission on what CLEWS actually produced.
+    """
+    channels.energy_price_tfp(ctx, price_ratio=_auto_price_ratio(ctx))
+    solve(ctx)
+
+
+def energy_full_real(ctx, solve):
+    """The energy_full composite (cost-push + recycled wedge) at the REAL CLEWS price.
+
+    This is the energy half of `coupled` in isolation -- same transmission, same ratio,
+    without investment, carbon or health. The stock `energy_full` uses a controlled +20%.
+    """
+    _apply_energy_composite(ctx, _auto_price_ratio(ctx))
+    solve(ctx)
+
+
 def energy_full(ctx, solve):
     """Composite (A' cost-push + recycled final-good wedge): BOTH halves of the same +20% electricity
     price that the single mechanisms each miss. The PHL SAM splits electricity ~73% intermediate / 25%
@@ -224,6 +259,15 @@ def forward(ctx, solve):
     channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), og_activity="sector_output")
 
 
+def forward_real(ctx, solve):
+    """`forward` at the REAL CLEWS price: OG rate -> DiscountRate, OG activity -> demand
+    scaling. The stock `forward` uses a controlled +20% to exercise the emit plumbing."""
+    channels.energy_price(ctx, price_ratio=_auto_price_ratio(ctx))
+    solve(ctx)
+    channels.emit_discount_rate(ctx)
+    channels.emit_energy_demand(ctx, _activity(ctx, "Y_m"), og_activity="sector_output")
+
+
 def coupled(ctx, solve):
     """The full coupled soft-link: the electricity price from CLEWS ('auto' -- the cost-of-electricity
     index if the curated workbook is present, else the LEVELIZED cost reconstructed from raw MUIOGO
@@ -280,7 +324,9 @@ ACROSS_STEPS = [
 
 # --- registry of runnable experiments (names for the CLI / battery dispatch) -----
 
-_EXPERIMENTS = [energy_price, energy_price_tfp, energy_cost_push, energy_full, clean_incidence,
+_EXPERIMENTS = [energy_price, energy_price_tfp, energy_price_tfp_real,
+                energy_cost_push, energy_cost_push_real,
+                energy_full, energy_full_real, forward_real, clean_incidence,
                 investment, capital_intensity, energy_capex, carbon, health, discount_rate, demand,
                 forward, coupled]
 

@@ -1,0 +1,706 @@
+# PHL as the test case — findings and plan
+
+**Status:** live plan. Start here; `ieem-comparative-assessment.md` is the background.
+**Date:** 2026-08-03
+**Branch:** `research/env-accounting` (worktree `~/Projects/ogclews-link-ieem`)
+
+Read this before touching anything. It records a multi-repo recon whose main result was to
+**invalidate the first step of the earlier plan**. Repeating that recon costs an hour; reading
+this costs five minutes.
+
+## 1. Two corrections — read these first
+
+**(a) The land shadow price needs no new constraint.** The earlier note said to build an
+equality user-defined constraint to get it. Wrong. Land is an ordinary commodity, so its balance
+constraint already carries a shadow price, and MUIOGO already exports it.
+
+Verified in the shipped demo's solved output — `WebAPP/DataStorage/CLEWs Demo/res/REF/csv/
+EBb4_EnergyBalanceEachYear4_ICR.csv`:
+
+```
+RE1,LND,2020,0.0,0.05
+RE1,LND,2024,26.198336460057163,0.05
+```
+
+Commodities carrying a balance shadow price in that file: `AGRWAT COA CRPMAI CRPRIC DSL ELC001 ELC002
+GAS HYD LBLT LND LWAT PUBWAT PWRWAT SOL TRABIO WND WTREVT WTRGWT WTRPRC WTRRUN WTRSUR` —
+land, water and crops included.
+
+**(b) `BAL_ENV_LAND` is a dead end.** It is an accounting identity (+1 `MINLNDTOT` activity,
+−1 `ENV_LAND` activity, RHS 0), not a scarcity constraint. Its shadow price is ~0 by construction.
+CLEWs-PHL's own validator *requires* it to be zero. Relaxing it relaxes no physical limit.
+Do not build anything on it.
+
+## 2. State of the PHL stack, as verified
+
+> **Superseded on 2026-08-03 (stages 0–3 done).** Three claims below no longer hold; the
+> corrections are in §8. In short: a solved PHL case **does** now exist, in the headless
+> `muiogoai` world; the land shadow price **has** been observed and is the placeholder's token cost;
+> and the land map is built. Read §8 with this section.
+
+**~~No solved PHL case exists on this machine.~~** *(superseded — see §8.)* All three portable
+archives ship inputs only, and the case installed under `~/Projects/MUIOGO` has no `res/`.
+The historical solve happened on a different machine.
+
+**Land is not scarce in the PHL model.** `MINLNDTOT` carries
+`TotalTechnologyAnnualActivityUpperLimit` and `TotalAnnualMaxCapacity` of 999999 for every year,
+zero capital/fixed cost, and a token variable cost of 0.0001. So the land shadow price will come out at
+or near zero — an artefact of the placeholder bound, not a statement about Philippine land.
+
+**The constraint that actually binds is not exported.** Scarcity lives on the eight
+`LNDAGRPHLC01–08` cluster activity upper limits, which bind exactly (they sum to 295.8131 against
+a solved terminal activity of 295.8132). Those are `TotalTechnologyAnnualActivityUpperLimit`
+bounds — the `AAC*` constraint family — whose shadow prices are **not** among the three families in
+`WebAPP/DataStorage/Duals.json`. This is the real, well-scoped MUIOGO gap.
+
+**PHL land-cover state lives in `ENV_LAND`'s 8 modes**, not in separate technologies as in the
+demo. ~~Our reader discards the mode column~~ — fixed in stage 0; `LandMap.mode_classes` now
+carries the mode-level map, and §8 records the verified assignment.
+
+**The land block is explicitly uncalibrated.** `documentation/KNOWN_LIMITATIONS.md` in CLEWs-PHL
+states it "has not been calibrated to observed historical land allocation, yields, irrigation
+withdrawals or water balances"; vegetables use a GAEZ tomato proxy. Any PHL land number from this
+model is a mechanism check, never a result.
+
+**`Base_v12` and `PEP_v12` land accounts are bit-identical** in every row and year. The two
+available runs give no land-side contrast; any land variation must come from a new scenario.
+
+**No land-carbon accounting exists.** Zero land technologies carry an `EmissionActivityRatio`;
+the only emissions are CO2e and PM2_5 on 33 energy/transport/industry technologies. A land-use
+carbon term cannot be computed from this model as it stands.
+
+**Naming — the demo mapping will silently match nothing on PHL.** PHL uses `MINLNDTOT`,
+`PHL_LND`, and `LND*TOT`/`L*TOT` codes. The demo's `RSCLND`/`LNDFOR`/`LNDBLT`/`LNDWAT` do not
+appear. ~~Building the real map is a modelling decision, not transcription: 32 technologies
+consume `PHL_LND` … and 24 crop options must collapse into one Cropland label.~~ *(Partly
+superseded — see §8.)* Going through `ENV_LAND`'s modes turned out to make this much easier
+than feared: the model has **already** collapsed the 24 crop options into a single `CROPLAND`
+mode, so no crop-aggregation judgment was needed. The mode→class assignment is transcription
+after all — readable straight off the solved run's generated input.
+
+**Size.** The installed diagnostic case is ~500 MB unpacked (`RYTM.json` 115 MB,
+`RYTCM.json` 95 MB). `clews_driver.copy_case` does a full `copytree`, so each experiment copy
+costs that. Not fatal, but not the ~MB the demo trains you to expect.
+
+## 3. Bugs in our own code, found by the recon
+
+All four are in `ogclews_link/env_accounts.py` unless noted. None are fixed yet.
+
+1. **An empty land map fails silently** (`env_accounts.py:150`). `PHL_V12_LAND_MAP` has an empty
+   `classes` dict, so pointing the probe at PHL returns `({}, {})` and prints "no land output" —
+   which reads as *the case has no land* rather than *your map is wrong*. Highest-risk item,
+   because it defeats the closure check that was supposed to catch exactly this.
+2. **`emissions_damage` sums all emission species.** On PHL that prices PM2_5 at the social cost
+   of carbon. Needs a species filter. The existing test does not catch it because its fixture is
+   CO2-only.
+3. **Mode is discarded** in `land_use_by_year`. Harmless on the single-mode demo; on PHL the
+   cover-class vector lives in `ENV_LAND`'s 8 modes, so a mode-blind read is wrong.
+4. **Stock passed where eq. 3 wants a flow.** The probe feeds forest *area* into
+   `natural_capital_depletion`, which wants *quantity depleted*. Currently harmless because rents
+   are empty; the moment rents are supplied it silently produces a wrong number.
+
+Also, in existing code: **`signals.commodity_shadow_price` defaults to `drop_zero=True`**, which
+treats a zero shadow price as missing. For land that is economically wrong — a zero rent is a true zero
+(land was abundant) and belongs in the present-value sum. On the demo it would drop 15 of 16 years.
+
+## 4. The OG side is independent — and not ready
+
+The land price, biodiversity index and carbon-damage term all come from CLEWS alone. **Nothing on
+the OG side blocks stages 0–5 below.** The macro model is needed only for the full genuine-savings
+figure, which is late.
+
+Do not build on either PHL calibration yet:
+
+- **OG-PHL PR #85** (new calibration) is a **draft**, and needs **OG-Core #1189**, which is open,
+  unmerged, and in no release (latest 0.18.1 predates it). Its headline parameter moved
+  0.823 → 2.677 → 2.783 within its own commit series.
+- **OG-PHL PR #63** (multi-industry M=8) is **CONFLICTING / CHANGES_REQUESTED** against main.
+- **The two are not composable** today; both branch off main independently and neither contains
+  the other.
+- **No OG-Core PR or issue self-identifies as a Philippine blocker.** If a plan says "we are
+  waiting on PR X", that PR does not exist as such.
+
+Confirmed on the OG-Core side: production is a three-input CES over K, K_g, L (`firm.py:22`) —
+no land, no natural resource, no intermediates. `p.io_matrix` is I×M (a consumption bridge), not
+an M×M use matrix. Two private factors only.
+
+## 5. The plan
+
+**Stage 0 — fix the four bugs in §3. DONE** (2026-08-03, commit `7049079`). The empty map now
+raises; `emissions_damage` requires a species; mode-level cover reading added; `depletion_flow`
+added. 13 new tests.
+
+**Stage 1 — prove the whole chain on the demo. DONE** (same commit). Non-zero depletion on all
+four demo scenarios; REF = 5.7631, hand-checked against 21.034 × 0.3082 / 1.04³.
+
+**Stage 2 — solve PHL once. DONE — it was already solved.** No solve was launched: the headless
+`muiogoai` world already carries two CBC-Optimal runs of
+`Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC`, solved 2026-08-03 at install time and clean under
+`muiogo verify`. See §8. The stage's open question — does it solve in reasonable time — is
+answered: about 2.5 minutes from input generation to results.
+
+**Stage 3 — build the PHL land map. DONE** (see §8). Verified against the solve: closes on
+`MINLNDTOT` to 0.00e+00 at both endpoints and ≤1e-4 across all 34 years.
+
+**Stage 4 — decide whether PHL gets a binding land endowment.** *Marcelo's call, not the
+assistant's.* **Read §9 before deciding: the premise of this stage is wrong.** PHL already has a
+binding, realistically-sized land endowment — eight cluster limits that bind exactly and sum to
+the true national area. Adding a national land total would duplicate their sum, never bind, and
+leave its shadow price at ~0. The actual obstacle is a `-10.0` variable cost on the land clusters that
+dominates their shadow prices. `MINLNDTOT`'s shadow price really is a meaningless 1.0e-4 (§8), but that is
+because `MINLNDTOT` is not where land scarcity lives.
+
+**Stage 5 — export the binding shadow prices.** Get the `AAC*` activity-limit shadow prices into `Duals.json`.
+Genuine MUIOGO work, useful well beyond this project. Note `Duals.json` is one of only four
+tracked files under `WebAPP/DataStorage/`, so this one *does* touch MUIOGO's repo.
+**No longer a blocker for us:** the `AAC2` shadow prices are already written to `res/<run>/results.txt`
+by every solve, so we can read them today without touching MUIOGO at all (§9). Stage 5 is now a
+convenience — worth doing for MUIOGO's other users, not needed for this project.
+
+## 6. Ground rules that still hold
+
+- **MUIOGO stays untouched** through stages 0–4. Case data is gitignored
+  (`.gitignore:51`, `WebAPP/DataStorage/*` minus four config files), and `clews_driver.copy_case`
+  sandboxes by copying. Only stage 5 touches MUIOGO's repo.
+- **Nothing is pushed.** Two commits sit on this branch; all other repos are clean.
+- **`AGENTS.md` in this repo is load-bearing** — verify branch + HEAD + what the interpreter
+  actually imports before any solve. It was written after a battery ran stale code via import
+  shadowing.
+
+## 7. Repos in play
+
+| Repo | Role |
+|---|---|
+| `~/Projects/ogclews-link-ieem` | this worktree — where the work happens |
+| `~/Projects/ogclews-link` | main checkout, branch `main` |
+| `~/Projects/MUIOGO` | the GUI/solver; read-only until stage 5. **Holds the solved demo case.** |
+| `~/Projects/MUIOGO-AI` | headless driver source |
+| `~/muiogoai` | **the installed headless world — holds the solved PHL case.** Reach it only through the `muiogo-ai` launcher |
+| `~/Projects/CLEWs-PHL` | PHL model package, v12 lineage, archives only (no solve) |
+| `~/Projects/OG-PHL` | macro side; not needed before stage 5 |
+| `~/Projects/OG-Core` | local checkout on `feature/structure-plots`, 15 ahead of master |
+
+## 8. Stage 2–3 findings (2026-08-03)
+
+### The solved PHL case, and where it lives
+
+The solve exists in the **installed `muiogoai` world**, which is a different place from the
+`~/Projects/MUIOGO` checkout §2 was written about — that checkout still has no PHL `res/`, so
+§2 was not wrong, just looking in the only place that existed at the time.
+
+```
+world:  muiogoai (installed)   workspace ~/muiogoai   MUIOGO detached at 928a13bb
+case:   Philippines_v12_ENV_LAND_WATER_DIAGNOSTIC   (2.3 GB unpacked)
+runs:   BASE_CHK, Base_v12 — both CBC "Optimal", objective 375930821.34, 24 csv files
+verify: `muiogo-ai verify --case … --run Base_v12` → "On-disk results still match the record."
+```
+
+Only the `BASE` scenario is active; `PEP_v12` is defined but unsolved, so there is still no
+land-side scenario contrast (§2's point stands).
+
+Reach the case with `muiogo-ai case-path --case '<name>'`, never by composing a path — a
+same-named case in the other world is exactly how the wrong data gets read.
+
+**Trap for the next reader.** `RUN.json`'s `results_sha256` digests the **`csv/` directory**
+(each filename plus each file's hash), *not* `results.txt`. Hashing `results.txt` and comparing
+looks like an integrity failure when nothing is wrong. Use `muiogo-ai verify`.
+
+### The verified mode → cover-class map
+
+Read off `res/Base_v12/data.txt`, where `param InputActivityRatio` carries one slice per
+commodity with the mode as its row index, all ratios 1:
+
+| mode | commodity | label | 2020 | 2053 |
+|---:|---|---|---:|---:|
+| 1 | `ENV_LND_FOREST` | Forest | 179.7818 | 136.5595 |
+| 2 | `ENV_LND_GRASSLAND` | Grassland | 0 | 0 |
+| 3 | `ENV_LND_OTHER` | Other | 0 | 0 |
+| 4 | `ENV_LND_BARREN` | Barren | 0 | 0 |
+| 5 | `ENV_LND_BUILT` | Built-up | 0.7698 | 1.0458 |
+| 6 | `ENV_LND_WATER` | Water bodies | 1.5984 | 1.5984 |
+| 7 | `ENV_LND_CROPLAND` | Cropland | 113.6631 | 156.6094 |
+| 8 | `PHL_LND` | Unallocated | 0 | 0 |
+
+Mode 8 consumes the land resource *directly* rather than a cover tag, so it is untagged land and
+belongs in the closure sum: `MINLNDTOT = modes 1–7 + mode 8`. It is identically zero here (all
+land is tagged) but is mapped explicitly so that if it ever goes positive it surfaces as area
+rather than breaking closure for no visible reason.
+
+Closure: 0.00e+00 at both endpoints, ≤1e-4 over all 34 years. The whole horizon is one story —
+forest → cropland, −43.22 against +42.95 — with built-up taking the small remainder.
+
+### Why stage 4 is now the binding decision
+
+| | demo (`REF`) | PHL (`Base_v12`) |
+|---|---:|---:|
+| land shadow price, max undiscounted | 2.10e+01 | **1.00e-04** |
+| years priced | 1 of 16 | 6 of 34 |
+| eq. 3 depletion PV | 5.7631 | **0.0008** |
+
+The PHL figure is not a small rent, it is *not a rent*: 1.0e-4 is precisely `MINLNDTOT`'s token
+variable cost, and it sits an order of magnitude below CBC's 1e-3 shadow-price reporting resolution
+(`signals._MARGINAL_ZERO_ATOL`). All seven `ENV_LND_*` cover-tag commodities have **identically
+zero** shadow prices across all 34 years — they are pure accounting tags with no scarcity content, so
+there is no better commodity to read instead.
+
+The clincher is degeneracy: `BASE_CHK` and `Base_v12` are the same model at the same optimum
+(objectives agree to 8 significant figures) with identical land in every year, yet they report
+the token shadow price in **different years** — 2020/21/22/24/25/27/31/33 versus 2021/22/23/28/31/33.
+A shadow price that moves between alternate optima while nothing physical changes is noise. The probe now
+prints a `[!]` warning whenever every nonzero rent is ≤1e-3, so this cannot be mistaken for a
+result later.
+
+### Calibration warning, restated with numbers
+
+Structurally right, numerically not credible. Base_v12 puts **61%** of national area under forest
+against roughly 24% observed, **770 km²** under built-up (an order of magnitude low), and leaves
+Grassland, Barren and Other at exactly zero for all 34 years. Total land 295,813 km² against
+~298,170 km² actual is the one number that looks right. Mechanism checks only — never a
+Philippine result. The illustrative BII moves 0.7945 → 0.7358 (−7.4%); the *direction* follows
+from forest→cropland conversion and is believable, the level is not.
+
+## 9. The land price is already on disk — and it is mostly a parameter (2026-08-03)
+
+This section **reframes stage 4** and demotes stage 5. Read it before deciding either.
+
+### `results.txt` carries every constraint shadow price, `AAC2` included
+
+`res/<run>/results.txt` is CBC's full solution dump — 1.69M lines for PHL — and it lists
+constraint rows with their shadow prices, not just variables. Column 4 is the shadow price.
+
+Verified against MUIOGO's own export rather than assumed: for
+`EBb4_EnergyBalanceEachYear4_ICR`, column 4 reproduces the shipped
+`csv/EBb4_…csv` values across **848** (commodity, year) pairs above the 1e-3 shadow price resolution,
+to a worst relative error of 3.0e-4 — which is the 8-significant-figure print precision, not a
+discrepancy. The two differ only by MUIOGO's convention `csv = raw × (1+DR)^(y − sy + 0.5)`.
+
+So the `AAC*` family that §2 correctly identified as unexported is **not unavailable**. It is
+sitting in a file every solve already writes. Stage 5 would make it convenient for MUIOGO's
+other users; it is not on our critical path.
+
+### The eight clusters bind exactly and partition national land
+
+`TotalTechnologyAnnualActivityUpperLimit` on `LNDAGRPHLC01–08` is flat across all 34 years, and
+solved activity equals the limit in every one. Their 2020 areas sum to **295.8131** — identical
+to `MINLNDTOT` and to `ENV_LAND`'s all-mode total, gap `+0.0000`. These eight limits *are* the
+Philippine land endowment, at a realistic 295,813 km² against ~298,170 km² observed.
+
+Every cluster carries a nonzero `AAC2` shadow price in all 34 years, of order 10 — against `MINLNDTOT`'s
+1.0e-4. That is why stage 4's premise fails: **land is already scarce in this model.** A new
+national land constraint would equal the sum of the cluster limits, so it would never bind and
+its shadow price would stay at zero.
+
+### …but ~97% of that shadow price is a `-10.0` variable cost
+
+All eight clusters carry `VariableCost = -10.0` in mode 27 — a *negative* cost, i.e. a reward of
+10 per unit of activity. Mode 27 stays available whether or not it is used, so it puts an
+**opportunity-cost floor of 10.0 under every cluster's land shadow price**. Netting it out:
+
+| cluster | area | shadow price (PV) | real shadow price | − floor | genuine scarcity |
+|---|---:|---:|---:|---:|---:|
+| `LNDAGRPHLC01` | 9.1115 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC02` | 23.6817 | −10.1012 | 10.3507 | 10.0 | **0.3507** |
+| `LNDAGRPHLC03` | 103.2149 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC04` | 27.3872 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC05` | 27.1799 | −10.2535 | 10.5068 | 10.0 | **0.5068** |
+| `LNDAGRPHLC06` | 18.7069 | −10.0370 | 10.2849 | 10.0 | **0.2849** |
+| `LNDAGRPHLC07` | 18.3850 | −9.7586 | 9.9996 | 10.0 | **−0.0004** |
+| `LNDAGRPHLC08` | 68.1460 | −9.7585 | 9.9995 | 10.0 | **−0.0005** |
+
+Five of eight sit at 10.0000 to four decimals — they bind on the reward alone, with no scarcity
+content. Only clusters 02, 05 and 06 carry a genuine premium, 0.28–0.51, over 69.57 of 295.81
+(**23.5%** of national land). Coherence check: the clusters that price are a minority, which is
+consistent with cropland expanding into abundant forest rather than against a hard limit.
+
+**Taking the `AAC2` shadow price at face value overstates the marginal *scarcity* value of land by
+20× to 35×** — but the floor is not noise; §10 shows it is the model's entire valuation of forest.
+Shadow prices are negative because these are upper limits in a minimization; use the absolute value.
+
+### What this means for the decision
+
+1. **Do not add a national land endowment.** It would be redundant against the cluster limits and
+   would price at zero. Stage 4 as written would not produce a land price.
+2. **Interrogate the `-10.0` first.** ✅ **Answered — see §10.** Not a numerical device: it is the
+   model's *only* representation of the economic value of standing forest, and it is a hardcoded,
+   undocumented constant.
+3. **A defensible scarcity premium exists today** for 23.5% of national land, over and above the
+   forest valuation — small, positive, and confined to three clusters.
+4. **Do not build the extractor yet.** Any `results.txt` shadow-price reader has to commit to a
+   treatment of the forest floor, and after §10 that is a disclosure decision, not a coding one.
+
+Unverified and flagged: the cluster→cover-class correspondence is not established, so these
+per-cluster rents cannot yet be attributed to Forest or Cropland — which eq. 3 needs. Cluster 02
+runs in modes 3/24/30 and cluster 03 in 8/11/26/27/30, so the mode structure is richer than the
+single-mode floor story and deserves its own read before the rents are used per class.
+
+## 10. What the `-10.0` is for (2026-08-03)
+
+**Short answer: it is the model's only representation of the economic value of standing forest,
+and it is a hardcoded constant with no source, no units and no documentation.**
+
+### Where it comes from
+
+`CLEWs-PHL/Philippines_v12_CLEWs_build/overrides/workflow/scripts/clewsy.py:449-467`, in the
+model-*generation* step — so it is baked in before MUIOGO ever sees the case:
+
+```python
+# Negative variable cost for forest:
+...
+value = -10
+mode = ModeList.index('Forest land')+1
+```
+
+That comment is the entire rationale on record. It confirms mode 27 = `Forest land`, and applies
+`-10` to every land cluster, every year. Nothing in `documentation/`, `data_sources/` or
+`KNOWN_LIMITATIONS.md` mentions it — I searched. It is not in the assumption register, so it has
+never been through the source-traceability discipline the rest of the build follows.
+
+### Why the model needs it
+
+`clewsy.py:410-411` is the key. When writing mode-level lower limits it does:
+
+```python
+if col in ['Cropland', 'Forest land', 'Other agricultural land']:
+    continue
+```
+
+So Built-up, Water, Grassland and Barren are **pinned** by lower limits — Built-up growing with
+population — while Cropland, Forest and Other are left **free** for the optimiser. That is exactly
+the behaviour observed: Water/Grassland/Barren perfectly flat over 34 years, Built-up drifting up
++0.28, and all the movement in forest (−43.22) against cropland (+42.95).
+
+Forest mode consumes `LFORTOT` (from `LNDFORTOT`) plus precipitation and outputs only water flows —
+evapotranspiration, surface runoff, groundwater recharge. **It produces no crop commodity**, so it
+satisfies no demand and, to a cost-minimiser, has no value whatsoever. Without the `-10` the
+optimiser would convert the entire free margin to cropland at zero cost. The `-10` is the only
+brake on deforestation in the model.
+
+### How thin the land economics actually is
+
+In the whole PHL model, the `-10` on those 8 clusters is the **only** variable cost on any land,
+crop or agricultural technology — 8 rows, and nothing else. **Crop production is costless in the
+objective.** So the land-allocation economics reduces to: *forest pays 10, crops are free, and
+cropland expands only as far as crop demand forces it.*
+
+Contrast the shipped demo, which has a genuine trade-off — crops at 42/53/57/77 against forest at
+`-29.4`, and forest is likewise the sole negative cost in that model. So the negative-cost-for-
+forest idea is a **CLEWs convention, not a PHL invention**; what PHL lost is the crop cost side.
+
+### Units, inferred
+
+Not documented. Inferring from `PHL_POW_PP_COAL` capital cost = 2200, which is USD/kW at any
+plausible reading, costs are MUSD and capacity GW. Land activity is `10^3 km2` (stated in
+`ENVIRONMENTAL_ACCOUNTING.md:237`). So:
+
+> `-10` MUSD per `10^3 km2` per year = **−100 USD/ha/yr** for holding land as forest.
+> (Demo, for comparison: `-29.4` → −294 USD/ha/yr.)
+
+$100/ha/yr is not an absurd figure for tropical-forest ecosystem services, which is the trap — it
+is plausible enough to pass unchallenged, and it was never derived.
+
+### What it means for our accounts
+
+**The natural-capital depletion term is a linear function of this constant.** Double it and forest
+loss is valued twice as highly *and* less of it happens. IEEM's whole premise for eq. 3 is that the
+unit rent is endogenous to the CGE; here it is a magic number in a build script. Consequences:
+
+- **Land cover and the biodiversity index shape are unaffected** — they are physical areas, and
+  they still close exactly. Those two deliverables stand.
+- **Natural-capital depletion cannot be published from this model without disclosing that its unit
+  rent is an undocumented assumed constant.** That is a disclosure obligation, not a bug.
+- **The right economic reading of the land shadow price** is
+  `max(forest value, marginal agricultural value)`. Netting out the 10 gives the excess of
+  agriculture over forest, which is a real number (0.28–0.51 on 3 clusters); the 10 itself is a
+  policy/valuation parameter, not a scarcity signal.
+- **Concept mismatch to flag:** `-10` is an annual value per unit *area*, whereas ANS-style forest
+  depletion prices a *stock* (timber resource rent per unit harvested). Multiplying area lost by
+  10 gives the annual rental value forgone, not the capitalised stock loss. Capitalising would mean
+  `10/r`. Which of the two eq. 3 wants is a definitional choice worth settling explicitly.
+
+### The question this raises for stage 4
+
+Stage 4 was "should PHL get a binding land endowment?" It already has one. The real question is
+narrower and more answerable: **should the forest valuation be derived rather than assumed?** If
+yes, that is a calibration task with a literature (forest ecosystem-service valuation for the
+Philippines) and it would make the natural-capital line defensible. If no, everything downstream
+carries an undocumented `-10` and must say so.
+
+## 11. Forest carbon — sourced numbers (2026-08-03)
+
+Facts only; the design decision is §12. Every figure here is traceable.
+
+### Keep three concepts apart — conflating them is the main failure mode
+
+| | what it is | magnitude |
+|---|---|---|
+| **(a)** mature/primary forest annual uptake | near zero, and *not* significantly different from zero | 1.46 tCO2/ha/yr |
+| **(b)** secondary/regrowth annual uptake | the number people quote | 5.6–7.1 tCO2/ha/yr |
+| **(c)** one-off stock released on conversion | what deforestation actually costs | 292 tCO2/ha (PHL) |
+
+IPCC 2019 Refinement Vol 4 Ch 4 **Table 4.9 (updated)** splits by forest condition — primary /
+secondary >20 yr / secondary ≤20 yr — which the 2006 Guidelines did not. Use the 2019 Refinement.
+Primary tropical rainforest Asia is 0.7 t dm/ha/yr with **SD 2.2, three times the mean**; the
+tropical *mountain* value is −0.7, a net source. So for (a), zero is the conservative choice.
+
+⚠ The 2006 "Asia (insular) ≤20 yr" value of 13 t dm/ha/yr → 30.7 tCO2/ha/yr is **four times** the
+2019 figure. The 2019 revision dropped the continental/insular split and cut Asian rates sharply.
+30.7 is an outlier; do not use it.
+
+### The best source for PHL is the Philippines' own submission
+
+**Philippine Forest Reference Level, May 2023** — Forest Management Bureau / DENR, submitted to
+UNFCCC, technically assessed as FCCC/TAR/2023/PHL.
+`https://redd.unfccc.int/media/philippine_frl_document_final_29may2023_modified_version.pdf`
+
+- **(c) gross deforestation emission factor: 169.5 t dm/ha = 292 tCO2/ha** (AGB+BGB, §5.2.1).
+  Net of post-conversion regrowth ≈ **247 tCO2/ha**.
+- **(b) reforestation removal factor: 6.81 tCO2e/ha/yr** (Table 16, 2000–2018 mean).
+- Per forest type (Table 3): 224 / 234 / 309 / 421 tCO2/ha.
+- Its growth increments and root-shoot ratios come from 2019RF Tables 4.9/4.4 and reconcile exactly.
+
+**Why not IPCC defaults:** Philippine measured AGB is **102–202 t dm/ha** against the Tier 1
+primary-tropical-rainforest-Asia default of **413.1**. Philippine forest is degraded and secondary;
+defaults overstate its carbon by **2–4×**.
+
+Reference points for (c), and what each implies for the 4.32 Mha the model converts:
+
+| factor | tCO2/ha | release | share of model's cumulative energy CO2e | @ $30/tCO2 |
+|---|---:|---:|---:|---:|
+| **PHL FRL gross (recommended)** | **292** | **1,262 Mt** | **20%** | **$37.9 bn** |
+| PHL FRL net of regrowth | 247 | 1,068 Mt | 17% | $32.0 bn |
+| FAO FRA 2025 PHL living biomass | 519 | 2,243 Mt | 35% | $67.3 bn |
+| CLEWs Demo `EmissionToActivityChangeRatio` | 540 | 2,334 Mt | 37% | $70.0 bn |
+| IPCC 2019RF primary trop. rainforest Asia | 863 | 3,730 Mt | 59% | $111.9 bn |
+
+### The trap: never apply a regrowth factor to standing forest
+
+| factor applied to all 17.98 Mha of 2020 forest | implied sink | vs 2020 energy emissions (97.3 Mt) |
+|---|---:|---:|
+| FRL **reforestation** factor 6.81 | 122 Mt/yr | **126% — erases the energy sector** |
+| IPCC secondary >20 yr 5.64 | 101 Mt/yr | 104% |
+| IPCC **primary** 1.46 | 26 Mt/yr | 27% |
+
+The wild result on the carbon side comes from a data-reading error, not from model structure.
+
+### IEEM is a CONTRAST, not a precedent — correcting an earlier claim in this document
+
+I read IDB-WP-01193 (Banerjee et al. 2020, *The value of biodiversity in economic decision making*,
+DOI 10.18235/0002945, open at EconStor). It does **not** put carbon on land:
+
+- Forest depletion (eq. 3) is a **timber resource rent** — deforestation volume × timber output
+  price, unit rent endogenous to the CGE, 4% discount over 21 years. Stock and deforestation are in
+  **hectares**; the unit value is per **m³** of forest products; a parameter `ifora` bridges them.
+- Its **$30/tCO2 damage applies to fuel combustion only.** There is no land-use-change emission
+  term anywhere in IEEM.
+- Carbon storage appears once more as an InVEST biophysical indicator, reported as a percent change
+  and **never monetised** into genuine savings.
+- **The $30/tCO2 has no citation in the paper.** Traced: the 2017 precursor (CoPS G-273, Guatemala)
+  used **$20/tCO2e citing the World Bank's adjusted-net-savings damage value (World Bank 2011)**.
+  That the $30 descends from the same lineage is inferred, not stated.
+
+So putting carbon on land is **our extension, beyond IEEM** — worth saying plainly in any write-up.
+It also means a forest-depletion term based on timber rent and a land-carbon term in EmiVal are
+*different accounts* and can coexist without double counting. Valuing forest by carbon **and** by
+an assumed land rent would double count.
+
+### Carbon prices, for the record
+
+- **No carbon price exists in the Philippines.** The Low Carbon Economy Investment Act reached
+  Senate committee approval 10 Dec 2025 and was still pending full Senate at last verifiable check.
+  The TRAIN coal excise (PHP 150/MT of coal since 2020) is an indirect fuel excise, not a carbon price.
+- **No carbon-pricing instrument anywhere covers LULUCF** — World Bank *State and Trends 2025*
+  reports LULUCF and non-energy agriculture coverage at **0%**.
+- Benchmarks: IEEM/World-Bank-ANS **$30**; High-Level Commission corridor **$40–80 (2020) rising to
+  $50–100 (2030)**, 2017 USD; Singapore **S$45/tCO2e** in force 2026 — nearest regional in-force
+  price; EPA 2023 SC-GHG **$190** at 2% (2020 USD) but **superseded in US practice** by EO 14154 and
+  OMB M-25-27, which withdrew the federal uniform estimate.
+
+### Solver facts specific to MUIOGO
+
+- MUIOGO's `model.v.5.4.txt` does **not** declare `AnnualTechnologyEmission`,
+  `AnnualTechnologyEmissionByMode` or `TechnologyEmissionsPenalty` as `>=0` (lines 113, 114, 141),
+  unlike upstream OSeMOSYS which clamps all seven at `>=0`. So **negative emission ratios work
+  here** where upstream would silently pin the technology to zero activity.
+- That is also a hazard: a negative ratio plus a positive `EmissionsPenalty` yields a **negative
+  cost — a direct subsidy**. This is OSeMOSYS issue #99, "negative emissions farming." The
+  developers' own recommendation is to use **emission limits** (E8/E9), whose positive and negative
+  terms net out ETS-style, rather than penalties.
+- `EmissionToActivityChangeRatio` (line 79, constraints E10/E11) makes emissions proportional to the
+  **year-on-year change** in activity — the natural home for (c). Sign verified from E10: forest
+  shrinking (negative Δ) × negative ratio = positive release; forest growing = credit. Correct both
+  ways, but **area-symmetric**, so it implies instant carbon recovery on regrowth.
+
+### Direction of change
+
+Verified in both solves: forest **never increases**. PHL 30 years decreasing, 3 flat, 0 increasing;
+demo 15 decreasing, 0 increasing. Structural — forest is the residual of monotonically growing crop
+demand.
+
+Reality differs. The PHL FRL books **671,713 ha reforested against 1,197,127 ha deforested**
+(2000–2018) — reforestation is **56% of deforestation by area**. The model's one-directionality is
+an artefact of its demand-driven residual structure, not a fact about the Philippines.
+
+National flux estimates **disagree on sign** and must not be mixed: FRL (2000–2018) **+13.5 Mt
+CO2e/yr, a net source**, AGB+BGB only, degradation excluded; Philippine BTR1 FOLU 2020 **−25.9 Mt,
+a sink**; FAOSTAT forest land 2020 **−20.7 Mt, a sink**.
+
+### Precedent in models
+
+- **Published CLEWs models have essentially no land carbon.** The 2025 state-of-the-art review
+  (*Environ. Res.: Climate* 4(3):032001) states land "is the least covered aspect of the CLEWs
+  system". Ramos et al. 2021 and GeoCLEWs: area, yield and water only.
+- **EU-CLEWS is the one exception** (EGU 2026 abstract EGU26-7281), by the CLEWs core team, with
+  "forest-based carbon sequestration" — but the mechanism is not publicly documented. Worth
+  contacting: `c.taliotis@cyi.ac.cy`.
+- **TIMES** has no LULUCF in the standard framework (TIAM-UCL: "No land-use representation … except
+  for land-use emissions from the agriculture sector"); ETSAP only began AFOLU work in 2025.
+- **MESSAGEix** handles land through a separate `land_emission × LAND` term where `LAND` is a share
+  across pathways precomputed by GLOBIOM/G4M — an emulator, not a technology. The LP cannot scale
+  land sequestration freely.
+- **GCAM** has real structural land carbon, including a **30–100 year maturation lag** for forest
+  vegetation uptake (Calvin et al. 2019, *GMD* 12:677–698) — the memory a constant coefficient
+  cannot carry.
+- **No published paper** documents a negative `EmissionActivityRatio` on a forest technology.
+
+### Fiji
+
+**No IPCC Tier 1 default exists for Pacific/Oceania *tropical* forest** — every Oceania row in the
+2019 Refinement is temperate Oceanic (NZ / temperate Australia). Fiji must borrow the Tropical
+rainforest Asia rows, which is a real limitation to disclose. Usable: FAO FRA 2025 living-biomass
+stock **126.59 tC/ha = 464 tCO2/ha** (2020); FAOSTAT net forest-land flux **−1.785 tCO2/ha/yr**
+country-average. Fiji FCPF ER-PD per-hectare figures could not be retrieved (site returns HTTP 403).
+
+⚠ Do not splice FRA 2020 and FRA 2025 into one series: PHL revised the same year 2020 from 127.92 to
+141.57 tC/ha (+10.7%) and reversed its growing-stock trend; Fiji changed its carbon fraction from
+0.47 to 0.49.
+
+## 12. Calibration doctrine for the forest fix (2026-08-11)
+
+Marcelo's ruling on the `-10.0` options, and the reason — record it so no future session
+re-proposes the rejected route.
+
+**Option B (pin forest with lower limits calibrated to the FRL trajectory) is REJECTED.** Our
+calibration work has drawn external criticism for *forcing* values instead of *fitting* them —
+constraining the model to reproduce an observed value rather than letting it derive the value
+endogenously. A forest lower-limit path is exactly that pattern. Do not propose it upstream.
+
+The line to hold: **endowments and physics may be constrained** (the eight cluster land caps are
+a fact about how much land exists); **observed outcomes may not** (forest area is an outcome of
+economics and policy — pinning it imports the answer).
+
+**Option A (price the conversion) is the doctrine-consistent fix**: forest→cropland conversion
+releases 292 tCO2/ha (PHL FRL, UNFCCC-defended), carried by the model's existing emission
+machinery. The optimiser stays free; the observed deforestation rate becomes the *validation
+target* — if the endogenous rate lands near it, the calibration fits; if not, that reveals
+missing non-carbon forest values, which is information, not a licence to constrain.
+
+Note the `-10.0` itself is the right *kind* of mechanism (a price the optimiser can respond to,
+not a constraint) — its defect is only that the number is unsourced. Any upstream write-up should
+say so; the original author's instinct was correct.
+
+Neither option goes upstream yet (Marcelo, 2026-08-11) — this section governs *how* the
+suggestion is framed when it does.
+
+## 13. Option A tested on v12_CALIBRATED: mechanism proven, symmetric design falsified (2026-08-11)
+
+Three single-edit copies of `Philippines_v12_CALIBRATED`, solved against its `Base_v12` as
+control. Script: `experiments/forest_carbon_patch.py` (branch `experiment/forest-conversion-carbon`).
+
+**Test 1 — accounting, unpriced (FC_ACCT): PASS, exactly.** Objective identical to the cent,
+forest identical to 6 decimals, and conversion CO2e of **1,434.1 Mt** cumulative, matching the
+hand prediction 29.2 × (forest[2021]−forest[2053]) to 0.1 Mt, first firing in 2022 as gated.
+Land conversion would be ~62 Mt/yr against 97–243 Mt/yr energy CO2e — a quarter of national
+emissions that the model currently omits entirely.
+
+**Test 2 — $30/t, land-blind (FC_TAX): PASS.** Forest untouched; energy abates 2,900 Mt for
++$41.3bn system cost.
+
+**Test 3 — $30/t seeing land carbon (FC_TAXLUC): the LP invented carbon-credit farming.**
+Forest "grows" to 99,821 ×10³km² (~300 Philippines), the objective *falls* $43bn (the system
+earns), net CO2e −2.9 **million** Mt. Root cause is a three-way interaction:
+1. the EACR is **symmetric**, so growth is credited at the full 292 tCO2/ha stock rate;
+2. `MINLNDTOT` is bounded **below only** (TAL=295.8131, TAU=default 999999 — §9's "two-sided
+   pin" was a misreading; the control only *looked* pinned because worthless land was never
+   demanded); and
+3. credits near the horizon are never repaid (terminal gaming), with discounting sweetening it.
+
+**Design conclusion for v16:** symmetric change-pricing (`EACR`) must never be combined with a
+nonzero penalty. Price the conversion *direction* instead: a one-way flow technology
+(activity ≥ 0 by construction) carrying a plain `EAR` at 292 tCO2/ha for forest→cropland, with
+regrowth — if wanted — credited separately at the FRL removal rate (6.81 tCO2e/ha/yr), not the
+stock rate. The unpriced accounting variant (Test 1) is safe as-is.
+
+**Also learned:** the closure check validates internal consistency, not physical plausibility —
+cover and resource exploded *together*, so closure alone would not flag 300 Philippines of
+forest. A country-area sanity band belongs next to it.
+
+Two MUIOGO generator bugs found en route (both worth upstream issues): RYTEM rows are filtered
+by the tech's `EAR` attribute so EACR-only techs are silently dropped (`OsemosysClass.py:475`),
+and `gen_RYTEM` raw-indexes every mode so hand-added rows must cover all 30 modes or data.txt
+truncates mid-block as an HTTP 500 (`DataFileClass.gen_RYTEM`).
+
+The three `FC_*` copies were deleted on Marcelo's authorization (2026-08-11) after the results
+were read and recorded; the source case was never touched. Everything needed to reproduce them
+is `experiments/forest_carbon_patch.py` plus this section.
+
+## 14. Hand-off to the v16 calibration
+
+The plain-language verdict, then what v16 should actually do. Written to be read without §13.
+
+**What we tested:** should cutting forest cost carbon money? Three variants on copies of
+v12_CALIBRATED: bookkeeping only, a carbon tax blind to forests, a carbon tax that sees them.
+
+**What happened:** bookkeeping worked perfectly — same decisions, same cost, and it revealed the
+model omits land-conversion emissions worth **about a quarter of national CO2e**. The seeing tax
+broke the model: our rule paid for forest *growth* at the same rate it charged for clearing, so
+the optimiser "planted" three hundred Philippines of imaginary forest and earned $43bn collecting
+the payments. It could do that because the land data gives the country a floor (at least
+295,813 km²) and **no ceiling** — harmless while land was worthless, catastrophic the moment
+anything made land valuable.
+
+**For v16, in priority order:**
+
+1. **Pin the national land endowment on BOTH sides.** "The Philippines has this much land" is a
+   physical fact, not a forced outcome — fully consistent with the §12 doctrine. Today's
+   floor-only `MINLNDTOT` (TAL=295.8131, TAU=default) is a dormant hazard under *any* future
+   land value — including the `-10` forest reward, which sits on the same open bounds.
+2. **Adopt the accounting variant now.** The unpriced conversion-carbon coefficient (EACR −29.2
+   on the forest tech, gated past the first optimized year) is proven exact and behaviour-neutral:
+   allocation identical to the cent, emissions matching the FRL-based prediction to 0.1 Mt. It
+   closes a ~25% gap in national emissions coverage at zero solver cost.
+3. **Add land-conversion costs.** Clearing forest costs real money — site preparation, labour,
+   machinery, of order hundreds of USD/ha — and the model currently converts land for FREE,
+   which is why allocation flips instantly to whatever is marginally profitable. A sourced
+   clearing cost is a physical-economic fact, not a forced outcome, so it is fully
+   doctrine-consistent (§12) — and it is probably the best unforced calibration lever the land
+   block has: it disciplines the conversion rate without touching any observed area. If the
+   one-way conversion technology from item 4 is built, its `VariableCost` is exactly where this
+   number lives, so items 3 and 4 share one implementation. Needs a Philippine source (land
+   development / clearing cost per hectare); record it in the assumption register — this is the
+   discipline the `-10` skipped.
+4. **If pricing land carbon: one-way, never symmetric.** Model deforestation as a directional
+   flow technology (activity ≥ 0 by construction) carrying a plain `EAR` of 292 tCO2/ha
+   (PHL FRL, UNFCCC-defended). Credit regrowth — if at all — at the FRL *removal* rate
+   (6.81 tCO2e/ha/yr), never the stock rate. Symmetric `EACR` plus a nonzero penalty is
+   structurally gameable and the LP finds the exploit on the first solve.
+5. **Check v16's forest path before reusing the gate.** The 2022 start year in the patch script
+   was chosen for v12's first-optimized-year jump (72.3 → 161.5); v16's path decides its own gate.
+6. **Fleet rule worth keeping:** never attach a symmetric price to a quantity with an open
+   bound. Test any pricing mechanism on a copy, with a falsification check (allocation frozen
+   when the price is zero; a country-area sanity band on land), before it nears a real
+   calibration.
+
+The standard behind items 1–4, worth carrying beyond PHL: **bounds encode physics and
+institutions; values drive allocation; observations judge the result.** Land uses should compete
+on returns (cropland already bids via crop demands; forest currently bids nothing, which is the
+hole the `-10` papered over), with conversion costs making land sticky, and the observed forest
+trajectory used as the fit test — a gap between modelled and observed rates then points to a
+missing land value, which is information, not a residual to constrain away.
+
+**Tooling to reuse:** `experiments/forest_carbon_patch.py` (idempotent; takes any case name;
+verifies its own edits). Two MUIOGO generator constraints it works around, both worth upstream
+issues: RYTEM rows are dropped unless the tech declares the emission in its `EAR` attribute
+(`OsemosysClass.py:475`), and hand-added rows must cover all 30 modes or generation truncates
+`data.txt` and surfaces as an HTTP 500 (`DataFileClass.gen_RYTEM`). Also known: the `muiogo-ai`
+CLI cannot distinguish a busy server from a dead one — "no server is answering" during a long
+solve usually means busy; retry, don't restart.
