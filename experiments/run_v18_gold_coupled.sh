@@ -223,6 +223,14 @@ cat > "$OUT/coupled/RUN_NOTES.md" <<'NOTES'
 - Carbon and investment MAGNITUDES are illustrative until the unit deflator is audited;
   share-of-GDP numbers are fine to quote.
 - Results prose describes the current calibration only — no version tags in any deliverable.
+- PROVENANCE: the GOLD CLEWs inputs rest on the blessed record document + on-disk artifacts
+  (objectives byte-matched at coupling time); they have NO MUIOGO provenance record, so
+  muiogo-ai verify cannot attest them — never claim verify-grade reproducibility for them.
+- ATTRIBUTION: this is a hybrid-world run — CLEWs inputs from the installed muiogoai world,
+  the link and OG-PHL from the ~/Projects worktrees (the installed link's OG model is
+  single-industry and cannot couple on energy).
+- DILUTED WEDGE: the OG energy good is 39.3% electricity (registry: energy_good_diluted),
+  so the demand-side wedge is a proxy — carry this qualifier with every incidence number.
 NOTES
 
 echo; echo "=== RESULT ==="
