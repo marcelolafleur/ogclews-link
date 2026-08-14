@@ -69,6 +69,8 @@ Do not delete another session's entry; append a correction under a new date.
 | 2026-08-13 | authoring session (ogclews-link-b5, charter v2 in the ieem branch's deliverables-plan) | paper/ 07-results (plan first), 08–10; paper-intro/ 05–07 refresh; deck results block proposed via this file only | own worktree `~/Projects/ogclews-link-writing`, branch `writing/results-and-closing` off `paper/linkages-intro`; does NOT touch paper/sections 01–06, channel notes, or `mechanisms.tex` |
 | 2026-08-13 | solver-acceleration session | warm-start mechanics + solve benchmarking for the CLEWS LP (charter: deliverables-plan investigation backlog, d1e15c2); engineering numbers only, CBC-cold stays solver of record | own worktree `~/Projects/ogclews-link-solvers`, branch `experiment/solver-acceleration` off main; MUIOGO case copy `Philippines_v18_SOLVBENCH` only — `Philippines_v18` pristine, `Philippines_v18_PRTEST2` read-only; no solves until the canonical v18 baseline finishes |
 
+| 2026-08-14 | coupled-estimation session (this machine) | all coupled OG-CLEWS runs on the gold calibration: headline GOLD_BASE-vs-GOLD_PEP pair, then the matched channel battery (each channel alone + composite + TFP variant, same base), then exploration. HOLDING all launches per Marcelo via coordinator — setup only until the go signal | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main; reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
+
 Add a row when you start; remove it when you stop.
 
 ## Conventions that are easy to violate
@@ -126,6 +128,22 @@ scripted download — fetch it in a browser).
 7. Before any submission: systematic ESM↔OLG literature search; calibrate the unit bridge.
 
 ## Log
+
+- **2026-08-14 (coupled-estimation session) — LANE OPENED, holding for the go signal.**
+  New session owning the coupled runs on the gold calibration. Worktree
+  `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main
+  (c66fd06). Charter: headline GOLD_BASE-vs-GOLD_PEP coupled pair first (pipeline
+  proof), then the matched channel battery on the same base (the §7.2 blocker), then
+  exploratory runs (sensitivities, pairings, incidence). Gold-baseline record read
+  (ieem branch); the three blessing constraints adopted: conversion-carbon series
+  excluded from every deliverable (its absence will be stated where it would have
+  appeared), carbon/investment magnitudes carry the "illustrative until audited"
+  deflator caveat (share-of-GDP is fine), results prose is calibration-current with
+  no version tags. Per Marcelo via the coordinator: ALL LAUNCHES ON HOLD — setup
+  only (dry preflight, staged scripts patterned on `experiments/run_v16_coupled.sh`)
+  until the coordinator relays the go. Will use the latest working OG stack that
+  og-run-preflight blesses, not hardcoded pins. Boundaries: CLEWs case results
+  read-only; no CLEWs calibration, no upstream PRs, no paper text.
 
 - **2026-08-13 (authoring session) — DELIVERABLES DE-VERSIONED (Marcelo's directive:
   the writing discusses what IS, not the iterations).** `writing/results-and-closing`
