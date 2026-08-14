@@ -203,9 +203,15 @@ def _build_baseline_specs(og_package, params_resource, og_start_year, num_worker
 
 def _solve(p, num_workers, ss, show_progress, label):
     from ogcore.execute import runner
-    with _client(num_workers) as client, \
-            solve_progress(getattr(p, "mindist_TPI", 1e-5), label, enabled=show_progress):
-        runner(p, time_path=not ss, client=client)
+    # SS-only solves run in-process (see _continuation_baseline: the dask client costs
+    # ~30x per SS evaluation); combined SS+TPI calls keep the client for the TPI half.
+    if ss:
+        with solve_progress(getattr(p, "mindist_TPI", 1e-5), label, enabled=show_progress):
+            runner(p, time_path=False, client=None)
+    else:
+        with _client(num_workers) as client, \
+                solve_progress(getattr(p, "mindist_TPI", 1e-5), label, enabled=show_progress):
+            runner(p, time_path=True, client=client)
     out = _read_solution(p.output_base, ss)
     if float(getattr(p, "RC_SS", 1e-8)) > 1e-8:
         with contextlib.suppress(Exception):
@@ -287,29 +293,35 @@ def _continuation_baseline(og_package, params_resource, calibration, num_workers
     os.makedirs(os.path.join(anchor_dir, "SS"), exist_ok=True)
     print(f"[og_runner] baseline: heterogeneous gamma (spread {gamma_target.max()-gamma_target.min():.2f}) "
           f"-> solving SS by continuation (M={M})", file=sys.stderr)
-    with _client(num_workers) as client:
-        with solve_progress(1e-5, "baseline:anchor", enabled=show_progress):
-            runner(build_step(anchor_gamma, anchor_Z, True, anchor_dir), time_path=False, client=client)
-        good_dir, t, dt, idx = anchor_dir, 0.0, 0.125, 0
-        while t < 1.0 - 1e-9:
-            t_try = min(t + dt, 1.0)
-            gamma = (1 - t_try) * anchor_gamma + t_try * gamma_target
-            Z = (1 - t_try) * anchor_Z + t_try * Z_target
-            idx += 1
-            step_dir = os.path.join(work, f"t{idx}")
-            os.makedirs(os.path.join(step_dir, "SS"), exist_ok=True)
-            try:
-                runner(build_step(gamma, Z, False, step_dir, baseline_dir=good_dir),
-                       time_path=False, client=client)
-                t, good_dir, dt = t_try, step_dir, min(dt * 1.5, 0.25)
-                print(f"[og_runner]   continuation t={t:.3f} (dt={dt:.3f}) solved", file=sys.stderr)
-            except Exception:                                  # noqa: BLE001 -- step failed; shrink + retry
-                dt /= 2.0
-                if dt < 0.01:
-                    raise RuntimeError(
-                        f"baseline continuation stalled at t={t:.3f} (dt<0.01) for {og_package}: the "
-                        "calibrated steady state could not be reached; this country cannot be coupled "
-                        "until its baseline is solvable.")
+    # SS-phase solves run IN-PROCESS (client=None), exactly like the example script
+    # (run_og_phl_multi_industry_calibrated.py): routing each SS evaluation through the
+    # dask client scatters the full Specifications object and gathers futures PER
+    # EVALUATION -- a ~30x per-evaluation tax, measured 2026-08-14 on the same machine:
+    # anchor 866 s via client (v16 record) vs 26.5 s in-process; whole SS continuation
+    # 89.8 s in-process vs ~42 min via client. The client earns its keep only in the
+    # TPI phase below, where the household time-path problems dominate.
+    with solve_progress(1e-5, "baseline:anchor", enabled=show_progress):
+        runner(build_step(anchor_gamma, anchor_Z, True, anchor_dir), time_path=False, client=None)
+    good_dir, t, dt, idx = anchor_dir, 0.0, 0.125, 0
+    while t < 1.0 - 1e-9:
+        t_try = min(t + dt, 1.0)
+        gamma = (1 - t_try) * anchor_gamma + t_try * gamma_target
+        Z = (1 - t_try) * anchor_Z + t_try * Z_target
+        idx += 1
+        step_dir = os.path.join(work, f"t{idx}")
+        os.makedirs(os.path.join(step_dir, "SS"), exist_ok=True)
+        try:
+            runner(build_step(gamma, Z, False, step_dir, baseline_dir=good_dir),
+                   time_path=False, client=None)
+            t, good_dir, dt = t_try, step_dir, min(dt * 1.5, 0.25)
+            print(f"[og_runner]   continuation t={t:.3f} (dt={dt:.3f}) solved", file=sys.stderr)
+        except Exception:                                  # noqa: BLE001 -- step failed; shrink + retry
+            dt /= 2.0
+            if dt < 0.01:
+                raise RuntimeError(
+                    f"baseline continuation stalled at t={t:.3f} (dt<0.01) for {og_package}: the "
+                    "calibrated steady state could not be reached; this country cannot be coupled "
+                    "until its baseline is solvable.")
     # place the converged calibrated SS as the baseline SS, then run the TPI off it (a cold re-solve of
     # the calibrated SS would diverge), mirroring the country examples' run_baseline_tpi.
     os.makedirs(os.path.join(out_dir, "SS"), exist_ok=True)
@@ -365,24 +377,24 @@ def _continuation_reform(a, gamma_base, overrides, demog_spec, ss, show_progress
         shutil.rmtree(work)
     print(f"[og_runner] reform: gamma shift {float(np.max(np.abs(gamma_reform - gamma_base))):.2f} "
           "-> solving SS by continuation from the baseline", file=sys.stderr)
-    with _client(a.num_workers) as client:
-        good_dir, t, dt, idx = a.baseline_dir, 0.0, 0.125, 0
-        while t < 1.0 - 1e-9:
-            t_try = min(t + dt, 1.0)
-            gamma = (1 - t_try) * gamma_base + t_try * gamma_reform
-            idx += 1
-            step_dir = os.path.join(work, f"t{idx}")
-            os.makedirs(os.path.join(step_dir, "SS"), exist_ok=True)
-            try:
-                runner(build_step(gamma, step_dir, good_dir), time_path=False, client=client)
-                t, good_dir, dt = t_try, step_dir, min(dt * 1.5, 0.25)
-                print(f"[og_runner]   reform continuation t={t:.3f} (dt={dt:.3f}) solved", file=sys.stderr)
-            except Exception:                            # noqa: BLE001 -- step failed; shrink + retry
-                dt /= 2.0
-                if dt < 0.01:
-                    raise RuntimeError(
-                        f"reform gamma continuation stalled at t={t:.3f} (dt<0.01): the reform steady "
-                        "state could not be reached -- the requested capital share may be infeasible.")
+    # SS continuation runs in-process -- see _continuation_baseline's client note.
+    good_dir, t, dt, idx = a.baseline_dir, 0.0, 0.125, 0
+    while t < 1.0 - 1e-9:
+        t_try = min(t + dt, 1.0)
+        gamma = (1 - t_try) * gamma_base + t_try * gamma_reform
+        idx += 1
+        step_dir = os.path.join(work, f"t{idx}")
+        os.makedirs(os.path.join(step_dir, "SS"), exist_ok=True)
+        try:
+            runner(build_step(gamma, step_dir, good_dir), time_path=False, client=None)
+            t, good_dir, dt = t_try, step_dir, min(dt * 1.5, 0.25)
+            print(f"[og_runner]   reform continuation t={t:.3f} (dt={dt:.3f}) solved", file=sys.stderr)
+        except Exception:                            # noqa: BLE001 -- step failed; shrink + retry
+            dt /= 2.0
+            if dt < 0.01:
+                raise RuntimeError(
+                    f"reform gamma continuation stalled at t={t:.3f} (dt<0.01): the reform steady "
+                    "state could not be reached -- the requested capital share may be infeasible.")
     os.makedirs(os.path.join(a.reform_dir, "SS"), exist_ok=True)
     shutil.copyfile(os.path.join(good_dir, "SS", "SS_vars.pkl"),
                     os.path.join(a.reform_dir, "SS", "SS_vars.pkl"))
