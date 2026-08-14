@@ -69,7 +69,7 @@ Do not delete another session's entry; append a correction under a new date.
 | 2026-08-13 | authoring session (ogclews-link-b5, charter v2 in the ieem branch's deliverables-plan) | paper/ 07-results (plan first), 08–10; paper-intro/ 05–07 refresh; deck results block proposed via this file only | own worktree `~/Projects/ogclews-link-writing`, branch `writing/results-and-closing` off `paper/linkages-intro`; does NOT touch paper/sections 01–06, channel notes, or `mechanisms.tex` |
 | 2026-08-13 (expanded 2026-08-14) | solver-acceleration session | warm-start mechanics + solve benchmarking (charter d1e15c2) — RESOLVED: recipe verified, vertex lottery killed; NOW ALSO: upstreaming prep per Marcelo (plan: `docs/design/warm-start-upstreaming-plan.md` on the branch) — three MUIOGO PRs (linter/basis/triage) + later ogclews-link driver phase; no outward action without Marcelo per-action | own worktree `~/Projects/ogclews-link-solvers`, branch `experiment/solver-acceleration` off main; `Philippines_v18_SOLVBENCH` only; WILL create MUIOGO dev worktree `~/Projects/MUIOGO-solveraccel` off EAPD-DRB/MUIOGO main (live install untouched); solves only in coordinator-granted windows (coupled-estimation session now shares the machine) |
 
-| 2026-08-14 | coupled-estimation session (Marcelo's machine) | all coupled OG-CLEWS runs on the gold calibration: headline GOLD_BASE-vs-GOLD_PEP pair, then the matched channel battery (each channel alone + composite + TFP variant, same base), then exploration. HOLDING all launches until the go signal | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main (now carries a merge of experiment/forest-conversion-carbon); reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
+| 2026-08-14 | coupled-estimation session (Marcelo's machine) | RUNNING (Marcelo's direct go): headline GOLD coupled pair DONE (gates green, health verified); matched channel battery in flight (one ~10-min solve at a time); then the CP/RE/EV layer runs (Marcelo-approved); then the consolidated figures+tables package | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main (carries a merge of experiment/forest-conversion-carbon + two runner fixes, see the 2026-08-14 runner-fix log entry); reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
 
 Add a row when you start; remove it when you stop.
 
@@ -128,6 +128,34 @@ scripted download — fetch it in a browser).
 7. Before any submission: systematic ESM↔OLG literature search; calibrate the unit bridge.
 
 ## Log
+
+- **2026-08-14 (coupled-estimation session) — TWO RUNNER DEFECTS FIXED; THE GOLD COUPLED
+  HEADLINE IS IN.** Both fixes on `experiment/v18-gold-coupled`, and BOTH defects are
+  still live on main — sessions launching OG solves from main should cherry-pick or wait
+  for reconciliation:
+  (1) main's 017a8d7 house rule (forced `SS_root_method="anderson"`) CRASHES every M=8
+  continuation — scipy's anderson line search raises on NaN trial residuals that the
+  calibration's own hybr tolerates (traceback in the run record; commit a651b0b reverts,
+  opt-in via `$OGCLEWS_SS_ROOT_METHOD`). No blessed run ever used it; the records' "Anderson,
+  nu=0.2" is the TPI outer method, pinned by the PHL calibration itself and unchanged.
+  (2) og_runner routed SS-phase solves through the dask client — a per-evaluation
+  scatter/gather of the full Specifications object costing ~30x (measured same-machine:
+  anchor 26.5 s in-process vs 866 s via client; whole SS continuation 89.8 s vs ~42 min).
+  Fix bf65046: SS in-process, client TPI-only — the examples-script behavior exactly;
+  regression-guarded by tests/test_ss_solves_in_process.py. NOTE: every historical
+  "baseline solve time" in the records (incl. v16's 866 s anchor) carries this tax —
+  never quote them as solver-performance references.
+  RESULTS (calibration-current; run record `ogclews_runs_v18gold/coupled/` on the branch,
+  bases GOLD_BASE/GOLD_PEP): full pipeline 17 min end-to-end post-fix, all gates green
+  incl. the new post-solve health gate. Headline: Y −0.279% decade avg / −1.001% SS;
+  C −0.127%/−0.720%; w −0.244%/−0.929%; L ≈ 0/+0.025%. THE PRICE SIGN IS INVERTED vs
+  prior iterations: the package RAISES electricity prices (~1.13→1.24 reform/base), so
+  no old sign expectation is valid. Health APPLIED and gate-verified: PM2.5 −8.6% →
+  −310.6 excess deaths (GBD a2dc02fe, M=0.082), morbidity +4.9e-05. Battery in flight
+  (matched, all-TPI, real-price legs; records to results/gold-battery.json, never
+  golden.json): first leg gold_energy_price landed (C_ss −0.404, K_ss −0.077, 610 s).
+  Next: CP/RE/EV layer runs (staged, blessed objectives byte-verified), then the
+  consolidated figures+tables package per Marcelo.
 
 - **2026-08-14 (coupled-estimation session) — LANE OPENED, holding for the go signal.**
   New session owning the coupled runs on the gold calibration. Worktree
