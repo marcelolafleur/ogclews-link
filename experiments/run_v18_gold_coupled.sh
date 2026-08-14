@@ -167,6 +167,15 @@ for run in ("GOLD_BASE", "GOLD_PEP"):
     assert pa, f"{run}: no PHL_POW_PP_WOF rows -- tech name changed again?"
     assert mx <= 823.0 + 1e-6, f"{run}: offshore activity {mx:.1f} > 823 PJ"
 print("  gate offshore cap: <= 823 PJ in both runs  OK")
+# gate: nuclear equality in PEP -- sum BOTH nuclear techs (PP_NU conventional + PP_NUSMR;
+# a NUC|SMR-style filter misses PP_NU and reads only the SMR quarter -- verified 2026-08-14)
+nu = {}
+for row in csv.DictReader(open(f"{C}/res/GOLD_PEP/csv/TotalCapacityAnnual.csv")):
+    if row["t"] in ("PHL_POW_PP_NU", "PHL_POW_PP_NUSMR"):
+        nu[row["y"]] = nu.get(row["y"], 0.0) + float(row["TotalCapacityAnnual"])
+for y, want in (("2032", 1.2), ("2035", 2.4), ("2050", 4.8)):
+    assert abs(nu.get(y, 0.0) - want) < 1e-6, f"nuclear {y}: {nu.get(y)} != {want}"
+print("  gate nuclear equality: 1.2/2.4/4.8 GW at 2032/35/50 in GOLD_PEP  OK")
 # CONVERSION-CARBON EXCLUSION GUARD (blessing constraint 1): the land series must be
 # identical in both runs (so excluding it cannot change any base-vs-policy difference),
 # and this script must state its exclusion rather than let it pass silently.
