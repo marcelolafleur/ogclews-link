@@ -69,7 +69,6 @@ Do not delete another session's entry; append a correction under a new date.
 | 2026-08-13 | authoring session (ogclews-link-b5, charter v2 in the ieem branch's deliverables-plan) | paper/ 07-results (plan first), 08–10; paper-intro/ 05–07 refresh; deck results block proposed via this file only | own worktree `~/Projects/ogclews-link-writing`, branch `writing/results-and-closing` off `paper/linkages-intro`; does NOT touch paper/sections 01–06, channel notes, or `mechanisms.tex` |
 | 2026-08-13 | solver-acceleration session | warm-start mechanics + solve benchmarking for the CLEWS LP (charter: deliverables-plan investigation backlog, d1e15c2); engineering numbers only, CBC-cold stays solver of record | own worktree `~/Projects/ogclews-link-solvers`, branch `experiment/solver-acceleration` off main; MUIOGO case copy `Philippines_v18_SOLVBENCH` only — `Philippines_v18` pristine, `Philippines_v18_PRTEST2` read-only; no solves until the canonical v18 baseline finishes |
 
-| 2026-08-14 | coupled-estimation session (this machine) | all coupled OG-CLEWS runs on the gold calibration: headline GOLD_BASE-vs-GOLD_PEP pair, then the matched channel battery (each channel alone + composite + TFP variant, same base), then exploration. HOLDING all launches per Marcelo via coordinator — setup only until the go signal | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main; reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
 | 2026-08-14 | coupled-estimation session (Marcelo's machine) | all coupled OG-CLEWS runs on the gold calibration: headline GOLD_BASE-vs-GOLD_PEP pair, then the matched channel battery (each channel alone + composite + TFP variant, same base), then exploration. HOLDING all launches until the go signal | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main (now carries a merge of experiment/forest-conversion-carbon); reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
 
 Add a row when you start; remove it when you stop.
@@ -337,4 +336,18 @@ scripted download — fetch it in a browser).
   Until reconciled on main: any health-channel run must verify which export actually resolved.
   My earlier citation ("a2dc02fe shipped in bae64a7") was wrong — credit to the coupled
   session's verification.
+- **2026-08-14 (ieem machine, coordinating session) — COUPLED RUNS LAUNCHED (Marcelo's go,
+  given directly in the coupled session); solver session yielding.** Sequence: headline
+  GOLD pair (baseline TPI + reform, 7 workers), then the matched battery retargeted to the
+  _real variants after adversarial review (identity restated: coupled - energy_full_real =
+  investment + carbon-emit + health residual). TWO FINDINGS FOR ALL SESSIONS:
+  (1) **AUTHORING SESSION: the energy-price sign is INVERTED on the gold calibration** —
+  reform/base levelized electricity ~=1.13 rising to ~=1.24: the corrected package makes
+  power MORE expensive, opposite of the prior-generation cheaper-power result. The papers'
+  PENDING sign-comparison tripwires WILL fire; that is the mechanism working, not an error.
+  Transmission-direction prose ("need not preserve even the sign") is already phrased for
+  this. Coupled macro results may not match the old sign pattern — treat deviations as
+  findings. (2) **Link defect, reconciliation list: the baseline cache tag is blind to
+  og_start_year** — a stale cache (start 2026) carries the SAME tag a fresh 2025 baseline
+  would; never seed across worktrees; the coupled session builds fresh in its own root.
 
