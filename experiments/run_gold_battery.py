@@ -115,7 +115,13 @@ GROUPS = [
     ]),
     ("supply", [
         {"id": "gold_investment",        "target": "investment"},
-        {"id": "gold_capital_intensity", "target": "capital_intensity"},
+        # gold_capital_intensity REMOVED FROM THE RUN LIST 2026-08-14 — NOT a skip: the
+        # channel's own guard proved it INFEASIBLE on this calibration (the GOLD generation
+        # mix implies electricity gamma 0.9086, leaving labor share 0.0414 < the 0.05 floor
+        # OG-Core needs). The state file's error entry is the record; the deliverable reports
+        # "infeasible at the default mapping". Re-adding it requires Marcelo's call on the
+        # shift size or floor. (Kept out of the list so the driver's group-retry semantics
+        # don't block the remaining groups on a deterministic error.)
         {"id": "gold_energy_capex",      "target": "energy_capex"},
         {"id": "gold_carbon",            "target": "carbon", "note": "combustion CO2e only; land series excluded (blessing)"},
     ]),
