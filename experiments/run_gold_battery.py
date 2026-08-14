@@ -73,9 +73,24 @@ with open(os.path.join(REPO, "ogclews_link", "health_pop.py")) as _f:
         raise SystemExit("health fixes absent from this checkout -- merge the ieem branch's "
                          "link fixes before running the battery (coordination log, 2026-08-14).")
 
+# HEALTH-INPUT + CALIBRATION GUARDS (mirror the shell preflight; adversarial review F6):
+# the blessed GBD export must be the one that resolves (min(glob) would silently prefer
+# main's a20a92ea if it ever reappears), and the start year must be the recalibrated 2025.
+from ogclews_link.country import PHL, _resolve_gbd_csv  # noqa: E402
+
+_gbd = _resolve_gbd_csv()
+if not (_gbd and "a2dc02fe" in _gbd):
+    raise SystemExit(f"GBD export is not the blessed a2dc02fe: {_gbd}")
+if PHL.scenario.og_start_year != 2025:
+    raise SystemExit(f"og_start_year is {PHL.scenario.og_start_year}, expected 2025 "
+                     "(the remittances recalibration alignment, d69aaf4)")
+
 STATE_PATH = os.path.join(REPO, "results", "gold-battery-state.json")
 RECORD_PATH = os.path.join(REPO, "results", "gold-battery.json")
-OUT_ROOT = os.path.join(REPO, "ogclews_runs_v18gold", "battery")
+# ONE cache root shared with run_v18_gold_coupled.sh (adversarial review F5): the OG baseline
+# is CLEWS-independent, so a second root would cost one entire extra baseline TPI solve.
+# Battery items write per-item gold_*/ subdirs; the CLI writes coupled/ -- no collision.
+OUT_ROOT = os.path.join(REPO, "ogclews_runs_v18gold")
 
 # --- the matched battery: all TPI, all on the same GOLD inputs + shared baseline --------------
 # Groups ordered cheap-signal-first; the composite/coupled identity check is the payoff at the
@@ -84,11 +99,16 @@ GROUPS = [
     ("foundation", [
         {"id": "gold_baseline", "kind": "baseline", "note": "shared OG baseline, exported once (TPI)"},
     ]),
-    ("energy", [   # the decomposition legs of the headline
-        {"id": "gold_energy_price",    "target": "energy_price",    "note": "household wedge alone"},
-        {"id": "gold_energy_cost_push","target": "energy_cost_push","note": "cost-push leg alone"},
-        {"id": "gold_energy_full",     "target": "energy_full",     "note": "composite: wedge + cost-push"},
-        {"id": "gold_energy_price_tfp","target": "energy_price_tfp","note": "structural TFP variant (sign test)"},
+    ("energy", [   # the decomposition legs of the headline -- the _real variants, driven by the
+                   # ACTUAL GOLD price path (reform/base ~1.13 rising to ~1.24: the policy package
+                   # makes power MORE expensive, the OPPOSITE sign of v12/v16's cheaper power --
+                   # never carry over old sign expectations). The stock (non-_real) variants apply
+                   # a synthetic flat +20% and are UNUSABLE as decomposition components of coupled
+                   # (their own docstring says so) -- adversarial review F1, 2026-08-14.
+        {"id": "gold_energy_price",    "target": "energy_price",    "note": "household wedge alone (real price)"},
+        {"id": "gold_energy_cost_push","target": "energy_cost_push_real","note": "cost-push leg alone, real price"},
+        {"id": "gold_energy_full",     "target": "energy_full_real","note": "composite: wedge + cost-push, real price"},
+        {"id": "gold_energy_price_tfp","target": "energy_price_tfp_real","note": "structural TFP variant, real price (sign test)"},
     ]),
     ("supply", [
         {"id": "gold_investment",        "target": "investment"},
@@ -103,11 +123,13 @@ GROUPS = [
     ("forward", [
         {"id": "gold_discount_rate", "target": "discount_rate"},
         {"id": "gold_demand",        "target": "demand"},
-        {"id": "gold_forward",       "target": "forward"},
+        {"id": "gold_forward",       "target": "forward_real"},
     ]),
     ("real", [
         {"id": "gold_coupled", "target": "coupled",
-         "note": "the headline pair again, through the battery path -- identity check vs energy_full"},
+         "note": "the headline through the battery path. NOT an identity with energy_full_real: "
+                 "coupled additionally applies investment + the CLEWS-side carbon penalty + health, "
+                 "so coupled - energy_full_real = that residual (investment/carbon-emit/health)."},
     ]),
 ]
 
@@ -135,6 +157,9 @@ def _stamp():
 
 
 _BASELINE: dict = {}
+_REBUILD_BASELINE = False   # set by --rebuild-baseline; the cache tag is keyed on
+# {model}-{version}-{calibration} ONLY and cannot see an og_start_year or ogcore change
+# (adversarial review F3) -- after any such change, pass --rebuild-baseline explicitly.
 
 
 def _runner_cfg(rebuild=False):
@@ -142,20 +167,20 @@ def _runner_cfg(rebuild=False):
     return runtime.RunnerConfig(num_workers=7, show_progress=False, ss=False, rebuild=rebuild)
 
 
-def ensure_baseline(rebuild=False):
+def ensure_baseline():
     if _BASELINE:
         return _BASELINE
     from ogclews_link import runtime
-    from ogclews_link.country import PHL
 
     template, base_tpi, base_dir, arrays = runtime.export_baseline(
-        PHL, OUT_ROOT, cfg=_runner_cfg(rebuild=rebuild))
+        PHL, OUT_ROOT, cfg=_runner_cfg(rebuild=_REBUILD_BASELINE))
     _BASELINE.update(template=template, base_tpi=base_tpi, dir=base_dir, arrays=arrays)
     return _BASELINE
 
 
 def run_baseline(item) -> dict:
     from ogclews_link import golden
+
     bl = ensure_baseline()
     golden.save(golden.capture(item["id"], bl["base_tpi"]), path=RECORD_PATH)
     return {"status": "pass", "base": golden.aggregates(bl["base_tpi"]),
@@ -166,7 +191,6 @@ def run_experiment(item) -> dict:
     from functools import partial
 
     from ogclews_link import experiments, framework, golden, runtime, serde
-    from ogclews_link.country import PHL
 
     bl = ensure_baseline()
     base = serde.load_solution(os.path.join(bl["dir"], "baseline_solution.npz"))
@@ -187,8 +211,19 @@ def run_experiment(item) -> dict:
         print(f"(manifest skipped for {item['id']}: {type(e).__name__}: {e})")
     rec = golden.from_context(item["id"], ctx)
     golden.save(rec, path=RECORD_PATH)
-    return {"status": "pass", "pct_diff": rec.get("pct_diff", {}),
-            "provenance": [pr.get("channel") for pr in getattr(ctx, "provenance", [])]}
+    # A silently-skipped channel must NOT record as pass (adversarial review F4 -- the exact
+    # 2026-08-11 defect class): persist the full skip picture and fail the item on any skip.
+    # In a MATCHED battery a no-op leg poisons the decomposition, so any skip is a failure.
+    prov = getattr(ctx, "provenance", [])
+    skipped = [{"channel": pr.get("channel"), "reason": pr.get("reason")}
+               for pr in prov if pr.get("skipped")]
+    res = {"status": "fail" if skipped else "pass",
+           "pct_diff": rec.get("pct_diff", {}),
+           "provenance": [pr.get("channel") for pr in prov],
+           "skipped_channels": skipped}
+    if skipped:
+        res["error"] = f"channel(s) silently skipped: {skipped}"
+    return res
 
 
 def run_item(item, dry=False) -> dict:
@@ -257,7 +292,12 @@ def main():
     g.add_argument("--item")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--rerun", action="store_true")
+    ap.add_argument("--rebuild-baseline", action="store_true",
+                    help="force a fresh baseline solve past the cache (the cache tag cannot "
+                         "see an og_start_year or ogcore change -- use after any such change)")
     args = ap.parse_args()
+    global _REBUILD_BASELINE
+    _REBUILD_BASELINE = args.rebuild_baseline
 
     state = load_state()
     if args.list:

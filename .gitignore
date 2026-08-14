@@ -30,3 +30,4 @@ og_model_registry.json
 # Publisher PDFs read during the IEEM / CLEWs-IO assessments. Licensed copies,
 # not ours to redistribute -- keep them local, never commit.
 *.pdf
+results/gold-battery-state.json

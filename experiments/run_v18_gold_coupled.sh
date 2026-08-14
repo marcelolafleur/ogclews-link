@@ -14,12 +14,23 @@
 #     (blessing constraint 2); share-of-GDP numbers are fine. The caveat is stamped into the
 #     run notes file next to the manifest.
 #
-# Usage: run_v18_gold_coupled.sh [workers] [--preflight-only]
+# Usage: run_v18_gold_coupled.sh [--run] [workers]
+# DEFAULT IS PREFLIGHT-ONLY: without an explicit --run the script verifies everything and
+# stops before the solve (adversarial review F2/F9 -- a multi-hour solve must never start
+# because someone invoked the script expecting a refusal or mistyped an argument).
 set -u
 cd "$(dirname "$0")/.." || exit 1
 LINK="$PWD"
-W="${1:-7}"
-[ "${1:-}" = "--preflight-only" ] && { W=7; PREFLIGHT_ONLY=1; } || PREFLIGHT_ONLY="${2:+1}"
+W=7
+PREFLIGHT_ONLY=1
+for arg in "$@"; do
+    case "$arg" in
+        --run) PREFLIGHT_ONLY="" ;;
+        --preflight-only) PREFLIGHT_ONLY=1 ;;
+        [0-9]|[0-9][0-9]) W="$arg" ;;
+        *) echo "unknown argument: $arg (usage: run_v18_gold_coupled.sh [--run] [workers])" >&2; exit 2 ;;
+    esac
+done
 CASE_NAME="Philippines_v18_GOLD"
 CASE="$(muiogo-ai case-path --case "$CASE_NAME")" || { echo "case not found in the muiogo-ai world" >&2; exit 1; }
 OUT="$LINK/ogclews_runs_v18gold"
@@ -192,6 +203,10 @@ PY
 # Stamp the blessing caveats next to the manifest so no deliverable is built without them.
 cat > "$OUT/coupled/RUN_NOTES.md" <<'NOTES'
 # Run notes — coupled GOLD_BASE vs GOLD_PEP (Philippines, current calibration)
+- PRICE SIGN: in this calibration the policy package makes electricity MORE expensive
+  (reform/base levelized price ~1.13 rising to ~1.24 over the window) — the OPPOSITE
+  sign of earlier iterations' "cheaper power". No sign expectation carried over from
+  prior run records is valid; every deliverable states the direction from THIS record.
 - Conversion carbon (land series, −104 Mt, identical in both runs) is EXCLUDED from every
   input and every deliverable of this run. Where a land-carbon channel would have appeared,
   say that it is excluded pending the one-way accounting redesign.
