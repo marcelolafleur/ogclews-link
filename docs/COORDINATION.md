@@ -70,6 +70,7 @@ Do not delete another session's entry; append a correction under a new date.
 | 2026-08-13 | solver-acceleration session | warm-start mechanics + solve benchmarking for the CLEWS LP (charter: deliverables-plan investigation backlog, d1e15c2); engineering numbers only, CBC-cold stays solver of record | own worktree `~/Projects/ogclews-link-solvers`, branch `experiment/solver-acceleration` off main; MUIOGO case copy `Philippines_v18_SOLVBENCH` only — `Philippines_v18` pristine, `Philippines_v18_PRTEST2` read-only; no solves until the canonical v18 baseline finishes |
 
 | 2026-08-14 | coupled-estimation session (this machine) | all coupled OG-CLEWS runs on the gold calibration: headline GOLD_BASE-vs-GOLD_PEP pair, then the matched channel battery (each channel alone + composite + TFP variant, same base), then exploration. HOLDING all launches per Marcelo via coordinator — setup only until the go signal | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main; reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
+| 2026-08-14 | coupled-estimation session (Marcelo's machine) | all coupled OG-CLEWS runs on the gold calibration: headline GOLD_BASE-vs-GOLD_PEP pair, then the matched channel battery (each channel alone + composite + TFP variant, same base), then exploration. HOLDING all launches until the go signal | own worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled` off main (now carries a merge of experiment/forest-conversion-carbon); reads `Philippines_v18_GOLD` results READ-ONLY; does not touch CLEWs calibration, upstream PRs, or paper text |
 
 Add a row when you start; remove it when you stop.
 
@@ -315,4 +316,25 @@ scripted download — fetch it in a browser).
   defect reported upstream as CLEWs-PHL#3 (fleet priced 400x GDP; differences unaffected);
   A+B upstream PR package in preparation (validation solves running), text to Marcelo
   before anything is pushed.
+- **2026-08-14 (coupled-estimation session) — LANE OPENED; setup complete, holding for the go.**
+  Worktree `~/Projects/ogclews-link-coupled`, branch `experiment/v18-gold-coupled`. Charter:
+  headline coupled pair on GOLD, then the matched battery (the section-7.2 blocker), then
+  exploration. Setup verified: dry preflight GO (link venv in-worktree; OG-PHL
+  calib/multi-industry-remittances @ ad9af7b containing the heads of EAPD-DRB/OG-PHL#63 and
+  #85; ogcore fixed build fingerprinted, upstream #1189/#1204 still open so the composed stack
+  is latest-working; Anderson house rule active). All five GOLD runs re-verified byte-identical
+  to the blessed record. The ieem branch's five link fixes merged in as a true merge (8b5fe0e;
+  a directory-copy first attempt dropped main's Anderson + registry work — corrected). Health
+  channel activation enforced by preflight asserts + a post-solve manifest gate (per Marcelo:
+  health must be active). Run scripts staged; --preflight-only passes end-to-end.
+- **2026-08-14 (ieem machine, coordinating session) — GBD EXPORT RECORD CORRECTION, all
+  sessions take note.** The blessed health-channel numbers were produced with GBD export
+  a2dc02fe, which was NEVER COMMITTED — the data dir is gitignored and the file exists only
+  machine-locally in the ieem worktree. Main's committed export (a20a92ea, commit bae64a7) is
+  NOT the blessed one. Worse, the link's file resolver takes min(glob), and "a20..." sorts
+  before "a2d...": with both files present it silently prefers the wrong export (defect found
+  and fixed on the coupled session's branch; preflight there asserts the resolved name).
+  Until reconciled on main: any health-channel run must verify which export actually resolved.
+  My earlier citation ("a2dc02fe shipped in bae64a7") was wrong — credit to the coupled
+  session's verification.
 
