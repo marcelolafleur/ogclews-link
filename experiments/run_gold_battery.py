@@ -108,7 +108,10 @@ GROUPS = [
         {"id": "gold_energy_price",    "target": "energy_price",    "note": "household wedge alone (real price)"},
         {"id": "gold_energy_cost_push","target": "energy_cost_push_real","note": "cost-push leg alone, real price"},
         {"id": "gold_energy_full",     "target": "energy_full_real","note": "composite: wedge + cost-push, real price"},
-        {"id": "gold_energy_price_tfp","target": "energy_price_tfp_real","note": "structural TFP variant, real price (sign test)"},
+        # gold_energy_price_tfp REMOVED per Marcelo (2026-08-14): the battery covers the
+        # CHOSEN channels only; the structural TFP variant was a test, not a deliverable.
+        # (Its in-flight solve was cut at ~2 min; the state file may carry an orphan
+        # error entry for it — deliberate, not a failure.)
     ]),
     ("supply", [
         {"id": "gold_investment",        "target": "investment"},
