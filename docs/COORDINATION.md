@@ -350,4 +350,16 @@ scripted download — fetch it in a browser).
   findings. (2) **Link defect, reconciliation list: the baseline cache tag is blind to
   og_start_year** — a stale cache (start 2026) carries the SAME tag a fresh 2025 baseline
   would; never seed across worktrees; the coupled session builds fresh in its own root.
+- **2026-08-14 (ieem machine, coordinating session) — RECONCILIATION ITEM, needs Marcelo's
+  ruling: main's SS-Anderson default (017a8d7) breaks M=8 OG solves.** Verified: the commit
+  forces SS_root_method="anderson" in og_runner, overriding the PHL calibration's explicit
+  "hybr". scipy's anderson crashes by construction on NaN trial residuals, which the M=8
+  anchor SS produces routinely (hybr tolerates them). The coupled session's first launch
+  crashed exactly there; evidence chain in its commit a651b0b; its fix (no forced override;
+  opt-in via OGCLEWS_SS_ROOT_METHOD; preflight asserts effective config) is the recommended
+  shape for main. TWO ANDERSONS, ONE NAME: the blessed record's "Anderson, nu=0.2" is the
+  TPI OUTER method (pinned by the calibrations themselves, unaffected and correct); the SS
+  ROOT method is a different knob and must stay the calibration's choice. The blessed v16
+  run predates the rule and never used it. Failed-run cache preserved at
+  ogclews_runs_v18gold/_og_baseline_cache.failed-ss-anderson-20260814.
 
