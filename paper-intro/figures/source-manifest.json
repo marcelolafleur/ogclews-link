@@ -46,7 +46,7 @@
     "across_steps/+ health/TPI/TPI_vars.pkl": "f067261c42c73e32ec7ca53c74b9ee376849ad5e76e042a63293051321dddfd9",
     "baseline/TPI/TPI_vars.pkl": "6aa21f658601ed9783dd8059126edcf2acb0a9e337c0d237f3813a6b507146a8"
   },
-  "note": "Frozen July model outputs only. No model solves or current CLEWS input reads.",
+  "note": "Frozen July model outputs only. No model solves or current CLEWS input reads. The July health and combined runs contain a demographic-construction artifact (fixed in the link code 11 Aug 2026, commit a23e0ae); figures built from them are not used in the paper.",
   "checks": "All plotted-run Y/C/K/L at t0/t10/final agree with committed July golden.",
   "outcome_reference": "Saved discount_rate unperturbed reform; demand control identical for Y/C/K/L/I_g/K_g. Applied parameter and actual export figures retain their original references.",
   "cumulative_check": "Original baselines bitwise identical; carbon export changes no solved macro arrays; +health equals coupled within 2e-10 absolute.",

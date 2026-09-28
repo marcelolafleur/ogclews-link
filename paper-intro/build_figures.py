@@ -324,12 +324,88 @@ def main():
         fig.tight_layout()
         finish(fig, f"channel-macro-{name}.pdf")
     summary["common_chart_scale"] = {"years": [2026, 2075], "y_min": -.4, "y_max": 1.4}
+    summary["channels_alone_scale"] = {"years": [2026, 2075], "y_min": -.6, "y_max": 1.4}
+
+    # --- Revision of 27 Sep 2026 -------------------------------------------------------
+    # The July health runs replaced the whole population with one built by a different
+    # method (fixed in the model code on 11 Aug); their health and combined paths are not
+    # used below. The cumulative "energy price" run carries BOTH electricity routes
+    # (industry cost-push and household price) and no health change -- verified: rho and e
+    # identical to the baseline, only Z (and alpha_I in "+ investment") differ.
+    elec_both = cumulative["energy price"]
+
+    def macro_panel(ax, run, title):
+        for key, label, color in macro_series:
+            values = pct(run[key], ct[key])[:n]
+            assert np.all(np.isfinite(values)), (title, key, "nonfinite chart data")
+            assert values.min() >= -.6 and values.max() <= 1.4, (title, key, "shared scale would clip")
+            ax.plot(years, values, color=color, lw=1.6, label=label,
+                    ls={"Y": "-", "C": "-", "K": "--", "L": "-."}[key])
+        ax.axhline(0, color="#555555", lw=.8)
+        ax.set(xlim=(years[0], years[-1]), ylim=(-.6, 1.4))
+        ax.set_yticks(np.arange(-.4, 1.41, .4))
+        ax.set_title(title, loc="left", fontsize=10.5, weight="bold")
+        ax.grid(axis="y", color="#E5E5E5", lw=.7)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.tick_params(labelsize=9)
+
+    # Each channel alone: one encoding, one scale, four panels.
+    fig, axes = plt.subplots(2, 2, figsize=(8.6, 5.4), sharex=True, sharey=True)
+    for ax, (run, title) in zip(axes.flat, (
+            (elec_both, "Electricity costs (industry and households)"),
+            (records["investment"]["tpi"], "Public infrastructure investment"),
+            (records["capital_intensity"]["tpi"], "Generation capital intensity"),
+            (records["carbon"]["tpi"], "Household carbon tax with transfers"))):
+        macro_panel(ax, run, title)
+    for ax in axes[1]:
+        ax.set_xlabel("Year", fontsize=9.5)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Change from control (%)", fontsize=9.5)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False, fontsize=9.5,
+               bbox_to_anchor=(.5, 1.02))
+    fig.tight_layout(rect=(0, 0, 1, .95), h_pad=1.6, w_pad=1.2)
+    finish(fig, "channels-alone.pdf")
+
+    # Where the electricity cost lands: household route alone versus both routes.
+    hh = records["energy_price"]["tpi"]
+    fig, axes = plt.subplots(1, 2, figsize=(8.6, 3.0), sharey=True)
+    for ax, key, title in zip(axes, ("Y", "C"), ("GDP", "Consumption")):
+        ax.plot(years, pct(hh[key], ct[key])[:n], color=GOLD, lw=1.9, label="Household bills only (full increase, no rebate)")
+        ax.plot(years, pct(elec_both[key], ct[key])[:n], color=BLUE, lw=1.9,
+                label="Household bills and industry costs")
+        ax.axhline(0, color="#555555", lw=.8)
+        ax.set(xlim=(years[0], years[-1]), xlabel="Year")
+        ax.set_title(title, loc="left", fontsize=10.5, weight="bold")
+        ax.grid(axis="y", color="#E5E5E5", lw=.7)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.tick_params(labelsize=9)
+    axes[0].set_ylabel("Change from control (%)", fontsize=9.5)
+    axes[1].legend(loc="lower right", frameon=False, fontsize=9)
+    fig.tight_layout(w_pad=1.5)
+    finish(fig, "electricity-routes.pdf")
+
+    first = slice(0, 10)
+    summary["electricity_routes"] = {
+        label: {key: {"mean_2026_2035": float(pct(run[key], ct[key])[first].mean()),
+                      "y2075": float(pct(run[key], ct[key])[n - 1])} for key in ("Y", "C", "K", "L")}
+        for label, run in (("household_only", hh), ("both_routes", elec_both),
+                           ("both_routes_plus_public_investment", cumulative["+ investment"]))}
+    # Return signals from the health-free run. Demand ratios keep the ORIGINAL baseline
+    # as reference, as the emitter does.
+    inv = cumulative["+ investment"]
+    ratio = inv["Y_m"][:n, m] / bt["Y_m"][:n, m]
+    summary["returned_demand_ratio_health_free"] = {
+        **{str(start + k): float(ratio[k]) for k in (0, 4, 14)},
+        "min": float(ratio.min()), "min_year": int(years[int(np.argmin(ratio))]),
+        "mean_2026_2035": float(ratio[first].mean())}
+    summary["portfolio_return_2026_2035_health_free"] = float(np.mean(inv["r_p"][first]))
     (OUT / "figure-values.json").write_text(json.dumps(summary, indent=2) + "\n")
     provenance = {
         "archive": str(archive), "plot_module": str(Path(plots.__file__).resolve()),
         "case": manifest["scenario"]["name"], "manifest_timestamp": manifest["timestamp"],
         "source_hashes": used,
-        "note": "Frozen July model outputs only. No model solves or current CLEWS input reads.",
+        "note": "Frozen July model outputs only. No model solves or current CLEWS input reads. The July health and combined runs contain a demographic-construction artifact (fixed in the link code 11 Aug 2026, commit a23e0ae); figures built from them are not used in the paper.",
         "checks": "All plotted-run Y/C/K/L at t0/t10/final agree with committed July golden.",
         "outcome_reference": "Saved discount_rate unperturbed reform; demand control identical for Y/C/K/L/I_g/K_g. Applied parameter and actual export figures retain their original references.",
         "cumulative_check": "Original baselines bitwise identical; carbon export changes no solved macro arrays; +health equals coupled within 2e-10 absolute.",

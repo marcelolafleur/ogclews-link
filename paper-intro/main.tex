@@ -1,24 +1,29 @@
 % ==========================================================================
-% Linking CLEWS and OG-Core
+% The OG--CLEWS Link: short conceptual paper
 %
-% Conceptual policy paper for senior policymakers and policy economists.
+% Purpose: explain to senior policymakers what linking a resource plan (CLEWS)
+% with an economy model (OG-Core) lets them assess: who bears the costs and
+% benefits of the plan, when, and across which generations. No equations.
+% The Philippine runs illustrate each mechanism; this is not a country study,
+% not a forecast, and not a general theory of model linking.
+%
+% Numbers: every number in the text is listed with its source in
+% figures/README.md. \pending{} marks results that wait on the corrected
+% health run (the July health runs contain a demographic artifact).
 %
 % Build: latexmk -pdf main.tex
-%
-% FRAMING:
-%  - Explain the intended economic system without equations; distinguish evaluated evidence.
-%  - Formal definitions and technical validation remain in the working technical draft.
-%  - This is neither a general theory of model linking nor a country application.
-%  - Audience: senior policymakers who understand policy trade-offs but are not modelers.
 % ==========================================================================
 \documentclass[11pt]{article}
 \input{../paper/preamble}
 \usepackage{placeins}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
 \setcounter{secnumdepth}{0}
 \renewcommand{\abstractname}{Overview}
+\newcommand{\pending}[1]{{\color{claret}\textbf{[Pending: #1]}}}
 
 \title{\bfseries The OG--CLEWS Link:\\[2pt]
-\large Resource Choices and Economic Consequences}
+\large Resource Choices and Their Economic Consequences}
 
 \author{Marcelo LaFleur}
 \date{\today}
@@ -35,13 +40,13 @@
 \end{abstract}
 
 \input{sections/01-introduction}
-\input{sections/02-landscape}
-\input{sections/03-two-models}
-\input{sections/04-linkages}
-\input{sections/05-illustration}
-\input{sections/06-policy}
+\input{sections/02-connect}
+\input{sections/03-resource-outcomes}
+\input{sections/04-policy-feedback}
+\input{sections/05-together}
+\input{sections/06-implications}
 \FloatBarrier
-\input{sections/07-conclusion}
+\input{sections/07-examples}
 
 \bibliographystyle{plainnat}
 \bibliography{../paper/references}
