@@ -38,17 +38,19 @@ Demand & $Y_m$ or $C_i$ ratio & annual demand path & activity-consistent service
 The energy-price channel is the composite of \Cref{sec:routes}: it carries the \CLEWS{}
 electricity-cost proxy into the economy through both of electricity's uses---a cost-push on
 the industries that buy it as an input (the contractionary, wage-bearing side) and a
-recycled consumption-tax wedge on households (the regressive, cost-of-living side), with
+recycled consumption-tax wedge on households (the cost-of-living side), with
 electricity's self-use netted out so the two do not overlap. The interface uses a
 reform/base electricity-cost ratio from the ``auto'' source: a curated cost index where
 one exists, otherwise LCOE reconstructed from the run's costs and generation. The
 commodity-balance shadow price is degenerate here and is not used. This is a
 scenario-derived average-cost proxy rather than an illustrative shock or an observed
-retail price. For the Philippine reform the proxy rises about $5\%$ on average.
+retail price. For the Philippine reform the proxy rises through the window, to roughly
+$13$--$24\%$ above baseline.
 Incidence is the channel's second output: with
 energy a partial necessity ($\cmin>0$), the recycled price change (the
-\chan{clean\_incidence} variant) is regressive---the lowest-income group bears more of
-it. The standalone \chan{energy\_price} function applies only the household wedge
+\chan{clean\_incidence} variant) reports who bears it by lifetime-income group; in the
+current coupled record the pattern is heterogeneous rather than budget-share-driven
+(\Cref{sec:incidence}). The standalone \chan{energy\_price} function applies only the household wedge
 (\Cref{eq:routeA}), used to isolate the demand response and incidence; the controlled
 $+20\%$ stress runs serve the transmission comparison.
 
@@ -173,9 +175,9 @@ Disease export ($43{,}951$ attributable deaths). Translating the power-sector em
 ratio into that burden uses $M\approx0.082$, constructed from an energy mass share and a
 concentration-response elasticity. The lives effect is
 $\Delta\text{deaths}=\text{total}\times M\times\Delta\text{emissions}$, so the reform's
-$-2.7\%$ emissions change (the first-decade mean) saves about $95$ lives---the
+$-8.6\%$ emissions change avoids about $311$ deaths---the
 dose-response $M$ is what
-separates this from the naive $43{,}951\times\Delta\text{emissions}\approx-1{,}165$. What
+separates this from the naive $43{,}951\times\Delta\text{emissions}\approx-3{,}789$. What
 remains uncertain---and keeps the channel reduced-form---is the construction of $M$, the
 linearity of the emissions-to-burden mapping, and the morbidity productivity elasticity.
 The burden and age profile are sourced data; the subsequent translation is a calibrated

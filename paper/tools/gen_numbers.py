@@ -113,6 +113,11 @@ def main():
                     help="employed persons for the morbidity FTE/yr figure; "
                          "SUPPLIED, not derived from any run artifact — omit "
                          "to omit the FTE macro")
+    ap.add_argument("--battery", type=Path, default=None,
+                    help="matched-battery record (JSON of {run: {base,reform}} "
+                         "SS levels) on the SAME calibration as --run-dir; "
+                         "when given, attribution macros/table derive from it "
+                         "and PENDING mode is off")
     ap.add_argument("--out", type=Path, default=Path("paper/generated"))
     args = ap.parse_args()
 
@@ -190,9 +195,6 @@ def main():
     # Prose-facing macros for the battery rows (same static v12 data as the
     # table — one source, two renderings). \atr<Row><Var> for every row/var.
     with open(args.out / "numbers.tex", "a") as fh:
-        fh.write((missing("atrBase", "matched battery", pending=True)
-                  if PENDING_ATTRIBUTION else
-                  macro("atrBase", ATTRIBUTION_V12["base_label"])) + "\n")
         fh.write(macro("cplEmitDRPct",
                        texnum(100 * prov["emit_discount_rate"]
                               ["clews_discount_rate"], 1),
@@ -207,46 +209,66 @@ def main():
                  if "emit_energy_demand" in prov else
                  missing("cplDemandMeanPct", "demand provenance"))
         fh.write("\n")
-        stems = {"coupled": "atrCoupled",
-                 "energy composite": "atrComposite",
-                 "inter-industry cost-push leg": "atrCostPush",
-                 "household wedge leg": "atrWedge",
-                 "structural TFP alternative": "atrTfp",
-                 "carbon": "atrCarbon",
-                 "clean incidence": "atrCleanInc",
-                 "capital intensity": "atrCapInt",
-                 "energy capex": "atrCapex"}
-        if PENDING_ATTRIBUTION:
-            for stem in stems.values():
+        def pct(rec, var):
+            b, r = rec["base"], rec["reform"]
+            return 100 * (r[f"{var}_ss"] / b[f"{var}_ss"] - 1)
+
+        attr_rows_out = []
+        if args.battery:
+            bat = json.loads(args.battery.read_text())
+            fh.write(macro("atrBase", "matched battery on the current "
+                           "calibration (see the run record)") + "\n")
+            # coupled row comes from the coupled run's own macro table
+            fh.write(macro("atrCoupledY", texnum(ss["Y"])) + "\n")
+            fh.write(macro("atrCoupledC", texnum(ss["C"])) + "\n")
+            fh.write(macro("atrCoupledW", texnum(ss["w"])) + "\n")
+            attr_rows_out.append(("coupled", float(ss["Y"]),
+                                  float(ss["C"]), float(ss["w"])))
+            for stem, key, label in (
+                    ("atrComposite", "gold_energy_full", "energy composite"),
+                    ("atrCostPush", "gold_energy_cost_push",
+                     "inter-industry cost-push leg"),
+                    ("atrWedge", "gold_energy_price", "household wedge leg"),
+                    ("atrCarbon", "gold_carbon", None),
+                    ("atrCleanInc", "gold_clean_incidence", None),
+                    ("atrCapex", "gold_energy_capex", None)):
+                if key not in bat:
+                    for var in ("Y", "C", "W"):
+                        fh.write(missing(stem + var,
+                                         f"{key} absent from battery record")
+                                 + "\n")
+                    continue
+                vals = tuple(pct(bat[key], v) for v in ("Y", "C", "w"))
+                for var, val in zip(("Y", "C", "W"), vals):
+                    fh.write(macro(stem + var, texnum(val)) + "\n")
+                if label:
+                    attr_rows_out.append((label,) + vals)
+        else:
+            fh.write(missing("atrBase", "matched battery", pending=True)
+                     + "\n")
+            for stem in ("atrCoupled", "atrComposite", "atrCostPush",
+                         "atrWedge", "atrCarbon", "atrCleanInc", "atrCapex"):
                 for var in ("Y", "C", "W"):
                     fh.write(missing(stem + var, "matched battery",
                                      pending=True) + "\n")
-        else:
-            for name, y, c, w, _ in ATTRIBUTION_V12["rows"]:
-                for var, val in (("Y", y), ("C", c), ("W", w)):
-                    fh.write(macro(stems[name] + var, texnum(val)) + "\n")
 
-    if PENDING_ATTRIBUTION:
+    if attr_rows_out:
+        rows_tex = "\n".join(
+            f"{name:32s}& ${texnum(y)}$ & ${texnum(c)}$ & ${texnum(w)}$ \\\\"
+            for name, y, c, w in attr_rows_out)
+        (args.out / "table_attribution.tex").write_text(
+            "% GENERATED — see numbers.tex header. Derived from the matched\n"
+            "% battery record on the same calibration as the coupled run.\n"
+            "\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n"
+            "experiment & $Y$ & $C$ & $w$ \\\\\n\\midrule\n"
+            + rows_tex + "\n\\bottomrule\n\\end{tabular}\n")
+    else:
         (args.out / "table_attribution.tex").write_text(
             "% GENERATED — see numbers.tex header. Composition battery pending.\n"
             "\\begin{tabular}{@{}c@{}}\n"
             "\\genPENDING{matched composition battery on the current "
             "calibration}\\\\\n"
-            "\\end{tabular}\n"
-        )
-    else:
-        attr = ATTRIBUTION_V12
-        attr_rows = "\n".join(
-            f"{name:32s}& ${texnum(y)}$ & ${texnum(c)}$ & ${texnum(w)}$ \\\\"
-            for name, y, c, w, in_table in attr["rows"] if in_table
-        )
-        (args.out / "table_attribution.tex").write_text(
-            "% GENERATED — see numbers.tex header.\n"
-            f"% Evidence base: {attr['base_label']}\n"
-            "\\begin{tabular}{@{}lrrr@{}}\n\\toprule\n"
-            "experiment & $Y$ & $C$ & $w$ \\\\\n\\midrule\n"
-            + attr_rows + "\n\\bottomrule\n\\end{tabular}\n"
-        )
+            "\\end{tabular}\n")
 
     # Loud sign check vs whatever numbers.tex said before this run.
     prev = {}

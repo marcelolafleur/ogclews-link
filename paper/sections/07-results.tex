@@ -6,9 +6,10 @@ industries, $\Igood=5$ goods; electricity is industry $m_e=2$), coupled to a
 \CLEWS{}/\OSeMOSYS{} scenario pair. The application tests whether the principal forward
 mappings are accepted by the economy solve and whether their responses are consistent
 with the mechanisms of \Cref{sec:channels}; it is not a policy evaluation. The
-underlying reform is a policy composition --- a coal moratorium from 2027, a binding
-limit on offshore wind, and land-conversion carbon accounting --- solved against its
-baseline. Quoted magnitudes derive from the archived run record
+underlying reform is a policy composition --- a coal moratorium from 2028 and a
+binding limit on offshore wind --- solved against its baseline; the scenario's
+land-conversion carbon series is excluded from all reporting pending an accounting
+redesign. Quoted magnitudes derive from the archived run record
 (\Cref{app:run-record}) rather than being transcribed by hand. Rates, wages, and
 quantities are reported as percent changes from baseline, and all magnitudes are
 relative changes (\Cref{sec:calibration}).
@@ -36,16 +37,14 @@ The response is a contraction in both the transition window and the long run
 the \cplWindow{} average is $\cplYwin\%$. The adjustment is factor-price led: the wage
 carries most of it ($\cplWss\%$ at the steady state), aggregate labour is close to
 unchanged ($\cplLss\%$), and the capital stock declines with output ($\cplKss\%$).
-\Cref{fig:transition} traces the path: the contraction deepens through the 2030s and
-2040s, reaches its largest output deviation (about $-0.7\%$) near 2050, and settles
-toward the steady state.
+\Cref{fig:transition} traces the path: the contraction begins immediately, deepens
+through the 2030s and 2040s, and levels off near its steady state around 2050 (largest
+output deviation about $-1.0\%$).
 
 One qualification belongs beside the headline rather than in a footnote. Nearly all of
 this response transmits through the inter-industry cost-push leg, which maps the
 sectoral electricity-cost change into unit costs as if it were an exogenous input-price
-shift; it is a reduced-form mapping, not a factor-demand system. A structural
-alternative that routes the same cost signal through sectoral productivity need not
-preserve even the sign of the aggregate response (\Cref{sec:decomposition}). The
+shift; it is a reduced-form mapping, not a factor-demand system. The
 headline is therefore a joint statement about the scenario and the transmission
 assumption, and it should not travel without the transmission named.
 
@@ -76,9 +75,8 @@ therefore coincides with the response to the energy composite alone, up to those
 near-zero terms --- an accounting identity of the configuration, not a finding that
 channels do not interact. A matched pair of runs makes the identity directly
 checkable, and \Cref{tab:attribution} reports it together with the split inside the
-composite between the inter-industry cost-push leg, the household wedge, and the
-structural productivity routing of the same signal; the cost-push leg carries
-$\atrCostPushY\%$ of the $\atrCoupledY\%$ total.
+composite between the inter-industry cost-push leg and the household wedge; the
+cost-push leg carries $\atrCostPushY\%$ of the $\atrCoupledY\%$ total.
 
 One reading rule accompanies the table: the standalone carbon experiment in the run
 battery applies a consumption-side carbon tax inside the economy model --- a treatment
@@ -97,10 +95,11 @@ baseline). Source: the archived run record (\Cref{app:run-record}).}
 \label{sec:incidence}
 The age- and ability-structured household side reports who bears the adjustment. On
 the coupled run the consumption-equivalent incidence across lifetime-income groups is
-strongly heterogeneous and not monotone in income (\Cref{fig:incidence}): the middle
-groups gain (about $+2.9\%$ for the 50th--70th percentile group), the upper-middle
-groups bear the largest losses (about $-1.6\%$ for the 90th--99th), and the poorest
-and richest groups are close to unchanged. This is not a budget-share pattern:
+strongly heterogeneous and not monotone in income (\Cref{fig:incidence}): the
+80th--90th percentile group gains most (about $+2.1\%$), the 50th--80th range and the
+90th--99th group bear the losses (the largest, about $-1.7\%$, at the 90th--99th), and
+the poorest groups and the top one percent are slightly better off. This is not a
+budget-share pattern:
 baseline energy spending is roughly $1.4\%$ of the consumption basket in every group
 in this calibration, so the household wedge itself is nearly proportional. The
 dispersion instead runs through factor incomes and the fiscal closure --- which
@@ -108,6 +107,9 @@ ability types earn the falling wage, hold the shrinking capital stock, and recei
 recycled revenue and adjusting transfers. A representative-household core would report
 only the aggregate ($\cplCss\%$); the incidence statement is what the age--ability
 structure adds, and it is the layer a distribution-blind coupling cannot produce.
+One qualifier travels with every incidence number: the economy's energy good is
+broader than electricity (electricity is about $39\%$ of it), so the household wedge
+is a diluted proxy for the electricity-price change itself.
 
 \begin{figure}[t]
 \centering
@@ -128,6 +130,10 @@ $12.2\%$ collapses the electricity price $42.8\%$; demand is elastic enough that
 \emph{rises} $20.9\%$, yet capital \emph{falls} $22.4\%$ because the price collapse shrinks
 revenue---and the identity $\hat K_E=\hat\gamma_E\hat p_E\hat Y_E$ reproduces that response
 to within $0.03\%$. It is a factor-share and energy-price lever, not a capital-draw-in.
+On the current calibration the lever itself is not exercisable: the electricity
+industry's capital share is already high enough that raising it further pushes the
+implied labour share below the model's floor, and the guard rejects the run --- the
+identity above therefore documents the mechanism, not a runnable experiment here.
 
 \subsection{Validation}
 \label{sec:validation}
