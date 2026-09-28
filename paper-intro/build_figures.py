@@ -400,6 +400,30 @@ def main():
         "min": float(ratio.min()), "min_year": int(years[int(np.argmin(ratio))]),
         "mean_2026_2035": float(ratio[first].mean())}
     summary["portfolio_return_2026_2035_health_free"] = float(np.mean(inv["r_p"][first]))
+
+    # Who bears it, by age: household consumption change over 2026-2035, health-free run
+    # (both electricity routes + public investment) against the control. Model ages 21-100.
+    cR, cC = np.asarray(inv["c"])[first], np.asarray(ct["c"])[first]        # (10, S, J)
+    ages = 21 + np.arange(cR.shape[1])
+    bands = ((21, 35), (35, 50), (50, 65), (65, 80), (80, 101))
+    by_age = [float(100 * (cR[:, (ages >= a) & (ages < b)].sum() / cC[:, (ages >= a) & (ages < b)].sum() - 1))
+              for a, b in bands]
+    labels = [f"{a}-{b - 1}" if b < 101 else f"{a}+" for a, b in bands]
+    fig, ax = plt.subplots(figsize=(7.2, 2.9))
+    ax.bar(labels, by_age, color=[RED if v < 0 else BLUE for v in by_age], width=.6)
+    ax.axhline(0, color="#555555", lw=.8)
+    for x, v in enumerate(by_age):
+        ax.text(x, v + (.006 if v >= 0 else -.006), f"{v:+.2f}", ha="center",
+                va="bottom" if v >= 0 else "top", fontsize=9)
+    ax.set(xlabel="Age", ylabel="Change from control (%)", ylim=(-.16, .08))
+    ax.set_title("Household consumption by age, 2026-2035", loc="left", fontsize=10.5, weight="bold")
+    ax.grid(axis="y", color="#E5E5E5", lw=.7)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.tight_layout()
+    finish(fig, "consumption-by-age.pdf")
+    summary["consumption_by_age_2026_2035_health_free"] = dict(zip(labels, by_age))
+    summary["income_and_transfers_2026_2035_health_free"] = {
+        k: float(pct(inv[k], ct[k])[first].mean()) for k in ("w", "r_p", "TR")}
     (OUT / "figure-values.json").write_text(json.dumps(summary, indent=2) + "\n")
     provenance = {
         "archive": str(archive), "plot_module": str(Path(plots.__file__).resolve()),

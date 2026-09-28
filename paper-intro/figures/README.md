@@ -55,6 +55,24 @@ first-decade = 2026-2035) unless noted.
 | 100 in 20 years worth 21 at 8.2%, 46 at 4% | 20.8, 45.6 | arithmetic |
 | Electricity production -6.6% in 2030, -3.5% in 2040 | ratios 0.9337, 0.9646 vs original baseline | `returned_demand_ratio_health_free` (`+ investment` run) |
 | Combined without health: GDP -0.19% / -0.14% (2075); consumption -0.07% / -0.11% | -0.192, -0.140; -0.071, -0.112 | `electricity_routes.both_routes_plus_public_investment` |
+| Consumption by age, 2026-2035: about -0.1% working age, less at 65-79, slightly up at 80+ | 21-34 -0.106, 35-49 -0.114, 50-64 -0.087, 65-79 -0.056, 80+ +0.029 | `consumption_by_age_2026_2035_health_free` (`consumption-by-age.pdf`) |
+| Wages -0.14%, return on savings -0.05%, transfers +0.5% | -0.143, -0.052, +0.537 | `income_and_transfers_2026_2035_health_free` |
+| Income groups: small, no simple pattern | 0-25 +0.070, 25-50 +0.053, 50-70 +0.120, 70-80 -0.158, 80-90 -0.133, 90-99 +0.093, top1 -0.071 | computed from the `+ investment` run's `c` (not in figure-values) |
+| Calibration sets no minimum electricity use | `c_min` = 0 for all five goods | run params; OG-PHL `create_multisector_calibration.py:145` |
+
+### Distribution evidence (checked 27 Sep across all branches, GitHub, OG-PHL, MUIOGO-AI)
+
+The 13 Aug sessions ruled that regressivity **result** claims do not survive the evidence
+(v16 incidence non-monotone; energy budget shares about 1.4% and flat across income
+groups) and that the pattern should be reported, not explained, until investigated
+(`docs/COORDINATION.md` on main; `deliverables-plan.md` on `experiment/v18-gold-coupled`).
+The July runs agree: the income pattern is mixed with or without a minimum-use setting
+(`clean_incidence`, c_min 0.005: 0-25 +0.119, 80-90 -0.098, 90-99 +0.177). The paper
+therefore states the minimum-use mechanism as a capability only, and reports the age
+pattern with the verified wage, return and transfer changes beside it, without a causal
+claim. The lifetime-welfare-by-age chart (`plots.cev_by_age`) was tried on the health-free
+run and rejected: near-zero averages with spikes near retirement and at 79 that the
+function's own notes attribute to numerical breakdown.
 
 The sections below record the 26 September selection, kept as decision history.
 
