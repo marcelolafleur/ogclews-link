@@ -1,33 +1,45 @@
 \section{Introduction}
 \label{sec:intro}
 
-CLEWS identifies feasible combinations of technologies, infrastructure, and resource use
-under physical and policy constraints. It can show how an electricity strategy changes
-generation, investment, cost, and emissions. It does not show how those changes affect
-household budgets, industrial production, wages, saving, public debt, or different
-generations.
+Who bears the cost of a national resource plan, and when? Countries set their climate,
+land, energy and water strategies with planning models that identify the least-cost way
+to meet future needs within physical and policy limits. A plan can be technically sound
+and still have very different consequences for households, industries and public
+finances. Lower operating costs may require more investment today. Cleaner production
+can improve health. Higher electricity costs can reduce purchasing power and industrial
+activity, and change the very demand the plan was designed to meet.
 
-OG-Core represents those economic relationships. Households differ by age and lifetime
-income; industries use labour and capital; government taxes, spends, borrows, and makes
-transfers. But OG-Core does not choose power plants or operate an electricity system. An
-electricity reform must therefore be translated into the prices, investments, health
-effects, and policy instruments that households, firms, and government actually face.
+Planning models answer what to build and how to operate it. They contain no households,
+firms or government budget, so they cannot show who pays for a plan or who benefits from
+it. Economic models that do contain these usually represent energy only in aggregate,
+without the technologies, infrastructure and physical limits that planners work with.
+The economic consequences of a resource plan therefore fall between two well-developed
+modelling traditions.
 
-The OG--CLEWS link performs that translation. A solved CLEWS scenario supplies four
-changes to OG-Core: electricity cost, public grid investment, the capital intensity of
-generation, and particulate emissions. Carbon pricing and private investment incentives
-can also be applied as policy inputs. After OG-Core solves, it supplies an equilibrium
-return and changes in economic activity that can inform CLEWS's discount rate and demand
-path.
+OG--CLEWS connects the two. It links the Climate, Land, Energy and Water Systems model
+(CLEWS) \citep{howells_clews_2013}, built on the OSeMOSYS optimiser
+\citep{howells_osemosys_2011}, with OG-Core \citep{debacker_evans_ogcore}, an
+overlapping-generations model of the economy. In OG-Core, households differ by age and
+lifetime income, work, save for retirement and respond to prices and taxes; firms in
+several industries employ workers and capital; and a government collects taxes, pays
+transfers and pensions, invests in infrastructure and manages its debt. Linking the two
+models allows the consequences of a resource plan to be followed through production,
+household budgets and public finances, over time and across generations.
 
-Each relationship represents a different economic mechanism. Electricity cost affects
-household purchasing power and industrial costs. Grid investment creates public capital
-and must be financed. A more capital-intensive generation mix changes the electricity
-industry's production structure, while an investment incentive changes its cost of
-capital. Lower pollution changes survival and effective labour. Carbon payments create
-revenue only where the policy actually collects it. Keeping these effects separate makes
-the results interpretable and guards against double counting.
+The link works in both directions. The resource plan changes costs, investment and
+pollution, and these change the economy. The economy's response changes the demand for
+electricity and the return on capital, which the resource plan should take into account.
+Repeating the exchange allows the plan and the economy to become consistent with each
+other.
 
-The current system completes the forward pass from CLEWS to OG-Core and emits the two
-return paths. A controlled demand change has also passed through a new CLEWS solve. The
-system does not yet repeat both models to a mutually consistent solution.
+Other approaches connect resource models with the economy in different ways.
+Energy--economy models such as MARKAL--MACRO and MESSAGE--MACRO link energy costs with
+growth and demand \citep{manne_wene_1992,messner_schrattenholzer_2000}, and computable
+general equilibrium models add detail on industries and households
+\citep{bohringer_rutherford_2008,rausch_2011}. More recent frameworks connect the economy
+with environmental accounts and ecosystem services \citep{banerjee_ieem_2020}, or trace
+employment through suppliers and household spending \citep{bararzadeh_clews_io_2026}.
+Overlapping-generations models have been used to study the generational effects of
+climate policy \citep{kotlikoff_2021}. OG--CLEWS brings that life-cycle and fiscal
+perspective to a national resource plan with explicit technologies, infrastructure and
+physical limits. We illustrate the framework with a Philippine energy-policy scenario.

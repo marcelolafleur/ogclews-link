@@ -1,0 +1,22 @@
+\section{About the Examples}
+\label{sec:examples}
+
+The examples use the Philippine CLEWS case, comparing a national energy-policy scenario
+with a baseline, linked to a calibration of OG-Core for the Philippines with eight
+industries. The model solutions were saved in July 2026. Each effect is measured against a
+control: the same model solved as a scenario but without any channel adjustment. Solving a
+scenario introduces small differences from the original baseline, mainly in consumption in
+the first few years; measuring against the control keeps them out of the channel effects.
+
+The magnitudes depend on the calibration of both models; the Philippine calibration, for
+instance, sets no minimum level of electricity use for households. Three limits apply to
+these examples. The economy's demand and cost of capital were computed but not yet passed back
+to CLEWS for a new solution, so the examples show one exchange rather than the full
+two-way loop. The investment incentive was not part of the saved runs. And the conversion
+between the monetary units of the two models is still being calibrated; this affects the
+size of the carbon-price and investment examples, but not the electricity-cost or health
+examples, which use relative changes.
+
+\pending{note for the author, not for the reader: the July health runs changed the
+population in a way that the mortality signal alone does not explain (a defect fixed in the
+model code on 11 August 2026), so no health result from them is used here.}

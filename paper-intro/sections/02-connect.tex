@@ -1,0 +1,72 @@
+\section{How the Two Models Connect}
+\label{sec:connect}
+
+CLEWS and OG-Core are each detailed where the other is not. CLEWS chooses the
+technologies, infrastructure and resource use that meet a given demand at the lowest cost,
+and reports the resulting costs, investment and emissions. The demand it must meet is set
+in advance. OG-Core determines prices, wages, interest rates, saving, investment, taxes and
+public debt as households, firms and government respond to one another over time, but it
+has no representation of energy technologies. What passes between the two models therefore
+differs by direction. From the resource plan come costs, investment requirements and
+emissions. From the economy come demand and the return on capital
+(Figure~\ref{fig:connect}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  model/.style={draw, rounded corners=2pt, thick, minimum width=4.3cm, minimum height=2.7cm,
+                align=center, font=\small},
+  flow/.style={-{Stealth[length=2.4mm]}, thick},
+  lab/.style={font=\footnotesize, align=center}]
+  \node[model, draw=clews, fill=clews!6] (C) at (0,0)
+    {\textbf{CLEWS}\\[3pt] what to build and\\ how to operate it\\[3pt]
+     {\footnotesize technologies, infrastructure,}\\ {\footnotesize costs, emissions}};
+  \node[model, draw=ogc, fill=ogc!6] (O) at (10.4,0)
+    {\textbf{OG-Core}\\[3pt] how the economy\\ responds\\[3pt]
+     {\footnotesize households by age and income,}\\ {\footnotesize industries, government}};
+  \draw[flow, clews] ([yshift=6mm]C.east) --
+    node[lab, above] {electricity costs $\cdot$ public infrastructure\\
+                      generation technology $\cdot$ air pollution} ([yshift=6mm]O.west);
+  \draw[flow, ogc] ([yshift=-6mm]O.west) --
+    node[lab, below] {demand for electricity\\ cost of capital} ([yshift=-6mm]C.east);
+  \node[draw=policy, rounded corners=2pt, fill=policy!5, font=\footnotesize, align=center]
+    (P) at (5.2,2.7) {\textbf{Policy}\quad carbon price $\cdot$ investment incentives};
+  \draw[flow, policy] (P.west) -| (C.north);
+  \draw[flow, policy] (P.east) -| (O.north);
+\end{tikzpicture}
+\caption{How OG--CLEWS connects the two models. The resource plan passes costs, investment
+and pollution to the economy; the economy returns its demand and cost of capital; policy
+instruments can act on both.}
+\label{fig:connect}
+\end{figure}
+
+Eight channels carry these exchanges (Table~\ref{tab:channels}). Four carry outcomes of
+the resource plan into the economy, two introduce policy instruments, and two return
+information from the economy to the resource plan. Each channel answers a distinct
+question. A scenario uses the channels relevant to the policy being assessed, so a channel
+can be part of the framework without being active in every scenario.
+
+\begin{table}[H]
+\centering\small
+\caption{The eight channels of OG--CLEWS and the question each answers.}
+\label{tab:channels}
+\begin{tabularx}{\linewidth}{@{}>{\bfseries\raggedright\arraybackslash}p{0.27\linewidth} L@{}}
+\toprule
+Channel & Question \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Resource outcomes entering the economy}} \\
+Electricity cost & How do changes in the cost of electricity affect households and industries? \\
+Public infrastructure & How does the infrastructure the plan requires affect production and public finances? \\
+Generation capital intensity & How does a different technology mix change the way electricity is produced? \\
+Air pollution and health & How do changes in air pollution affect people and the economy? \\
+\addlinespace
+\multicolumn{2}{@{}l}{\emph{Policy instruments}} \\
+Carbon price & How does a carbon price change technology choices, payments and public revenue? \\
+Investment incentives & How does policy change the incentive to invest in generation? \\
+\addlinespace
+\multicolumn{2}{@{}l}{\emph{Economic feedback to the resource plan}} \\
+Planning discount rate & How should the economy's cost of capital inform the plan's investment choices? \\
+Demand & How does the economy's response change what the resource system must supply? \\
+\bottomrule
+\end{tabularx}
+\end{table}
