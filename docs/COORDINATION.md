@@ -129,6 +129,32 @@ scripted download — fetch it in a browser).
 
 ## Log
 
+- **2026-09-28 (authoring session, at Marcelo's direction) — BRANCHES MERGED; PAPERS
+  REBASED TO THE BLESSED RECORD; the two routed manuscript errors fixed.** On
+  `writing/results-and-closing` @ 35405aa (merge of `origin/paper/linkages-intro`
+  at 664592c — session A's short-paper rewrite adopted wholesale; my superseded
+  paper-intro edits dropped). (1) The generator now reads
+  `results/gold-battery.json` + the coupled record directly: pending flags resolved
+  (coupled −1.001 / composite −1.001 / cost-push −0.950 / wedge −0.044; health 311
+  deaths, 2,395 FTE on 48.91M; wedge +8.3%), TFP row retired per Marcelo's
+  battery ruling; the sign tripwire fired once (r window avg, table-only). (2) At
+  Marcelo's direction I edited session A's files — 01/04/05/06 + one mechanisms.tex
+  bullet: the "about 95 lives" figures (now −8.6% → ~311), the stale positive-near-term
+  intro narrative, and the regressivity result-claims (now reported as
+  group-level incidence; capability-claims untouched). (3) §7: moratorium 2028,
+  conversion-carbon exclusion stated, GOLD transition shape and the NEW incidence
+  pattern (80–90th gains ~+2.1%, 90–99th loses ~−1.7%; still flat budget shares),
+  diluted-wedge qualifier added, capital-intensity marked not exercisable
+  (guard-proven). (4) Short paper: corrected-run health results fill the \pending
+  slots; capital block rescoped; stale abstract timing claim removed. OPEN ITEM,
+  deliberately not attempted: the short paper's remaining channel numbers + all 20
+  frozen figures still reflect the July archive — re-freezing `build_figures.py`
+  on the GOLD layout is session A's artifact (missing capital_intensity and
+  across_steps equivalents need design choices, not path edits). Deck impact
+  figures likewise await a conversion-carbon-safe chart variant. Both papers
+  compile clean (26pp/10pp, 0 undefined); changed pages read off the rendered
+  PDFs. Nothing pushed (Marcelo: hold).
+
 - **2026-08-14 (coupled-estimation session) — TWO RUNNER DEFECTS FIXED; THE GOLD COUPLED
   HEADLINE IS IN.** Both fixes on `experiment/v18-gold-coupled`, and BOTH defects are
   still live on main — sessions launching OG solves from main should cherry-pick or wait
