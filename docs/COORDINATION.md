@@ -129,6 +129,16 @@ scripted download — fetch it in a browser).
 
 ## Log
 
+- **2026-09-28 (authoring session) — PUSHED, on Marcelo's go:** `main` (through the
+  entry below), the new `writing/results-and-closing` branch (the merged, rebased
+  papers), and one commit on the coupled session's `experiment/v18-gold-coupled`
+  (86d4c58): `results/gold-battery.json` was untracked — the evidence file the papers'
+  composition numbers cite existed only loose on one machine — so it is now committed
+  and pushed per Marcelo's portability instruction. Coupled session: that is the only
+  foreign commit on your branch; your logs and working files are untouched. Remaining
+  machine-local by design: the run archives themselves (`ogclews_runs*`); the papers
+  stay portable because every derived number and figure is committed on the writing
+  branch — the archives are needed only to REgenerate after the next evidence change.
 - **2026-09-28 (authoring session, at Marcelo's direction) — BRANCHES MERGED; PAPERS
   REBASED TO THE BLESSED RECORD; the two routed manuscript errors fixed.** On
   `writing/results-and-closing` @ 35405aa (merge of `origin/paper/linkages-intro`
