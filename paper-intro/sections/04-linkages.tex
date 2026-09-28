@@ -1,83 +1,94 @@
-\section{From CLEWS to OG-Core}
+\clearpage
+\section{Resource Outcomes in the Economy}
 \label{sec:linkages}
 
 \subsection{Electricity cost}
 
-The preferred measure of electricity cost would be the cost of supplying one additional
-unit. The current CLEWS runs do not produce a usable series because the relevant supply
-constraint binds only in scattered years. The link therefore uses a curated
-electricity-cost index where one is available and otherwise reconstructs levelized cost
-from generation, capital, fuel, and operating costs. It passes the reform-to-baseline
-ratio, so the calculation does not depend on converting monetary levels between the
-models.
+Changes in electricity costs affect household bills and firms' production costs.
+Household exposure depends on electricity's share of spending and the scope to reduce
+essential consumption. Firms are exposed directly and through purchased inputs.
+OG-Core follows the consequences for production, wages, consumption and saving.
 
-This is an average-cost proxy, not an observed tariff or marginal price. That distinction
-limits its interpretation but still provides a scenario-derived measure of how the cost
-of the electricity system changes.
+In the household experiment, the applied price adjustment peaks at about 16\%
+around 2030. Aggregate consumption is about 0.06\% lower on average over the first
+ten years, while the GDP response is small (Figure~\ref{fig:electricity}). The
+input is a modelled supply cost, not an observed retail tariff. The combined
+experiment also carries costs into industry and offsets the notional government
+receipts created by the household price adjustment.
 
-The link applies the ratio to two separate uses of electricity. For households, it changes
-the price of final electricity consumption. Lower-income households can be more exposed
-because electricity includes a minimum-consumption component in OG-Core. The price change
-is represented through a consumption-price adjustment, but the resulting notional revenue
-is returned to households as a lump-sum transfer: a higher system cost is not government
-tax revenue.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{channel-macro-energy_price.pdf}
+\caption{Electricity cost: the standalone household-price experiment. The affected
+consumption good combines energy and water. This test does not include the industry
+route or the revenue offset used in the combined case.}
+\label{fig:electricity}
+\end{figure}
 
-For firms, the link uses the country's input--output accounts to identify each industry's direct
-and indirect exposure to electricity costs. Electricity purchased by the electricity
-industry itself is removed before the cost is propagated, preventing overlap between
-self-use and sales to other industries. The result is an industry-specific cost increase
-rather than a uniform shock to the economy.
+\subsection{Public infrastructure investment}
 
-The current firm-side representation is an approximation. OG-Core does not yet include
-electricity as an explicit intermediate input, so firms cannot substitute away from it as
-its price changes. Adding an explicit energy input would allow electricity demand, output,
-and prices to adjust together inside the economic model.
+Additional expenditure on assets designated as public enters government investment.
+A publicly financed grid expansion adds productive infrastructure and creates a claim
+on the public budget. The assessment weighs that benefit against taxes, debt or other
+financing, including their effects on households and private investment.
 
-\subsection{Public grid investment}
+The example mainly shifts expenditure between years, rather than adding a large
+investment programme. Annual public investment varies between about 1.34\% below
+and 0.37\% above the control; the public-capital stock peaks only 0.12\% above it.
+The aggregate response is correspondingly small (Figure~\ref{fig:public-investment}).
+Ownership and financing are specified, not inferred from the asset type.
 
-CLEWS reports additional investment in grids and transmission separately from investment
-in generation. The link treats this as public investment. It raises the flow of public
-capital in OG-Core, where infrastructure contributes to production and its financing
-affects the government budget.
-
-The financing assumption matters. Debt-financed investment competes for saving and can
-displace private capital; tax financing and external finance create different effects.
-The current mapping establishes this mechanism, but the grid-investment difference in the
-test application is too small to validate a substantial economic response. The evidence
-therefore supports the transformation and solve, not a calibrated investment magnitude.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{channel-macro-investment.pdf}
+\caption{Public investment: the temporary change in spending produces little
+aggregate movement on the common scale. The largest absolute GDP change is about
+0.0018\%; this is a small scenario adjustment, not a general result about public investment.}
+\label{fig:public-investment}
+\end{figure}
 
 \subsection{Generation capital intensity}
 
-CLEWS also shows whether the reform changes the capital-cost share of the generation
-fleet. The link uses that ratio to change the production structure of the electricity
-industry in OG-Core: capital receives a different share relative to labour and other
-costs.
+A different generation mix changes the role of capital relative to labour in electricity
+production. The link uses the fleet's capital-cost share as a guide to that change in
+OG-Core, rather than imposing an investment amount.
 
-This does not mechanically increase the amount of capital employed. A higher capital
-share changes production cost, output, price, and revenue; the resulting capital stock
-depends on all of them. Controlled runs confirm that the capital response can differ from
-the change in the capital share. This relationship should therefore be read as a change
-in how electricity is produced, not as an investment programme.
+In the standalone example, the electricity industry's capital share rises from
+78.2\% to 80.2\%. In the long run, electricity output rises by 4.4\%, while the
+industry's capital use falls by 4.8\% and labour input by 18.7\%. Prices, output and
+financing costs adjust together: changing production structure is not simply an
+increase in investment. The aggregate chart (Figure~\ref{fig:capital-intensity})
+shows little GDP movement despite that sectoral reallocation; consumption responds
+more strongly during the transition.
 
-Private investment support is represented separately through the cost of capital. The
-two adjustments can coexist only when they correspond to different source information:
-one describing the technology mix, the other describing a policy incentive.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{channel-macro-capital_intensity.pdf}
+\caption{Capital intensity: aggregate responses to the changed electricity
+production structure. The capital and labour lines cover the economy, not just
+electricity; labour is an input measure, not a count of jobs.}
+\label{fig:capital-intensity}
+\end{figure}
 
-\subsection{Air pollution, survival, and labour}
+\subsection{Air pollution and health}
 
-The health relationship uses the change in CLEWS particulate emissions to adjust two
-parts of OG-Core. The mortality effect changes age-specific survival and causes the model
-to recompute the population. The morbidity effect changes effective labour among people
-of working age. Cleaner air can therefore raise near-term productivity while also
-changing the future balance between workers and retirees.
+Cleaner air can reduce premature deaths and illness. The link uses changes in
+pollution, exposure assumptions and country health data to adjust survival rates
+and working capacity by age. OG-Core then follows the resulting changes in population,
+labour supply, consumption and saving.
 
-The age profiles come from burden-of-disease data. A calibrated dose-response translates
-the power-sector emissions change into the share of the national health burden affected.
-This avoids treating a percentage reduction in power-sector emissions as the same
-percentage reduction in all pollution-related illness and death.
+In the standalone example, GDP and consumption are about 0.20\% and 0.24\% higher
+on average over the first ten years. The response changes as the population adjusts:
+labour eventually falls below the control even while output remains higher over the
+period shown (Figure~\ref{fig:health-outcomes}). These are the survival and illness
+effects together. Better health and longer life also have value beyond their
+contribution to measured production and consumption.
 
-The distinction between sourced evidence and model calibration is important. The burden
-and age profiles are external data. The emissions-to-burden translation and the effect of
-morbidity on productivity remain calibrated assumptions. The relationship is implemented
-and produces the intended demographic and labour responses, but its magnitude remains
-uncertain.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{channel-macro-health.pdf}
+\caption{Health: economic responses to the survival and working-capacity
+adjustments in the standalone experiment. These are not estimates of the monetary
+value of avoided illness or longer life.}
+\label{fig:health-outcomes}
+\end{figure}

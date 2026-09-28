@@ -1,13 +1,7 @@
-The OG--CLEWS link currently connects energy results from the Climate, Land, Energy and
-Water Systems model to OG-Core, an economy with households, industries, government, and
-overlapping generations. CLEWS supplies changes in
-electricity cost, grid investment, generation capital intensity, and particulate
-emissions. OG-Core translates them into effects on living costs, production, public
-capital, health, labour, population, and public finance. The interface can prepare a
-carbon-price input for each model and defines a private-generation investment incentive
-in OG-Core. The link then converts OG-Core activity and return paths into inputs for a
-subsequent CLEWS solve. It preserves the economic meaning of each relationship and guards
-against entering the same cost twice. The forward
-CLEWS-to-OG-Core pass and a controlled CLEWS re-solve are implemented and tested. The
-repeated two-way solution, the monetary-unit bridge, and parts of the policy calibration
-remain incomplete.
+OG--CLEWS links the Climate, Land, Energy and Water Systems model with OG-Core to assess
+the economic consequences of resource choices. Its eight channels connect costs,
+investment, health and policy to household and industry responses, and feed changes in
+demand and the cost of capital back into resource planning. OG-Core distinguishes households by age
+and lifetime income. The combined assessment follows how costs and benefits are
+distributed across the economy and across generations, and how those responses change
+the resource plan.

@@ -1,60 +1,124 @@
-\section{Policy Inputs and the Return to CLEWS}
+\section{Policy and Economic Feedback}
 \label{sec:illustration}
 
-\subsection{Carbon price}
+\subsection{Carbon pricing}
 
-An exogenous carbon-price path can enter CLEWS as an emissions penalty. It can also enter
-OG-Core as a payment on household energy use when that expenditure has not already been
-priced through the electricity-cost ratio. Revenue can then be returned through household
-transfers or used elsewhere in the public budget.
+A carbon price changes the relative cost of technologies in CLEWS. Where the policy
+raises revenue, its use also matters: household transfers have different effects
+from public spending or debt reduction. The link distinguishes production costs
+from payments to government, so a charge is counted once and matched to its receipts.
 
-The same carbon cost cannot enter twice. If the carbon penalty has already changed the
-CLEWS generation plan and is embodied in the electricity-cost ratio, OG-Core does not add
-it again to the same electricity expenditure. Industrial carbon is represented through
-CLEWS, because firms do not yet purchase an explicit energy input in OG-Core.
+Figure~\ref{fig:carbon} shows a household-energy tax based on US\$50 per tonne of
+CO$_2$, with revenue returned through transfers. Consumption falls
+initially, then recovers, while output remains below the control. This is the response
+to the tax and transfer policy together, not an estimate of recycling alone or of
+an economy-wide carbon tax.
 
-The carbon-price mapping has been tested on the economic side, and CLEWS can receive the
-penalty path. The reported one-pass results do not include a CLEWS re-solve under that
-policy path, so the carbon price has not yet changed the reported technology mix. Its
-monetary magnitude also depends on the unfinished unit conversion.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{channel-macro-carbon.pdf}
+\caption{Carbon pricing: the economy's response to the standalone household-energy
+tax and transfer policy. This policy experiment is separate from the combined case
+below; it does not identify the effect of transfers without a matched tax-only comparison.}
+\label{fig:carbon}
+\end{figure}
 
-\subsection{Private investment incentive}
+\subsection{Private investment incentives}
 
-The link can represent support for private generation investment through an investment
-tax credit or related change in business taxation. This lowers the electricity industry's
-cost of capital and shifts its demand for private capital. It is economically distinct
-from the generation capital-intensity relationship, which changes production shares but
-does not subsidise investment.
+A tax credit, accelerated depreciation or a business-tax change alters the cost of
+investing in generation. Firms respond through investment and production, while
+government bears the fiscal cost. A credit shifts part of the investor's cost to
+government without changing the cost of the physical asset
+(Table~\ref{tab:private-incentive}).
 
-The mapping is defined but has not been exercised in the current validation runs. Its use will
-also require a calibrated monetary bridge and a policy specification that distinguishes
-the incentive from the underlying generation investment.
+This is a policy incentive, not a change in technology. It can accompany the
+capital-intensity channel when the technology change and the support to investors
+are specified separately.
 
-\subsection{Equilibrium return}
+\begin{table}[H]
+\centering\small
+\caption{Private incentives: a fully usable 20\% investment tax credit.
+Illustrative monetary units, not a model result.}
+\label{tab:private-incentive}
+\begin{tabularx}{\linewidth}{@{}L rr@{}}
+\toprule
+For an eligible investment costing 100 & No credit & With credit \\
+\midrule
+Cost of the physical asset & 100 & 100 \\
+Government support through the credit & 0 & 20 \\
+Investor's cost after the credit & 100 & 80 \\
+\bottomrule
+\end{tabularx}
 
-After OG-Core solves, the link writes its equilibrium portfolio return as a candidate
-CLEWS discount rate. This can align resource planning with the economy's opportunity cost
-of capital: a lower rate gives more weight to the future operating savings of
-capital-intensive, long-lived assets.
+\smallskip
+\raggedright The credit changes who pays; it does not make the physical asset cost
+less. How much additional investment follows is determined by the economic model.
+\end{table}
 
-The two rates are not automatically equivalent. A planning rate may reflect social
-objectives, while an equilibrium return reflects market conditions. Risk, tax treatment,
-maturity, and real-versus-nominal conventions also differ. The link therefore exposes a
-choice that analysts must harmonise; it does not determine the correct social discount
-rate. The return path is emitted but has not yet been passed through a repeated solution.
+\subsection{The planning discount rate}
 
-\subsection{Economic activity and electricity demand}
+The discount rate changes the balance between paying now and paying later.
+A lower rate gives greater weight to future operating savings and can favour
+long-lived assets with higher initial costs. Table~\ref{tab:discount} shows the
+arithmetic behind that choice.
 
-OG-Core also writes changes in industry output or household consumption to a revised
-CLEWS demand path. The relevant measure depends on the service: industrial electricity
-should follow the industries that use it, while household demand should follow household
-consumption rather than aggregate GDP.
+In the combined example, the link records an 8.16\% rate, obtained by averaging
+the model's household portfolio return over the first ten years. That return can
+inform CLEWS, but is not automatically the appropriate public-planning rate.
+Risk, taxes and the commercial or social perspective must be reconciled. No
+resource-system response to this rate was solved in the example.
 
-This return path supplies the demand response that is absent within the current CLEWS
-optimisation. Higher electricity costs may reduce use and therefore change the capacity
-required. Investment and health effects may raise activity and demand in other periods.
+\begin{table}[H]
+\centering\small
+\caption{Discounting: the present value of the same cost at 4\% and at the rate
+recorded by the link. The 4\% comparison is illustrative, not a baseline estimate;
+neither column is a solved CLEWS investment response.}
+\label{tab:discount}
+\begin{tabularx}{\linewidth}{@{}L rr@{}}
+\toprule
+Cost and payment date & 4\% comparison & 8.16\% recorded rate \\
+\midrule
+100 paid now & 100.0 & 100.0 \\
+100 paid in 20 years & 45.6 & 20.8 \\
+\bottomrule
+\end{tabularx}
 
-The mechanism for copying a revised demand path into CLEWS, solving the model, and reading
-the result back has been tested with a controlled demand change. The activity path emitted
-by OG-Core has not yet travelled through the complete outer loop. Convergence and the
-propagation of uncertainty across repeated solutions therefore remain untested.
+\smallskip
+\raggedright At the lower rate, avoiding a future operating cost is worth more today.
+The example uses a single future payment; a resource plan discounts its full cost path.
+\end{table}
+
+\subsection{Demand}
+
+Households and industries respond to resource choices in ways that change the
+plan itself. Higher electricity costs can reduce consumption or production;
+investment and health improvements can increase activity. The return link uses
+those responses to revise the requirements CLEWS must meet.
+
+In the example, the link uses the change in electricity-sector output as a proxy
+for the change in demand. Table~\ref{tab:demand-return} shows the resulting
+instruction: multiply each year's baseline requirement by the model's ratio.
+For 2030, the ratio is about 0.9355, implying a 6.45\% reduction. The resource
+model would then reassess supply and investment. These signals were calculated,
+but the example did not complete that return solve.
+
+\begin{table}[H]
+\centering\small
+\caption{Demand feedback: ratios reconstructed from the saved combined run and
+their application to an illustrative baseline requirement of 100 in each year.
+These are return inputs, not observed CLEWS responses.}
+\label{tab:demand-return}
+\begin{tabularx}{\linewidth}{@{}L rr@{}}
+\toprule
+Year & Demand multiplier & Revised requirement \\
+\midrule
+2026 & 0.9979 & 99.79 \\
+2030 & 0.9355 & 93.55 \\
+2040 & 0.9723 & 97.23 \\
+\bottomrule
+\end{tabularx}
+
+\smallskip
+\raggedright The example uses a supplier-output proxy, not separate household and
+industrial demand estimates. A more detailed mapping follows the relevant users.
+\end{table}

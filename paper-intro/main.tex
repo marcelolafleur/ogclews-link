@@ -6,21 +6,27 @@
 % Build: latexmk -pdf main.tex
 %
 % FRAMING:
-%  - Explain the economic logic of the implemented OG-CLEWS link without equations.
+%  - Explain the intended economic system without equations; distinguish evaluated evidence.
 %  - Formal definitions and technical validation remain in the working technical draft.
 %  - This is neither a general theory of model linking nor a country application.
 %  - Audience: senior policymakers who understand policy trade-offs but are not modelers.
 % ==========================================================================
 \documentclass[11pt]{article}
 \input{../paper/preamble}
+\usepackage{placeins}
+\setcounter{secnumdepth}{0}
+\renewcommand{\abstractname}{Overview}
 
 \title{\bfseries The OG--CLEWS Link:\\[2pt]
-\large Resource-System Decisions, Economic Consequences, and Feedback}
+\large Resource Choices and Economic Consequences}
 
-\author{Marcelo LaFleur \\ \small co-authors TBD}
+\author{Marcelo LaFleur}
 \date{\today}
 
 \begin{document}
+\raggedbottom
+\clubpenalty=10000
+\widowpenalty=10000
 
 \maketitle
 
@@ -34,6 +40,7 @@
 \input{sections/04-linkages}
 \input{sections/05-illustration}
 \input{sections/06-policy}
+\FloatBarrier
 \input{sections/07-conclusion}
 
 \bibliographystyle{plainnat}
